@@ -1,0 +1,689 @@
+---
+title: "Biplots synthetic data"
+author: "Stijn"
+date: "April 12, 2016"
+output: pdf_document
+---
+
+```{r settings, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE, message=FALSE)
+library(ggplot2);library(phyloseq);library(vegan); library(SpiecEasi); library(DESeq2); library(robCompositions);library(MASS)
+```
+
+The aim of this notebook is to use synthetic and real data to make biplots to investigate the effect of the differences in library sizes on the outcome.
+
+#Correspondence analysis: theory
+
+Different versions of biplots of correspondence analyssis exist, see **Understanding biplots** by Gower et al., chapter 7.
+
+Say we have a count matrix **X** with $n$ rows for the samples and $p$ columns for the taxa with elements $x_{ij}$. Then **R** is the diagonal matrix with the row sums $x_{i.}$ and **C** the diagonal matrix with the column sums $x_.j$. Under independence of rows and columns the expected count matrix is 
+
+$$**E** = **R11'C/x_{..}**$$
+
+with **1** a row vector of ones and $x_{..}$ the total table count.
+
+##Approximation to Pearson's chi-squared
+
+For our biplots we can look at the weighted deviations from the independence model
+
+$$**R^{-1/2}(X-E)C^{-1/2}**$$
+
+. The elements of these expressions are
+
+$$\frac{1}{\sqrt{n}} \Big(\frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}/n}}\Big)
+
+, or n^{-1/2} the square roots of the contributions to Pearson's Chi-squared. For the biplot we calculate the SVD 
+
+$$**R^{-1/2}(X-E)C^{-1/2} = U\SigmaV'**$$
+
+as 
+
+$$**\hat{X} = argmin ||R^{-1/2}(X-E)C^{-1/2} - \hat{X}||^2**$$
+
+and plot the first 2 columns of **U\Sigma^{1/2}** and **V\Sigma^{1/2}**. This plot allows identification of elements of X that deviate most from the independence assumption.
+
+##Approximation to contingency ratio
+
+An alternative is to weigh the departures from indepedence more heavily by the margins and find $**\hat{X}**$ as the minimization of 
+
+$$**\hat{X} = argmin ||R^{1/2}\big(R^{-1}(X-E)C^{-1} - \hat{X} \big)C^{-1/2}||^2**$$
+
+This way $**\hat{X}$ approximates $**R^{-1}(X-E)C^{-1}**$
+
+#Library size
+
+We simulate data from the same multinomial distribution but with different library sizes and see how this affects the biplot
+
+##Hellinger distance
+
+```{r Libsizes, include=FALSE}
+simpleTrimGen <- function(obj, minReads = 1L, minPrev = .05, minSamplesRel = .25)
+{
+  # `prevalence` is the fraction of samples in which
+  # an OTU is observed at least `minReads` times.
+  if (class(obj) == "phyloseq")
+  {
+    taxRows <- taxa_are_rows(obj)
+    if (!taxRows)
+    {
+      obj <- t(obj)
+    } else {}
+    otuTab <- as(otu_table(obj), "matrix")
+  } else
+  {
+    otuTab <- obj
+  }# END - ifelse: obj is *phyloseq* or just *matrix*
+    ## sort OTUs first by prevalence, and then by total reads per OTU
+  prevalence <- rowMeans(otuTab >= minReads)
+  totReads <- rowSums(otuTab)
+  ## Will only keep OTUs that appear in more than 5% of samples
+  ## and have total reads greater than 25% the number of samples.
+  indOTUs2Keep <- (prevalence >= minPrev) &
+    (totReads >= (minSamplesRel * ncol(otuTab)))
+
+  if (class(obj) == "phyloseq")
+  {
+    obj=prune_taxa(obj,taxa=indOTUs2Keep)
+    return(obj)
+  } else
+  {
+    return(otuTab[indOTUs2Keep, ])
+  }
+}# END - function: simpleTrim general
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+Nsamples = 200
+Ntaxa =length(rhos)
+libSizes = c(rep(1e5, Nsamples))
+dataMat = rmultinom(Nsamples, libSizes, rhos)
+otuTab = otu_table(dataMat, taxa_are_rows=TRUE)
+samDat = sample_data(data.frame(libSize = colSums(dataMat)))
+physeq = simpleTrimGen(phyloseq(otuTab, samDat))
+helDist = vegdist(decostand(t(otu_table(physeq)@.Data), "hell"), "euclidean")
+helOrd=ordinate(physeq, distance=helDist, method="PCoA")
+plot_ordination(physeq, helOrd, type="samples", title="Hellinger distance with same Libsizes")
+```
+
+The library sizes are fixed at 1e4 and 1e5
+
+```{r diff libSizes}
+libSizes2 = c(rep(1e4, Nsamples/2), rep(1e5,Nsamples/2))
+dataMat2 = sapply(libSizes2,function(x){rmultinom(1, x, rhos)})
+otuTab2 = otu_table(dataMat2, taxa_are_rows=TRUE)
+taxa_names(otuTab2) = names(rhos)
+samDat2 = sample_data(data.frame(libSize = colSums(dataMat2), foo="foo"))
+physeq2 = simpleTrimGen(phyloseq(otuTab2, samDat2))
+helDist2 = vegdist(decostand(t(otu_table(physeq2)@.Data), "hell"), "euclidean")
+helOrd2=ordinate(physeq2, distance=helDist2, method="PCoA")
+plot_ordination(physeq2, helOrd2, type="biplot", title="Hellinger distance with differing Libsizes", color="libSize")
+#Look at the loadings, so do the svd by hand
+mat = t(otu_table(physeq2)@.Data) #Taxa ara columns
+R = diag(rowSums(mat)) #Libsizes
+C = diag(colSums(mat))
+X = sqrt(solve(R) %*% mat)
+E = sqrt(t(outer(colSums(mat), rowSums(mat))/(sum(mat)))/rowSums(mat))
+SVDhel = svd(X-E)
+par(mfrow=c(1,1))
+#plot(SVDhel$u[,1], SVDhel$u[,2], col=as.factor(diag(R)))
+#plot(SVDhel$u[,1]*SVDhel$d[1], SVDhel$u[,2]*SVDhel$d[2], col=as.factor(diag(R)))
+#plot rel abundance vs loadings
+plot(SVDhel$v[,1], log(rhos)[taxa_names(physeq2)], xlab="Loading first dimension", ylab="log abundances")
+#The very abundant species are on the negative side , the side of the small library iszes. They are the most variable
+plot(sqrt(SVDhel$v[,1]^2+SVDhel$v[,2]^2), log(rhos)[taxa_names(physeq2)], xlab="Distance from origin", ylab="log abundances")
+#Abundant species tend to contibute more
+```
+
+It is clear that differences in library sizes strongly affect the outcomes
+
+```{r diff libSizes realistic}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+libSizes3 =sample(sample_sums(AGphylo),Nsamples)
+dataMat3 = sapply(libSizes3,function(x){rmultinom(1, x, rhos)})
+otuTab3 = otu_table(dataMat3, taxa_are_rows=TRUE)
+taxa_names(otuTab3) = names(rhos)
+samDat3 = sample_data(data.frame(libSize = colSums(dataMat3), foo="foo"))
+physeq3 = simpleTrimGen(phyloseq(otuTab3, samDat3))
+helDist3 = vegdist(decostand(t(otu_table(physeq3)@.Data), "hell"), "euclidean")
+helOrd3=ordinate(physeq3, distance=helDist3, method="PCoA")
+plot_ordination(physeq3, helOrd3, type="biplot", title="Hellinger distance with differing, realistic Libsizes", color="libSize")
+```
+
+The Hellinger distance clearly isn't suited to deal with differences in library sizes, the smaller samples are pulled apart because their ratios are more variable. Thus far data were generated under the multinomial distribution. Now also use the Negative binomial (NB) distribution
+
+```{r NB}
+libSizes4 =c(rep(1e4, Nsamples/2), rep(1e5, Nsamples/2))
+dataMat4 = sapply(libSizes4,function(x){rnbinom(n=length(rhos), size=1/thetas, mu= rhos*x)})
+otuTab4 = otu_table(dataMat4, taxa_are_rows=TRUE)
+taxa_names(otuTab4) = names(rhos)
+samDat4 = sample_data(data.frame(libSize = colSums(dataMat4), foo="foo"))
+physeq4 = simpleTrimGen(phyloseq(otuTab4, samDat4))
+helDist4 = vegdist(decostand(t(otu_table(physeq4)@.Data), "hell"), "euclidean")
+helOrd4=ordinate(physeq4, distance=helDist4, method="PCoA")
+plot_ordination(physeq4, helOrd4, type="biplot", title="Hellinger distance with differing, realistic Libsizes", color="libSize", axes=c(1,2))
+```
+
+Within the library size groups, the library sizes still seem to play a role. In this case the data are not really compositional anymore
+
+We now generate correlated NB-data
+
+```{r corrNB}
+rmvnegbin = function (n, mu, Sigma, ks, ...) 
+{
+    Cor <- cov2cor(Sigma)
+    SDs <- sqrt(diag(Sigma))
+    if (missing(mu)) 
+        stop("mu is required")
+    if (dim(mu)[2] != dim(Sigma)[2]) 
+        stop("Sigma and mu dimensions don't match")
+    if (missing(ks)) {
+        ks <- unlist(lapply(1:length(SDs), function(i) .negbin_getK(mu[i], 
+            SDs[i])))
+    }
+    d <- dim(mu)[2]
+    normd <- rmvnorm(n, rep(0, d), Sigma = Cor) #The normal-to-anything framework
+    unif <- pnorm(normd)
+    data <- qnbinom(unif, mu = mu, size = ks, ...)
+    data <- .fixInf(data)
+    return(data)
+}
+runAllChunks <- function(rmd, envir = globalenv())
+{
+  tempR <- tempfile(tmpdir = ".", fileext = ".R")
+  on.exit(unlink(tempR))
+  knitr::purl(rmd, output = tempR)
+  sys.source(tempR, envir = envir)
+}# END - function
+.fixInf <- function(data) {
+    # hacky way of replacing infinite values with the col max + 1
+    if (any(is.infinite(data))) {
+       data <-  apply(data, 2, function(x) {
+              if (any(is.infinite(x))) {
+                   x[ind<-which(is.infinite(x))] <- NA
+                   x[ind] <- max(x, na.rm=TRUE)+1
+                 }
+                x
+                })
+    }
+    data
+}
+runAllChunks("/home/stijn/PhD/Simulations/00_codeFuns.Rmd")
+load("/home/stijn/PhD/Simulations/estCovs/CovListEst.RData")
+libSizes5 =c(rep(1e4, Nsamples/2), rep(1e6, Nsamples/2))
+Sigma = covListEst[[1]]$opt.cov
+id = sample(seq_along(rhos), dim(Sigma)[1])
+rhosUse = rhos[id]
+phisUse = 1/thetas[id]
+dataMat5 = rmvnegbin(Nsamples, outer(libSizes5,rhosUse),as.matrix(Sigma),phisUse)
+otuTab5 = otu_table(dataMat5, taxa_are_rows=FALSE)
+taxa_names(otuTab5) = names(rhosUse)
+samDat5 = sample_data(data.frame(libSize = rowSums(dataMat5), foo="foo"))
+physeq5 = simpleTrimGen(phyloseq(otuTab5, samDat5))
+helDist5 = vegdist(decostand(otu_table(physeq5)@.Data, "hell"), "euclidean")
+helOrd5=ordinate(physeq5, distance=helDist5, method="PCoA")
+plot_ordination(physeq5, helOrd5, type="biplot", title="Hellinger distance with differing, realistic Libsizes", color="libSize")
+```
+
+The within-group dependence on library size seems to persist
+
+##Chi squared distance
+
+We swith to correspondence analysis to assess the effect of library sizes.
+
+```{r CA}
+CAOrd2=ordinate(physeq2, method="CCA")
+plot_ordination(physeq2, CAOrd2, type="samples", title="Chi squared distance with differing Libsizes", color="libSize") +geom_point(aes(size=5))
+CAOrd3=ordinate(physeq3, method="CCA")
+plot_ordination(physeq3, CAOrd3, type="samples", title="Chi squared distance with differing, realistic Libsizes", color="libSize") +geom_point(aes(size=5))
+distsChiSq = rowSums(cbind(CAOrd3$CA$u[,1]^2, CAOrd3$CA$u[,2]^2))
+plot(sample_sums(physeq3)[names(distsChiSq)], log10(distsChiSq), ylab="log distance from origin", xlab="library sizes")
+#Small library sizes are more variable than the large ones
+CAOrd4=ordinate(physeq4, method="CCA")
+plot_ordination(physeq4, CAOrd4, type="biplot", title="Chi squared distance with differing, realistic Libsizes", color="libSize")
+CAOrd5=ordinate(physeq5, method="CCA")
+plot_ordination(physeq5, CAOrd5, type="biplot", title="Chi squared distance with differing, realistic Libsizes", color="libSize")
+```
+
+The chi squared distance seems somewhat less affected by library sizes, but the effect remains and it is very much affected by outliers. The within-group dependence on library size may just reflect a higher count for highly abundant speceis and thus reflect a "real" distance
+
+When data are generated with the NB, the Hellinger and Chi-squared distances don't seem affected by the library sizes so much. With correlation in the NB, only the Hellinger Distance is affected
+
+##Bray Curtis
+
+The Bray-Curtis dissimilarity is extremelypopular in microbiomics. Let's see how it fares when only the library sizes differ.
+
+```{r Bray Curtis}
+BrayOrd2=ordinate(physeq2, method="PCoA", distance="bray")
+plot_ordination(physeq2, BrayOrd2, type="biplot", title="Bray Curtis distance with differing Libsizes", color="libSize")
+BrayOrd3=ordinate(physeq3, method="PCoA", distance="bray")
+plot_ordination(physeq3, BrayOrd3, type="samples", title="Bray Curtis distance with differing Libsizes", color="libSize") + geom_point(aes(size=libSize))
+BrayOrd4=ordinate(physeq4, method="PCoA", distance="bray")
+plot_ordination(physeq4, BrayOrd4, type="samples", title="Bray Curtis distance with differing Libsizes", color="libSize") + geom_point(aes(size=libSize))
+BrayOrd5=ordinate(physeq5, method="PCoA", distance="bray")
+plot_ordination(physeq5, BrayOrd5, type="samples", title="Bray Curtis distance with differing Libsizes", color="libSize") + geom_point(aes(size=libSize))
+#Normalize first?
+otuTab2b = otu_table(physeq2)@.Data/sample_sums(physeq2) 
+physeq2b= phyloseq(otu_table(otuTab2b, taxa_are_rows=TRUE), sample_data(physeq2))
+BrayOrd2b=ordinate(physeq2b, method="PCoA", distance="bray")
+plot_ordination(physeq2b, BrayOrd2b, type="biplot", title="Bray Curtis distance with differing Libsizes, after total sum normalization", color="libSize")
+otuTab3b = otu_table(physeq3)@.Data/sample_sums(physeq3) 
+physeq3b= phyloseq(otu_table(otuTab3b, taxa_are_rows=TRUE), sample_data(physeq3))
+BrayOrd3b=ordinate(physeq3b, method="PCoA", distance="bray")
+plot_ordination(physeq3b, BrayOrd3b, type="biplot", title="Bray Curtis distance with differing Libsizes, after total sum normalization", color="libSize") 
+otuTab4b = otu_table(physeq4)@.Data/sample_sums(physeq4) 
+physeq4b= phyloseq(otu_table(otuTab4b, taxa_are_rows=TRUE), sample_data(physeq4))
+BrayOrd4b=ordinate(physeq4b, method="PCoA", distance="bray")
+plot_ordination(physeq4b, BrayOrd4b, type="biplot", title="Bray Curtis distance with differing Libsizes, after total sum normalization", color="libSize")
+#Normalize and sqrt transform (see Hartmann 2015)
+otuTab2b2 = sqrt(otu_table(physeq2)@.Data/sample_sums(physeq2) )
+physeq2b2= phyloseq(otu_table(otuTab2b2, taxa_are_rows=TRUE), sample_data(physeq2))
+BrayOrd2b2=ordinate(physeq2b2, method="PCoA", distance="bray")
+plot_ordination(physeq2b2, BrayOrd2b2, type="biplot", title="Bray Curtis distance with differing Libsizes, after total sum normalization", color="libSize")
+otuTab3b2 = sqrt(otu_table(physeq3)@.Data/sample_sums(physeq3) )
+physeq3b2= phyloseq(otu_table(otuTab3b2, taxa_are_rows=TRUE), sample_data(physeq3))
+BrayOrd3b2=ordinate(physeq3b2, method="PCoA", distance="bray")
+plot_ordination(physeq3b2, BrayOrd3b2, type="biplot", title="Bray Curtis distance with differing Libsizes, after total sum normalization", color="libSize")
+
+#Try rarefying here
+physeq2c=rarefy_even_depth(physeq2)
+physeq3c=rarefy_even_depth(physeq3, sample.size=quantile(sample_sums(physeq3), 0.15))
+physeq4c=rarefy_even_depth(physeq2, sample.size=quantile(sample_sums(physeq3), 0.15))
+BrayOrd2c=ordinate(physeq2c, method="PCoA", distance="bray")
+plot_ordination(physeq2c, BrayOrd2c, type="biplot", title="Bray Curtis distance with differing Libsizes, after rarefying", color="libSize")
+BrayOrd3c=ordinate(physeq3c, method="PCoA", distance="bray")
+sample_data(physeq3c)$logLibSize = log(sample_data(physeq3c)$libSize)
+plot_ordination(physeq3c, BrayOrd3c, type="samples", title="Bray Curtis distance with differing Libsizes, after rarefying", color="logLibSize") + geom_point(aes(size=libSize))
+BrayOrd4c=ordinate(physeq4c, method="PCoA", distance="bray")
+sample_data(physeq4c)$logLibSize = log(sample_data(physeq4c)$libSize)
+plot_ordination(physeq4c, BrayOrd4c, type="samples", title="Bray Curtis distance with differing Libsizes, after rarefying", color="logLibSize") + geom_point(aes(size=libSize))
+#Rarefying removes the effect of the library size on the ordination if the differences are small
+dists = rowSums(cbind(BrayOrd3c$vectors[,1]^2, BrayOrd3c$vectors[,2]^2))
+plot(log10(sample_sums(physeq3)[names(dists)]), dists, xlab="log10-libsizes", ylab = "Distance from origin")
+#Small library sizes are more variable than the large ones
+```
+
+Wow! This shows how sensitive the Bray-Curtis measure is to differences in library size.
+
+At the end of the notebook I revisit the Kostic data with this in mind
+
+## DESeq VST
+
+DESeq2 has two variance stabilizing methods: vst and rlog transform. we apply both and then proceed with PCA.
+
+_vst_ from _DESeq1_ uses the estimated mean-variance trend to stabilize the variance
+
+_rlog_ from _DESeq2_ is a shrunken log fold change
+
+```{r vstAndRlog}
+#Same library sizes
+deseq = phyloseq_to_deseq2(physeq,~1)
+vstDes = varianceStabilizingTransformation(deseq)
+DESeq2::plotPCA(vstDes, "libSize")
+#Differing library size
+deseq2 = phyloseq_to_deseq2(physeq2,~1)
+vstDes2 = varianceStabilizingTransformation(deseq2)
+DESeq2::plotPCA(vstDes2, "libSize")
+deseq3 = phyloseq_to_deseq2(physeq3,~1)
+vstDes3 = varianceStabilizingTransformation(deseq3)
+DESeq2::plotPCA(vstDes3, "libSize")
+deseq4 = phyloseq_to_deseq2(physeq4,~1)
+vstDes4 = varianceStabilizingTransformation(deseq4)
+DESeq2::plotPCA(vstDes4, "libSize")
+## vst does not repair the effect of the library sizes, but the authors admit this. The rlog transform should do the job
+
+rlogDes = rlog(deseq, fast=TRUE) #This takes about 5 min
+DESeq2::plotPCA(rlogDes, "libSize")
+rlogDes2 = rlog(deseq2, fast=TRUE)
+DESeq2::plotPCA(rlogDes2, "libSize")
+rlogDes3 = rlog(deseq3, fast=TRUE)
+DESeq2::plotPCA(rlogDes3, "libSize")
+rlogDes4 = rlog(deseq4, fast=TRUE)
+DESeq2::plotPCA(rlogDes4, "libSize")
+#This transformation does not manage to eliminate the effect of the library size either
+```
+
+## Log ratio analysis
+
+Use logratio analysis (=PCoA with Aitchinson's distance, or PCA on clr-transformed data)
+```{r LRA}
+lra = function(physeq, pseudoCount){
+  if(taxa_are_rows(physeq)){
+    physeq=t(physeq)
+  }
+mat = otu_table(physeq)@.Data
+mat[mat==0] =pseudoCount
+cenPhy = cenLR(mat) 
+otu_table(physeq)@.Data = cenPhy$x.clr
+LRAord = ordinate(method="RDA", physeq=physeq) #PCA
+plot_ordination(physeq, LRAord, type="biplot", color="libSize")
+}
+lra(physeq2,1)
+lra(physeq2,1e-6)
+lra(physeq3,1)
+lra(physeq4,1)
+```
+
+LRA is not immune to differences in library sizes either. Also the role of the pseudocount is crucial, and thus brings some arbitrariness into the evaluation
+
+## Conclusion
+
+Library size has definitely an effect on the outcome of a biplot, and is not always independent of the subject as we often assume. Also Hellinger distance is a distance between distributions and is not a good choice for comparing compositional data with varying library sizes. If we do not correct for library sizes, a larger uncertainty is interpreted as a larger distance
+
+Chi-squared and Hellinger distances use differences between relative abundances. CA scales these distances inversely by overal abundance of the species. We would really like to use (log)ratios but we cannot because of the high number of zeroes. Neither of both really addresses the heteroskedasticity issue. It has been shown before (Weiss2015, Zdenka2006) that library size can dominate small ecological gradients. Also other distances, such as Bray-Curtis suffer from the effect of the library size.
+
+How do we correct for library sizes?
+
+ - _rarefying_ is commonly used, but throws away valuable information
+ - In CCA: inherent normalization with model based approach or library size as an extra covariate
+ - In CA
+ 
+ We need a method that at the same time:
+ 
+  * Recognizes that large library sizes carry more information, i.e. their relative abundances should be less variable
+  * Library sizes are technical effects, independent of sample composition
+  * Recognizes that Relative abundances of rare taxa are less variable than abundant ones
+  * Is not too sensitive to outliers which can occur in these types of datasets
+  
+  Verify this last point
+  
+```{r relAbundancesVariance}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+otuTab = otu_table(AGphylo)@.Data
+otuTabRel = t(t(otuTab)/sample_sums(AGphylo))
+vars = apply(otuTabRel, 2, var)
+plot(log10(rhos), log10(vars[names(rhos)]))
+```
+
+The variance of the abundance is indeed linearly correlated to the abundance
+
+Both Hellinger and Chi-squared acknowledge the second point, and chi-squared also the third. Chi squared the first only partially by using library size as a weight for the average profiles. All in all the CHi-squared distance seems not so bad if it weren't for the sensitivity to outliers. 
+
+To find a new distance, lets first take a look at the parameters of the AG dataset
+
+```{r params}
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+#First we also fit the NBs for the Kostic data
+library(MASS);library(parallel)
+load(file="/home/stijn/PhD/Biplots/Kostic data/phyloD.RData")
+Kostmat=otu_table(phyloD)@.Data
+logRowSums=log(rowSums(Kostmat))
+fitsNBkost=mclapply(mc.cores=4,1:ncol(Kostmat),function(i){x=Kostmat[,i];try(glm.nb(x~offset(logRowSums),control=glm.control(maxit=1e3), link="log"),silent=TRUE)})
+rhosKost=unlist(sapply(fitsNBkost,function(x){if(is.list(x)){exp(x$coef[1])}}))
+thetasKost=unlist(sapply(fitsNBkost,function(x){if(is.list(x)){x$theta}}))
+names(rhosKost)=names(thetasKost)=taxa_names(phyloD)[sapply(fitsNBkost,function(x){is.list(x)})]
+
+#Look at the disitribution of the means
+avMeans = outer(sample_sums(AGphylo), rhos)
+quantile(avMeans)
+mean(avMeans>=1)
+avMeansKost = outer(sample_sums(phyloD), rhosKost)
+quantile(avMeansKost)
+mean(avMeansKost>=1)
+
+#Compare the library sizes
+par(mfrow=c(1,2))
+hist(log10(sample_sums(AGphylo)));hist(log10(sample_sums(phyloD)))
+par(mfrow=c(1,1))
+#Kostic data have slightly larger library sizes
+
+#Spread of the overdispersions
+quantile(1/thetas, c(0.05,0.95))
+quantile(1/thetasKost, c(0.05,0.95))
+
+#Spread of the squared abundances
+quantile(rhos^2, c(0.05,0.95))
+quantile(rhosKost^2, c(0.05,0.95))
+#The latter is much bigger
+
+#phi vs. rho
+plot(log10(rhos), log10(1/thetas))
+plot(log10(rhosKost), log10(1/thetasKost))
+#The well known problem with estimation of the overdispersion with few samples for the Kostic data
+#Use only large ODs
+id=log(1/thetasKost)> -5
+plot(log10(rhosKost[id]), log10(1/thetasKost[id]))
+#Pretty much the same pattern now
+
+#Look at the variance of the relative abundances as a function of the abundance and/or dispersion
+plotVar = function(physeq, quantity,...){
+  if(taxa_are_rows(physeq)){physeq=t(physeq)}
+  mat=otu_table(physeq)@.Data
+  matRel= t(t(mat)/sample_sums(physeq))
+  varias = apply(matRel, 2, var)
+  plot(log10(quantity), log10(varias[names(quantity)]),...)
+}
+plotVar(AGphylo, rhos, ylab="log10-variance of relative abundance", xlab = "log10 relative abundance")#, ylim=c(0,0.002), xlim=c(0,0.00002))
+plotVar(phyloD, rhosKost, ylab="log10-variance of relative abundance", xlab = "log10 relative abundance")
+plotVar(AGphylo, 1/thetas)
+plotVar(phyloD, 1/thetasKost)
+
+#1/xi. vs x.j/n
+quantile(1/sample_sums(AGphylo))
+quantile(10*taxa_sums(AGphylo)/sum(taxa_sums(AGphylo)))
+```
+
+We try two distances
+
+ 1. Assume that the overdispersion component dominates
+ 
+ $$R^{-\frac{1}{2}}(X-\frac{R11'C}{n})C^{-1}$$
+ 
+ 2. Really use the variance of a ratio
+ 
+ $$(R^{-1}11'R^{-1})^{-1}R^{-\frac{1}{2}}(X-R11'C)C^{-\frac{1}{2}}$$
+ 
+ The latter one is corroborated best by the data
+ 
+```{r Two new methods}
+plotSVD = function(physeq, method="2",biplot=TRUE,...){
+  if(taxa_are_rows(physeq)){physeq=t(physeq)}
+  X = otu_table(physeq)@.Data
+  C =taxa_sums(physeq)
+  R = sample_sums(physeq)
+  onesn =rep(1, nsamples(physeq))
+  onesp = rep(1, ntaxa(physeq))
+  E = diag(R) %*% onesn %*% t(onesp) %*% diag(C)/sum(C)
+  if(method=="1"){
+    defMat = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/C)
+  } else if (method=="2"){
+    defMat = 1/log(outer(exp(1/R),exp(1/R))) %*% diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
+  } else if (method %in% c("PearChisq", "devInd", "contRat")){
+    defMat = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
+    }  else if (method=="Hellinger"){
+    defMat = diag(1/sqrt(R)) %*% (sqrt(X)-sqrt(E)) 
+  }  else{stop("No valid method supplied!")}
+  svdMat = svd(defMat)
+  if(method=="devInd"){
+    svdMat$u = diag(sqrt(R)) %*% svdMat$u
+    svdMat$v = diag(sqrt(C)) %*% svdMat$v
+  } else if (method=="contRat"){
+    svdMat$u = diag(1/sqrt(R)) %*% svdMat$u
+    svdMat$v = diag(1/sqrt(C)) %*% svdMat$v
+  } else{}
+  if (biplot){
+  biplot(svdMat$u %*% sqrt(diag(svdMat$d))[,1:2],  svdMat$v %*% sqrt(diag(svdMat$d))[,1:2], col=c("blue","black"),...)
+    } else {
+     plot(svdMat$u %*% diag(svdMat$d)[,1], svdMat$u %*% diag(svdMat$d)[,2], col=ifelse(sample_sums(physeq)<=quantile(sample_sums(physeq), 0.49), "blue","red"))
+      legend("topright",legend=c("Small library size","Large library size"), pch=c(1,1), col=c("blue","red"))
+      } #as.integer(as.factor(sample_sums(physeq)))
+}
+plotSVD(physeq2, biplot=FALSE, method="contRat")
+
+##In PHYLOSEQ##
+CAOrd2=ordinate(physeq2, method="CCA")
+plot_ordination(physeq2, CAOrd2, type="biplot", title="Chi squared distance with differing Libsizes", color="libSize")
+#Phyloseq ordination approaches the contingency ratio, so they give less weight to larger libraries
+
+helDist2 = vegdist(decostand(t(otu_table(physeq2)@.Data), "hell"), "euclidean")
+helOrd2=ordinate(physeq2, distance=helDist2, method="PCoA")
+plot_ordination(physeq2, helOrd2, type="biplot", title="Hellinger distance with differing Libsizes", color="libSize")
+
+```
+
+Apply this function to data generated with uncorrelated and correlated NB
+
+```{r NBca}
+plotSVD(physeq4, biplot=FALSE, method="Hellinger")
+plotSVD(physeq5, biplot=FALSE, method="Hellinger")
+plotSVD(physeq4, biplot=FALSE, method="devInd")
+plotSVD(physeq5, biplot=FALSE, method="devInd")
+plotSVD(physeq4, biplot=FALSE, method="PearChisq")
+plotSVD(physeq5, biplot=FALSE, method="PearChisq")
+plotSVD(physeq4, biplot=FALSE, method="contRat") #Downweight according to library size, what phyloseq shows. Seems to work best for NB data
+CAOrd4=ordinate(physeq4, method="CCA")
+sample_data(physeq4)$logLibSize = log(sample_data(physeq4)$libSize)
+plot_ordination(physeq4, CAOrd4, type="biplot", title="Chi squared distance with differing Libsizes", color="libSize")
+plot_ordination(physeq4, CAOrd4, type="biplot", title="Chi squared distance with differing Libsizes", color="logLibSize")
+
+plotSVD(physeq5, biplot=FALSE, method="contRat")
+plotSVD(physeq4, biplot=FALSE, method="1")
+plotSVD(physeq5, biplot=FALSE, method="1")
+plotSVD(physeq4, biplot=FALSE, method="2")
+plotSVD(physeq5, biplot=FALSE, method="2")
+
+#Try LRA
+lra(physeq4,1)
+lra(physeq5,1)
+```
+
+Under the multinomial the mean is proportional to the variance, so we have to weigh by row and column total. Under the NB, the square of the mean is proportional to the variance so we have to downweight the differences again according to library size. But is this true? We try these things on real data!
+
+```{r biplotsRealData}
+plotSVD(AGphylo, biplot=FALSE, method="Hellinger")
+plotSVD(AGphylo, biplot=FALSE, method="devInd")
+plotSVD(AGphylo, biplot=FALSE, method="PearChisq")
+plotSVD(AGphylo, biplot=FALSE, method="contRat") #This one seemsto eliminate the libSize effect
+
+plotSVD(phyloD, biplot=FALSE, method="Hellinger") #Library size signal visible
+plotSVD(phyloD, biplot=FALSE, method="devInd")
+plotSVD(phyloD, biplot=FALSE, method="PearChisq")
+plotSVD(phyloD, biplot=FALSE, method="contRat")
+
+#Remove outlier
+load(file="/home/stijn/PhD/Biplots/Kostic data/phyloDD.RData")
+plotSVD(phyloDD, biplot=FALSE, method="Hellinger") #Library size signal visible
+plotSVD(phyloDD, biplot=FALSE, method="devInd")
+plotSVD(phyloDD, biplot=FALSE, method="PearChisq")
+plotSVD(phyloDD, biplot=FALSE, method="contRat") #Library size visible in all plots, but here we know it correlates with age and the other covariates
+
+#LRA
+load(file="/home/stijn/PhD/Biplots/Kostic data/phyloD.RData")
+sample_data(AGphylo)$libSize=sample_sums(AGphylo)
+sample_data(phyloD)$libSize=sample_sums(phyloD)
+lra(AGphylo,1)
+lra(AGphylo,1e-6)
+lra(phyloD,1)
+lra(phyloD,1e-6)
+#The library size effect persists, as well as the dependence on the pseuodocount
+```
+
+These results seem to correspond with our previous findings and indicate that the double weighting is most appropriate. The distance remains vulnerable to outliers. Look at DCA
+
+```{r DCA}
+DCAag=ordinate(AGphylo, method="DCA")
+sample_data(AGphylo)$libSize = sample_sums(AGphylo)
+plot_ordination(AGphylo, DCAag, type="samples", title="DCA agp", color="libSize") +geom_point(size=5)
+DCAko=ordinate(phyloDD, method="DCA")
+sample_data(phyloDD)$libSize = sample_sums(phyloDD)
+plot_ordination(phyloDD, DCAko, type="samples", title="DCA kostic", color="libSize") +geom_point(size=5)
+```
+
+The Pearson-Chi squared approach is basicaaly a score-test for the equality of mutlinomilas, and thus works well in this case. When the data are more realistically NB with overdispersion, maybe better turn towards teh chi-squared distance.
+
+After applying Box-Cox transformation with ever smaller power we get closer to LRA with its inherent subcompositional coherence.
+
+Try out this Box-Cox stuff and check out how it affects the results
+
+```{r CCA BoxCox}
+boxCoxPlot = function(physeq,power){
+physeq=transform_sample_counts(physeq, function(x){x^power})
+CCAord = ordinate(method="CCA", physeq=physeq) #PCA
+sample_data(physeq)$libSize = sample_sums(physeq)
+plot_ordination(physeq, CCAord, type="biplot", color="libSize")
+}
+boxCoxPlot(physeq2,1)
+boxCoxPlot(physeq2,4/5)
+boxCoxPlot(physeq2,2/3)
+boxCoxPlot(physeq2,1/2)
+boxCoxPlot(physeq2,1e-1)
+boxCoxPlot(physeq2,1e-2)
+boxCoxPlot(physeq2,1e-4)
+lra(physeq2,1) 
+lra(physeq2,1e-4) 
+```
+
+Indeed, comes closer to LRA, and the choice of pseudocount is now replaced by the choice of power. Now try with the inverse weighting for the library sizes.
+
+```{r CCAboxCoxWeighted}
+boxCoxPlotWeighted = function(physeq,power,biplot=FALSE, method="PearChisq",...){
+physeq=transform_sample_counts(physeq, function(x){x^power})
+plotSVD(physeq,biplot=biplot, method=method,...)
+}
+boxCoxPlotWeighted(physeq = physeq2, power= 1, biplot=FALSE, method="PearChisq")
+boxCoxPlotWeighted(physeq2,4/5)
+boxCoxPlotWeighted(physeq2,2/3)
+boxCoxPlotWeighted(physeq2,1/2)
+boxCoxPlotWeighted(physeq2,1e-1)
+boxCoxPlotWeighted(physeq2,1e-1, method = "contRat")
+boxCoxPlotWeighted(physeq2,1e-4)
+lra(physeq2,1) 
+lra(physeq2,1e-4) 
+
+#With a NB dataset
+boxCoxPlotWeighted(physeq = physeq5, power= 1, biplot=FALSE, method="PearChisq")
+boxCoxPlotWeighted(physeq = physeq5, power= 1, biplot=FALSE, method="contRat")
+boxCoxPlotWeighted(physeq5,4/5)
+boxCoxPlotWeighted(physeq5,2/3)
+boxCoxPlotWeighted(physeq5,3/5)
+boxCoxPlotWeighted(physeq5,3/5, method="contRat")
+boxCoxPlotWeighted(physeq5,1/2)
+boxCoxPlotWeighted(physeq5,1/2, method="contRat")
+boxCoxPlotWeighted(physeq5,1e-1)
+boxCoxPlotWeighted(physeq5,1e-4)
+lra(physeq5,1) 
+lra(physeq5,1e-4) 
+
+```
+
+#Kostic data and library sizes
+
+Now finally look at the role of library sizes in the Kostic dataset
+
+```{r Kostic}
+
+ordPCoA = ordinate(phyloD, method="PCoA", distance="bray")
+sample_data(phyloD)$libSize=sample_sums(phyloD)
+sample_data(phyloD)$logLibSize=log10(sample_sums(phyloD))
+#Age
+plot_ordination(phyloD, ordPCoA, type="biplot", color="Age_at_Collection", title="PCoA with Bray Curtis distance with outlier")
+#Libsize
+plot_ordination(phyloD, ordPCoA, type="biplot", color="libSize", title="PCoA with Bray Curtis distance with outlier")
+#LogLibsize
+plot_ordination(phyloD, ordPCoA, type="biplot", color="logLibSize", title="PCoA with Bray Curtis distance with outlier")
+#Plot age vs libSizes
+#plot(sample_data(phyloD)$Age_at_Collection,sample_data(phyloD)$libSize)
+plot(sample_data(phyloD)$Age_at_Collection,sample_data(phyloD)$logLibSize, xlab="Age at collection",ylab =  "log10-libSize")
+abline(lm(sample_data(phyloD)$logLibSize~sample_data(phyloD)$Age_at_Collection))
+lines(lowess(sample_data(phyloD)$logLibSize~sample_data(phyloD)$Age_at_Collection), lty=2, col="blue")
+#Up to 600 days of age the library size seems to grow exponentially and then stabilizes
+```
+
+The paper (Kostic 2015) reports an increase in alpha diversity with age, but this might be just an effect of the library sizes. It also refutes the common assumption that library sizes are just a technical artefact and are uncorrelated to the subject under investigation. In this case the library size grows with the size of the microbiome as the babies grow.
+
+We rarefy to even depth and then repeat the plotting
+
+```{r rarefy}
+phyloDrar = rarefy_even_depth(phyloD)
+ordPCoArar = ordinate(phyloDrar, method="PCoA", distance="bray")
+plot_ordination(phyloDrar, ordPCoArar, type="biplot", color="Age_at_Collection", title="PCoA with Bray Curtis distance after rarefying")
+```
+
+Still a clear trend in function of age after rarefying to even depth. Look at the alpha-diversity.
+
+```{r Alpha diversity}
+Chao1full = estimate_richness(phyloD, measure="Chao1")
+Chao1rare = estimate_richness(phyloDrar, measure="Chao1")
+plot( sample_data(phyloD)$Age_at_Collection, Chao1full$Chao1, main="full data")
+plot(sample_data(phyloDrar)$Age_at_Collection, Chao1rare$Chao1, main="rarefied data")
+```
+
+Also the richness is a true effect of age, although it is less pronounced after correcting for library sizes
