@@ -10,7 +10,7 @@ knitr::opts_chunk$set(cache = TRUE, autodep = TRUE, message=FALSE)
 library(ggplot2);library(phyloseq);library(vegan); library(SpiecEasi); library(DESeq2); library(robCompositions);library(MASS)
 ```
 
-The aim of this notebook is to use synthetic and real data to make biplots to investigate the effect of the differences in library sizes on the outcome.
+The aim ofthis notebook is to use synthetic and real data to make biplots to investigate the effect of the differences in library sizes on the outcome.
 
 #Correspondence analysis: theory
 
