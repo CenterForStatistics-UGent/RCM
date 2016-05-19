@@ -1,0 +1,405 @@
+---
+title: "RC2NB"
+author: "Stijn"
+date: "May 12, 2016"
+output: pdf_document
+---
+
+```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE)
+setwd("/home/stijn/PhD/Biplots")
+# The required package list:
+reqpkg <- c("phyloseq","MASS")
+# Load all required packages and show version
+for(i in reqpkg)
+{
+  print(i) 
+  print(packageVersion(i))
+  library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
+}
+#options(digits=4)
+#rm(list=ls())
+#nCores <- 4
+```
+
+#Log-linear model
+
+## Reconsitution formula
+
+One approach is to use log-linear modelling an thereby introduce the negative binomial as error term.
+
+Under independence we model the count as 
+
+$$x_{ij} = a_i b_j$$
+
+whereby usually $a_i=x_{i.}$ and $b_j=x_{.j}$.
+
+A more extended model is
+
+$$x_{ij} = a_i  b_j + c_i d_j \sum_{m=1}^M \phi_m r_{mi} s_{jm}$$.
+
+For $a_i = c_i = x_{i.}$ and $b_j = d_j = x_{.j}$ this is regular correspondence analysis, usually with truncation at $M^*=2$. This is called the *reconstitution formula* since it decomposes the observed count into its expectation and the residual and the residual further into $M$ pieces. In matrix notation this becomes
+
+$$X = E + RU\Sigma VC$$.
+
+## Log-linear analysis
+
+In log-linear analysis the logged count $l_{ij}$ is modelled as
+
+$$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + u_{ij}$$
+
+## Relationship with CA
+
+Accorinding to Escoufier, 1985 if $x =\sum_{m=1}^M \phi_m r_{mi} s_{jm}$ is small (i.e. the deviation from independence is small) then $log(1+x) \approx x$ and
+
+$$l_{ij} \approx u + u_i + u_j + \sum_{m=1}^M \phi_m r_{mi} s_{jm}$$
+
+with $u=0$, $u_i=log(x_{i.})$ since the library szizes are considered as an offset (and $u_j=log(x_{.j})$). However, the assumption that the deviation from independence is small may not be valid for our purpose.
+
+## The RC(2)-association model
+
+For the purpose of making biplots, we might consider the following model (proposed by Leo Goodman, 1985. See also VanDerHeijden 1994)
+
+$$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + \psi_1s_{1i}r_{1j} + \psi_2s_{2i}r_{2j}$$.
+
+Constraints are needed to render this model identifiable, namely 
+
+$$\sum_{i=1}^nx_{i.}s_{ki} = 0$$
+
+with k=1,2 and
+
+$$\sum_{i=1}^nx_{i.}s_{ki}s_{k'i} = I(k=k')$$
+
+$$\sum_{j=1}^px_{.j}r_{kj} = 0$$
+
+$$\sum_{j=1}^px_{.j}r_{kj}r_{k'j} = I(k=k')$$
+
+The first and third restriction have to be applied with every iteration, the second and third normalizations can occur afterwards.
+
+The models are usually fitted by ML. See page 55 of Goodman 1985 for details. Initial values can be obtained from the singular value decomposition of the saturated model (CA). Goodman assumed a Poisson distribution, but it might be possible to use a negative binomial model with unique dispersions for each taxon $j$ as well.
+
+We will use $u_i = log(x_{i.})$ since the library sizes are a arandom offset (but not $u_j = log(x{.j})$, estimation of the relative abundance can proceed freely), and then we'll have to iterate between fitting the NB and estimating the imporance parameters $\psi$, the $r's$ and the $s's$. This is implemented in the _VGAM_ package but the fitting method does not converge and crashes.
+
+### Fitting the RC(2) association model with a NB error structure
+
+1. Do a regular correspondence analysis (based on the Poisson distribution) and obtain the $R^{-1/2}(X-E)C^{-1/2} = U\Sigma V$, the singular value decomposition. This gives us $[r_{11}^{init}, r_{12}^{init},..., r_{1i}^{init}] = U_{(1.)}$, the first row of $U$ etc.
+
+2. Fit a NB for every taxon (column) $j$ with 
+
+$$log(E(x_{ij})) = l_{ij} = u + offset\big( log(x_{i.})\big) + log(x_{.j}) + \psi_1 (s_{1i}^{init}r_{1j}^{init}) + \psi_2 (s_{2i}^{init}r_{2j}^{init})$$
+
+to obtain estimates for the $\psi$'s and the overdispersions $\phi_j^{MLE}$
+
+3. Optimize the $r_{i}$'s by minimizing the squared distance between the residuals
+
+$$d_{ij} = x_{ij} - u + log(x_{i.}) + log(x_{.j})$$
+
+and the terms
+
+$$(\psi_1^{MLE} s_{1i}^{init}) r_{1j}) + (\psi_2^{MLE}s_{2i}^{init}) r_{2j}$$.
+
+The squared distances are weighted by
+
+$$Var(x_{ij}) = \mu_{ij} + \mu_{ij}^2\phi_j$$
+
+with $\mu_{ij} = exp\big(log(x_{i.}) + log(x_{.j}) + \psi_1^{MLE} s_{1i}^{init}r_{1j}^{init} + \psi_2^{MLE} s_{2i}^{init}r_{2j}^{init} \big)$.
+
+The new estimates for $\mathbf{r_i} = (r_{1i},r_{2i})$ are then
+
+$$\mathbf{r_i^{new}} = argmin_{\mathbf{r_i}} \Big[ \sum_{j=1}^p \sum_{i=1}^n \Big(\frac{d_{ij}-exp\big(\psi_1^{MLE} s_{1i}^{init}r_{1j} + \psi_2^{MLE} s_{2i}^{init}r_{2j} \big)}{Var(x_{ij})} \Big)^2 \Big] $$ 
+
+under the constraints mentioned above.
+
+4. Repeat step 2 with updated $\mathbf{r_i}$ and obtain new $\psi^{MLE}$'s
+
+5. Repeat step 3 to estimate $\mathbf{s_j}$
+
+6. Repeat step 2 with updated $\mathbf{s_j}$ and obtain new $\psi^{MLE}$'s
+
+7. Repeat until convergence
+
+
+# Implementation
+
+```{r Auxfuns}
+#All matrices X are considered to be nxp, i.e. samples are rows and taxa are columns
+
+## A function to perform the initial SVD
+# @param X: the nxp count matrix
+# @return: the singular value decomposition of the weigthed matrix of residuals
+initSVD = function(X){
+  C = colSums(X)
+  R = rowSums(X)
+  onesn =rep(1, nrow(X))
+  onesp = rep(1, ncol(X))
+  E = diag(R) %*% onesn %*% t(onesp) %*% diag(C)/sum(C)
+  svd(diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C)))
+}
+#-------------------------------------------------#
+
+##A function that returns the negative negative binomial likelihood, given imporance parameters \psi_k, mean offsets and dispersions for later use in the optim() function
+
+# @param psiVec: a vector of length k with the importance parameters \psi
+# @param rMat: A nxk matrix with the row weights of every dimension in the columns 
+# @param cMat: A kxp matrix with the column weights of every dimension in the rows 
+# @param offsets: an nxp matrix with the offsets, representing the factors that contribute to the mean that have already been estimated (abundance and library size)
+# @param disps: a vector of length p with overdispersion estimates, held fixed for now. In the Var(X) = mu+mu^2/alpha parametrization
+# @param X : the data
+
+# @return Minus the likelihood(optim() minimizes functions)
+
+NBlik = function(psiVec, rMat, cMat,  offsets, disps, X){
+  -sum(dnbinom(x = X, size = outer(rep(1,nrow(X)),disps), mu = offsets * exp(rMat %*% (cMat *psiVec)), log=TRUE))
+}
+#-------------------------------------------------#
+  
+## A function to estimate the importance parameters psi on the one hand and abunda
+## I tried to keep the code generic to allow for more dimensions than 2
+## Library sizes are taken as an offset, abundances are estimated. This is a unique feature of the microbiomics data
+
+# @param X: the nxp named count matrix
+# @param rMat: A nxk matrix with the row weights of every dimension in the columns 
+# @param cMat: A kxp matrix with the column weights of every dimension in the rows 
+# @param psiInit: A vector of length k with initial importance estimates
+# @param maxIt (optional): A scalar, the maximum number of iterations between overdispersion and importance estimation, defaults to 100
+# @param maxItNB (optional): A scalar, the maximum number of iterations in the negative binomial regression, defaults to 25
+# @param tol (optional): A scalar representing the tolerance for the convergence of abundances and importance parameters, defaults to 1e-4
+# @param tolDisp (optional): A scalar representing the tolerance for the convergence of the dispersions. This can best be higher than the regular tol beacuse of the high variance of its estimation, defaults to 1e-8
+# @param mC (optional): A scalar for the number of nodes to use in parallel fitting of the negative binomial regression, defaults to 1
+
+# @return psis: A vector of length k with the "importance" parameters of the RC decompositions
+# @return thetas: a vector of length p with all the dispersion parameters
+# @return abunds: a vector of length p with all the abundance parameters (approximately sums to 1)
+# @return converged: a boolean indicating whether the algorithm converged
+
+fitNB = function(X, rMat, cMat, psiInit, maxIt = 100, maxItNB = 25, tol = 1e-8, tolDisp=1e-4, mC=1, ...){
+  require(MASS)
+  require(parallel)
+  logRowSums=log(rowSums(X))
+  if(!ncol(rMat)==nrow(cMat)){stop("Dimensions of row and column matrices don't match")}
+  k = ncol(rMat) #The number of dimensions
+  
+  tmp = as.data.frame.table(X) #Reformat
+  names(tmp) = c("libSize","Abund","Freq") #Assign names
+  tmp$logLibSize = logRowSums #Library sizes will be the offset, taxa remain factors to have unique abundances for each of them
+  
+  ## Add the dimensions that represent deviation from independence
+  for (i in 1:k){
+   tmp[[paste0("Dim",i)]] = as.vector(outer(rMat[,i], cMat[i,]))
+  }
+  
+  ## We try iterating between estimating the overdispersions \phi_j and the dimension scores \psi_1, ..., \psi_k
+  
+  ## Step 1: estimate the dimension scores \psi_1, ..., \psi_k with common overdispersion
+  Form1 = as.formula(paste("Freq~offset(logLibSize) + Abund",paste(paste0("Dim",1:k),collapse="+") ,sep="+"))
+  fitCommon = try(glm.nb(Form1, maxit=maxItNB, data = tmp), silent=TRUE)
+  ## :-( This gives us common dispersion estimates
+  fitCommonPsis = fitCommon$coef[paste0("Dim",1:k)]
+  
+  #Initialize the parameters for the iteration
+  thetaNew = rep(fitCommon$theta, ncol(X))
+  psiNew = psiInit
+  abNew = colSums(X)/sum(X)
+  
+  iter = 1
+
+  #Theta estimates are too variable, apply a milder convergence criterion to them. also look at relative convergence for the abundances and overdispersions
+while((iter==1|| any(abs(1-thetaOld/thetaNew) > tolDisp) || any(abs(psiOld-psiNew) > tol) || any(abs(1-abOld/abNew) > tol) )  & iter <= maxIt){
+  if(iter%%5 == 0){
+  cat("Iteration", iter, "\n")
+  cat("Old psi-estimates: ", psiOld, "\n")
+  cat("New psi-estimates: ", psiNew, "\n")
+  }
+  
+  ## Step 2 estimate the taxon-wise dispersions and abundances by ML given the dimension scores (below the surface, this is also an iterative process!)
+  for (i in 1:k){
+   assign(paste0("dim",i,"Mat"), outer(rMat[,i], cMat[i,]) * psiNew[i])
+  }
+  Form2 = as.formula(paste0(paste("X[,j]~offset(logRowSums",paste(paste0("dim",1:k,"Mat[,j]"),collapse="+") ,sep="+"),")"))
+  fitODs = mclapply(1:ncol(X),mc.cores=mC, function(j){
+    Form2 = as.formula(paste0(paste("X[,j]~offset(logRowSums",paste(paste0("dim",1:k,"Mat[,j]"),collapse="+") ,sep="+"),")"))
+    suppressWarnings(try(glm.nb(Form2, maxit=maxItNB, init.theta=thetaNew[j]), silent=TRUE))
+  })
+  
+  #Extract parameters
+  parsTaxa=t(sapply(fitODs, function(x){
+    if(is.list(x)){
+    c(exp(x$coef), x$theta)
+  } else {rep(NA,2)}
+  }))
+  colnames(parsTaxa) = c("abund","theta")
+  #Replace NA's with realistic values: the abundance with the MLE and the theta with the initial theta
+
+  idNA = is.na(parsTaxa[,"abund"])
+  parsTaxa[idNA,"abund"] = (colSums(X)/sum(X))[idNA]
+  parsTaxa[idNA,"theta"] = thetaNew[idNA]
+  if(sum(idNA)>0){
+    warning(paste(sum(idNA), "dispersion estimations did not converge!"))
+  }
+  
+  ## Step 3: Find new importance estimates psi by ML, keeping the overdispersion and abundance estimates constant
+  optimPsis = optim(psiNew, NBlik, rMat = rMat, cMat = cMat, offsets = outer(rowSums(X), parsTaxa[,"abund"]), disps = parsTaxa[,"theta"], X = X)$par
+  
+  thetaOld = thetaNew
+  psiOld = psiNew
+  abOld=abNew
+  
+  psiNew = optimPsis
+  thetaNew = parsTaxa[,"theta"]
+  abNew = parsTaxa[,"abund"]
+  iter = iter + 1
+}
+  if(iter == maxIt + 1 & ( any(abs(1-thetaOld/thetaNew) > tolDisp) | any(abs(psiOld-psiNew) > tol) | any(abs(1-abOld/abNew) > tol) )){
+    warning("Algorithm did not converge!")
+    converged = FALSE
+  } else {converged =TRUE}
+
+  #Usually this algorithm converges really quickly, after less than 10 iterations
+
+  return(list(psis = psiNew, thetas = thetaNew, abunds = abNew, converged = converged))
+}
+#-------------------------------------------#
+
+## A function to calculate row or column scores when keeping the other one constant, given overdispersion and importance parameters psi.
+
+# @param X: the nxp data matrix
+# @param psis: A vector of length k with the importance parameters psi
+# @param thetas: a vector of length p with dispersion estimates
+# @param abunds: a vector of length p with relative abundance estimates
+# @param toEstimate: a character string, either "rows" or "columns", indicating which scores to estimate
+# @param rMat: a nxk matrix with current row scores
+# @param cMat: a pxk with matrix with current column scores
+
+# @return rMat: a nxk matrix with row scores: The same ones as provided or new estimates
+# @return cMat: a pxk with matrix with column scores: The same ones as provided or new estimates
+
+scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), rMat, cMat){
+  if(length(psis) != ncol(rMat) || length(psis) != nrow(cMat)){
+    stop("Dimensions of psis, rows or columns don't match")
+  } else{
+  #Number of dimensions
+  k =length(psis)
+  }
+  
+  #Calculate a matrix of residuals, and convert to a data frame table
+  residMat = X - outer(rowSums(X), abunds) 
+  residList = as.data.frame.table(X)
+  names(residList) = c("sample","taxon","Resid")
+  residList$libSize = rowSums(X)[residList$sample]
+  residList$abund = abunds[residList$taxon]
+
+  ## Add the regressors for the dimensions
+  if(toEstimate == "rows"){
+    for (i in 1:k){
+  residList[[paste0("Dim",i)]] = cMat[residList$taxon] * psis[i]
+  }
+  } else {
+    for (i in 1:k){
+   residList[[paste0("Dim",i)]] = rMat[residList$sample] * psis[i]
+  }
+  }
+  
+  #A matrix of weights, equal to the NB variance
+  meansMat = outer(rowSums(X), abunds)
+  for (i in 1:k){
+    meansMat = meansMat * exp(outer(rMat[,i], cMat[i,]) * psis[i])
+  }
+  weightsMat =  1/(meansMat + meansMat^2/thetas)
+  
+  #Fit the Weighted Least Squares(WLS) regression, row per row or column per column
+  if(toEstimate == "columns"){
+  rMatPsi = t(psis*t(rMat))
+  formWLScols = as.formula(paste0("residMat[,i]~",paste(paste0("rMatPsi[,",1:k,"]"),collapse="+"), "-1"))
+  #QUESTION: With or without intercept? Does it matter if we renormalize afterwards?
+  
+  colScores = sapply(1:ncol(residMat),function(i){lm(formWLScols, weights = weightsMat[,i])$coef[1:k]})
+  #Renormalize
+  colScoresNorm = colScores - sum(colScores*abunds)/sum(colScores)
+  return(list(rMat=rMar, cMat=colScoresNorm))
+  
+  } else{
+  cMatPsi = psis*cMat
+
+  
+  rowScores = t(sapply(1:nrow(residMat),function(i){
+      formWLSrows = as.formula(paste0("residMat[i,]~",paste(paste0("cMatPsi[",1:k,",]"),collapse="+"), "-1"))
+  #QUESTION: With or without intercept? Does it matter if we renormalize afterwards?
+    lm(formWLSrows, weights = weightsMat[i,])$coef[1:k]}))
+  #Renormalize
+  
+  rowScoresNorm = apply(rowScores,2, function(rowS){
+    rowS - sum(rowS * rowSums(X))/rowSums(X)
+  })
+  
+  return(list(rMat=rowScoresNorm, cMat=cMat))
+  }
+  }
+
+#-------------------------------------------#
+## A wrapper function to calculate the overdispersion, abundance and importance parameters
+
+# @param X: a nxp data matrix
+# @param k: a scalar, number of dimensions in the RC(M) model
+
+# @return psis: a vector lof length k with estimates for the importance parameters psi
+# @return thetas: a vector of length p with estimates for the overdispersion
+# @return rhos: a vector of length p with abundance estimates
+
+wrapperImp = function(X, k){
+  svdX = initSVD(X)
+  psiInit = svdX$d[1:k]
+  rMatInit = svdX$u[,1:k]
+  cMatInit = t(svdX$v[,1:k])
+  NBfitList = fitNB(X, rMatInit, cMatInit, psiInit)
+  return(c(NBfitList, list(rMat=rMatInit, cMat=cMatInit)))
+}
+
+```
+
+
+```{r DataGen}
+#Generate some data
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+Nsamples= 20
+rhos=rhos[1:100]
+thetas=thetas[1:100]
+libSizes4 =c(rep(1e4, Nsamples/2), rep(1e5, Nsamples/2))
+dataMat4 = t(sapply(libSizes4,function(x){rnbinom(n=length(rhos), size=thetas*100, mu= rhos*x)}))
+colnames(dataMat4) = names(rhos)[1:100]
+#Introduce DA
+dataMat4[11:20,1:50] = dataMat4[11:20,1:50] + 3
+#Remove all zero columns and rows
+dataMat4 = dataMat4[rowSums(dataMat4)>0, colSums(dataMat4) > 0]
+```
+
+```{r Own Method: loglinear NB}
+tmp = wrapperImp(dataMat4, k=2)
+tmp2 = scoreCalc(X = dataMat4, psis = tmp$psis, thetas = tmp$thetas, abunds = tmp$abunds, toEstimate="rows", rMat = tmp$rMat, cMat = tmp$cMat)
+
+X = dataMat4; psis = tmp$psis; thetas = tmp$thetas; abunds = tmp$abunds; toEstimate="rows"; rMat = tmp$rMat; cMat = tmp$cMat
+
+```
+
+We can perhaps use the _logmult_ package to fit the RC. Newton-Raphson is used for fitting and the results of the independence model are used as starting values. First try quassipoisson, which is built in and can serve as a comparison.
+
+```{r logMult packages}
+RC4 =logmult::rc(dataMat4, nd=2, weighting = "marginal", se="none", family= "quasipoisson")
+plot(RC4, what="columns")
+```
+
+We can only use quasipoisson here, maybe the _rcim()_ function from the _VGAM_ packages is a good choice? They have the negative binomial option.
+
+"The negative binomial distribution can be coerced into the classical GLM framework with one of the
+parameters being of interest and the other treated as a nuisance/scale parameter (this is implemented in the MASS library). The VGAM family function negbinomial() treats both parameters on the same footing, and estimates them both by full maximum likelihood estimation"
+
+```{r VGAM_rcim, eval=FALSE}
+RCIM4 = rcim(y=data.frame(dataMat4),  Rank = 2, trace=TRUE, family = poissonff, iindex = 1:nrow(dataMat4))
+#Use inverse of variance as fitting weights?
+Mus = outer(rhos, libSizes4)
+Weights = 1/t(Mus+thetas*Mus^2)
+RCIM4 = rcim(y=data.frame(dataMat4),  Rank = 2, trace=TRUE, family = negbinomial(), iindex = 1:nrow(dataMat4), weights = Weights )
+```
+
+We're having serious problems with convergence, check notes. Could we also estimate the $\psi$'s using the WLR method? Then maybe we could have convergence.
+
+
