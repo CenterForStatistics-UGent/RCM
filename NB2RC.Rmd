@@ -1,15 +1,15 @@
 ---
 title: "RC2NB"
 author: "Stijn"
-date: "May 12, 2016"
+date: "June 13, 2016"
 output: pdf_document
 ---
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE}
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=FALSE)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE)
 setwd("/home/stijn/PhD/Biplots")
 # The required package list:
-reqpkg <- c("phyloseq","MASS")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -26,23 +26,27 @@ for(i in reqpkg)
 
 Suppose we have a $nxp$ data matrix $\mathbf{X}$
 
-## Reconsitution formula
+## Reconsitution formula of Correspondence Analysis (CA)
 
 One approach is to use log-linear modelling an thereby introduce the negative binomial as error term.
 
 Under independence we model the count as 
 
-$$x_{ij} = a_i b_j$$
+$$E(X_{ij}) = a_i b_j$$
 
-whereby usually $a_i=x_{i.}$ and $b_j=x_{.j}$.
+whereby usually $a_i=x_{i.}=\sum_{j=1}^px_{ij}$ and $b_j=\frac{x_{.j}}{x_{..}}=\frac{\sum_{i=1}^nx_{ij}}{\sum_{j=1}^p\sum_{i=1}^nx_{ij}}$.
 
 A more extended model is
 
-$$x_{ij} = a_i  b_j + c_i d_j \sum_{m=1}^k \psi_m r_{mi} s_{jm}$$.
+$$E(X_{ij}) = a_i  b_j + c_i d_j \sum_{m=1}^k \omega_m v_{mi} w_{jm}$$.
 
-For $a_i = c_i = x_{i.}$ and $b_j = d_j = x_{.j}$ this is regular correspondence analysis, usually with truncation at $k^*=2$. This is called the *reconstitution formula* since it decomposes the observed count into its expectation and the residual and the residual further into $k$ pieces. In matrix notation this becomes
+For $a_i = c_i = x_{i.}$ and $b_j = d_j = \frac{x_{.j}}{x_{..}}$ this is regular correspondence analysis, usually with truncation at $k^*=2$. 
 
-$$X = E + RU\Sigma VC$$.
+$$E(X_{ij}) = \frac{x_{i.}x_{.j}}{x_{..}} \big(1 + \sum_{m=1}^k \omega_m v_{mi} w_{jm}\big)$$.
+
+This is called the *reconstitution formula* since it decomposes the observed count into its expectation and the residual and the residual further into $k$ pieces. In matrix notation this becomes
+
+$$X = E_{independence} + RU\Sigma VC$$.
 
 ## Log-linear analysis
 
@@ -52,35 +56,49 @@ $$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + u_{ij}$$
 
 ## Relationship with CA
 
-Accorinding to Escoufier, 1985 if $x =\sum_{m=1}^k \phi_m r_{mi} s_{jm}$ is small (i.e. the deviation from independence is small) then $log(1+x) \approx x$ and
+Accorinding to Escoufier, 1985 if $x =\sum_{m=1}^k \omega_m v_{mi} w_{jm}$ is small (i.e. the deviation from independence is small) then $log(1+x) \approx x$ and
 
-$$l_{ij} \approx u + u_i + u_j + \sum_{m=1}^k \phi_m r_{mi} s_{jm}$$
+$$l_{ij} \approx u + u_i + u_j + \sum_{m=1}^k \psi_m r_{mi} s_{jm}$$
 
-with $u=0$, $u_i=log(x_{i.})$ since the library szizes are considered as an offset (and $u_j=log(x_{.j})$). However, the assumption that the deviation from independence is small may not be valid for our purpose.
+with $u=-log(x_{..})$, $u_i=log(x_{i.})$, $u_j=log(x_{.j})$ and $\psi_m \approx \omega_m$. However, the assumption that the deviation from independence is small may not be valid for our purpose.
 
 ## The RC(2)-association model
 
 For the purpose of making biplots, we might consider the following model (proposed by Leo Goodman, 1985. See also VanDerHeijden 1994)
 
-$$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + \psi_1s_{1i}r_{1j} + \psi_2s_{2i}r_{2j}$$.
+$$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + \psi_1r_{1i}s_{1j} + \psi_2r_{2i}s_{2j}$$.
 
-Constraints are needed to render this model identifiable, namely 
+Constraints are needed to render this model identifiable, Goodman proposes
 
-$$\sum_{i=1}^nx_{i.}s_{ki} = 0$$
+$$\sum_{i=1}^nx_{i.}r_{ki} = 0$$
 
 with k=1,2 and
 
-$$\sum_{i=1}^nx_{i.}s_{ki}s_{k'i} = I(k=k')$$
+$$\sum_{i=1}^nx_{i.}r_{ki}r_{k'i} = I(k=k')$$
 
-$$\sum_{j=1}^px_{.j}r_{kj} = 0$$
+$$\sum_{j=1}^px_{.j}s_{kj} = 0$$
 
-$$\sum_{j=1}^px_{.j}r_{kj}r_{k'j} = I(k=k')$$
+$$\sum_{j=1}^px_{.j}s_{kj}s_{k'j} = I(k=k')$$
 
-The first and third restriction have to be applied with every iteration, the second and third normalizations can occur afterwards (Goodman 1985, appendix).
+The first and third restriction have to be applied with every iteration, the second and fourth normalizations can occur afterwards (Goodman 1985, appendix). However, this may put undue emphasis on samples with large library sizes , so we use
+
+$$\sum_{i=1}^nr_{ki} = 0$$
+
+with k=1,2 and
+
+$$\sum_{i=1}^nr_{ki}r_{k'i} = I(k=k')$$
+
+$$\sum_{j=1}^ps_{kj} \frac{x_{.j}}{x_{..}} = 0$$
+
+$$\sum_{j=1}^ps_{kj}s_{k'j} \frac{x_{.j}}{x_{..}} = I(k=k')$$
 
 The models are usually fitted by ML. See page 55 of Goodman 1985 for details. Initial values can be obtained from the singular value decomposition of the saturated model (CA). Goodman assumed a Poisson distribution, but it might be possible to use a negative binomial model with unique dispersions for each taxon $j$ as well.
 
-We will use $u_i = log(x_{i.})$ since the library sizes are a random offset (but not $u_j = log(x{.j})$, estimation of the relative abundance can proceed freely), and then we'll have to iterate between fitting the NB and estimating the imporance parameters $\psi$, the $r's$ and the $s's$. This is implemented in the _VGAM_ package but the fitting method does not converge and crashes.
+We will use $u=-log(x_{..}$, $u_i = log(x_{i.})$ and $u_j = log(x{.j})$, and then we'll have to iterate between fitting the NB and estimating the imporance parameters $\psi$, the $r's$ and the $s's$. This is implemented in the _VGAM_ package but the fitting method does not converge and crashes.
+
+The orthogonality of the row and column scores is enforced through Lagrange multipliers. This makes the score equations much harder to solve but assures independence of the dimensions.
+
+The centering and scaling of the scores is done afterwards, we may enforce this also through the Lagrangian but this complicates the fitting process even further and it doesn't hinder the convergence anyway. The equations are weighted such that all score equations together get the same weight as one orthogonality constraint.
 
 ### Fitting algorithm for the RC(2) association model with a NB error structure
 
@@ -92,63 +110,118 @@ Parameters of interest to estimate are $u_j$,$\psi$, $r_1$, $r_2$, $c_1$, $c_2$.
 
 2. Fit a NB for every taxon (column) $j$ with 
 
-$$log(E(x_{ij})) = l_{ij} = offset\big( log(x_{i.})\big) + u_j + \psi_1 (s_{1i}^{init}r_{1j}^{init}) + \psi_2 (s_{2i}^{init}r_{2j}^{init})$$
+$$log(E(x_{ij})) = l_{ij} = offset\big( log(\frac{x_{i.}x_{.j}}{x_{..}}  \big) + \psi_1 (s_{1i}^{init}r_{1j}^{init}) + \psi_2 (s_{2i}^{init}r_{2j}^{init})$$
 
-to obtain estimates for the $\psi$'s, for the $u_j$'s and the overdispersions $\theta_j$. This is a bit tricky, since all taxa share the same $\psi$ parameters but not the same dispersion, which is a nuisance parameter. As a result we cannot use the regular glm.nb() function from the _MASS_ package but have to write a new algorithm iterate between
+to obtain estimates for the $\psi$'s and the overdispersions $\theta_j$. This is a bit tricky, since all taxa share the same $\psi$ parameters but not the same dispersion, which is a nuisance parameter. As a result we cannot use the regular glm.nb() function from the _MASS_ package but have to write a new algorithm iterate between
 
- - Mean estimation: abundance $u_j* and $\psi$'s
+ - Mean estimation: $\psi$'s
  - Dispersion estimation: $\theta_j$'s
  
  I will later refer to this as the **inner iteration**.
  
   i. Mean estimation
  
- Solve the system of score equations (see Lawless 1987), assuming $\theta_j$'s given
- 
- $$\sum_{i=1}^n \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} = 0$$ for all j=1,...,p
+ Solve the system of score equations (see Lawless 1987) for $\psi_1$ and $\psi_2$, assuming $\theta_j$'s given
  
  $$\sum_{i=1}^n \sum_{j=1}^p r_{im}s_{mj} \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} = 0$$ for all m=1,...,k
  
+ These are non-linear equations for which we use the _nleqslv_ package, with its default the Broyden method.
+ 
   ii. Dispersion estimation
   
-Solve the score equations for every taxon $j$
+Solve the score equations for every taxon $j$, assuming the means $\mu_{ij}$ are known
 
  $$\sum_{i=1}^n \sum^{y_i^*}_{t=0} \big( \frac{t}{1+\frac{t}{\theta_j} } \big) + \theta_j^2 log(1+\frac{\mu_{ij}}{\theta_j})- \mu_{ij}\frac{y_{ij}+\theta_j}{1+\frac{\mu_{ij}}{\theta_j} }$$
  
+ For this we use the theta.ml() function in the _MASS_ package
+ 
 
-3. Optimize the $r_{i}$'s by minimizing the squared distance between the residuals
+3. To optimize the $r_{i}$'s we would really like to use weighted least squares to minimize
 
-$$d_{ij} = log(\mu_{ij}) - log(x_{i.}) - u_j$$
+$$\sum_{j=1}^p\Big(log(x_{ij}) - \big(u + u_i + u_j +\sum_{m=1}^2 r_{im} \big( \hat{\psi_ms_{jm}} \big)\Big)^2$$
 
-and the terms
+for every $i$. Unfortunately we cannot calculate $log(x_{ij})$ because of the zeroes.
 
-$$(\psi_1^{MLE} s_{1i}^{init}) r_{1j} + (\psi_2^{MLE}s_{2i}^{init}) r_{2j}$$.
+We'll have to find another way to estimate them, e.g. maximum likelihood or weighted maximum likelihood.
+
+The weights will then be inversely proportional to
+
+$$Var(x_{ij}) = \mu_{ij} + \mu_{ij}^2/\theta_j$$.
 
 with 
 
-$$\mu_{ij} = exp\big(log(x_{i.}) + log(x_{.j}) + \psi_1^{MLE} s_{1i}^{init}r_{1j}^{init} + \psi_2^{MLE} s_{2i}^{init}r_{2j}^{init} \big)$$.
+$$\mu_{ij} = exp\big(log(\frac{x_{i.}x{.j}}{x_{..}}) + \psi_1^{MLE} s_{1j}^{init}r_{1i}^{init} + \psi_2^{MLE} s_{2j}^{init}r_{2i}^{init} \big)$$.
 
-The squared distances are weighted by
+Also for $k>1$ we need to assure that 
 
-$$Var(x_{ij}) = \mu_{ij} + \mu_{ij}^2\phi_j$$
+$$\sum_{i=1}^n r_{ki}r_{k'i}=0$$
 
-The new estimates for $\mathbf{r_{i}} = (r_{1i},r_{2i})$ are then
+for $k \neq k'$ (the orthogonality constraint). To enforce this we use Lagrange multipliers and thus look for the maximum of the Lagrangian function
 
-$$\mathbf{r_i^{new}} = argmin_{\mathbf{r_i}} \Big[ \sum_{j=1}^p \sum_{i=1}^n \Big(\frac{d_{ij}-\psi_1^{MLE} s_{1i}^{init}r_{1j} + \psi_2^{MLE} s_{2i}^{init}r_{2j}}{Var(x_{ij})} \Big)^2 \Big] $$ 
+$$Lag(\mathbf{r}, \lambda) = L_{NB}(\mathbf{r})  +  \lambda \sum_{i=1}^n r_{1i}r_{2i} $$
 
-4. Repeat step 2 with updated $\mathbf{r_i}$ and obtain new $\psi^{MLE}$'s and $u_j^{MLE}$'s
+with $L_{NB}(\mathbf{r})$ the log-lieklihood function of the negative binomial regression. The derivatives of this function are
 
-5. Repeat step 3 to estimate $\mathbf{s_j}$
+$$\frac{\delta Lag(\mathbf{r}, \lambda)}{\delta r_{ik}} = \sum_{j=1}^p \hat{s_{jk}} \hat{\psi_k} \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} +  \sum_{k' \neq k} r_{ki} \lambda_{kk'} = \mathbf{0}$$
 
-6. Repeat step 2 with updated $\mathbf{s_j}$ and obtain new $\psi^{MLE}$'s and $u_j^{MLE}$'s
+and 
+
+$$\frac{\delta Lag(\mathbf{r}, \lambda)}{\delta \lambda_{kk'}} = \sum_{i=1}^n r_{1i}r_{2i} = \mathbf{0}$$
+
+(the original constraint).
+
+There is an extra equation now ($\sum_{i=1}^n r_{ki}r_{k'i}=0$) but also the extra $\lambda$ parameter to optimize. With the numerical procedure in the back of my head I prefer a weighted derivative of the  Lagrangian to find the approximate solutions of
+
+$$(\sum_{j=1}^p \hat{s_{jk}} \hat{\psi_k} \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} +  \sum_{k' \neq k} r_{ki} \lambda_{kk'})*\frac{n+k*(k-1)/2}{n(1+k*(k-1)/2)} = 0$$
+
+and 
+
+$$\frac{n+k*(k-1)/2}{1+k*(k-1)/2} * \sum_{i=1}^n r_{1i}r_{2i} = 0$$
+
+Roughly speaking this means that a deviation from 0 for the orthogonality constraint is weighted $n$ times more than a deviation in a single score equation. I do this because I think the orthogonality will be important for the biplot. Note that this is only a numerical issue and we're still looking for true MLEs, i.e. for which the score equations are zero. Note also that the sum of weights is still the total number of equations.
+
+We now truly have a system of equations to solve, which we do with the _nleqslv_ package. It is straightforward but a bit cumbersome to also provide the analytical Jacobian, which greatly speeds up the iterations (otherwise it has to be approximated numerically). The Jacobian is sparse
+
+TO BE ADDED: analytical description of the Jacobian
+
+After solving the system (or reaching the quorum of iteration runs) the estimates for $\mathbf{r_{i}} = (r_{1i},r_{2i})$ are then normalized to fulfil
+
+$$\sum_{i=1}^n r_{ki} = 0$$
+
+by setting 
+
+$$r_{ki}^{new} = r_{ki} - \sum_{i=1}^n r_{ki}/n$$
+
+and to fulfil
+
+$$\sum_{i=1}^n r_{ki}r_{k'i} = I(k=k')$$
+
+by setting
+
+$$r_{ki}^{final} = \big(\frac{r_{ki}}{\sum_{i=1}^nr_{ki}^2}\big)^{1/2}$$.
+
+4. Repeat step 2 with updated $\mathbf{r_i}$ and obtain new $\psi^{MLE}$'s and $theta_j^{MLE}$'s
+
+5. Repeat step 3 but now estimate $\mathbf{s_j}$
+
+This is very similar as the row score estimation except that now the overdispersions are constant for every row score and we use weights such that e.g.
+
+$$\sum_{j=1}^p\frac{x_{.j}}{x_{..}}s_{kj}s_{k'j} = I(k=k')$$
+
+6. Repeat step 2 with updated $\mathbf{s_j}$ and obtain new $\psi^{MLE}$'s and $theta_j^{MLE}$'s
 
 Steps 4-6 are referred to as the **outer iteration**.
 
 7. Repeat until convergence
 
-We use an absolute tolerance for the $\psi$'s, the $r$'s and the $s$'s and the $u_i$'s (an relative one for the abundances $exp(u_i)$). We don't look ath the overdispersion for convergence, since it is only a nuisance parameter and it's estimator is very variable.
+We use a relative convergence tolerance for the $\psi$'s, the $r$'s and the $s$'s. We don't look at the overdispersion for convergence, since it is only a nuisance parameter and its estimator is very variable.
 
-In the end we'll have estimated p (abundances) + p (dispersions) + p (column scores) + n (row scores) + n (library sizes) + k (importance parameters) = 3p + 2n + k parameters out of np entries, which is still very parsimonious
+8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ and add $s_{1j}*$ vs $s_{2j}$ to make a biplot.
+
+In the end we'll have estimated p (abundances) + p (dispersions) + kxp (column scores) + kxn (row scores) + n (library sizes) + k (importance parameters) = (2+k)p + (1+k)n + k parameters out of np entries. We have imposed 4*k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
+
+Can we get a measure of how much deviation from indepencence we've explained as in CA? Perhaps compare with saturated and indendence models and look at $G^2$?
+
 
 # Implementation
 
@@ -174,15 +247,18 @@ initSVD = function(X){
 }
 #-------------------------------------------------#
 
-# ##A function that returns the negative negative binomial likelihood, given imporance parameters \psi_k, mean offsets and dispersions for later use in the optim() function
+# ##A function that returns the negative negative binomial likelihood, given imporance parameters \psi_k, 
+#mean offsets and dispersions for later use in the optim() function
 # 
 # NBlik = function(psiVec, rMat, cMat,  offsets, disps, X){
 #   
 # # @param psiVec: a vector of length k with the importance parameters \psi
 # # @param rMat: A nxk matrix with the row weights of every dimension in the columns 
 # # @param cMat: A kxp matrix with the column weights of every dimension in the rows 
-# # @param offsets: an nxp matrix with the offsets, representing the factors that contribute to the mean that have already been estimated (abundance and library size)
-# # @param disps: a vector of length p with overdispersion estimates, held fixed for now. In the Var(X) = mu+mu^2/alpha parametrization
+# # @param offsets: an nxp matrix with the offsets, representing the factors that contribute 
+#to the mean that have already been estimated (abundance and library size)
+# # @param disps: a vector of length p with overdispersion estimates, held fixed for now. 
+#In the Var(X) = mu+mu^2/alpha parametrization
 # # @param X : the data
 # 
 # # @return Minus the likelihood(optim() minimizes functions)
@@ -192,48 +268,29 @@ initSVD = function(X){
 #--------------------------------------#
 #A function for NB loglikelihood in NB regression
 
-NBloglik <- function(beta, y, x, theta) {
-  # @param beta: a vector of r + p regression parameters to optimize
-  # @param y: the nxp data matrix
-  # @param x: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-
-  # @return A scalar: the log-likelihood
-  r=dim(x)[3]
-  mu = array(0,dim=dim(x)+c(0,0,1))
-  for (i in 1:r){
-    mu[,,i] = x[,,i]*beta[i]
-  }
-  mu[,,r+1] = log(outer(rowSums(y), beta[-(1:r)])) #Libsize * abundance
-
-  mu = exp(apply(mu,c(1,2),sum))
-  
-  -sum(dnbinom(x = y, size = theta, mu =mu, log=TRUE))
-    # return(-sum(lgamma(theta + y) - lgamma(theta) - lgamma(y + 1) + theta * log(theta) + y * log(mu + (y == 0)) - (theta + y) * log(theta + mu)))
-}
-#--------------------------------------#
-
-glm.nb.mat = function (X, reg, init.theta, psiInit, abInit, tolAb = 1e-6, tolPsi = 1e-4,  maxIterMu = 50, verbose =FALSE){
+glm.nb.mat = function (X, reg, init.theta, psiInit, abunds,  libSizes = NULL, global = "dbldog", nleqslv.control){
   # @param X: the nxp data matrix
   # @param reg: a nxpxk regressor matrix
   # @param init.theta: a vector of length p with the current dispersion parameters
   # @param psiInit: a vector of length k with the initial psi parameters
-  # @param abInit: a vector of length p with initial abundance parameters
-  # @param tolMu: a realtive tolerance for the iteration of the abundances
-  # @param tolPsi: an absolute tolerance for the iteration of the importance parameters psi
-  # @param maxIterMu: an integer, maximum number of iterations between psi and abundance estimates
+  # @param abunds: a vector of length p with abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
 
-  # @return Abunds: estimated relative abundances
   # @return Psis: estimated importance estimates
   
-require(rootSolve)
 require(nleqslv)
-# k = dim(reg)[3]
-p = ncol(X)
-
-#  resPar = multiroot(f = dNBll, start = c(log(abInit), psiInit), theta = init.theta, y = X, reg = reg, verbose = verbose)$root
-resPar = nleqslv(fn = dNBll, x = c(log(abInit), psiInit), theta = init.theta, y = X, reg = reg)$x
-return(list(Abunds = exp(resPar[1:p]), Psis = resPar[-(1:p)]))
+k = length(psiInit)
+# psiVec = psiInit
+# for (K in 1:k){
+nleqslv.control$trace=FALSE
+psiVec = try(nleqslv(fn = dNBll, x = psiInit, theta = init.theta, y = X, reg = reg, 
+                 abunds =abunds, libSizes = libSizes, K=k, global=global, control = nleqslv.control)$x, silent=TRUE)
+if(class(psiVec)=="try-error"){
+  psiVec = psiInit
+  warning("Could not update psi values")
+}
+# }
+return(list(Psis = abs(psiVec))) #enforce positive psis
 }
   
 #   resPar = optim(c(psiInit, abInit), NBloglik, y = X, theta = init.theta, x=reg) #TO DO: change to Newton-Raphson
@@ -256,52 +313,92 @@ return(list(Abunds = exp(resPar[1:p]), Psis = resPar[-(1:p)]))
 #   fam <- do.call("negative.binomial", list(theta = init.theta[i], link = log))
 #   exp(glm.fit(y = X[,i], y = 1, offset = Offset, family = fam)$coef[1])
 # })
-
-
-
-#SERIOUS PROBLEMS with convergence. Implement an innner loop for mu calculation, iterating between abundance and psi estimation? Sounds like a logical choice, hope it works. For the latter we still need the multiroot stuff, but now only with a few (k) parameters, which may work much better 
-
 #--------------------------------------#
 
-dNBll = function(beta, y, reg, theta) {
-  # @param beta: a vector of p + r regression parameters to optimize: the r psi parameters
+dNBll = function(beta, y, reg, theta, abunds, K, libSizes){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
   # @param y: the nxp data matrix
   # @param reg: a nxpxr regressor array with r the number of regressors
   # @param theta: a vector of length p with the dispersion parameters
-  # @param abunds: a vector of length p with the LOGS OF THE abundance parameters
+  # @param logAbund: a vector of length p with the LOGS OF THE abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+
+  logMu = array(0,dim=c(dim(reg)[1:2], K+1))
+  for (i in 1:K){
+    logMu[,,i] = reg[,,i]*beta[i]
+  }
+  logMu[,,K+1] = log(outer(libSizes, abunds)) #log(Libsize * abundance)
+  mu = exp(apply(logMu,c(1,2),sum))
+  
+  sapply(1:K, function(z){
+  sum(reg[,,z]*(y-mu)/(1+t(t(mu)/theta)))
+  })
+}
+#--------------------------------------#
+
+dNBll2 = function(beta, y, reg, theta, abunds, K, libSizes, psiVec)  {
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param y: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param logAbund: a vector of length p with the LOGS OF THE abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
 
   # @return A vector of length r with the new psi estimates
   
 #   if(length(beta) != dim(x)[3]){
 #     stop("Dimensions don't of regressor matrix and parameters psi don't match")
 #   }
-  r = dim(reg)[3]
-  p = length(theta)
-  mu = array(0,dim=dim(reg)+c(0,0,1))
-  for (i in 1:r){
-    mu[,,i] = reg[,,i]*beta[i+p]
+
+  logMu = array(0,dim=c(dim(reg)[1:2], K+1))
+  for (i in 1:(K-1)){
+    logMu[,,i] = reg[,,i]*psiVec[i]
   }
+  logMu[,,K] = reg[,,K]*beta
+  logMu[,,K+1] = log(outer(libSizes, abunds)) #log(Libsize * abundance)
+  mu = exp(apply(logMu,c(1,2),sum))
   
-  mu[,,r+1] = log(outer(rowSums(y), exp(beta[1:p]))) #log(Libsize * abundance)
-  mu = exp(apply(mu,c(1,2),sum))
-  
-  sapply(1:length(beta), function(z){
-     if(z %in% 1:p){ 
-      #xReg = rowSums(y) #Regressor is 1 for the abundances
-      sum((y[,z]-mu[,z])/(1+mu[,z]/theta[z]))
-     } else { #For psi parameters, consider all observations
-       sum(reg[,,z-p]*(y-mu)/(1+t(t(mu)/theta)))
-       }
-    })
+  sum(reg[,,K]*(y-mu)/(1+t(t(mu)/theta)))
 }
 
 #-------------------------------------------------#
-  
-## A function to estimate the importance parameters psi on the one hand and abunda
-## I tried to keep the code generic to allow for more dimensions than 2
-## Library sizes are taken as an offset, abundances are estimated. This is a unique feature of the microbiomics data
+# A function to estimate theta given the mean vector
 
-fitNB = function(X, rMat, cMat, psiInit, maxIt = 20, maxItNB = 25, tol = 1e-8, tolDisp=1e-4, mC=1, verbose = TRUE, printN = 5, ...){
+estDisp = function(X, cMat, rMat, libSizes, abunds, psis, maxItDisp=25, thetaInit = NULL){
+  
+  require(MASS)
+  k=NCOL(rMat)
+    # A matrix of means
+  meansMat = outer(libSizes, abunds)
+  for (i in 1:k){
+    meansMat = meansMat * exp(outer(rMat[,i], cMat[i,]) * psis[i])
+  }
+    thetaEsts = sapply(1:ncol(X), function(j){
+        theta = try(theta.ml(X[,j], meansMat[,j], limit=maxItDisp), silent=TRUE)
+    if(class(theta)=="try-error"){
+      theta = try(theta.mm(X[,j], meansMat[,j], limit=maxItDisp), silent=TRUE)}
+  if(class(theta)=="try-error"){
+      theta = try(theta.md(X[,j], meansMat[,j], limit=maxItDisp), silent=TRUE)}
+        if(class(theta)=="try-error"){
+      theta = NA}
+   return(theta)
+    })
+  
+    
+  idNA = is.na(thetaEsts)
+  thetaEsts[idNA] = mean(thetaEsts)[!idNA]
+  if(sum(idNA)>0){
+    warning(paste(sum(idNA), "dispersion estimations did not converge!"))
+  }
+  return(list(thetas=thetaEsts))
+}
+
+#---------------------------------------#
+
+#A function to estimate the psis given all the other parameters
+estPsis = function(X, rMat, cMat, psiInit, abunds, libSizes, thetas, nleqslv.control,...){
     
 # @param X: the nxp named count matrix
 # @param rMat: A nxk matrix with the row weights of every dimension in the columns 
@@ -313,18 +410,55 @@ fitNB = function(X, rMat, cMat, psiInit, maxIt = 20, maxItNB = 25, tol = 1e-8, t
 # @param mC (optional): A scalar for the number of nodes to use in parallel fitting of the negative binomial regression, defaults to 1. Not recommended to use mC >1 for small datasets (<100 samples) since overhead will slow down calculations
 # @param verbose: a boolean, should information on iterations be printed?
 # @param printN: An integer, print messages at evry printN iterations
+# @param libSizes (optional): a vector of length n with (known) library sizes
 
 # @return psis: A vector of length k with the "importance" parameters of the RC decompositions
 # @return thetas: a vector of length p with all the dispersion parameters
-# @return abunds: a vector of length p with all the abundance parameters (approximately sums to 1)
+# @return converged: a boolean indicating whether the algorithm converged
+    
+  ## Step 3 estimate the dimension scores psi by ML, assuming overdispersions known
+  k = length(psiInit)
+  reg = array(0, dim = c(dim(X),k))
+  for (i in 1:k){
+    reg[,,i] = outer(rMat[,i], cMat[i,])
+  }
+  meanFit = glm.nb.mat(X = X, reg = reg, init.theta = thetas, psiInit = psiInit,
+                       abunds = abunds, libSizes = libSizes, nleqslv.control = nleqslv.control)
+
+  psi= meanFit$Psis
+
+  return(list(psis = psi))
+}
+
+
+#---------------------------------------#
+## A function to estimate the importance parameters psi on the one hand and abunda
+## I tried to keep the code generic to allow for more dimensions than 2
+## Library sizes are taken as an offset, abundances too.
+
+fitNB = function(X, rMat, cMat, psiInit, abunds, maxIt = 20, maxItNB = 25, 
+                 tol = 1e-8, tolDisp=1e-4, mC=1, verbose = TRUE, printN = 5, libSizes = NULL, ...){
+    
+# @param X: the nxp named count matrix
+# @param rMat: A nxk matrix with the row weights of every dimension in the columns 
+# @param cMat: A kxp matrix with the column weights of every dimension in the rows 
+# @param psiInit: A vector of length k with initial importance estimates
+# @param maxIt (optional): A scalar, the maximum number of iterations between overdispersion and importance estimation, defaults to 100
+# @param tol (optional): A scalar representing the tolerance for the convergence of abundances and importance parameters, defaults to 1e-4
+# @param tolDisp (optional): A scalar representing the tolerance for the convergence of the dispersions. This can best be higher than the regular tol beacuse of the high variance of its estimation, defaults to 1e-8
+# @param mC (optional): A scalar for the number of nodes to use in parallel fitting of the negative binomial regression, defaults to 1. Not recommended to use mC >1 for small datasets (<100 samples) since overhead will slow down calculations
+# @param verbose: a boolean, should information on iterations be printed?
+# @param printN: An integer, print messages at evry printN iterations
+# @param libSizes (optional): a vector of length n with (known) library sizes
+
+# @return psis: A vector of length k with the "importance" parameters of the RC decompositions
+# @return thetas: a vector of length p with all the dispersion parameters
 # @return converged: a boolean indicating whether the algorithm converged
     
   require(MASS)
   require(parallel)
-  require(VGAM)
-  # logRowSums=log(rowSums(X))
-  if(!ncol(rMat)==nrow(cMat)){stop("Dimensions of row and column matrices don't match")}
-  k = ncol(rMat) #The number of dimensions
+  if(!NCOL(rMat)==NROW(cMat)){stop("Dimensions of row and column matrices don't match")}
+  k = NCOL(rMat) #The number of dimensions
   
 #   tmp = as.data.frame.table(X) #Reformat
 #   names(tmp) = c("libSize","Abund","Freq") #Assign names
@@ -346,15 +480,19 @@ fitNB = function(X, rMat, cMat, psiInit, maxIt = 20, maxItNB = 25, tol = 1e-8, t
   #Initialize the parameters for the iteration
   thetaNew = rep(1, ncol(X))
   psiNew = psiInit
-  abNew = colSums(X)/sum(X)
+  abNew = abunds
   
+    if(is.null(libSizes)){
+    libSizes = rowSums(y)
+  }
   #Testing
 #   thetaEstsTrack =  abEsts = matrix(0, nrow = maxIt, ncol = ncol(X))
 #   psiEsts = matrix(0, nrow = maxIt, ncol = k)
   iter = 1
-
-  #Theta estimates are too variable, apply a milder convergence criterion to them. also look at relative convergence for the abundances and overdispersions
-while((iter==1||  any(abs(psiOld-psiNew) > tol) || any(abs(1-abOld/abNew) > tol) )  & iter <= maxIt){
+# 
+#   #Theta estimates are too variable, apply a milder convergence criterion to them. 
+#   #Also look at relative convergence for the abundances and overdispersions
+while((iter==1||  any(abs(psiOld-psiNew) > tol) )  & iter <= maxIt){
   # any(abs(1-thetaOld/thetaNew)[!idNA] > tolDisp) ||
 
   ## Step 2: Find taxon-wise dispersion estimates, with the mean as offset
@@ -363,7 +501,7 @@ while((iter==1||  any(abs(psiOld-psiNew) > tol) || any(abs(1-abOld/abNew) > tol)
 #   }
   
   # A matrix of means
-  meansMat = outer(rowSums(X), abNew)
+  meansMat = outer(libSizes, abNew)
   for (i in 1:k){
     meansMat = meansMat * exp(outer(rMat[,i], cMat[i,]) * psiNew[i])
   }
@@ -371,7 +509,10 @@ while((iter==1||  any(abs(psiOld-psiNew) > tol) || any(abs(1-abOld/abNew) > tol)
   thetaEsts = try(mclapply(1:ncol(X),mc.cores=mC, function(j){
 #     Form1 = as.formula(paste0(paste("X[,j]~offset(logRowSums",paste(paste0("dim",1:k,"Mat[,j]"),collapse="+") ,sep="+"),")"))
 #     suppressWarnings(try(glm.nb(Form1, maxit=maxItNB),  silent=TRUE))#init.theta=thetaNew[j]),
-    theta.ml(X[,j], meansMat[,j], limit=maxItNB)
+    theta = try(theta.ml(X[,j], meansMat[,j], limit=maxItNB), silent=TRUE)
+    if(class(theta)=="try-error"){
+      return(NA)
+      } else {return(theta)}
   }), silent=TRUE)
   
   if(class(thetaEsts)=="try-error"){
@@ -379,7 +520,1156 @@ while((iter==1||  any(abs(psiOld-psiNew) > tol) || any(abs(1-abOld/abNew) > tol)
     thetaEsts = lapply(1:ncol(X), function(j){
 #     Form1 = as.formula(paste0(paste("X[,j]~offset(logRowSums",paste(paste0("dim",1:k,"Mat[,j]"),collapse="+") ,sep="+"),")"))
 #     suppressWarnings(try(glm.nb(Form1, maxit=maxItNB),  silent=TRUE))#init.theta=thetaNew[j]),
-    theta.ml(X[,j], meansMat[,j], limit=maxItNB)
+        theta = try(theta.ml(X[,j], meansMat[,j], limit=maxItNB), silent=TRUE)
+    if(class(theta)=="try-error"){
+      return(NA)
+      } else {return(theta)}
+    })
+  }
+  thetaEsts = unlist(thetaEsts)
+#   
+# #   #Extract parameters
+# #   parsTaxa=t(sapply(fitODs, function(x){
+# #     if(is.list(x)){
+# #     c(exp(x$coef), x$theta)
+# #   } else {rep(NA,2)}
+# #   }))
+# #   colnames(parsTaxa) = c("abund","theta")
+# #   #Replace NA's with realistic values: the abundance with the MLE and the theta with the initial theta
+# 
+  idNA = is.na(thetaEsts)
+  thetaEsts[idNA] = thetaNew[idNA]
+  if(sum(idNA)>0){
+    warning(paste(sum(idNA), "dispersion estimations did not converge!"))
+  }
+  
+  ## Step 3 estimate the dimension scores psi by ML, assuming overdispersions known
+  reg = array(0, dim = c(dim(X),k))
+  for (i in 1:k){
+    reg[,,i] = outer(rMat[,i], cMat[i,])
+  }
+  meanFit = glm.nb.mat(X = X, reg = reg, init.theta = thetaEsts, psiInit = psiNew,
+                       abunds = abNew, libSizes = libSizes)
+  
+  thetaOld = thetaNew
+  psiOld = psiNew
+  #abOld=abNew
+  
+  psiNew = meanFit$Psis
+  thetaNew = thetaEsts
+  #abNew = meanFit$Abunds
+  
+#   psiEsts[iter,] = psiNew
+#   abEsts[iter,] = abNew
+#   thetaEstsTrack[iter,] = thetaNew
+  
+  if(verbose && iter%%printN == 0 ){
+  cat("Inner Iteration", iter, "\n")
+  cat("Old psi-estimates: ", psiOld, "\n")
+  cat("New psi-estimates: ", psiNew, "\n")
+  }
+  
+  iter = iter + 1
+}
+  if(iter == maxIt + 1 & ( any(abs(psiOld-psiNew) > tol)  )){
+    warning("Algorithm did not converge!")
+    converged = FALSE
+  } else {converged =TRUE}
+
+  names(psiNew) = paste0("Dim", 1:k)
+  names(thetaNew) = names(abNew) = colnames(X)
+  return(list(psis = psiNew, thetas = thetaNew, converged =  converged))
+}
+#-------------------------------------------#
+
+## A function to calculate row or column scores when keeping the other one constant, given overdispersion and importance parameters psi.
+
+scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), rMat, cMat, lambda, nleqslv.control,maxItScore = 100, tolScore = 1e-4, libSizes = NULL, cMatSE = NULL, rMatSE = NULL, weighted =FALSE, global="dbldog"){
+  
+# @param X: the nxp data matrix
+# @param psis: A vector of length k with the importance parameters psi
+# @param thetas: a vector of length p with dispersion estimates
+# @param abunds: a vector of length p with relative abundance estimates
+# @param toEstimate: a character string, either "rows" or "columns", indicating which scores to estimate
+# @param rMat: a nxk matrix with current row scores
+# @param cMat: a kxp with matrix with current column scores
+# @param libSizes(optional): a vector of length n with estimates for the library sizes
+# @param rMatSE(optional): a nxk matrix with standard errors of row scores
+# @param cMatSE(optional): a pxk matrix with standard errors of column scores
+# @param weighted: a boolean, shoudl ML estimation be weighted
+
+# @return rMat: a nxk matrix with row scores: The same ones as provided or new estimates
+# @return rMatSE(optional): a nxk matrix with standard errors of row scores
+# @return cMat: a pxk with matrix with column scores: The same ones as provided or new estimates
+# @return cMatSE(optional): a pxk matrix with standard errors of column scores
+  
+  require(MASS)
+  if(length(psis) != NCOL(rMat) || length(psis) != NROW(cMat)){
+    stop("Dimensions of psis, rows or columns don't match")
+  } else{
+    #Number of dimensions
+  k =length(psis)
+    }
+  
+  if(is.null(libSizes)){
+    libSizes = rowSums(X)
+  }
+  # A matrix of expected values
+  meansMat = outer(libSizes, abunds)
+  for (i in 1:k){
+    meansMat = meansMat * exp(outer(rMat[,i], cMat[i,]) * psis[i])
+  }
+  
+#   #Calculate a matrix of residuals, and convert to a data frame table
+#   residMat = log(meansMat) - log(outer(libSizes, abunds))
+#   residList = as.data.frame.table(X)
+#   names(residList) = c("sample","taxon","Resid")
+#   residList$libSize = libSizes[residList$sample]
+#   residList$abund = abunds[residList$taxon]
+  
+  #Fit the weighted ML solution for the column scores. Here we can use glm.nb() since the overdispersions are constant. Weights of fitted NB are used, thetas are not re-estimated
+  if(toEstimate == "columns"){
+      #A matrix of weights, inverse of the NB variance
+  weightsMat =  if(weighted){
+    1/(meansMat + meansMat^2/thetas)
+  } else {
+      matrix(1, ncol=ncol(X), nrow=nrow(X))
+    }
+    #define the offsets
+    rMatPsi = t(psis*t(rMat))
+    cMatNewList = glm.nb.col(X = X, reg = rMatPsi, current.theta = thetas, abunds = abunds, libSizes = libSizes, weights = weightsMat, cMatInit = cMat, global = global, nleqslv.control = nleqslv.control, k=k, lambdaCol = lambda)
+    #Standard errors
+
+#     cMatNew = sapply(cMatNewList, function(x){x$cMat})
+#     cMatSE = sapply(cMatNewList, function(x){x$cMatSE})
+    cMatNew = cMatNewList$cMat
+     cMatSE = cMatNewList$cMatSE
+    # cMatNew=cMatNew/cMatSE
+      #Renormalize
+  colScoresNorm = t(apply(cMatNew,1, function(colS){
+    colS - sum(colS * abunds)/sum(abunds) #mean(colS)
+  }))
+  colScoresNorm = t(apply(colScoresNorm, 1, function(y){
+    y/sqrt(sum(abunds * y^2)/sum(abunds))
+  }))
+    
+  colnames(colScoresNorm) = colnames(X)
+  return(list(rMat=rMat, cMat=colScoresNorm, lambdaCol = cMatNewList$lambdaCol)) #, cMatSE = cMatSE
+  } else{
+          #A matrix of weights, inverse of the NB variance
+  weightsMat =  if(weighted ){
+    1/(meansMat + meansMat^2/thetas)
+  } else {
+      matrix(1, ncol=ncol(X), nrow=nrow(X))
+  }
+#   weightsMat = weightsMat/rowSums(weightsMat)
+#   weightsMat=cbind(weightsMat, rep(1,nrow(weightsMat)))
+  #define the offsets
+    cMatPsi = psis*cMat
+    rMatNewList = glm.nb.row(X = X, reg = cMatPsi, current.theta = thetas, abunds = abunds, libSizes = libSizes, weights = weightsMat, global =global, nleqslv.control = nleqslv.control, rMatInit = rMat, lambdaRow=lambda)
+    
+#   rMatNew = t(sapply(rMatNewList, function(x){x$rMat}))
+#   rMatSE = t(sapply(rMatNewList, function(x){x$rMatSE}))
+  # rMatNew = rMatNew/rMatSE
+  
+  rMatNew = rMatNewList$rMat
+  rMatSE = rMatNewList$rMatSE
+  #Renormalize
+  rowScoresNorm = apply(rMatNew,2, function(rowS){
+    rowS - mean(rowS)#
+  })
+  rowScoresNorm = apply(rowScoresNorm, 2, function(y){
+    y/sqrt(sum( y^2))
+  })
+   
+  rownames(rowScoresNorm) = rownames(X)
+  return(list(rMat=rowScoresNorm, cMat=cMat, lambdaRow = rMatNewList$lambdaRow))
+    }
+  }
+#   #Fit the Weighted Least Squares(WLS) regression, row per row or column per column
+#   if(toEstimate == "columns"){
+#   # rMatPsi = t(psis*t(rMat))
+
+#  colScoresFit= lapply(1:ncol(X),function(i){
+#     dataMat = matrix(0, nrow=nrow(X), ncol= k+1)
+#     dataMat[, 1] = libSizes * abunds[i]
+#     for (j in 1:k){
+#     dataMat[,j+1] = psis[j]* rMat[,j]
+#     }
+#     df = data.frame(dataMat)
+#     df$Y = X[,i]
+#     names(df) = c("margins",paste0("Dim",1:k), "Y")
+#     formWLScols = as.formula(paste0("Y~WLSresiduals(margins = margins,", paste0("Dim",1:k,"=Dim",1:k, collapse=","),",",  paste0("Dim",1:k,"par", "=Dim",1:k,"par", collapse=","),",k = k, rowsGiven = FALSE)"))
+#     dimList = as.list(cMat[,i])
+#     names(dimList) = paste0("Dim",1:k,"par")
+#     fit = try(nls(formWLScols, weights = weightsMat[,i], start = dimList, data=df, trace=FALSE, control = nls.control(maxiter=maxItScore, tol = tolScore)), silent=TRUE)
+#     return(fit)
+#     })
+#   colScores = sapply(colScoresFit, function(y){
+#     if(class(y)=="nls"){
+#     summary(y)$coef[1:k,1]
+#     } else {rep(NA,k)}
+#   })
+#   cMatSE = sapply(colScoresFit, function(y){
+#     if(class(y)=="nls"){
+#     summary(y)$coef[1:k,2]
+#     } else {rep(NA,k)}
+#   })
+# #   #Standardize if required
+# #   if(standardize){
+# #     colScores = colScores/cMatSE
+# #   }
+#   cat("Fraction of failed column score estimations: ",mean(is.na(colScores)), "\n" )
+#   
+#   colScores[is.na(colScores)] = cMat[is.na(colScores)]
+#   #Renormalize
+#   colScoresNorm = t(apply(colScores,1, function(colS){
+#     colS - sum(colS * abunds)/sum(abunds) #mean(colS)
+#   }))
+#   colScoresNorm = t(apply(colScoresNorm, 1, function(y){
+#     y/sqrt(sum(abunds * y^2))
+#   }))
+#   
+#   colnames(colScoresNorm) = colnames(X)
+#   return(list(rMat=rMat, cMat=colScoresNorm, cMatSE = cMatSE))
+#   
+#   } else{
+#   rowScoresFit= lapply(1:nrow(X),function(i){
+#     dataMat = matrix(0, nrow=ncol(X), ncol= k+1)
+#     dataMat[, 1] = libSizes[i] * abunds
+#     for (j in 1:k){
+#       dataMat[,j+1] = psis[j]* cMat[j,]
+#     }
+#     df = data.frame(dataMat)
+#     df$Y = X[i,]
+#     names(df) = c("margins",paste0("Dim",1:k), "Y")
+#     formWLSrows = as.formula(paste0("Y~WLSresiduals(margins = margins,", paste0("Dim",1:k,"=Dim",1:k, collapse=","),",",  paste0("Dim",1:k,"par", "=Dim",1:k,"par", collapse=","),",k = k, rowsGiven = FALSE)"))
+#     dimList = as.list(rMat[i,])
+#     names(dimList) = paste0("Dim",1:k,"par")
+#     fit = try(nls(formWLSrows, weights = weightsMat[i,], start = dimList, data=df, trace=FALSE, control = nls.control(maxiter=maxItScore, tol = tolScore)), silent=TRUE)
+#     return(fit)
+#     })
+#   rowScores = t(sapply(rowScoresFit, function(y){
+#     if(class(y)=="nls"){
+#     summary(y)$coef[1:k,1]
+#     } else {rep(NA,k)}
+#   }))
+#   rMatSE = t(sapply(rowScoresFit, function(y){
+#     if(class(y)=="nls"){
+#     summary(y)$coef[1:k,2]
+#     } else {rep(NA,k)}
+#   }))
+#   #Standardize if required
+# #   if(standardize){
+# #     rowScores = rowScores/rMatSE
+# #   }
+#   cat("Fraction of failed row score estimations: ",mean(is.na(rowScores)), "\n" )
+#   
+#   rowScores[is.na(rowScores)] = rMat[is.na(rowScores)]
+#   #Renormalize
+#   rowScoresNorm = apply(rowScores,2, function(rowS){
+#     rowS - sum(rowS * libSizes)/sum(X) #mean(rowS)#
+#   })
+#   
+#     #Renormalization
+#   rowScoresNorm = apply(rowScoresNorm, 2, function(y){
+#     y/sqrt(sum(libSizes/sum(X) * y^2))
+#   })
+# 
+#   rownames(rowScoresNorm) = rownames(X)
+#   return(list(rMat=rowScoresNorm, rMatSE = rMatSE, cMat=cMat))
+#   }
+
+#-------------------------------------------#
+#A function to calculate the column scores for one column through weighted ML
+  
+glm.nb.col = function (X, reg, current.theta, abunds, libSizes, weights, cMatInit, nleqslv.control, k , lambdaCol, global = "dbldog"){
+  # @param X: the data vector of length n
+  # @param reg: a nxpxk regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param abund: a scalar with abundance parameter
+  # @param weights: a vector of length n with weights
+  # @param libSizes : a vector of length n with library sizes
+  # @param cVecInit: a vector of length k with initial column scores
+
+  # @return cMat: a vector length k with estimated column scores
+  # @return cMatSE: a vector length k with estimated column scores standard errors
+  
+require(nleqslv)
+p=length(abunds)
+n=NROW(reg)
+cMat = cMatInit
+beta = c(as.vector(t(cMat)), lambdaCol)
+
+p = length(current.theta)
+  if(length(beta) != (k*p  + k*(k-1)/2)){ # + k + k
+    stop("Dimensions of regressor matrix and parameters don't match")
+  }
+
+keepGoing = TRUE
+globalInd = 1
+while(keepGoing){
+tmp = try(nleqslv(fn = dNBllcol, x = beta, current.theta = current.theta, y = X, reg = reg, abunds =abunds, libSizes = libSizes, weights =weights, k=k, global = global[globalInd], control = nleqslv.control, n=n, p=p, jac = NBjacobianCol), silent=TRUE)
+if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
+ globalInd = globalInd + 1
+ if(globalInd > length(global)){
+   keepGoing = FALSE
+ }
+ if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
+  cMat = matrix(tmp$x[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  lambdaCol = tmp$x[((k*p)+1):length(tmp$x)]
+  beta = c(as.vector(t(cMat)), lambdaCol)
+    }
+} else if(tmp$termcd==1){
+    keepGoing=FALSE
+  }
+}
+if(class(tmp)=="try-error"){
+  warning("Could not finish iteration of row values!")
+} else{
+  cMat = matrix(tmp$x[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  lambdaCol = tmp$x[((k*p)+1):length(tmp$x)]
+}
+# }
+# mu = abund * libSizes
+# for (i in 1:k){
+#   mu = mu *exp(reg[,i]* cVecInit[i])
+# }
+# n=length(libSizes)
+# #The kxk expected fisher information matrix
+# EFI = t(reg) %*% (reg * mu/(1+mu/current.theta))
+# #The kxk matrix of standard errors
+# SEmat = try(sqrt(solve(EFI)/n), silent=TRUE)
+# cMatSE = if(class(SEmat)=="try-error"){
+#   rep(1,k)
+# } else {diag(SEmat)}
+return(list(cMat = cMat, cMatSE = 1, lambdaCol = lambdaCol))
+}
+  
+#--------------------------------------#
+#A score function of the NB for the column scores
+
+dNBllcol = function(beta, y, reg, current.theta, abunds, libSizes, weights, k, p, n) {
+  # @param beta: a vector of k*p column scores + k within dimensional centering lambda parameters + k within dimensional normalization parameters +  k(k-1)/2 between dimension lambda parameters
+  # @param y: the data vector of length n
+  # @param reg: a nxk regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param logAbund: a scalar with the LOG OF THE abundance parameter
+  # @param libSizes : a vector of length n with (known) library sizes
+  # @param weights: a vector of length n with weights
+
+  # @return A vector of length k with the new column score estimates
+  cMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  logMu = vapply(1:k, FUN.VALUE = array(0,dim=c(n,p)),  function(i){
+    outer(reg[,i], cMat[i,])
+  })
+  # logMu[,K] = reg[,K]*beta
+  mu = exp(apply(logMu,c(1,2),sum)) * outer(libSizes, abunds)
+  
+#   lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+#   lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  # lambda3 = beta[(k*p+1):length(beta)] #Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #2*k+
+  lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
+  lambda3Mat[lower.tri(lambda3Mat)] = beta[(k*p+1):length(beta)]
+  lambda3Mat = lambda3Mat + t(lambda3Mat)
+  score = as.vector(sapply(1:k, function(K){
+    sapply(1:p, function(P){
+      sum(reg[,K]*(y[,P]-mu[,P])/(1+t(t(mu[,P])/current.theta[P]))*weights[,P])  + 
+            sum(lambda3Mat[K,]*cMat[,P]*abunds[P])
+          })})) #+ lambda1[K]*abunds[P] + 2*lambda2[K]
+#   centers = colSums(abunds*t(cMat))
+#   unitSums = colSums(abunds*t(cMat^2))-1
+  orthogons = sapply(1:(k-1), function(K){
+    sapply((K+1):k, function(Kinner){
+      sum(cMat[K,]*cMat[Kinner,]*abunds)
+    })
+  })
+  
+  nLambda = length(orthogons)
+  # scoreWeights = (n+nLambda)/((nLambda+1)*n)
+  lambdaWeights = (p+nLambda)/(1+nLambda)
+  return(c(score*lambdaWeights/p, orthogons*lambdaWeights))
+}
+
+#-------------------------------------------#
+#A function to calculate the row scores for one row through weighted ML
+  
+glm.nb.row = function (X, reg, current.theta, abunds, libSizes, weights, rMatInit, nleqslv.control, lambdaRow, global ="dbldog"){
+  # @param X: the data vector of length p
+  # @param reg: a kxp regressor matrix: outer product of colScores and psis
+  # @param current.theta: a vector of length p,  the current dispersion parameters
+  # @param abunds: a vector of length p with abundance parameters
+  # @param weights: a vector of length p with weights
+  # @param libSizes : a scalar, the library size
+  # @param rVecInit: a vector of length k with initial row scores
+
+  # @return rMat: a vector length k with estimated row scores
+  
+require(nleqslv)
+k = NROW(reg)
+p = length(abunds)
+n = length(libSizes)
+rMat = rMatInit
+keepGoing = TRUE
+globalInd = 1
+beta = c(as.vector(rMat), lambdaRow)
+  
+if(length(beta) != (k*n  + k*(k-1)/2)){ #+ k + k
+    stop("Dimensions of regressor matrix and parameters don't match")
+}
+while(keepGoing){
+tmp = try(nleqslv(fn = dNBllrow, x = beta, current.theta = current.theta, y = X, reg = reg, abunds = abunds, libSizes = libSizes, weights =weights, k=k, global=global[globalInd], control= nleqslv.control, p=p, n=n, jac= NBjacobianRow), silent=TRUE)
+if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
+ globalInd = globalInd + 1
+ if(globalInd > length(global)){
+   keepGoing = FALSE
+ }
+ if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
+   rMat = matrix(tmp$x[1:(k*nrow(X))], byrow=FALSE, ncol = k, nrow=nrow(X)) #
+lambdaRow = tmp$x[((k*nrow(X))+1):length(tmp$x)]
+beta = c(as.vector(rMat), lambdaRow)
+    }
+} else if(tmp$termcd==1){
+    keepGoing=FALSE
+  }
+}
+if(class(tmp)=="try-error"){
+  warning("Could not finish iteration of row values!")
+} else{
+rMat = matrix(tmp$x[1:(k*nrow(X))], byrow=FALSE, ncol = k, nrow=nrow(X)) #
+lambdaRow = tmp$x[((k*nrow(X))+1):length(tmp$x)]
+}
+#2*k +
+  # mu = abunds * libSizes
+# for (i in 1:k){
+#   mu = mu *exp(reg[i,]* rVecInit[i])
+# }
+# p=length(abunds)
+# #The kxk expected fisher information matrix
+# EFI = reg %*% (t(reg) * mu/(1+mu/current.theta))
+# #The kxk matrix of standard errors
+# SEmat = try(sqrt(solve(EFI)/p),silent=TRUE)
+# rMatSE = if(class(SEmat)=="try-error"){
+#   rep(1,k)
+# } else {diag(SEmat)}
+return(list(rMat = rMat, rMatSE = 1, lambdaRow=lambdaRow))
+}
+  
+#--------------------------------------#
+#A score function of the NB for the row scores
+
+dNBllrow= function(beta, y, reg, current.theta, abunds, libSizes, weights, k, n ,p) {
+  # @param beta: a vector of k regression parameters to optimize: the k column scores
+  # @param y: the data vector of length p
+  # @param reg: a kxp regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param logAbund: a vector of length p with the LOGS OF THE abundance parameters
+  # @param libSizes : a vector of length n with (known) library sizes
+  # @param weights: a vector of length p with weights
+
+  # @return A vector of length k with the new column score estimates
+  rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+  logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
+    outer(rMat[,i],reg[i,])
+  })
+  # logMu[,K] = reg[,K]*beta
+  mu = exp(apply(logMu,c(1,2),sum))* outer(libSizes, abunds)
+  
+#   lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+#   lambda2 = beta[(k*n+k+1):(k*n+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+#Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #+2*k
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = beta[(k*n+1):length(beta)]
+  lambda3Mat = lambda3Mat + t(lambda3Mat)
+  score = as.vector(sapply(1:k, function(K){
+    sapply(1:n, function(N){
+      sum(reg[K,]*(y[N,]-mu[N,])/(1+t(t(mu[N,])/current.theta))*weights[N,])  + 
+        sum(lambda3Mat[K,]*rMat[N,])
+          })}))
+  #+ lambda1[K] + 2*lambda2[K]*rMat[N,K]
+#   centers = colSums(rMat)
+#   unitSums = colSums(rMat^2)-1
+  orthogons = sapply(1:(k-1), function(K){
+    sapply((K+1):k, function(Kinner){
+      sum(rMat[,K]*rMat[,Kinner])
+    })
+  })
+  nLambda = length(orthogons)
+  # scoreWeights = (n+nLambda)/((nLambda+1)*n)
+  lambdaWeights = (n+nLambda)/(1+nLambda)
+  return(c(score*lambdaWeights/n, orthogons*lambdaWeights))#centers, unitSums,
+}
+#-------------------------------------------#
+# A function to provide an analytical jacobian in the hope to speed up the calculations
+NBjacobianRow = function(beta, y, reg, current.theta, abunds, libSizes, weights, k, n ,p){
+  #@return a symmetric jacobian matrix of size n*k + k(k-1)/2
+  rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+  nLambda = k*(k-1)/2
+  lambdaMat = matrix(0,ncol=nLambda+1, nrow=nLambda+1) #Reorder to lower triangular matrix
+  lambdaMat[lower.tri(lambdaMat, diag=FALSE)] = beta[(n*k+1):length(beta)]
+  lambdaMat = lambdaMat + t(lambdaMat)
+  lambdaWeights = (n+nLambda)/(1+nLambda)
+  logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
+    outer(rMat[,i],reg[i,])
+  })
+  mu = exp(apply(logMu,c(1,2),sum))* outer(libSizes, abunds)
+  
+  #Upper diagonal
+  diagUp = as.vector(unlist(sapply(1:k, function(K){
+    sapply(1:n, function(N){
+      -sum(reg[K,]^2*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2)
+      })
+  })))
+  
+  Jac = matrix(0, nrow= n*k + nLambda, ncol=n*k + nLambda)
+  
+  #lambda regions
+  for (K in 1:k){
+    Jac[(1+(K-1)*n):(n*K), (n*k+1):(n*k + nLambda)] = matrix(rowSums(rMat[,-K, drop=FALSE]), nrow=n, ncol=nLambda, byrow=TRUE)
+  }
+  
+  #off diagonal
+  for(K in  1:(k-1)){
+    for(Kinner in (K+1):k){
+      for(N in 1:n){
+      Jac[N+(n*(K-1)),N+(n*(Kinner-1))] = -sum(reg[K,]*reg[Kinner,]*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2) + lambdaMat[Kinner, K]
+      }
+    }
+  }
+  Jac = Jac + t(Jac)
+  diag(Jac[1:(n*k),1:(n*k)]) = diagUp
+  Jac[1:(n*k),1:(n*k)] = Jac[1:(n*k),1:(n*k)]/n
+  Jac*lambdaWeights
+}
+
+#-------------------------------------------#
+# A function to provide an analytical jacobian in the hope to speed up the calculations
+NBjacobianCol = function(beta, y, reg, current.theta, abunds, libSizes, weights, k, n ,p){
+  #@return a symmetric jacobian matrix of size p*k + k(k-1)/2
+  cMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  nLambda = k*(k-1)/2
+  lambdaWeights = (p+nLambda)/(1+nLambda)
+  lambdaMat = matrix(0,ncol=nLambda+1, nrow=nLambda+1) #Reorder to lower triangular matrix
+  lambdaMat[lower.tri(lambdaMat, diag=FALSE)] = beta[(p*k+1):length(beta)]
+  lambdaMat = lambdaMat + t(lambdaMat)
+  logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
+    outer(reg[,i], cMat[i,])
+  })
+  mu = exp(apply(logMu,c(1,2),sum))* outer(libSizes, abunds)
+  
+  diagUp = as.vector(unlist(sapply(1:k, function(K){
+    sapply(1:p, function(P){
+      -sum(reg[,K]^2*(1+y[,P]/current.theta[P])*mu[,P]/(1+mu[,P]/current.theta[P])^2)
+      })
+  })))
+  
+  Jac = matrix(0, nrow= p*k + nLambda, ncol=p*k + nLambda)
+  
+  for (K in 1:k){
+    Jac[(1+(K-1)*p):(p*K), (p*k+1):(p*k + nLambda)] = matrix(abunds*colSums(cMat[-K,, drop=FALSE]), nrow=p, ncol=nLambda, byrow=FALSE)
+  }
+  
+  for(K in  1:(k-1)){
+    for(Kinner in (K+1):k){
+      for(P in 1:p){
+      Jac[P+(p*(K-1)),P+(p*(Kinner-1))] = -sum(reg[,K]*reg[,Kinner]*(1+y[,P]/current.theta[P])*mu[,P]/(1+mu[,P]/current.theta[P])^2) + abunds[P]*lambdaMat[Kinner, K]
+      }
+    }
+  }
+  Jac = Jac + t(Jac)
+  diag(Jac[1:(p*k),1:(p*k)]) = diagUp
+  Jac[1:(p*k),1:(p*k)] = Jac[1:(p*k),1:(p*k)]/p
+  Jac*lambdaWeights
+}
+
+#-------------------------------------------#
+## A wrapper function to calculate the overdispersion, abundance and importance parameters
+
+outerLoop = function(X, k, tol = 1e-8, maxItOut = 50, maxItML = 15, maxItNB = 25, maxItIn=10, maxItScore = 200,
+                     tolML = 1e-8, tolDisp = 1e-5, tolScore = 1e-5, verbose = TRUE, mC = 1, libSizes = NULL, MLweighted =FALSE, rMatInit = NULL, cMatInit = NULL, psiInit = NULL,  global ="dbldog", nleqslv.control=list(),init="SVD", ...){
+  
+# @param X: a nxp data matrix
+# @param k: a scalar, number of dimensions in the RC(M) model
+# @param tol(optional): a scalar, the convergende tolerance for the psi, row scores and column scores parameters, defaults to 1e-8
+# @param maxItOut(optional): an integer, the maximum number of iteration in the outer loop, defaults to 50
+# @param maxItML(optional): an integer, the maximum number of iteration in the ML estimation
+# @param maxItNB(optional): an integer, the maximum number of iteration in the negative binomial regression
+# @param maxItScore(optional): an integer, the maximum number of iteration in the estimation of row and column scores by WLS
+# @param tolML(optional): a scalar, the convergende tolerance for the ML estimation of importance parameters
+# @param tolDisp(optional): a scalar, the convergende tolerance for the overdispersion parameters
+# @param tolScore(optional): a scalar, the convergende tolerance for the WLS estimation of row and colmumn scores
+# @param verbose(optional): a boolean, should information on iterations be printed? Defaults to TRUE
+# @param mC(optional): an integer, the number of cores to use for the negative binomial regression
+# @param MLweighted(optional): a boolean, shoudl ML estimation be weighted?
+# @param ...(optional): additional arguments, passed on to fitNB
+
+# @return psis: a vector of length k with estimates for the importance parameters psi
+# @return thetas: a vector of length p with estimates for the overdispersion
+# @return abunds: a vector of length p with abundance estimates
+# @return rMat: a nxk matrix with final row scores
+# @return rMatSE: a nxk matrix with standard errors of row scores: The same ones as provided or new estimates
+# @return cMat: a pxk with matrix with column scores: The same ones as provided or new estimates
+# @return cMatSE: a pxk matrix with standard errors of column scores: The same ones as provided or new estimates
+# @return converged: a boolean indicating if the algorithm converged
+  
+ ## 1) Initialization
+  require(MASS)
+  # require(logmult)
+  svdX = initSVD(X)
+  #assoc = logmult::rc(X, nd=min(dim(X)-1), weighting = "marginal", se="none", family= "poisson")$assoc
+  
+  if(is.null(rMatInit)){
+  rMatInit = svdX$u[,1:k]
+    # rMatInit = assoc$row[,,1]
+  }
+  if(is.null(cMatInit)){
+  cMatInit = t(svdX$v[,1:k])
+    # cMatInit = t(assoc$col[,,1])
+  }
+  if(is.null(psiInit)){
+   psiInit = svdX$d[1:k]*colSums(rMatInit^2)*rowSums(cMatInit^2)
+    # psiInit = assoc$phi[1,]
+  }
+  if(is.null(libSizes)){
+    libSizes = rowSums(X)
+  }
+  abunds = (colSums(X)/sum(X))
+  
+  rMatInit = apply(rMatInit, 2,function(rowS){
+    rowS - mean(rowS)
+  })
+  rMatInit = apply(rMatInit, 2,function(rowS){
+    rowS/sqrt(sum(rowS^2))
+  })
+  cMatInit = t(apply(cMatInit, 1,function(colS){
+    colS - sum(colS * abunds)/sum(abunds)
+  }))
+  cMatInit = t(apply(cMatInit, 1,function(colS){
+    colS/sqrt(sum(colS^2 * abunds)/sum(abunds))
+  }))
+  #thetaInit = thetas
+  psi = psiOld = psiInit
+  rMat = rMatOld = rMatInit
+  cMat = cMatOld = cMatInit
+  lambdaRow = lambdaCol = rep(0,k*(k-1)/2)
+
+  # #Try keeping the abundances constant as well, since they're strongly correlated with the column scores,
+  #which may lead to the oscillations
+#   abunds = apply(X, 2, function(vec){
+#     fit = try(glm.nb(vec ~offset(log(libSizes))), silent=TRUE)
+#     if(class(fit) == "try-error"){
+#       return(NA)
+#     } else{
+#       exp(fit$coef)
+#     }
+#   })
+#   abunds[is.na(abunds)] = (colSums(X)/sum(X))[is.na(abunds)] #Resort to simpler estimation if glm.nb fails
+  
+  iterOut = 1
+  rowRec = array(0,dim=c(NROW(X),k, maxItOut))
+  colRec = array(0,dim=c(NCOL(X),k, maxItOut))
+  thetaRec = matrix(0,ncol=maxItOut, nrow=length(abunds))
+  psiRec = matrix(0,ncol=maxItOut, nrow=k)
+
+  ## 2) Propagation
+  
+  while((iterOut ==1) || ((iterOut <= maxItOut) && ((any(abs(psi-psiOld) > tol)) || 
+                          (any(abs(rMat-rMatOld) > tol)) || (any(abs(cMat-cMatOld) > tol)) )))
+    {
+    
+  if(verbose && iterOut%%1 == 0){
+  cat("\n","Outer Iteration", iterOut, "\n","\n")
+    if(iterOut!=1){
+  cat("Old psi-estimates: ", psiOld, "\n")
+  cat("New psi-estimates: ", psi, "\n")
+    }
+  }
+  
+  ## 2)a. Store old parameters
+  psiOld = psi
+  rMatOld = rMat
+  cMatOld = cMat
+  abundsOld = abunds
+  iterIn = 1
+    
+  ## 2)b. ML estimation of dispersion
+  while(iterIn ==1 || (iterIn <= maxItIn) && (any(abs(psi-psiOldIn) > tol))){
+#     
+    psiOldIn = psi
+#     cat("Inner iteration ", iterIn, "\n")
+  
+ thetas = estDisp(X = X, rMat = rMat,cMat =  cMat, thetaInit = thetaInit, abunds=abunds, libSizes = libSizes, maxItDisp = maxItNB, psis = psi)$thetas
+  
+  ## 2)c. ML estimation of psis
+  psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control)$psi
+  iterIn = iterIn+1 
+  }
+  
+  ## 2)d. ML estimation of thetas
+#     if(iterOut %% 10 =0){
+  # thetas = estDisp(X = X, rMat = rMat,cMat =  cMat, thetaInit = thetaInit, abunds=abunds, libSizes = libSizes, maxItDisp = maxItNB, psis = psi)$thetas
+#     }
+  ## 2)e. ML estimation of row scores
+
+  
+#     rMat = apply(rMat, 2, function(y){
+#     y/sqrt(sum(libSizes *y^2)) # 
+#   })
+#Enforce orthogonality of dimensions
+  
+
+        if(verbose){
+    cat("Estimating column scores \n")
+  }
+    cMatList = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "columns", rMat = rMat, cMat = cMat, libSizes = libSizes, maxItScore = maxItScore, tolScore =tolScore, weighted = MLweighted, global =global, nleqslv.control = nleqslv.control, lambda =lambdaCol)
+    lambdaCol = cMatList$lambdaCol
+  cMat = cMatList$cMat
+    
+  #rMatSE = rMatFit$rMatSE
+  # cat("Row scores: ",rMat[1:5,1],"\n")
+  
+#   ## 2)f.  ML estimation of dispersion
+#     if(iterOut %% 10 =0){
+  # thetas = estDisp(X = X, rMat = rMat,cMat =  cMat, thetaInit = thetaInit, abunds=abunds, libSizes = libSizes, maxItDisp = maxItNB, psis = psi)$thetas
+#     }
+  
+      iterIn = 1
+#     
+#   ## 2)b. ML estimation of dispersion
+  while(iterIn ==1 || (iterIn <= maxItIn) && (any(abs(psi-psiOldIn) > tol))){
+#     
+    psiOldIn = psi
+#     cat("Inner iteration ", iterIn, "\n")
+  
+ thetas = estDisp(X = X, rMat = rMat,cMat =  cMat, thetaInit = thetaInit, abunds=abunds, libSizes = libSizes, maxItDisp = maxItNB, psis = psi)$thetas
+  
+  ## 2)c. ML estimation of psis
+  psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control = nleqslv.control)$psi
+  iterIn = iterIn+1 
+  }
+
+
+    if(verbose){
+    cat("Estimating row scores \n")
+  }
+  rMatFit = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "rows", rMat = rMat, cMat = cMat, libSizes = libSizes, maxItScore = maxItScore, tolScore =tolScore, weighted = MLweighted, global = global, nleqslv.control =nleqslv.control, lambda = lambdaRow)
+  #Renormalize to unit sum
+  lambdaRow = rMatFit$lambdaRow
+  rMat = rMatFit$rMat
+    #   ## 2)g.  ML estimation of column scores
+
+  #Normalize
+#   cMat = t(apply(cMat, 1, function(y){
+#     y/sqrt(sum(abunds * y^2)) #
+#   }))
+
+  #cMatSE = cMatList$cMatSE
+  rowRec[,, iterOut] = rMat
+  colRec[,, iterOut] = cMat
+  thetaRec [, iterOut] = thetas
+  psiRec[, iterOut] = psi
+  
+  
+  ## 2)f. Change iterator
+    iterOut = iterOut + 1
+} # END while-loop
+  
+  ## 3) Termination
+  
+  convergence = !(
+    (iterOut == (maxItOut +1) ||
+                    (any(abs(psi-psiOld) > tol)) || 
+                    (any(abs(rMat-rMatOld) > tol)) || 
+                    (any(abs(cMat-cMatOld) > tol))) ||
+                    (any(abs(abunds/abundsOld-1) > tol)))
+  
+#     cMat = t(apply(cMat, 1, function(y){
+#     y/sqrt(sum(abunds * y^2))
+#   }))
+#     rMat = apply(rMat, 2, function(y){
+#     y/sqrt(sum(libSizes * y^2))
+#   })
+  
+  rownames(rMat) = rownames(X)
+  colnames(cMat) = colnames(X)
+  rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
+  
+  if(!convergence ){
+    warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
+    return(list(rMat=rMat, cMat=cMat, thetas = thetas, psis = psi, 
+                abunds = abunds, converged = FALSE, rowRec= rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec))
+  } else {
+  return(list(rMat=rMat,  cMat=cMat, thetas = thetas, psis = psi,
+              abunds = abunds, converged = TRUE, rowRec= rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec)) #rMatSE = rMatSE,cMatSE = cMatSE,
+  }
+}
+#-------------------------------------------#
+
+## A plotting function that plots the samples as dots and the species as arrows
+
+plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL, 
+                   abunds = NULL, arrowFrac = 0.1, biplot = TRUE,
+                   libLoc ="topright", ...){
+# @param psis: vector of length k with 
+# @param rMat: a nxk matrix with final row scores
+# @param cMat: a pxk with matrix with final column scores
+# @param Dim (optional): a vector of length 2, indicating which dimensions to fit, defaults to the first two
+# @param X (optional): the nxp data matrix
+# @param thetas (optional): a vector of length p with estimates for the overdispersion
+# @param abunds(optional): a vector of length p with abundance estimates (otherwise it is estimated from the data)
+# @param arrowFrac(optional): Fraction of largest species to plot
+# @param biplot(optional): A boolean indicating if species should be added to the plot, defaults to TRUE
+# @param ... additional arguments, passed on to the plot() function
+# @return: NONE,  plots the result in the plotting window
+  
+  if(!(length(psis)== NCOL(rMat) && length(psis) == NROW(cMat))){
+    stop("Dimensions don't match")
+  }
+  #Reorder dimensions according to importance
+  Dim = Dim[order(psis, decreasing = TRUE)]
+  
+  a = Dim[1]
+  b = Dim[2]
+  
+  #Add colours for the library sizes
+  if(!is.null(X)){
+  Colour = ifelse(rowSums(X) < median(rowSums(X)), "blue","red")
+  } else {Colour = 1}
+  
+  ## Add linetypes for the dispersions
+  if(!is.null(thetas)){
+    LineType = rowSums(sapply(quantile(1/thetas, c(0.25,0.5,0.75,1)), function(x){
+      1/thetas > x
+    }))
+  } else {LineType=rep(1, ncol(cMat))}
+  
+  ##Add colours for the abundances
+  if(!is.null(abunds)){
+    lineColour = rowSums(sapply(quantile(abunds, c(0.25,0.5,0.75,1)), function(x){
+      abunds < x
+    }))
+  } else {lineColour = rep(1, ncol(cMat))}
+  
+  plot(x = rMat[,a] * psis[a],
+  y = rMat[,b] *psis[b],
+  xlab="Dim1",
+  ylab="Dim2",
+  col = Colour,
+  ...)
+  if(!is.null(X)){
+  legend(libLoc,legend=c("Small library size","Large library size"),
+         pch=c(1,1), col=c("blue","red"))
+  }
+  
+    if (biplot){
+      #Arrows
+        arrowLengths = apply(outer(t(cMat[Dim,]), psis[Dim]),1,function(x){sqrt(sum(x^2))})
+    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+        scalingFactor = max(abs(range(outer(rMat[,Dim], psis[Dim]))))/
+        max(abs(range(cMat[Dim,id])))*0.9
+    arrows(0,0,cMat[a,id]*scalingFactor,cMat[b, id]*scalingFactor, 
+           lty=LineType[id], col = lineColour[id])
+    if(!is.null(thetas)){
+      legend("topleft", legend=paste0(">",seq(0,75,25), "th quantile"), 
+             lty=1:4, title="Dispersion")
+    }
+    if(!is.null(abunds)){
+      legend("bottomleft", legend=paste0(">",seq(0,75,25), "th quantile"), 
+             col = 1:4,lty=1, title="Abundance")
+      }
+    }
+  }
+
+```
+
+#Demonstration
+
+We generate some data as before with the NB distribution but differing library sizes, apply our algorithm and plot the results.
+
+
+
+
+```{r DataGen}
+#Generate some data
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+Nsamples= 200
+Ntaxa = 400
+thetas=thetas[1:Ntaxa]
+thetas = thetas[1/thetas<100]
+rhos=rhos[names(thetas)]
+Ntaxa=length(rhos) - length(rhos)%%2
+rhos=rhos[1:Ntaxa]
+thetas = thetas[1:Ntaxa]
+rhos = rhos/sum(rhos)
+
+libSizes4 =c(rep(1e4, floor(Nsamples/2)), rep(1e5, floor(Nsamples/2)))
+psi1 = 0.5
+psi2 = 0.2
+rowScores1 = rnorm(Nsamples-Nsamples%%2)
+rowScores2 = sample(c(rnorm(floor(Nsamples/2), mean = -0.5), rnorm(floor(Nsamples/2),mean=0.5)))
+colScores1 = c(rnorm(floor(Ntaxa/2), mean = -0.5), rnorm(floor(Ntaxa/2),mean=0.5)) 
+colScores2 = rnorm(Ntaxa- Ntaxa%%2)
+
+normalize = function(mat, weights, dim){
+  mat = apply(mat,dim, function(vec){
+    vec - sum(vec*weights)/sum(weights)#
+  })
+  if(dim==1) mat= t(mat)
+  mat = apply(mat, dim, function(y){
+    y/sqrt(sum(weights*y^2))
+  })
+  if(dim==1) mat =t(mat)
+  return(mat)
+}
+
+rowScoresMat = normalize(cbind(rowScores1, rowScores2),dim=2,weights=rep(1, length(rowScores1)))
+colScoresMat = normalize(rbind(colScores1, colScores2),dim=1,weights=rhos)
+
+
+meanMat = outer(libSizes4, rhos)* exp(psi1*outer(rowScoresMat[,1],colScoresMat[1,]) + psi2*outer(rowScoresMat[,2],colScoresMat[2,]))
+
+thetaMat = matrix(thetas, nrow=Nsamples, ncol=Ntaxa, byrow=FALSE)
+
+dataMat4 = apply(array(data= c(meanMat, thetaMat), dim=c(Nsamples, Ntaxa, 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})
+colnames(dataMat4) = names(rhos)
+#Introduce DA
+# dataMat4[1:(Nsamples/4),1:(Ntaxa/4)] = sapply(1:(Nsamples/4),function(i){rpois(n = Ntaxa/4, lambda =10)})
+#Remove all zero columns and rows
+dataMat4 = dataMat4[rowSums(dataMat4)>0, colSums(dataMat4) > 0]
+rownames(dataMat4) = paste0("Sample", 1:Nsamples)
+rhos=rhos[colnames(dataMat4)]
+thetas =thetas[colnames(dataMat4)]
+plotRCM(psis = c(psi1, psi2), rMat = rowScoresMat, cMat = colScoresMat, X = dataMat4, biplot = FALSE)
+```
+
+```{r Own Method: loglinear NB}
+maxItOut = 200
+tmp3Job = mcparallel( outerLoop(dataMat4, k=2, maxItML = 20, maxItOut = maxItOut, printN = 1, mC = 1, MLweighted=FALSE,nleqslv.control=list(xtol=1e-8, ftol=1e-8, btol=1e-3, sigma=0.5, trace=TRUE, allowSingular=TRUE, maxit=150), tol = 1e-5, global = c("dbldog", "gline")))#, "pwldog", "cline")), "gline"
+tmp3 = mccollect(tmp3Job, FALSE)[[1]]
+
+tmp3 =outerLoop(dataMat4, k=2, maxItML = 20, maxItOut = maxItOut, printN = 1, mC = 1, MLweighted=FALSE,nleqslv.control=list(xtol=1e-8, ftol=1e-8, btol=1e-4, sigma=0.5, trace=TRUE, allowSingular=FALSE, maxit=500), tol = 1e-5, global = c("dbldog"))
+
+tmp3c = outerLoop(dataMat4, k=2, maxItML = 10, maxItOut = maxItOut, printN = 1, mC = 1, MLweighted=FALSE, rMat = tmp3$rMat, cMat =  tmp3$cMat, psiInit = tmp3$psis, nleqslv.control=list(xtol=1e-8, ftol=1e-8, btol=1e-3, sigma=0.5, trace=TRUE, allowSingular=TRUE, maxit=150), tol = 1e-5, global = c("dbldog", "gline"))
+save(tmp3c, file="tmp3c.RData")
+
+#Check constraints
+apply(tmp3$rMat, 2, function(y){
+  sum(y)
+})
+apply(tmp3$cMat, 1, function(y){
+  sum(y*tmp3$abunds)
+})
+apply(tmp3$rMat, 2, function(y){
+  sum(y^2)
+})
+apply(tmp3$cMat, 1, function(y){
+  sum(y^2*tmp3$abunds)
+})
+sapply(1:(ncol(tmp3$rMat)-1), function(i){
+  sapply(2:ncol(tmp3$rMat), function(j){
+    sum(tmp3$rMat[,i]*tmp3$rMat[,j])
+  })
+})
+sapply(1:(nrow(tmp3$cMat)-1), function(i){
+  sapply(2:nrow(tmp3$cMat), function(j){
+    sum(colSums(dataMat4)/sum(dataMat4)*tmp3$cMat[i,]*tmp3$cMat[j,])
+  })
+})
+
+plotRCM(tmp3$psis, tmp3$rMat, tmp3$cMat, X = dataMat4, thetas = thetas,abunds = rhos, arrowFrac = 0.05, biplot =FALSE)
+plot(tmp3$rMat[,1], rowScores1)
+```
+
+```{r Dists vs. Rowscores}
+Dists = sqrt(rowSums(tmp3$rMat^2))
+plot(log(Dists), log((rowSums(dataMat4)-libSizes4)^2),  ylab = "log MSE",
+     xlab = "log Distance from origin",
+     main="Error in library size estimation leads to inflation of row scores")
+lines(lowess(x = log(Dists), y= log((rowSums(dataMat4)-libSizes4)^2)))
+```
+
+
+```{r True libsizes}
+tmp4 = outerLoop(dataMat4, k=2, maxItML = 20, maxItOut = 50, printN = 1, mC = 1, libSizes= libSizes4)
+plotRCM(tmp4$psis, tmp4$rMat, tmp4$cMat, X = dataMat4, thetas = thetas, abunds = rhos, 
+        arrowFrac = 0.05, biplot =FALSE, libLoc ="bottomleft")
+#  - Perhaps the rowscores for large library sizes are just more variable, so obtain standardized estimates by dividing by estimated standard errors, easily obtained from the ML framework
+```
+
+
+  
+```{r Standardized scores}
+#Plot SE vs libsizes and vs abundances
+boxplot(tmp3$rMatSE[,1]~factor(libSizes4), xlab="libSizes", ylab="Standard deviation of row scores")
+boxplot(tmp3$rMatSE[,2]~factor(libSizes4), xlab="libSizes", ylab="Standard deviation of row scores")
+#Correlation between standard errors
+cor(tmp3$rMatSE[,1], tmp3$rMatSE[,2])
+
+plot(tmp3$cMatSE[1,]~rhos, xlab="log Abundances", ylab="Standard deviation of column scores", log="x")
+plot(tmp3$cMatSE[2,]~rhos, xlab="log Abundances", ylab="Standard deviation of column scores", log="x")
+#Correlation between standard errors
+cor(tmp3$cMatSE[1,], tmp3$cMatSE[2,])
+
+#Normalize row and columns scores by dividing by the estimated standard errors
+rowSores = tmp3$rMat/tmp3$rMatSE
+colScores = tmp3$cMat/tmp3$cMatSE
+plotRCM(tmp3$psis, rowSores, colScores, X = dataMat4, thetas = thetas
+        ,abunds = rhos, arrowFrac = 0.05, biplot =FALSE)
+
+#Standardize in algorithm
+#tmp5 = outerLoop(dataMat4, k=2, maxItML = 20, maxItOut = 50, printN = 1, mC = 1, standardize = TRUE)
+#This crashes
+
+```
+
+Standard errors are tiny in fact so that this is not a realistic explanation. Also, smaller library sizes also have larger standard errors
+
+Compare with CA solution
+
+```{r CA solution}
+SVD4 = initSVD(dataMat4)
+plotRCM(SVD4$d[1:2], t(SVD4$u[1:2,]), t(SVD4$v[,1:2]), X = dataMat4,
+        main="Correspondence analysis", arrowFrac = 0.05, thetas =thetas, 
+        abunds = rhos, biplot = FALSE)
+```
+
+Try this full ML solution
+
+```{r full ML test}
+tmp =initSVD(dataMat4)
+k=2
+tmpNB = fitNB3(X = dataMat4, rMat = tmp$u[,1:k], cMat = t(tmp$v[,1:k]), psiInit = tmp$d[1:k], abunds = colSums(dataMat4)/sum(dataMat4))
+
+#Check constraints
+apply(tmpNB$rMat, 2, function(y){
+  sum(y*rowSums(dataMat4))
+})
+apply(tmpNB$cMat, 1, function(y){
+  sum(y*tmpNB$abunds)
+})
+apply(tmpNB$rMat, 2, function(y){
+  sum(y^2*rowSums(dataMat4))
+})
+apply(tmpNB$cMat, 1, function(y){
+  sum(y^2*tmpNB$abunds)
+})
+
+plotRCM(tmpNB$psis, tmpNB$rMat, tmpNB$cMat, X = dataMat4, thetas = thetas,abunds = rhos, arrowFrac = 0.05, biplot =FALSE)
+```
+
+## Library size estimation
+
+A small simulation study to test the ML estimation of the library size (and abundance), not evaluated
+
+```{r SmallSimLibsize, echo=FALSE, eval=FALSE}
+libEstClass = rowSums(dataMat4)
+abEstClass = colSums(dataMat4)/sum(dataMat4)
+
+glm.nb.mat2 = function (X, init.theta, abunds, libInit, tolAb = 1e-6, 
+                        tolPsi = 1e-4,  maxIterMu = 50, verbose =FALSE){
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxk regressor matrix
+  # @param init.theta: a vector of length p with the current dispersion parameters
+  # @param abInit: a vector of length p with initial abundance parameters
+  # @param tolMu: a realtive tolerance for the iteration of the abundances
+  # @param tolPsi: an absolute tolerance for the iteration of the importance parameters psi
+  # @param maxIterMu: an integer, maximum number of iterations between psi and abundance estimates
+
+  # @return Psis: estimated importance estimates
+  
+# require(rootSolve)
+require(nleqslv)
+# k = dim(reg)[3]
+p = ncol(X)
+
+#  resPar = multiroot(f = dNBll, start = c(log(abInit), psiInit), theta = init.theta, y = X, reg = reg, verbose = verbose)$root
+resPar = nleqslv(fn = dNBll2, x = libInit, theta = init.theta, y = X, Abund = abunds)$x
+return(list(Libs = resPar))
+}
+
+
+dNBll2 = function(LibSize, y, theta, Abund) {
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param y: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param abunds: a vector of length p with the LOGS OF THE abundance parameters
+
+  # @return A vector of length r with the new psi estimates
+  
+#   if(length(beta) != dim(x)[3]){
+#     stop("Dimensions don't of regressor matrix and parameters psi don't match")
+#   }
+  p = length(theta)
+  mu = outer(LibSize, Abund)
+  
+  sapply(1:length(LibSize), function(z){
+#      if(z %in% 1:p){ 
+#       #xReg = rowSums(y) #Regressor is 1 for the abundances
+#       sum((y[,z]-mu[,z])/(1+mu[,z]/theta[z]))
+#      } else { #For psi parameters, consider all observations
+       sum((y[z,]-mu[z,])/(1+mu[z,])/theta)
+      # }
+    })
+}
+
+fitNB2 = function(X, abunds, maxIt = 20, maxItNB = 25, tol = 1e-8, tolDisp=1e-4, mC=1, verbose = TRUE, printN = 5, ...){
+    
+# @param X: the nxp named count matrix
+# @param maxIt (optional): A scalar, the maximum number of iterations between overdispersion and importance estimation, defaults to 100
+# @param tol (optional): A scalar representing the tolerance for the convergence of abundances and importance parameters, defaults to 1e-4
+# @param tolDisp (optional): A scalar representing the tolerance for the convergence of the dispersions. This can best be higher than the regular tol beacuse of the high variance of its estimation, defaults to 1e-8
+# @param mC (optional): A scalar for the number of nodes to use in parallel fitting of the negative binomial regression, defaults to 1. Not recommended to use mC >1 for small datasets (<100 samples) since overhead will slow down calculations
+# @param verbose: a boolean, should information on iterations be printed?
+# @param printN: An integer, print messages at evry printN iterations
+
+# @return psis: A vector of length k with the "importance" parameters of the RC decompositions
+# @return thetas: a vector of length p with all the dispersion parameters
+# @return converged: a boolean indicating whether the algorithm converged
+    
+  require(MASS)
+  require(parallel)
+  # require(VGAM)
+
+  #Initialize the parameters for the iteration
+  thetaNew = rep(1, ncol(X))
+  libNew = rowSums(X)
+  
+  #Testing
+#   thetaEstsTrack =  abEsts = matrix(0, nrow = maxIt, ncol = ncol(X))
+#   psiEsts = matrix(0, nrow = maxIt, ncol = k)
+  iter = 1
+
+  #Theta estimates are too variable, apply a milder convergence criterion to them. also look at relative convergence for the abundances and overdispersions
+while((iter==1||  any(abs(libOld-libNew) > tol) )  & iter <= maxIt){
+  # any(abs(1-thetaOld/thetaNew)[!idNA] > tolDisp) ||
+
+  ## Step 2: Find taxon-wise dispersion estimates, with the mean as offset
+#   for (i in 1:k){
+#    assign(paste0("dim",i,"Mat"), outer(rMat[,i], cMat[i,]) * psiNew[i])
+#   }
+  
+  # A matrix of means
+  meansMat = outer(libNew, abunds)
+
+  thetaEsts = try(mclapply(1:ncol(X),mc.cores=mC, function(j){
+#     Form1 = as.formula(paste0(paste("X[,j]~offset(logRowSums",paste(paste0("dim",1:k,"Mat[,j]"),collapse="+") ,sep="+"),")"))
+#     suppressWarnings(try(glm.nb(Form1, maxit=maxItNB),  silent=TRUE))#init.theta=thetaNew[j]),
+        theta = try(theta.ml(X[,j], meansMat[,j], limit=maxItNB), silent=TRUE)
+    if(class(theta)=="try-error"){
+      return(NA)
+    } else {return(theta)}
+  }), silent=TRUE)
+  
+  if(class(thetaEsts)=="try-error"){
+    warning("Presumably not enough memory to fork (or you are not runnign Linux), continuing in serial mode")
+    thetaEsts = lapply(1:ncol(X), function(j){
+#     Form1 = as.formula(paste0(paste("X[,j]~offset(logRowSums",paste(paste0("dim",1:k,"Mat[,j]"),collapse="+") ,sep="+"),")"))
+#     suppressWarnings(try(glm.nb(Form1, maxit=maxItNB),  silent=TRUE))#init.theta=thetaNew[j]),
+    theta = try(theta.ml(X[,j], meansMat[,j], limit=maxItNB), silent=TRUE)
+    if(class(theta)=="try-error"){
+      return(NA)
+    } else {return(theta)}
     })
   }
   thetaEsts = unlist(thetaEsts)
@@ -399,20 +1689,16 @@ while((iter==1||  any(abs(psiOld-psiNew) > tol) || any(abs(1-abOld/abNew) > tol)
     warning(paste(sum(idNA), "dispersion estimations did not converge!"))
   }
   
-  ## Step 3 estimate the dimension scores psi and the taxon-wise abundances by ML, assuming overdispersions known
-  reg = array(0, dim = c(dim(X),k))
-  for (i in 1:k){
-    reg[,,i] = outer(rMat[,i], cMat[i,])
-  }
-  meanFit = glm.nb.mat(X = X, reg = reg, init.theta = thetaEsts, psiInit = psiNew, abInit = abNew)
+  ## Step 3 estimate the dimension scores psi by ML, assuming overdispersions known
+  meanFit = glm.nb.mat2(X = X, init.theta = thetaEsts, abunds=abunds, libInit = libNew)
   
   thetaOld = thetaNew
-  psiOld = psiNew
-  abOld=abNew
+  libOld = libNew
+  #abOld=abNew
   
-  psiNew = meanFit$Psis
+  libNew = meanFit$Libs
   thetaNew = thetaEsts
-  abNew = meanFit$Abunds
+  #abNew = meanFit$Abunds
   
 #   psiEsts[iter,] = psiNew
 #   abEsts[iter,] = abNew
@@ -420,315 +1706,55 @@ while((iter==1||  any(abs(psiOld-psiNew) > tol) || any(abs(1-abOld/abNew) > tol)
   
   if(verbose && iter%%printN == 0 ){
   cat("Inner Iteration", iter, "\n")
-  cat("Old psi-estimates: ", psiOld, "\n")
-  cat("New psi-estimates: ", psiNew, "\n")
   }
   
   iter = iter + 1
 }
-  if(iter == maxIt + 1 & ( any(abs(1-thetaOld/thetaNew) > tolDisp) | any(abs(psiOld-psiNew) > tol) | any(abs(1-abOld/abNew) > tol) )){
+  if(iter == maxIt + 1 & ( any(abs(libOld-libNew) > tol)  )){
     warning("Algorithm did not converge!")
     converged = FALSE
   } else {converged =TRUE}
 
-  names(psiNew) = paste0("Dim", 1:k)
-  names(thetaNew) = names(abNew) = colnames(X)
-  return(list(psis = psiNew, thetas = thetaNew, abunds = abNew, converged = converged))
-}
-#-------------------------------------------#
 
-## A function to calculate row or column scores when keeping the other one constant, given overdispersion and importance parameters psi.
-
-scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), rMat, cMat){
-  
-# @param X: the nxp data matrix
-# @param psis: A vector of length k with the importance parameters psi
-# @param thetas: a vector of length p with dispersion estimates
-# @param abunds: a vector of length p with relative abundance estimates
-# @param toEstimate: a character string, either "rows" or "columns", indicating which scores to estimate
-# @param rMat: a nxk matrix with current row scores
-# @param cMat: a pxk with matrix with current column scores
-
-# @return rMat: a nxk matrix with row scores: The same ones as provided or new estimates
-# @return cMat: a pxk with matrix with column scores: The same ones as provided or new estimates
-  
-  if(length(psis) != ncol(rMat) || length(psis) != nrow(cMat)){
-    stop("Dimensions of psis, rows or columns don't match")
-  } else{
-  #Number of dimensions
-  k =length(psis)
-  }
-  
-  # A matrix of expected values
-  meansMat = outer(rowSums(X), abunds)
-  for (i in 1:k){
-    meansMat = meansMat * exp(outer(rMat[,i], cMat[i,]) * psis[i])
-  }
-  
-  #Calculate a matrix of residuals, and convert to a data frame table
-  residMat = log(meansMat) - log(outer(rowSums(X), abunds))
-  residList = as.data.frame.table(X)
-  names(residList) = c("sample","taxon","Resid")
-  residList$libSize = rowSums(X)[residList$sample]
-  residList$abund = abunds[residList$taxon]
-
-  #A matrix of weights, equal to the NB variance
-  weightsMat =  1/(meansMat + meansMat^2/thetas)
-  
-  #Fit the Weighted Least Squares(WLS) regression, row per row or column per column
-  if(toEstimate == "columns"){
-  rMatPsi = t(psis*t(rMat))
-  
-  #QUESTION: With or without intercept? Does it matter if we renormalize afterwards? I don(t think so because of the subsequent normalization)
-  #QUESTION 2: is the formulation with the logarithm correct?
-  
-  colScores = sapply(1:ncol(residMat),function(i){
-    formWLScols = as.formula(paste0("residMat[,i]~",paste(paste0("rMatPsi[,",1:k,"]"),collapse="+"), "-1"))
-    lm(formWLScols, weights = weightsMat[,i])$coef[1:k]})
-  #Renormalize
-  colScoresNorm = t(apply(colScores,1, function(colS){
-    colS - sum(colS * abunds)/sum(abunds)
-  }))
-  rownames(colScoresNorm) = colnames(rMat)
-  colnames(colScoresNorm) = colnames(X)
-  return(list(rMat=rMat, cMat=colScoresNorm))
-  
-  } else{
-  cMatPsi = psis*cMat
-  rowScores = t(sapply(1:nrow(residMat),function(i){
-      formWLSrows = as.formula(paste0("residMat[i,]~",paste(paste0("cMatPsi[",1:k,",]"),collapse="+"), "-1"))
-    lm(formWLSrows, weights = weightsMat[i,])$coef[1:k]
-    }))
-  #Renormalize
-  
-  rowScoresNorm = apply(rowScores,2, function(rowS){
-    rowS - sum(rowS * rowSums(X))/sum(X)
-  })
-  rownames(rowScoresNorm) = rownames(X)
-  colnames(rowScoresNorm) = rownames(cMat)
-  return(list(rMat=rowScoresNorm, cMat=cMat))
-  }
+  return(list(thetas = thetaNew, libSizes=libNew, converged = converged))
 }
 
-#-------------------------------------------#
-## A wrapper function to calculate the overdispersion, abundance and importance parameters
+libEstMLE = fitNB2(dataMat4, abEstClass, mC=1)
 
-outerLoop = function(X, k, tol = 1e-8, maxItOut = 50, maxItML = 10, maxItNB = 25, tolML = 1e-8, tolDisp=1e-4, verbose = TRUE, mC = 1,...){
-  
-# @param X: a nxp data matrix
-# @param k: a scalar, number of dimensions in the RC(M) model
-# @param tol: a scalar, the convergende tolerance for the psi, row scores and column scores parameters
-# @param maxItOut: an integer, the maximum number of iteration in the outer loop
-# @param maxItML: an integer, the maximum number of iteration in the ML estimation
-# @param maxItNB: an integer, the maximum number of iteration in the negative binomial regression
-# @param tolML: a scalar, the convergende tolerance for the ML estimation of abundances and importance parameters
-# @param tolDisp: a scalar, the convergende tolerance for the overdispersion parameters
-# @param verbose: a boolean, should information on iterations be printed?
-# @param mC: an integer, the number of cores to use for the negative binomial regression
-# @param ...: additional arguments, passed on to fitNB
+boxplot(libEstMLE$libSizes[1:100], main="MLE estimate")
+abline(h=1e4, col="red")
 
-# @return psis: a vector of length k with estimates for the importance parameters psi
-# @return thetas: a vector of length p with estimates for the overdispersion
-# @return abunds: a vector of length p with abundance estimates
-# @return rMat: a nxk matrix with final row scores
-# @return cMat: a pxk with matrix with final column scores
-# @return converged: a boolean indicating if the algorithm converged
-  
-  ## 1) Inititiation
-  svdX = initSVD(X)
-  psiInit = svdX$d[1:k]
-  rMatInit = svdX$u[,1:k]
-  cMatInit = t(svdX$v[,1:k])
-  
-  psi = psiOld = psiInit
-  rMat = rMatOld = rMatInit
-  cMat = cMatOld = cMatInit
-  abunds = colSums(X)/sum(X)
-  iterOut = 1
-  
-  ## 2) Propagation
-  
-  while((iterOut ==1) || ((iterOut <= maxItOut) && (any(abs(psi-psiOld) > tol)) || (any(abs(rMat-rMatOld) > tol)) || (any(abs(cMat-cMatOld) > tol)) || (any(abs(abunds/abundsOld-1) > tol))))
-    {
-    
-  if(verbose && iterOut%%5 == 0){
-  cat("\n","Outer Iteration", iterOut, "\n","\n")
-  cat("Old psi-estimates: ", psiOld, "\n")
-  cat("New psi-estimates: ", psi, "\n")
-  }
-  
-  ## 2)a. Store old parameters
-  psiOld = psi
-  rMatOld = rMat
-  cMatOld = cMat
-  abundsOld = abunds
-    
-  ## 2)b. ML estimation of dispersion, abundance and importance parameters
-  NBfitList = fitNB(X, rMat, cMat, psi, maxIt = maxItML, tol = tolML, tolDisp = tolDisp, maxItNB = maxItNB, verbose = verbose, mC = mC,...)
-  
-  psi = NBfitList$psis
-  thetas = NBfitList$thetas
-  abunds = NBfitList$abunds
-  
-  ## 2)c. WLS estimation of row scores
-  rMat = scoreCalc(X = X, psi, thetas, abunds, toEstimate = "rows", rMat, cMat)$rMat
-  
-  ## 2)d.  ML estimation of dispersion, abundance and importance parameters
-  NBfitList = fitNB(X, rMat, cMat, psi, maxIt = maxItML, tol = tolML, tolDisp = tolDisp, maxItNB = maxItNB, verbose = verbose, mC = mC,...)
-  
-  psi = NBfitList$psis
-  thetas = NBfitList$thetas
-  abunds = NBfitList$abunds
-  
-  ## 2)e. WLS estimation of column scores
-  cMat = scoreCalc(X = X, psi, thetas, abunds, toEstimate = "columns", rMat, cMat)$cMat
-  
-  ## 2)f. Change iterator
-  iterOut = iterOut + 1
-} # END while-loop
-  
-  ## 3) Termination
-  
-  convergence = !(
-    (iterOut == (maxItOut +1) ||
-                    (any(abs(psi-psiOld) > tol)) || 
-                    (any(abs(rMat-rMatOld) > tol)) || 
-                    (any(abs(cMat-cMatOld) > tol))) ||
-                    (any(abs(abunds/abundsOld-1) > tol)))
-  
-  #Renormalization
-  rMat = apply(rMat, 2, function(y){
-    y/sqrt(sum(rowSums(X) * y^2))
-  })
-  cMat = t(apply(cMat, 1, function(y){
-    y/sqrt(sum(abunds * y^2))
-  }))
-  
-  rownames(rMat) = rownames(X)
-  colnames(cMat) = colnames(X)
-  rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
-  
-  if(!convergence ){
-    warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
-    return(list(rMat=rMat, cMat=cMat, thetas = thetas, psis = psi, abunds = abunds, converged = FALSE))
-  } else {
-  return(list(rMat=rMat, cMat=cMat, thetas = thetas, psis = psi, abunds = abunds, converged = TRUE))
-  }
-}
-#-------------------------------------------#
+boxplot(libEstMLE$libSizes[101:200], main="MLE estimate")
+abline(h=1e5, col="red")
 
-## A plotting function that plots the samples as dots and the species as arrows
+boxplot(libEstClass[1:100], main="Rowsum estimate")
+abline(h=1e4, col="red")
 
-plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL, abunds = NULL, arrowFrac = 0.1, biplot = TRUE, ...){
-# @param psis: vector of length k with 
-# @param rMat: a nxk matrix with final row scores
-# @param cMat: a pxk with matrix with final column scores
-# @param Dim (optional): a vector of length 2, indicating which dimensions to fit, defaults to the first two
-# @param X (optional): the nxp data matrix
-# @param thetas (optional): a vector of length p with estimates for the overdispersion
-# @param abunds(optional): a vector of length p with abundance estimates (otherwise it is estimated from the data)
-# @param arrowFrac(optional): Fraction of largest species to plot
-# @param biplot(optional): A boolean indicating if species should be added to the plot, defaults to TRUE
-# @param ... additional arguments, passed on to the plot() function
-# @return: NONE,  plots the result in the plotting window
-  
-  if(!(length(psis)== ncol(rMat) && length(psis) == nrow(cMat))){
-    stop("Dimensions don't match")
-  }
-  #Reorder dimensions according to importance
-  Dim = Dim[order(psis, decreasing = TRUE)]
-  
-  a = Dim[1]
-  b = Dim[2]
-  
-  #Add colours for the library sizes
-  if(!is.null(X)){
-  Colour = ifelse(rowSums(X) < median(rowSums(X)), "blue","red")
-  } else {Colour = 1}
-  
-  ## Add linetypes for the dispersions
-  if(!is.null(X)){
-    LineType = sum(1/thetas < quantile(1/thetas, c(0.25,0.5,0.75,1)))
-  } else {LineType=1}
-  
-  ##Add colours for the abundances
-  if(!is.null(abunds)){
-    lineColour = sum(abunds < quantile(abunds, c(0.25,0.5,0.75,1)))
-  } else {lineColour = 1}
-  
-  plot(x = rMat[,a] * psis[a],
-  y = rMat[,b] *psis[b],
-  xlab="Dim1",
-  ylab="Dim2",
-  col = Colour,
-  ...)
-  if(!is.null(X)){
-  legend("topright",legend=c("Small library size","Large library size"), pch=c(1,1), col=c("blue","red"))
-  }
-  
-    if (biplot){
-      #Arrows
-        arrowLengths = apply(outer(t(cMat[Dim,]), psis[Dim]),1,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
-        scalingFactor = max(abs(range(outer(rMat[,Dim], psis[Dim]))))/
-        max(abs(range(cMat[Dim,id])))*0.9
-    arrows(0,0,cMat[a,id]*scalingFactor,cMat[b, id]*scalingFactor, lty=LineType[id], col = lineColour[id])
-    if(!is.null(thetas)){
-      legend("topleft", legend=paste0(">",seq(0,75,25), "th quantile"), lty=1:4, title="Dispersion")
-    }
-    if(!is.null(abunds)){
-      legend("bottomleft", legend=paste0(">",seq(0,75,25), "th quantile"), col = 1:4, title="Abundance")
-      }
-    }
-    
-}
+boxplot(libEstClass[101:200], main="Rowsum estimate")
+abline(h=1e5, col="red")
 
+plot(libEstMLE$libSizes, libEstClass, log="xy")
+abline(0,1)
+abline(h=1e4, col="red")
+abline(h=1e5, col="red")
+abline(v=1e4, col="red")
+abline(v=1e5, col="red")
+
+libsMLE = libEstMLE$libSizes
+libsMLE[libsMLE<0] = rowSums(dataMat4)[libsMLE<0]
+tmp5 = outerLoop(dataMat4, k=2, maxItML = 20, maxItOut = 50, printN = 1, mC = 1, libSizes = libsMLE)
+plotRCM(tmp5$psis, tmp5$rMat, tmp5$cMat, X = dataMat4, thetas = thetas
+        ,abunds = rhos, arrowFrac = 0.05, biplot =FALSE)
 ```
-
-#Demonstration
-
-We generate some data as before with the NB distribution but differing library sizes, apply our algorithm and plot the results.
-
-```{r DataGen}
-#Generate some data
-load("/home/stijn/PhD/American Gut/AGpars.RData")
-Nsamples= 20
-Ntaxa = 200
-rhos=rhos[1:Ntaxa]
-thetas=thetas[1:Ntaxa]
-libSizes4 =c(rep(1e4, Nsamples/2), rep(1e5, Nsamples/2))
-dataMat4 = t(sapply(libSizes4,function(x){rnbinom(n=length(rhos), size=thetas, mu= rhos*x)}))
-colnames(dataMat4) = names(rhos)[1:Ntaxa]
-#Introduce DA
-# dataMat4[11:20,1:50] = dataMat4[11:20,1:50] + 3
-#Remove all zero columns and rows
-dataMat4 = dataMat4[rowSums(dataMat4)>0, colSums(dataMat4) > 0]
-rownames(dataMat4) = paste0("Sample", 1:Nsamples)
-```
-
-```{r Own Method: loglinear NB}
-tmp3 = outerLoop(dataMat4, k=2, maxItML = 20, maxItOut = 50, printN = 1, mC = 4)
-#At 100 taxa this works fine, for 500 we still have problems with the convergence of the abundance/psi estimates
-#Problems with oscillation and divergence observed
-
-plotRCM(tmp3$psis, tmp3$rMat, tmp3$cMat, X = dataMat4, thetas = thetas, abunds = rhos)
-```
-
-Compare with CA solution
-
-```{r CA solution}
-SVD4 = initSVD(dataMat4)
-plotRCM(SVD4$d[1:2], t(SVD4$u[1:2,]), t(SVD4$v[,1:2]), X = dataMat4)
-```
-
-When we have several hundreds of species, we have a problem with oscillation, perhaps because of the nested iteration? Keep number of inner iterations short for this reason, and do a lot of outer iterations
 
 # Addendum: Some comments on other R-pacakages
 
 We can perhaps use the _logmult_ package to fit the RC. Newton-Raphson is used for fitting and the results of the independence model are used as starting values. First try quassipoisson, which is built in and can serve as a comparison.
 
-```{r logMult packages, echo=TRUE, eval=TRUE}
-RC4 =logmult::rc(dataMat4, nd=2, weighting = "marginal", se="none", family= "quasipoisson")
+```{r logMult packages, echo=TRUE, eval=FALSE}
+library(logmult);library(parallel)
+RC4job =mcparallel(logmult::rc(dataMat4, nd=2, weighting = "marginal", se="none", family= "poisson"))
+RC4 = mccollect(RC4job, FALSE)[[1]]
 plot(RC4, what="columns")
 ```
 
@@ -738,7 +1764,9 @@ We can only use quasipoisson here, maybe the _rcim()_ function from the _VGAM_ p
 parameters being of interest and the other treated as a nuisance/scale parameter (this is implemented in the MASS library). The VGAM family function negbinomial() treats both parameters on the same footing, and estimates them both by full maximum likelihood estimation"
 
 ```{r VGAM_rcim, eval=FALSE, echo=FALSE}
-RCIM4 = rcim(y=data.frame(dataMat4),  Rank = 2, trace=TRUE, family = poissonff, iindex = 1:nrow(dataMat4))
+library(VGAM)
+RCIM4job = mcparallel(rcim(y=data.frame(dataMat4),  Rank = 2, trace=TRUE, family = poissonff, iindex = 1:nrow(dataMat4)))
+RCIM4 = mccollect(RCIM4job, FALSE)[[1]]
 #Use inverse of variance as fitting weights?
 Mus = outer(rhos, libSizes4)
 Weights = 1/t(Mus+thetas*Mus^2)
@@ -746,3 +1774,251 @@ RCIM4 = rcim(y=data.frame(dataMat4),  Rank = 2, trace=TRUE, family = negbinomial
 ```
 
 
+
+```{r One by one trial}
+# Trial and error
+
+#  - We might consider first fitting the model for k=1, then update the mean and fit k=2 given k=1 etc. However then we cannot update the dispersion parameters adn have to use e.g. the inital ones. the final solution will not really be a ML solution then unfortunately
+# 
+#  - Estimating the row scores is most difficult. I think this is because the score equations contain all the different theta parameters, so we're outside of the regular NB realms
+#  
+#  - Enforcing the constraints on the row and column scores through Lagrange multipliers was not a great succes: the ML estimates can no longer be found in this case. But especially the orthogonality constraint seems hard to implement otherwise. Van der Heijden _et al._ 1989 suggest setting some $r_{im}=r_{i'm'}$ for $i \neq i'$ and $m \neq m'$ to ensure the orthogonality but this seems so artificial and I doubt whether this will convergence. 
+# 
+# -If we don't make the orthogonality explicit, the row and column scores will become each others opposite while the psi parameters grow to infinity
+glm.nb.col = function (X, reg, current.theta, abunds, libSizes, weights, cMatInit, nleqslv.control, k , lambdaCol, global = "dbldog"){
+  # @param X: the data vector of length n
+  # @param reg: a nxpxk regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param abund: a scalar with abundance parameter
+  # @param weights: a vector of length n with weights
+  # @param libSizes : a vector of length n with library sizes
+  # @param cVecInit: a vector of length k with initial column scores
+
+  # @return cMat: a vector length k with estimated column scores
+  # @return cMatSE: a vector length k with estimated column scores standard errors
+  
+require(nleqslv)
+p=length(abunds)
+n=NROW(reg)
+cMat = cMatInit
+
+
+p = length(current.theta)
+
+for (i in 1:k){
+
+keepGoing = TRUE
+globalInd = 1
+beta = c(cMat[i,], lambdaCol[((i-1)*(i-2)/2+(i>1)):(i*(i-1)/2)])
+
+if(length(beta) != (p  + i*(i-1)/2)){ # + k + k
+    stop("Dimensions of regressor matrix and parameters don't match")
+}
+
+while(keepGoing){
+tmp = try(nleqslv(fn = dNBllcol, x = beta, current.theta = current.theta, y = X, reg = reg, abunds =abunds, libSizes = libSizes, weights =weights, k=i, global = global[globalInd], control = nleqslv.control, n=n, p=p, cMat =cMat, jac=NBjacobianCol), silent=TRUE)
+if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
+ globalInd = globalInd + 1
+ if(globalInd > length(global)){
+   keepGoing = FALSE
+ }
+ if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
+  cMatOut = matrix(tmp$x[1:p], byrow=TRUE, ncol=p, nrow=1)
+  lambdaColOut = if(i>1) tmp$x[(p+1):length(tmp$x)] else NULL
+  beta = c(as.vector(t(cMatOut)), lambdaColOut)
+    }
+} else if(tmp$termcd==1){
+    keepGoing=FALSE
+  }
+}
+if(class(tmp)=="try-error"){
+  warning("Could not finish iteration of row values!")
+} else{
+  cMat[i,] = matrix(tmp$x[1:p], byrow=TRUE, ncol=p, nrow=1)
+  lambdaCol[((i-1)*(i-2)/2+(i>1)):(i*(i-1)/2)] = if(i>1) tmp$x[(p+1):length(tmp$x)] else NULL
+}
+} #END for-loop
+# }
+# mu = abund * libSizes
+# for (i in 1:k){
+#   mu = mu *exp(reg[,i]* cVecInit[i])
+# }
+# n=length(libSizes)
+# #The kxk expected fisher information matrix
+# EFI = t(reg) %*% (reg * mu/(1+mu/current.theta))
+# #The kxk matrix of standard errors
+# SEmat = try(sqrt(solve(EFI)/n), silent=TRUE)
+# cMatSE = if(class(SEmat)=="try-error"){
+#   rep(1,k)
+# } else {diag(SEmat)}
+return(list(cMat = cMat, cMatSE = 1, lambdaCol = lambdaCol))
+}
+  
+#--------------------------------------#
+#A score function of the NB for the column scores
+
+dNBllcol = function(beta, y, reg, current.theta, abunds, libSizes, weights, k, p, n, cMat) {
+  # @param beta: a vector of k*p column scores + k within dimensional centering lambda parameters + k within dimensional normalization parameters +  k(k-1)/2 between dimension lambda parameters
+  # @param y: the data vector of length n
+  # @param reg: a nxk regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param logAbund: a scalar with the LOG OF THE abundance parameter
+  # @param libSizes : a vector of length n with (known) library sizes
+  # @param weights: a vector of length n with weights
+
+  # @return A vector of length k with the new column score estimates
+  if(k==1){
+    cMatK = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
+    mu = outer(libSizes, abunds) * exp(outer(reg[,k], cMatK[1,]))
+      
+  score = as.vector(sapply(1:k, function(K){
+    sapply(1:p, function(P){
+      sum(reg[,K]*(y[,P]-mu[,P])/(1+t(t(mu[,P])/current.theta[P]))*weights[,P])})}))
+  return(score)
+  } else{
+  cMatK = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
+  logMu = vapply(1:(k-1), FUN.VALUE = array(0,dim=c(n,p)),  function(i){
+    outer(reg[,i], cMat[i,])
+  })
+  # logMu[,K] = reg[,K]*beta
+  mu = exp(apply(logMu,c(1,2),sum)) * outer(libSizes, abunds) * exp(outer(reg[,k], cMatK[1,]))
+  #   lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+#   lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  # lambda3 = beta[(k*p+1):length(beta)] #Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #2*k+
+  lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
+  lambda3Mat[lower.tri(lambda3Mat)] = beta[(p+1):length(beta)]
+  lambda3Mat = lambda3Mat + t(lambda3Mat)
+  score = sapply(1:p, function(P){
+      sum(reg[,k]*(y[,P]-mu[,P])/(1+t(t(mu[,P])/current.theta[P]))*weights[,P])  + 
+            sum(lambda3Mat[k,]*cMat[1:k,P]*abunds[P])
+    }) #+ lambda1[K]*abunds[P] + 2*lambda2[K]
+#   centers = colSums(abunds*t(cMat))
+#   unitSums = colSums(abunds*t(cMat^2))-1
+  orthogons = sapply(1:(k-1), function(Kinner){
+      sum(cMat[1,]*cMat[Kinner,]*abunds)})
+  
+  nLambda = length(orthogons)
+  # scoreWeights = (n+nLambda)/((nLambda+1)*n)
+  lambdaWeights = (n+nLambda)/(1+nLambda)
+  return(c(score*lambdaWeights/n, orthogons*lambdaWeights))
+  }
+}
+
+#-------------------------------------------#
+#A function to calculate the row scores for one row through weighted ML
+  
+glm.nb.row = function (X, reg, current.theta, abunds, libSizes, weights, rMatInit, nleqslv.control, lambdaRow, global ="dbldog", rMat){
+  # @param X: the data vector of length p
+  # @param reg: a kxp regressor matrix: outer product of colScores and psis
+  # @param current.theta: a vector of length p,  the current dispersion parameters
+  # @param abunds: a vector of length p with abundance parameters
+  # @param weights: a vector of length p with weights
+  # @param libSizes : a scalar, the library size
+  # @param rVecInit: a vector of length k with initial row scores
+
+  # @return rMat: a vector length k with estimated row scores
+  
+
+require(nleqslv)
+p = length(abunds)
+n = length(libSizes)
+rMat = rMatInit
+
+for (i in 1:k){
+keepGoing = TRUE
+globalInd = 1
+beta = c(rMat[,i], lambdaCol[((i-1)*(i-2)/2+(i>1)):(i*(i-1)/2)])
+
+if(length(beta) != (n  + i*(i-1)/2)){ # + k + k
+    stop("Dimensions of regressor matrix and parameters don't match")
+}
+
+while(keepGoing){
+tmp = try(nleqslv(fn = dNBllrow, x = beta, current.theta = current.theta, y = X, reg = reg, abunds =abunds, libSizes = libSizes, weights =weights, k=i, global = global[globalInd], control = nleqslv.control, n=n, p=p, cMat =cMat), silent=TRUE)
+if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
+ globalInd = globalInd + 1
+ if(globalInd > length(global)){
+   keepGoing = FALSE
+ }
+ if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
+  rMatOut = matrix(tmp$x[1:n], byrow=TRUE, ncol=n, nrow=1)
+  lambdaColOut = if(i>1) tmp$x[(n+1):length(tmp$x)] else NULL
+  beta = c(as.vector(t(rMatOut)), lambdaColOut)
+    }
+} else if(tmp$termcd==1){
+    keepGoing=FALSE
+  }
+}
+if(class(tmp)=="try-error"){
+  warning("Could not finish iteration of row values!")
+} else{
+  rMat[,i] = matrix(tmp$x[1:n], byrow=TRUE, ncol=n, nrow=1)
+  lambdaCol[((i-1)*(i-2)/2+(i>1)):(i*(i-1)/2)] = if(i>1) tmp$x[(n+1):length(tmp$x)] else NULL
+}
+} #END for-loop
+#2*k +
+  # mu = abunds * libSizes
+# for (i in 1:k){
+#   mu = mu *exp(reg[i,]* rVecInit[i])
+# }
+# p=length(abunds)
+# #The kxk expected fisher information matrix
+# EFI = reg %*% (t(reg) * mu/(1+mu/current.theta))
+# #The kxk matrix of standard errors
+# SEmat = try(sqrt(solve(EFI)/p),silent=TRUE)
+# rMatSE = if(class(SEmat)=="try-error"){
+#   rep(1,k)
+# } else {diag(SEmat)}
+return(list(rMat = rMat, rMatSE = 1, lambdaRow=lambdaRow))
+}
+  
+#--------------------------------------#
+#A score function of the NB for the row scores
+
+dNBllrow= function(beta, y, reg, current.theta, abunds, libSizes, weights, k, n ,p) {
+  # @param beta: a vector of k regression parameters to optimize: the k column scores
+  # @param y: the data vector of length p
+  # @param reg: a kxp regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param logAbund: a vector of length p with the LOGS OF THE abundance parameters
+  # @param libSizes : a vector of length n with (known) library sizes
+  # @param weights: a vector of length p with weights
+
+  # @return A vector of length k with the new column score estimates
+  if(k==1){
+    rMatK = matrix(beta[1:n], byrow=TRUE, nrow=n, ncol=1)
+    mu = outer(libSizes, abunds) * exp(outer(reg[,k], rMatK[,1]))
+      
+  score = as.vector(sapply(1:k, function(K){
+    sapply(1:n, function(N){
+      sum(reg[K,]*(y[N,]-mu[N,])/(1+t(t(mu[N,])/current.theta))*weights[N,])})}))
+  return(score)
+  } else{
+  rMatK = matrix(beta[1:n], byrow=TRUE, nrow=n, ncol=1)
+  logMu = vapply(1:(k-1), FUN.VALUE = array(0,dim=c(n,p)),  function(i){
+    outer(rMat[,i], reg[i,])
+  })
+  # logMu[,K] = reg[,K]*beta
+  mu = exp(apply(logMu,c(1,2),sum)) * outer(libSizes, abunds) * exp(outer(rMatK[,1],reg[k,]))
+  #   lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+#   lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  # lambda3 = beta[(k*p+1):length(beta)] #Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #2*k+
+  lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
+  lambda3Mat[lower.tri(lambda3Mat)] = beta[(n+1):length(beta)]
+  lambda3Mat = lambda3Mat + t(lambda3Mat)
+  score = sapply(1:n, function(N){
+      sum(reg[K,]*(y[N,]-mu[N,])/(1+t(t(mu[N,])/current.theta))*weights[N,])  + 
+        sum(lambda3Mat[k,]*rMat[N,])
+          })
+#   centers = colSums(abunds*t(cMat))
+#   unitSums = colSums(abunds*t(cMat^2))-1
+  orthogons = sapply(1:(k-1), function(Kinner){
+      sum(rMat[,1]*cMat[Kinner,]*abunds)})
+  
+  nLambda = length(orthogons)
+  # scoreWeights = (n+nLambda)/((nLambda+1)*n)
+  lambdaWeights = (n+nLambda)/(1+nLambda)
+  return(c(score*lambdaWeights/n, orthogons*lambdaWeights))
+  }
+}
+```
