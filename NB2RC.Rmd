@@ -240,7 +240,7 @@ initSVD = function(X){
   R = rowSums(X)
   onesn =rep(1, nrow(X))
   onesp = rep(1, ncol(X))
-  E = diag(R) %*% onesn %*% t(onesp) %*% diag(C)/sum(C)
+  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
   Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
   dimnames(Goal) = dimnames(X)
   svd(Goal)
@@ -249,7 +249,7 @@ initSVD = function(X){
 
 #A wrapper function for psi estimation
 
-glm.nb.mat = function (X, reg, init.theta, psiInit, abunds,  libSizes, global = "dbldog", nleqslv.control){
+glm.nb.mat = function (X, reg, init.theta, psiInit, abunds,  libSizes, global = "dbldog", nleqslv.control,k=k){
   # @param X: the nxp data matrix
   # @param reg: a nxpxk regressor matrix
   # @param init.theta: a vector of length p with the current dispersion parameters
@@ -261,23 +261,24 @@ glm.nb.mat = function (X, reg, init.theta, psiInit, abunds,  libSizes, global = 
   
 require(nleqslv)
 k = length(psiInit)
-psiVec = psiInit
+# psiVec = psiInit
 # Psi parameters are estimated one by one, given the previous ones
-for (K in 1:k){
+# for (K in 1:k){
 # nleqslv.control$trace=FALSE
-psiVec[K] = try(nleqslv(fn = dNBll2, x = psiInit[K], theta = init.theta, y = X, reg = reg, 
-                 abunds =abunds, libSizes = libSizes, K=K, global=global, control = nleqslv.control, psiVec=psiVec)$x, silent=TRUE)
+psiVec = try(nleqslv(fn = dNBll, x = psiInit, theta = init.theta, y = X, reg = reg, 
+                 abunds =abunds, libSizes = libSizes, k=k, global=global, control = nleqslv.control, jac=NBjacobianPsi)$x, silent=TRUE)
+#, psiVec=psiVec
 if(class(psiVec)=="try-error"){
-  psiVec[K] = psiInit[K]
+  psiVec = psiInit
   warning("Could not update psi values")
 }
-}
-return(list(Psis = sort(abs(psiVec), decreasing=TRUE))) #enforce positive psis and sort
+
+return(Psis = sort(abs(psiVec), decreasing=TRUE)) #enforce positive psis and sort
 }
   
 #--------------------------------------#
 
-dNBll = function(beta, y, reg, theta, abunds, K, libSizes){
+dNBll = function(beta, y, reg, theta, abunds, k, libSizes){
   # @param beta: a vector of r regression parameters to optimize: the r psi parameters
   # @param y: the nxp data matrix
   # @param reg: a nxpxr regressor array with r the number of regressors
@@ -286,20 +287,29 @@ dNBll = function(beta, y, reg, theta, abunds, K, libSizes){
   # @param libSizes (optional): a vector of length n with (known) library sizes
 
   # @return A vector of length r with the new psi estimates
-
-  logMu = array(0,dim=c(dim(reg)[1:2], K+1))
-  for (i in 1:K){
-    logMu[,,i] = reg[,,i]*beta[i]
-  }
-  logMu[,,K+1] = log(outer(libSizes, abunds)) #log(Libsize * abundance)
-  mu = exp(apply(logMu,c(1,2),sum))
+# 
+#   logMu = sapply(1:k,simplify="array", function(K){
+#     reg[,,K]*beta[K]
+#   })
+  mu = exp(arrayprod(reg, beta)) * outer(libSizes, abunds)
   
-  sapply(1:K, function(z){
+  vapply(1:k,FUN.VALUE=0, function(z){
   sum(reg[,,z]*(y-mu)/(1+t(t(mu)/theta)))
   })
+
 }
 #--------------------------------------#
+#A jacobian for the psi parameters
+NBjacobianPsi = function(beta, y, reg, theta, abunds, libSizes, k){
+  
+  mu = exp(arrayprod(reg, beta)) * outer(libSizes, abunds)
+  sapply(1:k, function(K){
+    vapply(1:k,FUN.VALUE=0, function(Kinner){
+    -sum(reg[,,K]*reg[,,Kinner]*(1+t(t(y)/theta))*mu/(1+t(t(mu)/theta))^2)
+  })})
+}
 
+#--------------------------------------#
 dNBll2 = function(beta, y, reg, theta, abunds, K, libSizes, psiVec)  {
   # @param beta: a vector of r regression parameters to optimize: the r psi parameters
   # @param y: the nxp data matrix
@@ -325,7 +335,7 @@ dNBll2 = function(beta, y, reg, theta, abunds, K, libSizes, psiVec)  {
 
 #---------------------------------------#
 # A function to estimate the overdispersions
-estDisp = function(X, cMat, rMat, libSizes, abunds, psis, prior.df=10){
+estDisp = function(X, cMat, rMat, libSizes, abunds, psis, prior.df=10, k=k){
 # @param X: the nxp named count matrix
 # @param rMat: A nxk matrix with the row weights of every dimension in the columns 
 # @param cMat: A kxp matrix with the column weights of every dimension in the rows 
@@ -335,26 +345,22 @@ estDisp = function(X, cMat, rMat, libSizes, abunds, psis, prior.df=10){
 # @param prior.df (optional): prior degrees of freedom for dispersion estimation, see edgeR documentation
 
   require(edgeR)
-  k=NCOL(rMat)
     # A matrix of means
-  meansMat = outer(libSizes, abunds)
-  for (i in 1:k){
-    meansMat = meansMat * exp(outer(rMat[,i], cMat[i,]) * psis[i])
-  }
+  logMeansMat = t(rMat %*% (cMat*psis) + log(outer(libSizes, abunds)))
 #Use the edgeR machinery to estimate the dispersions
-  trended.dispersion  <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess",offset=log(t(meansMat)))
-  thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL, prior.df = prior.df, offset=log(t(meansMat)), dispersion = trended.dispersion)
-  idNA = is.na(thetaEsts)
-  thetaEsts[idNA] = mean(thetaEsts[!idNA])
-  if(sum(idNA)>0){
+  trended.dispersion  <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess",offset=logMeansMat)
+  thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL, prior.df = prior.df, offset=logMeansMat, dispersion = trended.dispersion)
+  if(anyNA(thetaEsts)){
+    idNA = is.na(thetaEsts)
+    thetaEsts[idNA] = mean(thetaEsts[!idNA])
     warning(paste(sum(idNA), "dispersion estimations did not converge!"))
   }
-  return(list(thetas=thetaEsts))
+  return(thetas=thetaEsts)
 }
 #---------------------------------------#
 
 #A function to estimate the psis given all the other parameters
-estPsis = function(X, rMat, cMat, psiInit, abunds, libSizes, thetas, nleqslv.control,...){
+estPsis = function(X, rMat, cMat, psiInit, abunds, libSizes, thetas, nleqslv.control,k,...){
     
 # @param X: the nxp named count matrix
 # @param rMat: A nxk matrix with the row weights of every dimension in the columns 
@@ -368,21 +374,42 @@ estPsis = function(X, rMat, cMat, psiInit, abunds, libSizes, thetas, nleqslv.con
 # @return psis: A vector of length k with the "importance" parameters of the RC decompositions
 
   ## Step 3 estimate the dimension scores psi by ML, assuming overdispersions known
-  k = length(psiInit)
-  reg = array(0, dim = c(dim(X),k))
-  for (i in 1:k){
-    reg[,,i] = outer(rMat[,i], cMat[i,])
-  }
-  meanFit = glm.nb.mat(X = X, reg = reg, init.theta = thetas, psiInit = psiInit,
-                       abunds = abunds, libSizes = libSizes, nleqslv.control = nleqslv.control)
+#   reg = array(0, dim = c(dim(X),k))
+#   for (i in 1:k){
+#     reg[,,i] = outer(rMat[,i], cMat[i,])
+#   }
+  
+  reg = sapply(1:k, simplify="array", function(K){
+    outer(rMat[,K], cMat[K,])
+  })
+  return(glm.nb.mat(X = X, reg = reg, init.theta = thetas, psiInit = psiInit,
+                       abunds = abunds, libSizes = libSizes, nleqslv.control = nleqslv.control,k=k))
 
-  return(list(psis = meanFit$Psis))
 }
 #-------------------------------------------#
+#An auxiliary R function, kindly provided by Joris
+arrayprod <- function(x,y){
+  xdim <- dim(x)
+  outdim <- xdim[1:2]
+  outn <- prod(outdim)
+ 
+  yexpand <- rep(y, each = outn)
+  outid <- seq_len(outn)
+ 
+  tmp <- x * yexpand
+ 
+  dim(tmp) <- c(outn, xdim[3])
+  out <- rowSums(tmp)
+ 
+  dim(out) <- outdim
+ 
+  out
+}
 
+#-------------------------------------------#
 ## A function to calculate row or column scores when keeping the other one constant, given overdispersion and importance parameters psi.
 
-scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), rMat, cMat, lambda, method,  nleqslv.control, libSizes = NULL, global="dbldog"){
+scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), rMat, cMat, lambda, method,  nleqslv.control, libSizes = NULL, global="dbldog",  k, n ,p){
   
 # @param X: the nxp data matrix
 # @param psis: A vector of length k with the importance parameters psi
@@ -404,24 +431,14 @@ scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), 
    if(length(psis) != NCOL(rMat) || length(psis) != NROW(cMat)){
     stop("Dimensions of psis, rows or columns don't match")
   } else{
-    #Number of dimensions
-  k =length(psis)
     }
   
   if(is.null(libSizes)){
     libSizes = rowSums(X)
   }
-  # A matrix of expected values
-  meansMat = outer(libSizes, abunds)
-  for (i in 1:k){
-    meansMat = meansMat * exp(outer(rMat[,i], cMat[i,]) * psis[i])
-  }
-  
   if(toEstimate == "columns"){
 
-    #define the offsets
-    rMatPsi = t(psis*t(rMat))
-    cMatNewList = glm.nb.col(X = X, reg = rMatPsi, current.theta = thetas, abunds = abunds, libSizes = libSizes, cMatInit = cMat, global = global, nleqslv.control = nleqslv.control, k=k, lambdaCol = lambda, method=method)
+    cMatNewList = glm.nb.col(X = X, reg = t(psis*t(rMat)), current.theta = thetas, abunds = abunds, libSizes = libSizes, cMatInit = cMat, global = global, nleqslv.control = nleqslv.control, k=k, lambdaCol = lambda, method=method, n=n, p=p)
 
     cMatNew = cMatNewList$cMat
     # cMatNew=cMatNew/cMatSE #Bad idea!
@@ -435,9 +452,8 @@ scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), 
 
   return(list(rMat=rMat, cMat=colScoresNorm, lambdaCol = cMatNewList$lambdaCol, converged  = cMatNewList$converged))
   } else{
-  #define the offsets
-    cMatPsi = psis*cMat
-    rMatNewList = glm.nb.row(X = X, reg = cMatPsi, current.theta = thetas, abunds = abunds, libSizes = libSizes, global =global, nleqslv.control = nleqslv.control, rMatInit = rMat, lambdaRow=lambda, method=method)
+
+    rMatNewList = glm.nb.row(X = X, reg = psis*cMat, current.theta = thetas, abunds = abunds, libSizes = libSizes, global =global, nleqslv.control = nleqslv.control, rMatInit = rMat, lambdaRow=lambda, method=method,  n=n, p=p, k=k)
     
   rMatNew = rMatNewList$rMat
   #Renormalize
@@ -448,7 +464,7 @@ scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), 
     y/sqrt(sum( y^2))
   })
    
-  rownames(rowScoresNorm) = rownames(X)
+  # rownames(rowScoresNorm) = rownames(X)
   return(list(rMat=rowScoresNorm, cMat=cMat, lambdaRow = rMatNewList$lambdaRow, converged = rMatNewList$converged))
     }
   }
@@ -456,7 +472,7 @@ scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), 
 #-------------------------------------------#
 #A function to calculate the column scores for one column through weighted ML
   
-glm.nb.col = function (X, reg, current.theta, abunds, libSizes, cMatInit, nleqslv.control, k , lambdaCol, global = "dbldog", method){
+glm.nb.col = function (X, reg, current.theta, abunds, libSizes, cMatInit, nleqslv.control, k , p,n,lambdaCol, global = "dbldog", method){
   # @param X: the data vector of length n
   # @param reg: a nxpxk regressor matrix: outer product of rowScores and psis
   # @param current.theta: a scalar,  the current dispersion parameters
@@ -474,12 +490,9 @@ glm.nb.col = function (X, reg, current.theta, abunds, libSizes, cMatInit, nleqsl
   # @return converged: a boolean indicating if the roots of the system were found
 
 require(nleqslv)
-p=length(abunds)
-n=NROW(reg)
-cMat = cMatInit
-beta = c(as.vector(t(cMat)), lambdaCol)
+# cMat = cMatInit
+beta = c(c(t(cMatInit)), lambdaCol)
 
-p = ncol(X)
   if(length(beta) != (k*p  + k*(k-1)/2 + 2*k)){ # + k + k
     stop("Dimensions of regressor matrix and parameters don't match")
   }
@@ -492,17 +505,15 @@ if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
  globalInd = globalInd + 1
  if(globalInd > length(global)){
    globalInd = 1
-   methodInd = methodInd +1
+ nleqslv.control$maxit=200
+    methodInd = methodInd +1
 }
   if(methodInd > length(method)){
    keepGoing = FALSE
  }
  if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
   cMat = matrix(tmp$x[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
-  lambda1 = tmp$x[((k*p)+1):(k*(p+1))]
-  lambda2 = tmp$x[(k*(p+1)+1):(k*(p+2))]
-  lambda3 = tmp$x[(k*(p+2)+1):length(tmp$x)]
-  beta = c(as.vector(t(cMat)),lambda1, lambda2, lambda3)
+  beta = tmp$x
     }
 } else if(tmp$termcd==1){
     keepGoing=FALSE
@@ -512,12 +523,9 @@ if(class(tmp)=="try-error"){
   warning("Could not finish iteration of row values!")
 } else{
   cMat = matrix(tmp$x[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
-  lambda1 = tmp$x[((k*p)+1):(k*(p+1))]
-  lambda2 = tmp$x[(k*(p+1)+1):(k*(p+2))]
-  lambda3 = tmp$x[(k*(p+2)+1):length(tmp$x)]
 }
 
-return(list(cMat = cMat, lambdaCol = c(lambda1, lambda2,lambda3), converged = tmp$termcd ==1))
+return(list(cMat = cMat, lambdaCol = tmp$x[(k*p+1):length(tmp$x)], converged = tmp$termcd ==1))
 }
   
 #--------------------------------------#
@@ -537,27 +545,31 @@ dNBllcol = function(beta, y, reg, current.theta, abunds, libSizes, k, p, n) {
   # @return A vector of length p*k+2*k+ k(k-1)/2 evaluations of the lagrangian
   
   cMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
-  logMu = vapply(1:k, FUN.VALUE = array(0,dim=c(n,p)),  function(i){
-    outer(reg[,i], cMat[i,])
-  })
   # logMu[,K] = reg[,K]*beta
-  mu = exp(apply(logMu,c(1,2),sum)) * outer(libSizes, abunds)
+  mu = exp(reg %*% cMat) * outer(libSizes, abunds)
   
   lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
   lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
   # lambda3 = beta[(k*p+1):length(beta)] #Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #2*k+
-  lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
+  lambda3Mat = matrix(0,ncol=k*(k-1)/2+1, nrow=k*(k-1)/2+1)
   lambda3Mat[lower.tri(lambda3Mat)] = beta[(k*(p+2)+1):length(beta)]
   lambda3Mat = lambda3Mat + t(lambda3Mat)
-  score = as.vector(sapply(1:k, function(K){
-    sapply(1:p, function(P){
-      sum(reg[,K]*(y[,P]-mu[,P])/(1+t(t(mu[,P])/current.theta[P])))  + 
-            sum(lambda3Mat[K,]*cMat[,P]*abunds[P]) + lambda1[K]*abunds[P] + 2*lambda2[K]*abunds[P]*cMat[K,P]
-          })})) 
+#   score = as.vector(sapply(1:k, function(K){
+#     sapply(1:p, function(P){
+#       sum(reg[,K]*(y[,P]-mu[,P])/(1+t(t(mu[,P])/current.theta[P])))  + 
+#             sum(lambda3Mat[K,]*cMat[,P]*abunds[P]) + lambda1[K]*abunds[P] + lambda2[K]*abunds[P]*
+#         if(LASSO) ifelse(cMat[K,P]>0,1,-1) else 2*cMat[K,P]*abunds[P]
+#           })})) 
+  
+  score = c(t(
+    crossprod(reg,((y-mu)/(1+t(t(mu)/current.theta)))) + 
+                        t(abunds*t(lambda1 + lambda2*2*cMat + (lambda3Mat %*% cMat)))
+    ))
+  
   centers = colSums(abunds*t(cMat))
   unitSums = colSums(abunds*t(cMat^2))-1
   orthogons = sapply(1:(k-1), function(K){
-    sapply((K+1):k, function(Kinner){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
       sum(cMat[K,]*cMat[Kinner,]*abunds)
     })
   })
@@ -568,7 +580,7 @@ dNBllcol = function(beta, y, reg, current.theta, abunds, libSizes, k, p, n) {
 #-------------------------------------------#
 #A function to calculate the row scores for one row through weighted ML
   
-glm.nb.row = function (X, reg, current.theta, abunds, libSizes,  rMatInit, nleqslv.control, lambdaRow, global ="dbldog", method){
+glm.nb.row = function (X, reg, current.theta, abunds, libSizes,  rMatInit, nleqslv.control, lambdaRow,k, n, p, global ="dbldog", method){
   # @param X: the data vector of length p
   # @param reg: a kxp regressor matrix: outer product of colScores and psis
   # @param current.theta: a vector of length p,  the current dispersion parameters
@@ -585,13 +597,10 @@ glm.nb.row = function (X, reg, current.theta, abunds, libSizes,  rMatInit, nleqs
   # @return converged: a boolean indicating if the roots of the system were found
   
 require(nleqslv)
-k = NROW(reg)
-p = length(abunds)
-n = length(libSizes)
-rMat = rMatInit
+# rMat = rMatInit
 keepGoing = TRUE
 globalInd = methodInd = 1
-beta = c(as.vector(rMat), lambdaRow)
+beta = c(c(rMatInit), lambdaRow)
   
 if(length(beta) != (k*(n+2)  + k*(k-1)/2)){ #+ k + k
     stop("Dimensions of regressor matrix and parameters don't match")
@@ -602,17 +611,16 @@ if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
  globalInd = globalInd + 1
  if(globalInd > length(global)){
    globalInd = 1
+  nleqslv.control$maxit=200
    methodInd = methodInd +1
+
 }
   if(methodInd > length(method)){
    keepGoing = FALSE
  }
  if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
    rMat = matrix(tmp$x[1:(k*n)], byrow=FALSE, ncol = k, nrow=n) #
-   lambda1 = tmp$x[((k*n)+1):(k*(n+1))]
-   lambda2 = tmp$x[(k*(n+1)+1):(k*(n+2))]
-  lambda3 = tmp$x[(k*(n+2)+1):length(tmp$x)]
-beta = c(as.vector(rMat), lambda1, lambda2,lambda3)
+beta = tmp$x
     }
 } else if(tmp$termcd==1){
     keepGoing=FALSE
@@ -622,11 +630,8 @@ if(class(tmp)=="try-error"){
   warning("Could not finish iteration of row values!")
 } else{
    rMat = matrix(tmp$x[1:(k*n)], byrow=FALSE, ncol = k, nrow=n) #
-   lambda1 = tmp$x[((k*n)+1):(k*(n+1))]
-   lambda2 = tmp$x[(k*(n+1)+1):(k*(n+2))]
-  lambda3 = tmp$x[(k*(n+2)+1):length(tmp$x)]
 }
-return(list(rMat = rMat, lambdaRow=c(lambda1, lambda2,lambda3), converged = tmp$termcd ==1))
+return(list(rMat = rMat, lambdaRow=tmp$x[(k*n+1):length(tmp$x)], converged = tmp$termcd ==1))
 }
   
 #--------------------------------------#
@@ -645,28 +650,31 @@ dNBllrow= function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p) {
 
     # @return A vector of length p*k+2*k+ k(k-1)/2 evaluations of the lagrangian
   rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
-  logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
-    outer(rMat[,i],reg[i,])
-  })
+#   logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
+#     outer(rMat[,i],reg[i,])
+#   })
   # logMu[,K] = reg[,K]*beta
-  mu = exp(apply(logMu,c(1,2),sum))* outer(libSizes, abunds)
+  mu = exp(rMat %*% reg)* outer(libSizes, abunds)
   
   lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
   lambda2 = beta[(k*(n+1)+1):(k*(n+2))] #normalization restrictions sum(abunds*r^2_{ik}) = 1
 #Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #+2*k
-  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat = matrix(0,ncol=k*(k-1)/2+1, nrow=k*(k-1)/2+1)
   lambda3Mat[lower.tri(lambda3Mat)] = beta[(k*(n+2)+1):length(beta)]
   lambda3Mat = lambda3Mat + t(lambda3Mat)
-  score = as.vector(sapply(1:k, function(K){
-    sapply(1:n, function(N){
-      sum(reg[K,]*(y[N,]-mu[N,])/(1+t(t(mu[N,])/current.theta)))  + 
-       sum(lambda3Mat[K,]*rMat[N,])+ lambda1[K] + 2*lambda2[K]*rMat[N,K]
-          })}))
+#   score = as.vector(sapply(1:k, function(K){
+#     sapply(1:n, function(N){
+#       sum(reg[K,]*(y[N,]-mu[N,])/(1+t(t(mu[N,])/current.theta)))  + 
+#        sum(lambda3Mat[K,]*rMat[N,])+ lambda1[K] + lambda2[K]*
+#         (if (LASSO) ifelse(rMat[N,K]>0,1,-1) else 2*rMat[N,K])
+#           })}))
+  
+  score = c(t(tcrossprod(reg, (y-mu)/(1+t(t(mu)/current.theta))) + lambda1 + lambda2* 2*t(rMat) + t(rMat %*% lambda3Mat)))
   #
   centers = colSums(rMat)
   unitSums = colSums(rMat^2)-1
   orthogons = sapply(1:(k-1), function(K){
-    sapply((K+1):k, function(Kinner){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
       sum(rMat[,K]*rMat[,Kinner])
     })
   })
@@ -691,49 +699,69 @@ NBjacobianRow = function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p)
   lambda3Mat = lambda3Mat + t(lambda3Mat)
   #lambdaWeights = (n+nLambda)/(1+nLambda) #Weigths of the restircting equations
   
-  #Calculate the mean
-  logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
-    outer(rMat[,i],reg[i,])
-  })
-  mu = exp(apply(logMu,c(1,2),sum))* outer(libSizes, abunds)
+#   #Calculate the mean
+#   logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
+#     outer(rMat[,i],reg[i,])
+#   })
+    mu = exp(rMat %*% reg)* outer(libSizes, abunds)
 
   Jac = matrix(0, nrow= n*k + nLambda, ncol=n*k + nLambda)
   #The suymmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
   
-  for (K in 1:k){
-      #dLag²/dr_{ik}dlambda_{1k}
-      Jac[1:(n*k),(n*k+K)] = c(rep(0,(K-1)*n),rep(1,n),rep(0,(k-K)*n))
-      
-       #dLag²/dr_{ik}dlambda_{2k}
-      Jac[1:(n*k),((n+1)*k+K)] = c(rep(0,(K-1)*n),2 *rMat[,K],rep(0,(k-K)*n))
+#   for (K in 1:k){
+#       #dLag²/dr_{ik}dlambda_{1k}
+#       # Jac[1:(n*k),(n*k+K)] = c(rep(0,(K-1)*n),rep(1,n),rep(0,(k-K)*n))
+#       
+#        #dLag²/dr_{ik}dlambda_{2k}
+#       Jac[1:(n*k),((n+1)*k+K)] = if(LASSO) c(rep(0,(K-1)*n),ifelse(rMat[,K]>0,1,-1),rep(0,(k-K)*n)) else c(rep(0,(K-1)*n),2 *rMat[,K],rep(0,(k-K)*n))
+#   
+#   } #END for loop 1:k
   
-  } #END for loop 1:k
+  #dLag²/dr_{ik}dlambda_{1k}
+  #Jac[1:(n*k),(n*k+1):((n+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*n),rep(1,n),rep(0,(k-K)*n))})
+  Jac[1:(n*k),(n*k+1):((n+1)*k)] = c(rep(c(rep.int(1,n), rep.int(0,n*k)),k-1), rep.int(1,n)) 
+  #dLag²/dr_{ik}dlambda_{2k}
+  Jac[1:(n*k),((n+1)*k+1):((n+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric",n*k), function(K){c(rep(0,(K-1)*n),2 *rMat[,K],rep(0,(k-K)*n))})
      
   for (K in 1:(k-1)){
       for(Kinner in (K+1):k){
          #dLag²/dr_{ik}dlambda_{3kk'}
-      Jac[1:(n*k),((n+2)*k+(K*(2*k-1-K)/2-k+Kinner))] = c(rep(0, n*(K-1)), rMat[,Kinner], rep(0, n*(Kinner-K-1)), rMat[,K],rep(0, n*(k-Kinner)))
+      # Jac[1:(n*k),((n+2)*k+(K*(2*k-1-K)/2-k+Kinner))] = c(rep(0, n*(K-1)), rMat[,Kinner], rep(0, n*(Kinner-K-1)), rMat[,K],rep(0, n*(k-Kinner)))
         
-        for(N in 1:n){
-          #dLag²/dr_{ik}dr_{ik'}
-      Jac[N+(n*(K-1)),N+(n*(Kinner-1))] = -sum(reg[K,]*reg[Kinner,]*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2) + lambda3Mat[Kinner, K]
+#       for(N in 1:n){
+#           #dLag²/dr_{ik}dr_{ik'}
+#       Jac[N+(n*(K-1)),N+(n*(Kinner-1))] = -sum(reg[K,]*reg[Kinner,]*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2) + lambda3Mat[Kinner, K]
+#       }
+      
+        #dLag²/dr_{ik}dr_{ik'}
+      diag(Jac[(n*(K-1)+1):(n*K),(n*(Kinner-1)+1):(n*Kinner)]) = -t(tcrossprod(reg[K,]*reg[Kinner,],(1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2)) + lambda3Mat[Kinner, K]
       }
-    }
   }
+  #dLag²/dr_{ik}dlambda_{3kk'}
+    Jac[1:(n*k),((n+2)*k+1):(n*k+nLambda)] = sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",n*k), function(Kinner){
+          c(rep(0, n*(K-1)), rMat[,Kinner], rep(0, n*(Kinner-K-1)), rMat[,K],rep(0, n*(k-Kinner)))
+        })
+      })
   
   #Symmetrize
   Jac = Jac + t(Jac)
 #dLag²/dr_{ik}²
-  diag(Jac[1:(n*k),1:(n*k)]) = as.vector(unlist(sapply(1:k, function(K){
-    sapply(1:n, function(N){
-      -sum(reg[K,]^2*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2) + 2*beta[(n+1)*k+K]
-      })
-  })))
+#   diag(Jac[1:(n*k),1:(n*k)]) = as.vector(unlist(sapply(1:k, function(K){
+#     sapply(1:n, function(N){
+#       -sum(reg[K,]^2*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2) + 2*beta[(n+1)*k+K]
+#       })
+#   })))
+  
+    diag(Jac[1:(n*k),1:(n*k)]) = c(t(-tcrossprod(reg^2 ,(1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2) + 2*rep(beta[((n+1)*k+1):((n+2)*k)], each = n)))
+    
+#         Jac[1:(n*k),1:(n*k)] = t(-outer(t(reg) %*% reg , (1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2) + 2*rep(beta[((n+1)*k+1):((n+2)*k)], each = n)) * 
+#       do.call(cbind, replicate(k,matrix(rep(t(diag(1,ncol=n, nrow=n)),k), ncol=n, byrow=TRUE),simplify=FALSE))
+  
   Jac
 #   Jac[1:(n*k),1:(n*k)] = Jac[1:(n*k),1:(n*k)]/n
 #   Jac*lambdaWeights
 }
-
 #-------------------------------------------#
 # A function to provide an analytical jacobian in the hope to speed up the calculations
 NBjacobianCol = function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p){
@@ -746,43 +774,55 @@ NBjacobianCol = function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p)
   #lambdaWeights = (p+nLambda)/(1+nLambda) #Weigths of the restircting equations
   
   #Calculate the mean
-  logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
-    outer(reg[,i],cMat[i,])
-  })
-  mu = exp(apply(logMu,c(1,2),sum))* outer(libSizes, abunds)
+  mu = exp(reg %*% cMat)* outer(libSizes, abunds)
 
   Jac = matrix(0, nrow= p*k + nLambda, ncol=p*k + nLambda)
   #The suymmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
-  
-  for (K in 1:k){
-      #dLag²/dr_{ik}dlambda_{1k}
-      Jac[1:(p*k),(p*k+K)] = c(rep(0,(K-1)*p),abunds,rep(0,(k-K)*p))
-      
-       #dLag²/dr_{ik}dlambda_{2k}
-      Jac[1:(p*k),((p+1)*k+K)] = c(rep(0,(K-1)*p),2 *cMat[K,]*abunds,rep(0,(k-K)*p))
-  
-  } #END for loop 1:k
+#   
+#   for (K in 1:k){
+#       #dLag²/dr_{ik}dlambda_{1k}
+#       Jac[1:(p*k),(p*k+K)] = c(rep(0,(K-1)*p),abunds,rep(0,(k-K)*p))
+#       
+#        #dLag²/dr_{ik}dlambda_{2k}
+#       Jac[1:(p*k),((p+1)*k+K)] = if(LASSO) c(rep(0,(K-1)*p),ifelse(cMat[K,]>0,1,-1)*abunds,rep(0,(k-K)*p)) else c(rep(0,(K-1)*p),2 *cMat[K,]*abunds,rep(0,(k-K)*p))
+#   
+#   } #END for loop 1:k
+  #dLag²/dr_{ik}dlambda_{1k}
+  Jac[1:(p*k),(p*k+1):((p+1)*k)] = c(rep(c(abunds, rep.int(0,p*k)),k-1), abunds)
+  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),abunds,rep(0,(k-K)*p))})
+  Jac[1:(p*k),((p+1)*k+1):((p+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric", p*k), function(K){c(rep(0,(K-1)*p),abunds*2 *cMat[K,],rep(0,(k-K)*p))})
      
   for (K in 1:(k-1)){
       for(Kinner in (K+1):k){
          #dLag²/dr_{ik}dlambda_{3kk'}
-      Jac[1:(p*k),((p+2)*k+(K*(2*k-1-K)/2-k+Kinner))] = c(rep(0, p*(K-1)), cMat[Kinner,]*abunds, rep(0, p*(Kinner-K-1)), cMat[K,]*abunds,rep(0, p*(k-Kinner)))
+      # Jac[1:(p*k),((p+2)*k+(K*(2*k-1-K)/2-k+Kinner))] = c(rep(0, p*(K-1)), cMat[Kinner,]*abunds, rep(0, p*(Kinner-K-1)), cMat[K,]*abunds,rep(0, p*(k-Kinner)))
         
-        for(P in 1:p){
-          #dLag²/dr_{ik}dr_{ik'}
-      Jac[P+(p*(K-1)),P+(p*(Kinner-1))] = -sum(reg[,K]*reg[,Kinner]*(1+y[,P]/current.theta[P])*mu[,P]/(1+mu[,P]/current.theta[P])^2) + lambda3Mat[Kinner, K]*abunds[P]
-      }
+#         for(P in 1:p){
+#           #dLag²/dr_{ik}dr_{ik'}
+#       Jac[P+(p*(K-1)),P+(p*(Kinner-1))] = -sum(reg[,K]*reg[,Kinner]*(1+y[,P]/current.theta[P])*mu[,P]/(1+mu[,P]/current.theta[P])^2) + lambda3Mat[Kinner, K]*abunds[P]
+#         }
+  #dLag²/dr_{ik}dr_{ik'}
+            diag(Jac[(p*(K-1)+1):(p*K),(p*(Kinner-1)+1):(p*Kinner)]) =  crossprod( -(1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2 , (reg[,K]*reg[,Kinner])) + lambda3Mat[Kinner, K]*abunds
     }
   }
+  
+    #dLag²/ds_{ik}dlambda_{3kk'}
+    Jac[1:(p*k),((p+2)*k+1):(p*k+nLambda)] = sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",p*k), function(Kinner){
+          c(rep(0, p*(K-1)), abunds*cMat[Kinner,], rep(0, p*(Kinner-K-1)), abunds*cMat[K,],rep(0, p*(k-Kinner)))
+        })
+      })
   
   #Symmetrize
   Jac = Jac + t(Jac)
 #dLag²/dr_{ik}²
-  diag(Jac[1:(p*k),1:(p*k)]) = as.vector(unlist(sapply(1:k, function(K){
-    sapply(1:p, function(P){
-      -sum(reg[,K]^2*(1+y[,P]/current.theta[P])*mu[,P]/(1+mu[,P]/current.theta[P])^2) + 2*beta[(p+1)*k+K]*abunds[P]
-      })
-  })))
+#   diag(Jac[1:(p*k),1:(p*k)]) = as.vector(unlist(sapply(1:k, function(K){
+#     sapply(1:p, function(P){
+#       -sum(reg[,K]^2*(1+y[,P]/current.theta[P])*mu[,P]/(1+mu[,P]/current.theta[P])^2) + 2*beta[(p+1)*k+K]*abunds[P]
+#       })
+#   })))
+  
+    diag(Jac[1:(p*k),1:(p*k)]) = c(- crossprod((1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2, reg^2)) + 2*rep(beta[((p+1)*k+1):((p+2)*k)], each = p)*abunds
   Jac
   # Jac[1:(p*k),1:(p*k)] = Jac[1:(p*k),1:(p*k)]/p
   # Jac*lambdaWeights
@@ -790,7 +830,7 @@ NBjacobianCol = function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p)
 #-------------------------------------------#
 ## A wrapper function to calculate the overdispersion, abundance and importance parameters
 
-outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = TRUE, libSizes = NULL, rMatInit = NULL, cMatInit = NULL, psiInit = NULL,  global ="dbldog", nleqslv.control=list(),method="Broyden", lambdaRow=NULL, lambdaCol = NULL){
+outerLoop = function(X, k, tol = 5e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, libSizes = NULL, rMatInit = NULL, cMatInit = NULL, psiInit = NULL,  global ="dbldog", nleqslv.control=list(),method=c("Broyden", "Newton"), lambdaRow=NULL, lambdaCol = NULL, quant=0.99,  dispFrec=5){
   
 # @param X: a nxp data matrix
 # @param k: a scalar, number of dimensions in the RC(M) model
@@ -821,6 +861,8 @@ outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = T
  ## 1) Initialization
   svdX = initSVD(X)
   #assoc = logmult::rc(X, nd=min(dim(X)-1), weighting = "marginal", se="none", family= "poisson")$assoc
+  n=NROW(X)
+  p=NCOL(X)
   
   if(is.null(rMatInit)){
   rMatInit = svdX$u[,1:k]
@@ -843,7 +885,7 @@ outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = T
     rowS - mean(rowS)
   })
   rMatInit = apply(rMatInit, 2,function(rowS){
-    rowS/sqrt(sum(rowS^2))
+      rowS/sqrt(sum(rowS^2))
   })
   cMatInit = t(apply(cMatInit, 1,function(colS){
     colS - sum(colS * abunds)/sum(abunds)
@@ -860,14 +902,14 @@ outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = T
 
   iterOut = 1
   rowRec = array(0,dim=c(NROW(X),k, maxItOut))
-  colRec = array(0,dim=c(NCOL(X),k, maxItOut))
+  colRec = array(0,dim=c(k,NCOL(X), maxItOut))
   thetaRec = matrix(0,ncol=maxItOut, nrow=length(abunds))
   psiRec = matrix(0,ncol=maxItOut, nrow=k)
 
   ## 2) Propagation
   
   while((iterOut ==1) || ((iterOut <= maxItOut) && ((any(abs(1-psi/psiOld) > Psitol)) || 
-                          (any(abs(1-rMat/rMatOld) > tol)) || (any(abs(1-cMat/cMatOld) > tol)) )))
+                          (quantile(abs(1-rMat/rMatOld),quant) > tol) || (quantile(abs(1-cMat/cMatOld),quant) > tol) )))
     {
     
   if(verbose && iterOut%%1 == 0){
@@ -887,24 +929,35 @@ outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = T
 # #     
 #     psiOldIn = psi
 #     cat("Inner iteration ", iterIn, "\n")
-  if((iterOut %% 10) ==0  || iterOut==1){
+  if((iterOut %% dispFrec) ==0  || iterOut==1){
   if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, rMat = rMat,cMat =  cMat, thetaInit = thetaInit, abunds=abunds, libSizes = libSizes, maxItDisp = maxItNB, psis = psi)$thetas
+ thetas = estDisp(X = X, rMat = rMat,cMat =  cMat,  abunds=abunds, libSizes = libSizes, psis = psi, k=k)
   }
   ## 2)c. ML estimation of psis
  if(verbose) cat("\n Estimating psis \n")
-  psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control)$psi
+  psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control, k=k)
 #   iterIn = iterIn+1 
 #   }
+
+   # iterIn = 1
   
-            if(verbose){
+              if(verbose){
     cat("\n Estimating column scores \n")
-  }
-    cMatList = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "columns", rMat = rMat, cMat = cMat, libSizes = libSizes, maxItScore = maxItScore, tolScore =tolScore, weighted = MLweighted, global =global, nleqslv.control = nleqslv.control, lambda =lambdaCol, method=method)
+              }
+    cMatList = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "columns", rMat = rMat, cMat = cMat, libSizes = libSizes, global =global, nleqslv.control = nleqslv.control, lambda =lambdaCol, method=method,  k=k, n=n, p=p)
   lambdaCol = cMatList$lambdaCol
-  cMat = cMatList$cMat
-    iterIn = 1
-    
+  cMat = cMatList$cMat   
+  
+     if(verbose) cat("\n Estimating psis \n")
+  psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control, k=k)
+  
+      if(verbose){
+    cat("\n Estimating row scores \n")
+  }
+  rMatFit = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "rows", rMat = rMat, cMat = cMat, libSizes = libSizes, global = global, nleqslv.control =nleqslv.control, lambda = lambdaRow, method=method,  k=k, n=n, p=p)
+  #Renormalize to unit sum
+  lambdaRow = rMatFit$lambdaRow
+  rMat = rMatFit$rMat
 #   ## 2)b. ML estimation of dispersion
 #   while(iterIn ==1 || (iterIn <= maxItIn) && (any(abs(psi-psiOldIn) > tol))){
 # #     
@@ -913,18 +966,18 @@ outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = T
 #    if (verbose) cat("\n Estimating overdispersions \n")
 #  thetas = estDisp(X = X, rMat = rMat,cMat =  cMat, thetaInit = thetaInit, abunds=abunds, libSizes = libSizes, maxItDisp = maxItNB, psis = psi)$thetas
   
-  ## 2)c. ML estimation of psis
-  if(verbose) cat("\n Estimating psis \n")
-  psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control)$psi
+#   ## 2)c. ML estimation of psis
+#   if(verbose) cat("\n Estimating psis \n")
+#   psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control)$psi
 #   iterIn = iterIn+1 
 #   }
-        if(verbose){
-    cat("\n Estimating row scores \n")
-  }
-  rMatFit = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "rows", rMat = rMat, cMat = cMat, libSizes = libSizes, maxItScore = maxItScore, tolScore =tolScore, weighted = MLweighted, global = global, nleqslv.control =nleqslv.control, lambda = lambdaRow, method=method)
-  #Renormalize to unit sum
-  lambdaRow = rMatFit$lambdaRow
-  rMat = rMatFit$rMat
+#         if(verbose){
+#     cat("\n Estimating row scores \n")
+#   }
+#   rMatFit = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "rows", rMat = rMat, cMat = cMat, libSizes = libSizes, global = global, nleqslv.control =nleqslv.control, lambda = lambdaRow, method=method, LASSO = LASSO)
+#   #Renormalize to unit sum
+#   lambdaRow = rMatFit$lambdaRow
+#   rMat = rMatFit$rMat
 
   #cMatSE = cMatList$cMatSE
   rowRec[,, iterOut] = rMat
@@ -937,11 +990,8 @@ outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = T
 } # END while-loop
   
   ## 3) Termination
-  convergence = !(
-    (iterOut == (maxItOut +1) ||
-                    (any(abs(1-psi/psiOld) > Psitol)) || 
-                    (any(abs(1-rMat/rMatOld) > tol)) || 
-                    (any(abs(1-cMat/cMatOld) > tol))) )
+  convergence = !(((iterOut <= maxItOut) && (any(abs(1-psi/psiOld) > Psitol)) || 
+                          (quantile(abs(1-rMat/rMatOld),quant) > tol) || (quantile(abs(1-cMat/cMatOld),quant) > tol) ))
   
   rownames(rMat) = rownames(X)
   colnames(cMat) = colnames(X)
@@ -954,11 +1004,18 @@ outerLoop = function(X, k, tol = 1e-3, maxItOut = 50, Psitol = 1e-3, verbose = T
                 converged = convergence, rowRec= rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, lambdaRow=lambdaRow, lambdaCol=lambdaCol))
 }
 #-------------------------------------------#
+#A simple wrapper function for phyloseq objects, passes all argument sonto outerLoop()
 
+phyloWrapper = function(physeq, ...){
+  dat = if (taxa_are_rows(physeq)) t(otu_table(physeq)@.Data) else otu_table(physeq)@.Data
+  outerLoop(dat, ...)
+}
+
+#-------------------------------------------#
 ## A plotting function that plots the samples as dots and the species as arrows
 
 plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL, 
-                   abunds = NULL, arrowFrac = 0.1, biplot = TRUE,
+                   abunds = NULL, arrowFrac = 0.04, biplot = TRUE,
                    libLoc ="topleft",libLegend=TRUE, libInset = c(0,-0.3), dispInset = c(0,-0.4), abInset = c(0,-0.4),stressSpecies=NULL, ...){
 # @param psis: vector of length k with psi estimates
 # @param rMat: a nxk matrix with final row scores
@@ -977,7 +1034,7 @@ plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL,
 # @param ... additional arguments, passed on to the plot() function
 # @return: NONE,  plots the result in the plotting window
   # tmp = par(no.readonly = TRUE)
-  par(mar=c(4,5,5,5))
+  par(mar=c(4,5,5,5), pty="s")
   if(!(length(psis)== NCOL(rMat) && length(psis) == NROW(cMat))){
     stop("Dimensions don't match")
   }
@@ -996,14 +1053,14 @@ plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL,
   if(!is.null(thetas)){
     LineType = rowSums(sapply(quantile(1/thetas, c(0.25,0.5,0.75,1)), function(x){
       1/thetas > x
-    }))
+    })) 
   } else {LineType=rep(1, ncol(cMat))}
   
   ##Add colours for the abundances
   if(!is.null(abunds)){
     lineColour = rowSums(sapply(quantile(abunds, c(0.25,0.5,0.75,1)), function(x){
       abunds < x
-    }))
+    })) 
   } else {lineColour = rep(1, ncol(cMat))}
   
   plot(x = rMat[,a] * psis[a],
@@ -1011,6 +1068,7 @@ plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL,
   xlab="Dim1",
   ylab="Dim2",
   col = Colour,
+  asp=1,
   ...)
   if(!is.null(X) & libLegend){
   legend(libLoc,legend=c("Small library size","Large library size"),
@@ -1019,11 +1077,11 @@ plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL,
   
     if (biplot){
       #Arrows
-        arrowLengths = apply(outer(t(cMat[Dim,]), psis[Dim]),1,function(x){sqrt(sum(x^2))})
+        arrowLengths = apply(cMat[Dim,],2,function(x){sqrt(sum(x^2))})
     id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
         scalingFactor = min(abs(apply(t(t(rMat[,Dim])*psis[Dim]),2, range)))/
-        max(abs(range(cMat[Dim,id])))*0.99
-    arrows(0,0,cMat[a,id]*scalingFactor,cMat[b, id]*scalingFactor, 
+        max(abs(cMat[Dim,id]))*0.99
+    arrows(x0=0,y0=0,x1=cMat[a,id]*scalingFactor,y1=cMat[b, id]*scalingFactor, 
            lty=LineType[id], col = lineColour[id])
     if(!is.null(thetas)){
       legend("top", legend=paste0(">",seq(0,75,25), "th quantile"), 
@@ -1033,7 +1091,7 @@ plotRCM = function(psis, rMat, cMat, Dim = c(1,2), X = NULL, thetas = NULL,
       legend("topright", legend=paste0(">",seq(0,75,25), "th quantile"), 
              col = 1:4,lty=1, title="Abundance", xpd=TRUE, inset = abInset,cex=0.75)
     }
-    if(!is.null(stressSpecies))
+    #if(!is.null(stressSpecies))
     }
   # par(tmp)
   }
@@ -1046,8 +1104,8 @@ We generate some data as before with the NB distribution but differing library s
 ```{r DataGen}
 #Generate as synthetic dataset with known row and column scores and psi parameters
 load("/home/stijn/PhD/American Gut/AGpars.RData")
-Nsamples= 100
-Ntaxa = 400
+Nsamples= 150
+Ntaxa = 800
 thetas=thetas[1:Ntaxa]
 thetas = thetas[1/thetas<100]
 rhos=rhos[names(thetas)]
@@ -1057,17 +1115,17 @@ thetas = thetas[1:Ntaxa]
 rhos = rhos/sum(rhos)
 
 libSizes4 =c(rep(1e4, floor(Nsamples/2)), rep(1e5, floor(Nsamples/2)))
-psi1 = 3
-psi2 = 1
+psi1 = 7
+psi2 = 5
 #Samples 1-10 and Nsamples - 1 - -10 have increased row scores 1
 #Samples 6-15 and Nsamples -6 - -15 have increased row scores 2
-rowScores1 = rnorm(Nsamples-Nsamples%%2, sd=5)  + c(rep(25,10), rep(0, Nsamples-20), rep(25,10))
-rowScores2 = rnorm(Nsamples-Nsamples%%2, sd=3) #+ c(rep(0,5),rep(8,15), rep(0, Nsamples-40), rep(8,15), rep(0,5))
+rowScores1 = rnorm(Nsamples-Nsamples%%2, sd=8)  + c(rep(25,10), rep(0, Nsamples-20), rep(25,10))
+rowScores2 = rnorm(Nsamples-Nsamples%%2, sd=5) - c(rep(0,5),rep(8,15), rep(0, Nsamples-40), rep(8,15), rep(0,5))
 
 #Taxa 1-10 and Nsamples - 1 - -10 have increased col scores 1
 #Taxa 6-15 and Nsamples -6 - -15 have increased col scores 2
-colScores1 = rnorm(Ntaxa-Ntaxa%%2, sd = 5) + c(rep(0,10),rep(25,10), rep(0, Ntaxa-30), rep(2,10))
-colScores2 = rnorm(Ntaxa-Ntaxa%%2, sd = 3) #+ c(rep(0,5),rep(2,15), rep(0, Ntaxa-40), rep(2,15), rep(0,5))
+colScores1 = rnorm(Ntaxa-Ntaxa%%2, sd = 8) + c(rep(0,10),rep(25,10), rep(0, Ntaxa-30), rep(25,10))
+colScores2 = rnorm(Ntaxa-Ntaxa%%2, sd = 5) - c(rep(0,5),rep(2,15), rep(0, Ntaxa-40), rep(2,15), rep(0,5))
 
 normalize = function(mat, weights, dim){
   mat = apply(mat,dim, function(vec){
@@ -1094,25 +1152,28 @@ colnames(dataMat4) = names(rhos)
 # dataMat4[1:(Nsamples/4),1:(Ntaxa/4)] = sapply(1:(Nsamples/4),function(i){rpois(n = Ntaxa/4, lambda =10)})
 #Remove all zero columns and rows
 dataMat4 = dataMat4[rowSums(dataMat4)>0, colSums(dataMat4) > 0]
+colScoresMat=colScoresMat[, colSums(dataMat4) > 0]
+rowScoresMat =rowScoresMat[rowSums(dataMat4)>0,]
 rownames(dataMat4) = paste0("Sample", 1:Nsamples)
 rhos=rhos[colnames(dataMat4)]
 thetas =thetas[colnames(dataMat4)]
-plotRCM(psis = c(psi1, psi2), rMat = rowScoresMat, cMat = colScoresMat, X = dataMat4, biplot = TRUE, libLegend=TRUE, abunds=rhos, thetas = thetas)
+plotRCM(psis = c(psi1, psi2), rMat = rowScoresMat, cMat = colScoresMat, X = dataMat4, biplot = TRUE, libLegend=TRUE, abunds=rhos, thetas = thetas, libInset = c(0,-0.2), dispInset = c(0,-0.25), abInset = c(0,-0.25), arrowFrac=0.01)
 points(col="green", pch=2, c(rowScoresMat[1:9,1],rowScoresMat[(Nsamples-9):Nsamples,1])*psi1, c(rowScoresMat[1:9,2],rowScoresMat[(Nsamples-9):Nsamples,2])*psi2)
 points(col="black", pch=3, c(rowScoresMat[(Nsamples-9):Nsamples,1])*psi1, c(rowScoresMat[(Nsamples-9):Nsamples,2])*psi2)
+quantile(exp(outer(c(psi1,psi2),(rowScoresMat %*% colScoresMat))))
 ```
 
 ```{r Own Method: loglinear NB}
-maxItOut = 1000
-tmp3Job = mcparallel(outerLoop(dataMat4, k=2, maxItML = 10, maxItOut = maxItOut, printN = 1, mC = 1, MLweighted=FALSE, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=100), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),maxItNB = 25, method=c("Broyden", "Newton"), lambdaCol=NULL, lambdaRow = NULL))#, "pwldog", "cline")), "gline"
+maxItOut = 5e2
+tmp3Job = mcparallel(outerLoop(dataMat4, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=250), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL))#, "pwldog", "cline")), "gline"
 tmp3j = mccollect(tmp3Job, FALSE)[[1]]
 
-tmp3Jobc = mcparallel(outerLoop(dataMat4, k=2, maxItML = 10, maxItOut = maxItOut, printN = 1, mC = 1, MLweighted=FALSE, rMat = tmp3j$rMat, cMat =  tmp3j$cMat, psiInit = tmp3j$psis, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=150), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),maxItNB = 25,method=c("Broyden", "Newton"), lambdaCol=tmp3j$lambdaCol, lambdaRow = tmp3j$lambdaRow))#, "pwldog", "cline")), "gline"
+tmp3Jobc = mcparallel(outerLoop(dataMat4, k=2, maxItOut = maxItOut, rMat = tmp3j$rMat, cMat =  tmp3j$cMat, psiInit = tmp3j$psis, nleqslv.control=list(xtol=1e-10, ftol=1e-10, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=150), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=tmp3j$lambdaCol, lambdaRow = tmp3j$lambdaRow, dispFrec = 5))#, "pwldog", "cline")), "gline"
 tmp3jc = mccollect(tmp3Jobc, FALSE)[[1]]
 
-tmp3 =outerLoop(dataMat4, k=2, maxItML = 10, maxItOut = maxItOut, printN = 1, mC = 1, MLweighted=FALSE,nleqslv.control=list(xtol=1e-8, ftol=1e-12, btol=1e-3, sigma=0.5, trace=TRUE, allowSingular=FALSE, maxit=150, chkjac=FALSE), tol = 5e-3, Psitol=1e-4, global = c("dbldog"), method=c("Broyden", "Newton"))
+tmp3 =outerLoop(dataMat4, k=2, maxItOut = maxItOut, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=TRUE, allowSingular=FALSE, maxit=150), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"))
 
-tmp3c = outerLoop(dataMat4, k=2, maxItML = 10, maxItOut = maxItOut, printN = 1, mC = 1, MLweighted=FALSE, rMat = tmp3$rMat, cMat =  tmp3$cMat, psiInit = tmp3$psis, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=150), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),maxItNB = 25, lambdaCol=tmp3$lambdaCol, lambdaRow = tmp3$lambdaRow)
+tmp3c = outerLoop(dataMat4, k=2, maxItOut = maxItOut,  rMat = tmp3$rMat, cMat =  tmp3$cMat, psiInit = tmp3$psis, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=150), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"), lambdaCol=tmp3$lambdaCol, lambdaRow = tmp3$lambdaRow)
 save(tmp3c, dataMat4, psi1, psi2, rowScoresMat, colScoresMat,thetas, rhos,  file="tmp3c.RData")
 
 #Check constraints
@@ -1120,13 +1181,13 @@ apply(tmp3$rMat, 2, function(y){
   sum(y)
 })
 apply(tmp3$cMat, 1, function(y){
-  sum(y*tmp3$abunds)
+  sum(y*colSums(dataMat4)/sum(dataMat4))
 })
 apply(tmp3$rMat, 2, function(y){
   sum(y^2)
 })
 apply(tmp3$cMat, 1, function(y){
-  sum(y^2*tmp3$abunds)
+  sum(y^2*colSums(dataMat4)/sum(dataMat4))
 })
 sapply(1:(ncol(tmp3$rMat)-1), function(i){
   sapply(2:ncol(tmp3$rMat), function(j){
@@ -1139,8 +1200,8 @@ sapply(1:(nrow(tmp3$cMat)-1), function(i){
   })
 })
 
-plotRCM(tmp3$psis, tmp3$rMat, tmp3$cMat, X = dataMat4, thetas = thetas,abunds = rhos, arrowFrac = 0.05, biplot =TRUE)
-points(y=tmp3$psis[2]*tmp3$rMat[,2][c(1:10)], tmp3$psis[1]*tmp3$rMat[,1][c(1:10)], col="green", pch=2)
+plotRCM(tmp3$psis, tmp3$rMat, tmp3$cMat, X = dataMat4, thetas = thetas,abunds = rhos, arrowFrac = 0.05, biplot =FALSE)
+points(y=tmp3$psis[2]*tmp3$rMat[c(1:10),2], tmp3$psis[1]*tmp3$rMat[c(1:10),1], col="green", pch=2)
 points(y=tmp3$psis[2]*tmp3$rMat[,2][c((Nsamples-9):Nsamples)], tmp3$psis[1]*tmp3$rMat[,1][c((Nsamples-9):Nsamples)], col="black", pch=3)
 
 plot(y=tmp3$rMat[,1]*tmp3$psis[1], tmp3$rMat[,2]*tmp3$psis[2], col=1:200 %in% c(1:10,191:200) + 1:200 %in% c(1:10)+1)
@@ -1152,8 +1213,239 @@ Compare with CA solution
 
 ```{r CA solution}
 SVD4 = initSVD(dataMat4)
-plotRCM(SVD4$d[1:2], t(SVD4$u[1:2,]), t(SVD4$v[,1:2]), X = dataMat4,
-        main="Correspondence analysis", arrowFrac = 0.05, thetas =thetas, 
-        abunds = rhos, biplot = FALSE)
+plotRCM(SVD4$d[1:2], t(SVD4$u[1:2,]), t(SVD4$v[,1:2]), X = dataMat4, main="Correspondence analysis", arrowFrac = 0.05, thetas = NULL, abunds = colSums(dataMat4)/sum(dataMat4), biplot = TRUE)
+points(SVD4$u[1,c(1:10)]*SVD4$d[1],SVD4$u[2,c(1:10)]*SVD4$d[2], col="green", pch=2)
+points(SVD4$u[1,c((Nsamples-9):Nsamples)]*SVD4$d[1],SVD4$u[2,c((Nsamples-9):Nsamples)]*SVD4$d[2], col="black", pch=3)
 ```
 
+Another dataset
+
+```{r Other dataset}
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+Nsamples= 100
+Ntaxa = 600
+thetas=thetas[1:Ntaxa]
+thetas = thetas[1/thetas<100]
+rhos=rhos[names(thetas)]
+Ntaxa=length(rhos) - length(rhos)%%2
+rhos=rhos[1:Ntaxa]
+thetas = thetas[1:Ntaxa]
+rhos = rhos/sum(rhos)
+
+libSizes5 =c(rep(1e4, floor(Nsamples/2)), rep(1e5, floor(Nsamples/2)))
+psi1 = 10
+psi2 = 0.1
+#Samples 1-10 and Nsamples - 1 - -10 have increased row scores 1
+#Samples 6-15 and Nsamples -6 - -15 have increased row scores 2
+rowScores1b = rnorm(Nsamples-Nsamples%%2, sd=5)  + c(rep(25,10), rep(0, Nsamples-20), rep(25,10))
+rowScores2b = rnorm(Nsamples-Nsamples%%2, sd=3) - c(rep(0,5),rep(8,15), rep(0, Nsamples-40), rep(8,15), rep(0,5))
+
+#Taxa 1-10 and Nsamples - 1 - -10 have increased col scores 1
+#Taxa 6-15 and Nsamples -6 - -15 have increased col scores 2
+colScores1b = rnorm(Ntaxa-Ntaxa%%2, sd = 5) + c(rep(0,10),rep(25,10), rep(0, Ntaxa-30), rep(2,10))
+colScores2b = rnorm(Ntaxa-Ntaxa%%2, sd = 3) - c(rep(0,5),rep(10,15), rep(0, Ntaxa-40), rep(10,15), rep(0,5))
+
+normalize = function(mat, weights, dim){
+  mat = apply(mat,dim, function(vec){
+    vec - sum(vec*weights)/sum(weights)#
+  })
+  if(dim==1) mat= t(mat)
+  mat = apply(mat, dim, function(y){
+    y/sqrt(sum(weights*y^2))
+  })
+  if(dim==1) mat =t(mat)
+  return(mat)
+}
+
+rowScoresMatb = normalize(cbind(rowScores1b, rowScores2b),dim=2,weights=rep(1, length(rowScores1)))
+colScoresMatb= normalize(rbind(colScores1b, colScores2b),dim=1,weights=rhos)
+
+meanMat = outer(libSizes4, rhos)* exp(psi1*outer(rowScoresMat[,1],colScoresMat[1,]) + psi2*outer(rowScoresMat[,2],colScoresMat[2,]))
+
+thetaMat = matrix(thetas, nrow=Nsamples, ncol=Ntaxa, byrow=TRUE)
+
+dataMat5 = apply(array(data= c(meanMat, thetaMat), dim=c(Nsamples, Ntaxa, 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})
+colnames(dataMat5) = names(rhos)
+#Introduce DA
+# dataMat4[1:(Nsamples/4),1:(Ntaxa/4)] = sapply(1:(Nsamples/4),function(i){rpois(n = Ntaxa/4, lambda =10)})
+#Remove all zero columns and rows
+dataMat5 = dataMat5[rowSums(dataMat5)>0, colSums(dataMat5) > 0]
+rownames(dataMat5) = paste0("Sample", 1:Nsamples)
+rhos=rhos[colnames(dataMat5)]
+thetas =thetas[colnames(dataMat5)]
+plotRCM(psis = c(psi1, psi2), rMat = rowScoresMatb, cMat = colScoresMatb, X = dataMat5, biplot = TRUE, libLegend=TRUE, abunds=rhos, thetas = thetas, libInset = c(0,-0.2), dispInset = c(0,-0.25), abInset = c(0,-0.25))
+points(col="green", pch=2, c(rowScoresMatb[1:9,1],rowScoresMatb[(Nsamples-9):Nsamples,1])*psi1, c(rowScoresMatb[1:9,2],rowScoresMatb[(Nsamples-9):Nsamples,2])*psi2)
+points(col="black", pch=3, c(rowScoresMatb[(Nsamples-9):Nsamples,1])*psi1, c(rowScoresMatb[(Nsamples-9):Nsamples,2])*psi2)
+#How did the means change?
+quantile(exp(outer(c(10,0.1),(rowScoresMatb %*% colScoresMatb ))))
+```
+
+```{r Own Method: loglinear NB: dataMat5}
+maxItOut = 2e2
+tmp5Job = mcparallel(outerLoop(dataMat5, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=100), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL))#, "pwldog", "cline")), "gline"
+tmp5 = mccollect(tmp5Job, FALSE)[[1]]
+
+tmp5Jobc = mcparallel(outerLoop(dataMat5, k=2, maxItOut = maxItOut, rMat = tmp5$rMat, cMat =  tmp5$cMat, psiInit = tmp5$psis, nleqslv.control=list(xtol=1e-10, ftol=1e-10, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=150), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=tmp5$lambdaCol, lambdaRow = tmp5$lambdaRow))#, "pwldog", "cline")), "gline"
+tmp5jc = mccollect(tmp5Jobc, FALSE)[[1]]
+
+#Check constraints
+apply(tmp5$rMat, 2, function(y){
+  sum(y)
+})
+apply(tmp5$cMat, 1, function(y){
+  sum(y*colSums(dataMat5)/sum(dataMat5))
+})
+apply(tmp5$rMat, 2, function(y){
+  sum(y^2)
+})
+apply(tmp5$cMat, 1, function(y){
+  sum(y^2*colSums(dataMat5)/sum(dataMat5))
+})
+sapply(1:(ncol(tmp5$rMat)-1), function(i){
+  sapply(2:ncol(tmp5$rMat), function(j){
+    sum(tmp5$rMat[,i]*tmp5$rMat[,j])
+  })
+})
+sapply(1:(nrow(tmp5$cMat)-1), function(i){
+  sapply(2:nrow(tmp5$cMat), function(j){
+    sum(colSums(dataMat5)/sum(dataMat5)*tmp5$cMat[i,]*tmp5$cMat[j,])
+  })
+})
+
+plotRCM(tmp5$psis, tmp5$rMat, tmp5$cMat, X = dataMat4, thetas = thetas,abunds = rhos, arrowFrac = 0.05, biplot =TRUE)
+points(y=tmp5$psis[2]*tmp5$rMat[c(1:10),2], tmp5$psis[1]*tmp5$rMat[c(1:10),1], col="green", pch=2)
+points(y=tmp5$psis[2]*tmp5$rMat[,2][c((Nsamples-9):Nsamples)], tmp5$psis[1]*tmp5$rMat[,1][c((Nsamples-9):Nsamples)], col="black", pch=3)
+
+plot(y=tmp5$rMat[,1]*tmp5$psis[1], tmp5$rMat[,2]*tmp5$psis[2], col=1:200 %in% c(1:10,191:200) + 1:200 %in% c(1:10)+1)
+```
+
+#Real data
+
+We apply our algorithm to the Kostic data and see if it converges
+
+```{r Kostic data}
+load("/home/stijn/PhD/Biplots/Kostic_data/phyloDD.RData")
+#First try with a reduced version
+DDtrim=prune_samples(x=phyloDD, sample_sums(phyloDD)>quantile(sample_sums(phyloDD), 0.75))
+DDtrim2=prune_taxa(x=DDtrim, taxa_sums(DDtrim)>quantile(taxa_sums(DDtrim), 0.67))
+DDtrim2Job= mcparallel(phyloWrapper(DDtrim2, k=2, nleqslv.control=list(trace=TRUE), method="Broyden", tol=1e-2, maxItOut=2e2))
+DDtrimLL = mccollect(DDtrim2Job, FALSE)[[1]]
+save(DDtrimLL, file="DDtrimLL.RData")
+plotRCM(DDtrimLL$psis, DDtrimLL$rMat, DDtrimLL$cMat)
+
+kostLLjob = mcparallel(phyloWrapper(phyloDD, k=2, nleqslv.control=list(trace=TRUE), method="Newton", tol=1e-2))
+kostLL = mccollect(kostLLjob, FALSE)[[1]]
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+AGjob = mcparallel(phyloWrapper(AGphylo, k=2, nleqslv.control=list(trace=TRUE), method="Newton", tol=1e-2))
+AGLL = mccollect(AGjob, FALSE)[[1]]
+AGLL = phyloWrapper(AGphylo, k=2, nleqslv.control=list(trace=TRUE, maxit=200), method="Newton", dispFrec=5, tol=1e-2)
+```
+
+```{r Other dataset dataMat6}
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+Nsamples= 50
+Ntaxa = 300
+thetas=thetas[1:Ntaxa]
+thetas = thetas[1/thetas<100]
+rhos=rhos[names(thetas)]
+Ntaxa=length(rhos) - length(rhos)%%2
+rhos=rhos[1:Ntaxa]
+thetasc = thetas[1:Ntaxa]
+rhosc = rhos/sum(rhos)
+
+libSizes6 =c(rep(1e4, floor(Nsamples/2)), rep(1e5, floor(Nsamples/2)))
+psi1c = 4
+psi2c = 3
+#Samples 1-10 and Nsamples - 1 - -10 have increased row scores 1
+#Samples 6-15 and Nsamples -6 - -15 have increased row scores 2
+rowScores1c = rnorm(Nsamples-Nsamples%%2, sd=5)  + c(rep(25,10), rep(0, Nsamples-20), rep(25,10))
+rowScores2c = rnorm(Nsamples-Nsamples%%2, sd=3) - c(rep(0,5),rep(8,15), rep(0, Nsamples-40), rep(8,15), rep(0,5))
+
+#Taxa 1-10 and Nsamples - 1 - -10 have increased col scores 1
+#Taxa 6-15 and Nsamples -6 - -15 have increased col scores 2
+colScores1c = rnorm(Ntaxa-Ntaxa%%2, sd = 5) + c(rep(0,10),rep(25,10), rep(0, Ntaxa-30), rep(2,10))
+colScores2c= rnorm(Ntaxa-Ntaxa%%2, sd = 3) - c(rep(0,5),rep(10,15), rep(0, Ntaxa-40), rep(10,15), rep(0,5))
+
+normalize = function(mat, weights, dim){
+  mat = apply(mat,dim, function(vec){
+    vec - sum(vec*weights)/sum(weights)#
+  })
+  if(dim==1) mat= t(mat)
+  mat = apply(mat, dim, function(y){
+    y/sqrt(sum(weights*y^2))
+  })
+  if(dim==1) mat =t(mat)
+  return(mat)
+}
+
+rowScoresMatc = normalize(cbind(rowScores1c, rowScores2c),dim=2,weights=rep(1, length(rowScores1c)))
+colScoresMatc= normalize(rbind(colScores1c, colScores2c),dim=1,weights=rhos)
+
+meanMat = outer(libSizes6, rhosc)* exp(psi1c*outer(rowScoresMatc[,1],colScoresMatc[1,]) + psi2c*outer(rowScoresMatc[,2],colScoresMatc[2,]))
+
+thetaMat = matrix(thetasc, nrow=Nsamples, ncol=Ntaxa, byrow=TRUE)
+
+dataMat6 = apply(array(data= c(meanMat, thetaMat), dim=c(Nsamples, Ntaxa, 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})
+colnames(dataMat6) = names(rhos)
+#Introduce DA
+# dataMat4[1:(Nsamples/4),1:(Ntaxa/4)] = sapply(1:(Nsamples/4),function(i){rpois(n = Ntaxa/4, lambda =10)})
+#Remove all zero columns and rows
+dataMat6 = dataMat6[rowSums(dataMat6)>0, colSums(dataMat6) > 0]
+rownames(dataMat6) = paste0("Sample", 1:Nsamples)
+rhos=rhos[colnames(dataMat6)]
+thetas =thetas[colnames(dataMat6)]
+plotRCM(psis = c(psi1c, psi2c), rMat = rowScoresMatc, cMat = colScoresMatc, X = dataMat6, biplot = TRUE, libLegend=TRUE, abunds=rhos, thetas = thetas, libInset = c(0,-0.2), dispInset = c(0,-0.25), abInset = c(0,-0.25))
+points(col="green", pch=2, c(rowScoresMatc[1:9,1],rowScoresMatc[(Nsamples-9):Nsamples,1])*psi1c, c(rowScoresMatc[1:9,2],rowScoresMatc[(Nsamples-9):Nsamples,2])*psi2c)
+points(col="black", pch=3, c(rowScoresMatc[(Nsamples-9):Nsamples,1])*psi1c, c(rowScoresMatc[(Nsamples-9):Nsamples,2])*psi2c)
+save(tmp6, dataMat6, thetasc, rhosc,psi1c, psi2c, rowScoresMatc, colScoresMatc,libSizes6,file="tmp6Est.RData")
+```
+
+```{r Own Method: loglinear NB: dataMat5}
+maxItOut = 1e2
+tmp6Job = mcparallel(outerLoop(dataMat6, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=150), tol = 1e-2,Psitol = 1e-3, global = c("dbldog"),method=c("Newton"), lambdaCol=NULL, lambdaRow = NULL))#, "pwldog", "cline")), "gline"
+tmp6 = mccollect(tmp6Job, FALSE)[[1]]
+
+tmp6Jobc = mcparallel(outerLoop(dataMat5, k=2, maxItOut = maxItOut, rMat = tmp6$rMat, cMat =  tmp6$cMat, psiInit = tmp6$psis, nleqslv.control=list(xtol=1e-10, ftol=1e-10, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=250), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=tmp6$lambdaCol, lambdaRow = tmp6$lambdaRow))#, "pwldog", "cline")), "gline"
+tmp6jc = mccollect(tmp6Jobc, FALSE)[[1]]
+
+tmp6 =outerLoop(dataMat6, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list( trace=TRUE, allowSingular=FALSE, maxit=150), tol = 1e-2,Psitol = 1e-3, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL, dispFrec = 5)
+
+tmp62 = outerLoop(dataMat6, k=2, maxItOut = maxItOut, rMat = tmp6$rMat, cMat =  tmp6$cMat, psiInit = tmp6$psis, nleqslv.control=list(trace=TRUE, allowSingular=FALSE, maxit=500), tol = 5e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden", "Newton"), lambdaCol=tmp6$lambdaCol, lambdaRow = tmp6$lambdaRow, dispFrec=5)#, "pwldog", "cline")), "gline"
+
+
+#Check constraints
+apply(tmp6$rMat, 2, function(y){
+  sum(y)
+})
+apply(tmp6$cMat, 1, function(y){
+  sum(y*colSums(dataMat6)/sum(dataMat6))
+})
+apply(tmp6$rMat, 2, function(y){
+  sum(y^2)
+})
+apply(tmp6$cMat, 1, function(y){
+  sum(y^2*colSums(dataMat6)/sum(dataMat6))
+})
+sapply(1:(ncol(tmp6$rMat)-1), function(i){
+  sapply(2:ncol(tmp6$rMat), function(j){
+    sum(tmp6$rMat[,i]*tmp6$rMat[,j])
+  })
+})
+sapply(1:(nrow(tmp6$cMat)-1), function(i){
+  sapply(2:nrow(tmp6$cMat), function(j){
+    sum(colSums(dataMat6)/sum(dataMat6)*tmp6$cMat[i,]*tmp6$cMat[j,])
+  })
+})
+
+plotRCM(tmp6$psis, tmp6$rMat, tmp6$cMat, X = dataMat6, thetas = thetasc,abunds = rhosc, arrowFrac = 0.025, biplot =FALSE, main="Estimated", libInset = c(-0.4,-0.3))
+points(y=tmp6$psis[2]*tmp6$rMat[c(1:10),2], tmp6$psis[1]*tmp6$rMat[c(1:10),1], col="green", pch=2)
+points(y=tmp6$psis[2]*tmp6$rMat[,2][c((Nsamples-9):Nsamples)], tmp6$psis[1]*tmp6$rMat[,1][c((Nsamples-9):Nsamples)], col="black", pch=3)
+
+plot(y=tmp6$rMat[,1]*tmp6$psis[1], tmp6$rMat[,2]*tmp6$psis[2], col=1:200 %in% c(1:10,191:200) + 1:200 %in% c(1:10)+1)
+```
+
+Suggestions for improvement:
+
+ - ZIP
+ - Beh papers
+ - Enforce constraints after estimation
