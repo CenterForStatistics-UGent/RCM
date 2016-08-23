@@ -1,0 +1,2243 @@
+---
+title: "RC2NB"
+author: "Stijn"
+date: "June 13, 2016"
+output: pdf_document
+---
+
+```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=11, fig.height=8)
+setwd("/home/stijn/PhD/Biplots")
+# The required package list:
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP")
+# Load all required packages and show version
+for(i in reqpkg)
+{
+#   print(i) 
+#   print(packageVersion(i))
+  library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
+}
+#options(digits=4)
+#rm(list=ls())
+#nCores <- 4
+```
+
+# Theory
+
+##Correspondence analysis
+
+Suppose we have a $nxp$ count data matrix $\mathbf{X}$ with $n$ samples and $p$ taxa, with $i$ and $j$ row respectively column indices.
+
+### Reconsitution formula of Correspondence Analysis (CA)
+
+Under independence between rows and columns we model the counts in a contingency table as 
+
+$$E(X_{ij}) = a_i b_j$$
+
+whereby usually $a_i=x_{i.}=\sum_{j=1}^px_{ij}$ and $b_j=\frac{x_{.j}}{x_{..}}=\frac{\sum_{i=1}^nx_{ij}}{\sum_{j=1}^p\sum_{i=1}^nx_{ij}}$.
+
+A more extended model is
+
+$$E(X_{ij}) = a_i  b_j + c_i d_j \sum_{k=1}^K \omega_k v_{ki} w_{jk}$$.
+
+For $a_i = c_i = x_{i.}$ and $b_j = d_j = \frac{x_{.j}}{x_{..}}$ this is regular correspondence analysis, usually with truncation at $K=2$. The second term in the equation represents deviation from independence. This is called the *reconstitution formula* since it decomposes the observed average count into its expectation under independence and a residual. The residual is then further decomposed into $k$ pieces. The expected count can then be written as
+
+$$E(X_{ij}) = \frac{x_{i.}x_{.j}}{x_{..}} \big(1 + \sum_{k=1}^K \omega_k v_{ki} w_{jk}\big)$$.
+
+Regular corrsepondence analysis is done through singular value decomposition(SVD) of the matrix of weighted (Pearson) residuals
+
+$$R^{-1/2}(X-E)C^{-1/2}=U\Sigma V$$
+
+with $\Sigma$ a diagonal matrix and $R$ and $C$ diagonal matrices with row and column sums.
+
+In matrix notation the reconstitution formula becomes
+
+$$X = E_{independence} + RU\Sigma VC$$
+
+with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}C^{1/2}V=\mathbf{0}$ (weighted means equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'C^{1/2}V=\mathbf{1}$ (weighted variances equal one) (see VanDerHeijden et al., 1985)
+
+## Log-linear analysis
+
+Another modelling approach is to use log-linear modelling an thereby introduce the negative binomial as error term. We know from previous goodness of fit testing that this is an appropriate error model.
+
+In log-linear analysis the logged expected count $l_{ij}$ is modelled as
+
+$$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + u_{ij}$$.
+
+For $u_{ij} \neq 0$ this is the saturated model, which provides a perfect fit. If $u_{ij} = 0$ this is the independence model.
+
+### Relationship between CA and log-linear analysis
+
+According to Escoufier, 1985 if $a =\sum_{k=1}^K \omega_k v_{ki} w_{jk}$ is small (i.e. the deviation from independence is small) then $log(1+a) \approx a$ and
+
+$$log(E(x_{ij})) = log(x_{i.}) + log(x_{.j}) - log(x_{..}) + log\big(1 + \sum_{k=1}^K \omega_k v_{ki} w_{jk}\big) \approx log(x_{i.}) + log(x_{.j}) - log(x_{..}) + \sum_{k=1}^K \omega_k v_{ki} w_{jk}$$
+
+Since the same restricitions apply to the scores $v_{ki}$ and $w_{jk}$ as to U and V, we can state that  $\psi_k \approx \omega_k$.
+
+### The RC(2)-association model
+
+For the purpose of making biplots, we might consider the following model (proposed by Leo Goodman, 1985. See also VanDerHeijden 1994)
+
+$$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + \psi_1r_{1i}s_{1j} + \psi_2r_{2i}s_{2j}$$.
+
+Constraints are needed to render this model identifiable, Goodman proposes
+
+$$\sum_{i=1}^nx_{i.}r_{ki} = 0$$
+
+with k=1,2 and
+
+$$\sum_{i=1}^nx_{i.}r_{ki}r_{k'i} = I(k=k')$$
+
+$$\sum_{j=1}^px_{.j}s_{kj} = 0$$
+
+$$\sum_{j=1}^px_{.j}s_{kj}s_{k'j} = I(k=k')$$
+
+However, this may put undue emphasis on samples with large library sizes , so we use
+
+$$\sum_{i=1}^nr_{ki} = 0$$
+
+with k=1,2 and
+
+$$\sum_{i=1}^nr_{ki}r_{k'i} = I(k=k')$$
+
+$$\sum_{j=1}^ps_{kj} \frac{x_{.j}}{x_{..}} = 0$$
+
+$$\sum_{j=1}^ps_{kj}s_{k'j} \frac{x_{.j}}{x_{..}} = I(k=k')$$
+
+The models are usually fitted by ML. See page 55 of Goodman 1985 for details. Initial values can be obtained through a singular value decomposition. In our case we use the singular value decomposition
+
+$$(X-E)C^{-1}$$
+
+so that the initial scores already obey the centering restrictions above.
+
+Goodman assumed a Poisson distribution, but it might be possible to use a negative binomial model with unique dispersions for each taxon $j$ as well.
+
+We will use $u=-log(x_{..}$, $u_i = log(x_{i.})$ and $u_j = log(x{.j})$, and then we'll have to iterate between fitting the overdispersions, the imporance parameters $\psi$, the $r's$ and the $s's$. 
+
+The normalization and orthogonality of the row and column scores is enforced through Lagrange multipliers. This makes the score equations much harder to solve but assures independence of the dimensions.
+
+## Fitting algorithm for the RC(2) association model with a NB error structure
+
+See Goodman 1985 (appendix), Becker 1988 for information on estimation. The code below is generic but we take k=2 for simplicity.
+
+Parameters of interest to estimate are $\psi$, $r_1$, $r_2$, $c_1$, $c_2$. In the process we'll also need the nuisance parameters $\mathbf{\theta}$. Assume $E(X_{ij}) = \mu_{ij}$ and  $Var(X_{ij})=\mu_{ij} + \frac{\mu_{ij}^2}{\theta}$
+
+1. Obtain a singular value decomposition as $(X-E)C^{-1} = U\Sigma V$. This gives us initial values $[r_{11}^{init}, r_{12}^{init},..., r_{1i}^{init}] = U_{(1.)}$, the first row of $U$, and correspondingly $\Sigma$ and $V$ give initial values for $\mathbf{\psi}$ and $\mathbf{s}$.
+
+The scores have (weighted) means equal to zero already so that
+
+$$\sum_{i=1}^nr_{ki} = 0$$
+
+and
+
+$$\sum_{j=1}^ps_{kj} \frac{x_{.j}}{x_{..}} = 0$$.
+
+We still need to ensure that the weighted variances equal 1, so we set
+
+$$r_{ki}^{init} = \big(\frac{r_{ki}^{SVD}}{\sum_{i=1}^n{r^{SVD}_{ki}}^2}\big)^{1/2}$$
+
+and
+
+$$s_{ik}^{init} = \big(\frac{\frac{x_{j.}}{x_{..}}s_{ik}^{SVD}}{\sum_{i=1}^n{\frac{x_{j.}}{x_{..}}s^{SVD}_{ik}}^2}\big)^{1/2}$$
+
+2. Estimate overdispersions
+
+Theoretically we might estimate the dispersions by ML, but the estimates are very variable, which dramatically affects the rest of the fitting procedure.
+
+ - Maximum likelihood estimation (not used) 
+ 
+$$log(E(x_{ij})) = l_{ij} = offset\big( log(\frac{x_{i.}x_{.j}}{x_{..}}  \big) + \psi_1 (s_{1i}^{init}r_{1j}^{init}) + \psi_2 (s_{2i}^{init}r_{2j}^{init})$$
+
+to obtain estimates for the overdispersions $\theta_j$, whereby the means $\mu_{ij}$ are assumed known
+
+ $$\sum_{i=1}^n \sum^{y_i^*}_{t=0} \big( \frac{t}{1+\frac{t}{\theta_j} } \big) + \theta_j^2 log(1+\frac{\mu_{ij}}{\theta_j})- \mu_{ij}\frac{y_{ij}+\theta_j}{1+\frac{\mu_{ij}}{\theta_j} }$$
+ 
+ For this we can use the theta.ml() function in the _MASS_ package
+ 
+ - edgeR robust
+ 
+The get more stable estimates of the dispersions, RNA-seq packages such as _DESeq_ and _edgeR_ use an empirical Bayes approach to shrink dispersion estimates towards a fitted mean-dispersion trend. Here I use the machinery of edgeR robust (version 3.14.0) to estimate the dispersions
+ 
+To reduce the computational cost the estimation of the overdispersions is not repeated in every iteration
+
+3. Estimate the psi parameters
+ 
+ Solve the system of score equations (see Lawless 1987) for $\psi_1$ and $\psi_2$, assuming $\theta_j$'s given
+ 
+ $$\sum_{i=1}^n \sum_{j=1}^p r_{im}s_{mj} \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} = 0$$ for all m=1,...,k
+ 
+ with
+ 
+ $$E(X_{ij}) = \mu_{ij} = exp\big(log(\frac{x_{i.}x{.j}}{x_{..}}) + \psi_1^{MLE} s_{1j}^{init}r_{1i}^{init} + \psi_2^{MLE} s_{2j}^{init}r_{2i}^{init} \big)$$.
+ 
+ These are non-linear equations for which we use the _nleqslv_ package, with its default the Broyden method. This is a variation of the Newton-Raphson method (or Fisher scoring in case of ML) whereby the Jacobian is recycled and not recalculated at every iteration. The Jacobian is a square matrix of dimension k*(k-1)/2. The diagonal entry at position $kk'$ is:
+ 
+ $$\frac{\delta^2 L_{NB}(\mu, \theta)}{\delta \psi_k \delta \psi_{k'}} = -\sum_{i=1}^n \sum_{j=1}^p r_{ik}r_{ik'}s_{kj}s_{k'j}\frac{\mu_{ij}(1+\frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}$$
+ 
+4. To estimate the $r_{i}$'s we would really like to use weighted least squares to minimize
+
+$$\sum_{j=1}^p\Big(log(x_{ij}) - \big(u + u_i + u_j +\sum_{k=1}^M r_{ik} \big( \hat{\psi_ks_{jk}} \big)\Big)^2$$
+
+for every $i$. Unfortunately we cannot calculate $log(x_{ij})$ because of the zeroes.
+
+We'll have to use another way to estimate them, maximum likelihood in our case
+
+To enforce the constraints on the scores mentioned above we use Lagrange multipliers and thus look for the maximum of the Lagrangian function
+
+$$Lag(r_{ik}, \mathbf{\lambda}) = L_{NB}(\mathbf{r}) + \sum_{k=1}^M \big( \lambda_{1k} \sum_{i=1}^n r_{ik} \big) + \sum_{k=1}^M \big( \lambda_{2k}  ( \sum_{i=1}^n r_{ik}^2 ) - 1 \big) + \sum_{k \neq k'} \big(\lambda_{3kk'} \sum_{i=1}^n (r_{ik}r_{ik'}) \big)$$
+
+with $L_{NB}(\mathbf{r})$ the log-likelihood function of the negative binomial regression. The derivatives of this function are
+
+$$\frac{\delta Lag(r_{ik}, \mathbf{\lambda})}{\delta r_{ik}} = \sum_{j=1}^p \hat{s}_{jk} \hat{\psi}_k \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} + \sum_{k=1}^M \lambda_{1k}  + \sum_{k=1}^M \big(2 \lambda_{2k} r_{ik}\big) +  \sum_{k' \neq k} r_{ki} \lambda_{kk'} = 0$$
+
+and 
+
+$$\frac{\delta Lag(r_{ik}, \mathbf{\lambda})}{\delta \lambda_{1k}} = \sum_{i=1}^n r_{ik} = 0$$
+
+and 
+
+$$\frac{\delta Lag(r_{ik}, \mathbf{\lambda})}{\delta \lambda_{2k}} = (\sum_{i=1}^n r_{ik}^2) - 1 = 0$$
+
+and 
+
+$$\frac{\delta Lag(r_{ik}, \mathbf{\lambda}))}{\delta \lambda_{3kk'}} = (\sum_{i=1}^n r_{ik}r_{ik'}) - 1 = 0$$
+
+. The latter three groups of equations represent the original centering, normalization and orthogonality constraints.
+
+There are additional equations in the system now, but also as many extra $\lambda$ parameter to optimize. These $\lambda$ parameters are also stored and used as initial values in the next iteration run.
+
+We now truly have a system of equations to solve, which we do with the _nleqslv_ package. It is straightforward but a bit cumbersome to also provide the analytical Jacobian, which greatly speeds up the iterations (otherwise it has to be approximated numerically). The Jacobian is sparse and symmetric.
+
+ $$\frac{\delta^2 Lag(\mu, \theta)}{ \delta r_{ik} \delta r_{ik'}} = -\sum_{i=1}^n \sum_{j=1}^p \psi_{k}\psi_{k'}s_{kj}s_{k'j}\frac{\mu_{ij}(1+\frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}=0$$
+ 
+  $$\frac{\delta^2 Lag(\mu, \theta)}{\delta r_{ik} \delta \lambda_{1k}} = 1$$
+  
+  $$\frac{\delta^2 Lag(\mu, \theta)}{\delta r_{ik} \delta \lambda_{2k}} = 2r_{ik}$$
+  
+  $$\frac{\delta^2 Lag(\mu, \theta)}{\delta r_{ik} \delta \lambda_{3kk'}} = r_{ik'}$$
+  
+  All other entries are zero.
+  
+5. Repeat step 4 but now estimate $s_{jk}$ column scores with weights $\frac{x_{j.}}{x_{..}}$ in the restrictions, e.g. the Lagrangian becomes:
+
+$$Lag(s_{jk}, \mathbf{\lambda}) = L_{NB}(s_{jk}) + \sum_{k=1}^M \big( \lambda_{1k} \sum_{j=1}^p s_{jk} \big) + \sum_{k=1}^M \big( \lambda_{2k}  ( \sum_{j=1}^p s_{jk}^2 ) - 1 \big) + \sum_{k \neq k'} \big(\lambda_{3kk'} \sum_{j=1}^p (s_{jk}s_{jk'}) - 1\big)$$
+
+6. Repeat steps 2-5 until convergence. Convergence is assumed if between two iterations
+
+ - The $\psi$ parameters change less than $0.01\%$
+ 
+ AND
+ 
+ - None of the square roots of the L2-norms of the relative changes of row and column scores exceeds 0.1%, or
+ 
+ $$\forall \mathbf{r_k}, \mathbf{s_k} \Big(\sqrt{\sum_{i=1}^n (1-\frac{r^{(iter-1)}_{ik}}{r^{(iter)}_{ik}})^2} < 0.001 \Big) \cup \Big( \sqrt{\sum_{j=1}^p (1-\frac{s^{(iter-1)}_{kj}}{s^{(iter)}_{kj}})^2} < 0.001 \Big)$$
+ 
+ and analogously for all the scores. Other norms, such as L1 or infinity norms can also be used. A norm between 1 and 2 will lead to fast convergence.
+ 
+ Overdispersions are not taken into account in determining the convergence since they're merely nuisance parameters.
+
+8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot.
+
+In the end we'll have estimated p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+1)p + kxn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
+
+9. Assess the goodness of fit
+
+Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(2) and the intermediate models to get an idea of the relative importance of the dimensions. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. The log-likelihood of the saturated model is by definition equal to 0.
+
+We can decompose the difference in log-likelihood between the independence and the full RC(K) model as
+
+$$(LL_2 - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1)$$
+
+with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1) and RC(2) models respectively. Scaling by $(LL_2 - LL_0)$ will provide interpretable fractions.
+
+# Implementation
+
+```{r Auxfuns, echo=TRUE}
+#All matrices X are considered to be nxp, i.e. samples are rows and taxa are columns
+
+## A function to perform the initial SVD
+
+initSVD = function(X){
+  
+# @param X: the nxp count matrix
+  
+# @return: the singular value decomposition of the weigthed matrix of residuals (X-E)C^-1
+  
+  C = colSums(X)
+  R = rowSums(X)
+  onesn =rep.int(1, nrow(X))
+  onesp = rep.int(1, ncol(X))
+  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
+  # Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
+  #Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(sqrt(sum(C)/C))
+  #Goal = diag(1/R) %*% (X-E) %*% diag(1/C)
+  Goal = (X-E) %*% diag(1/C)
+  dimnames(Goal) = dimnames(X)
+  svd(Goal)
+}
+#-------------------------------------------------#
+
+## A function to perform correspondence analysis
+
+caSVD = function(X){
+  
+# @param X: the nxp count matrix
+  
+# @return: the singular value decomposition of the matrix of pearson residuals
+  
+  C = colSums(X)
+  R = rowSums(X)
+  onesn =rep.int(1, nrow(X))
+  onesp = rep.int(1, ncol(X))
+  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
+  # Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
+  #Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(sqrt(sum(C)/C))
+  #Goal = diag(1/R) %*% (X-E) %*% diag(1/C)
+  Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
+  dimnames(Goal) = dimnames(X)
+  svd(Goal)
+}
+#-------------------------------------------------#
+
+#A wrapper function for psi estimation
+
+glm.nb.mat = function (X, reg, init.theta, psiInit, abunds,  libSizes, global = "dbldog", nleqslv.control,k=k){
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxk regressor matrix
+  # @param init.theta: a vector of length p with the current dispersion parameters
+  # @param psiInit: a vector of length k with the initial psi parameters
+  # @param abunds: a vector of length p with abundance parameters
+  # @param libSizes: a vector of length n with (known) library sizes
+  # @param global: a character string, global search strategy of the nleqslv algorithm
+  # @param nleqslv.control: a list with control arguments for the nleqslv() function 
+
+  # @return Psis: estimated importance estimates, sorted from large to small and positive
+  
+require(nleqslv)
+k = length(psiInit)
+psiVec = try(nleqslv(fn = dNBll, x = psiInit, theta = init.theta, y = X, reg = reg, 
+                 abunds =abunds, libSizes = libSizes, k=k, global=global, control = nleqslv.control, jac=NBjacobianPsi)$x, silent=TRUE)
+if(class(psiVec)=="try-error"){
+  psiVec = psiInit
+  warning("Could not update psi values")
+}
+
+return(Psis = sort(abs(psiVec), decreasing=TRUE)) #enforce positive psis and sort
+}
+  
+#--------------------------------------#
+
+dNBll = function(beta, y, reg, theta, abunds, k, libSizes){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param y: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+
+  mu = exp(arrayprod(reg, beta)) * outer(libSizes, abunds)
+  
+  vapply(1:k,FUN.VALUE=0, function(z){
+  sum(reg[,,z]*(y-mu)/(1+t(t(mu)/theta)))
+  })
+
+}
+#--------------------------------------#
+#A jacobian for the psi parameters
+NBjacobianPsi = function(beta, y, reg, theta, abunds, libSizes, k){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param y: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+  
+  mu = exp(arrayprod(reg, beta)) * outer(libSizes, abunds)
+  sapply(1:k, function(K){
+    vapply(1:k,FUN.VALUE=0, function(Kinner){
+    -sum(reg[,,K]*reg[,,Kinner]*(1+t(t(y)/theta))*mu/(1+t(t(mu)/theta))^2)
+  })})
+}
+
+#---------------------------------------#
+# A function to estimate the overdispersions
+estDisp = function(X, cMat, rMat, libSizes, abunds, psis, prior.df=10, k=k){
+# @param X: the nxp named count matrix
+# @param rMat: A nxk matrix with the row weights of every dimension in the columns 
+# @param cMat: A kxp matrix with the column weights of every dimension in the rows 
+# @param libSizes: a vector of length n with library sizes
+# @param abunds: a vector of length p with the abundances
+# @param psis: A vector of length k with importance estimates
+# @param prior.df (optional): prior degrees of freedom for dispersion estimation, see edgeR documentation
+
+  require(edgeR)
+    # A matrix of means
+  logMeansMat = t(rMat %*% (cMat*psis) + log(outer(libSizes, abunds)))
+#Use the edgeR machinery to estimate the dispersions
+  trended.dispersion  <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess",offset=logMeansMat)
+  thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL, prior.df = prior.df, offset=logMeansMat, dispersion = trended.dispersion)
+  if(anyNA(thetaEsts)){
+    idNA = is.na(thetaEsts)
+    thetaEsts[idNA] = mean(thetaEsts[!idNA])
+    warning(paste(sum(idNA), "dispersion estimations did not converge!"))
+  }
+  return(thetas=thetaEsts)
+}
+#---------------------------------------#
+
+#A function to estimate the psis given all the other parameters
+estPsis = function(X, rMat, cMat, psiInit, abunds, libSizes, thetas, nleqslv.control,k,...){
+    
+# @param X: the nxp named count matrix
+# @param rMat: A nxk matrix with the row weights of every dimension in the columns 
+# @param cMat: A kxp matrix with the column weights of every dimension in the rows 
+# @param psiInit: A vector of length k with initial importance estimates
+# @param thetas: A vector of length k with overdispersions
+# @param abunds: a vector of length p with the abundances
+# @param libSizes: a vector of length n with (known) library sizes
+# @param nleqslv.control: a list with control options for the nleqslv function of the same package
+
+# @return psis: A vector of length k with the "importance" parameters of the RC decompositions
+
+  reg = sapply(1:k, simplify="array", function(K){
+    outer(rMat[,K], cMat[K,])
+  })
+  return(glm.nb.mat(X = X, reg = reg, init.theta = thetas, psiInit = psiInit,
+                       abunds = abunds, libSizes = libSizes, nleqslv.control = nleqslv.control,k=k))
+
+}
+#-------------------------------------------#
+#An auxiliary R function, kindly provided by Joris
+arrayprod <- function(x,y){
+  xdim <- dim(x)
+  outdim <- xdim[1:2]
+  outn <- prod(outdim)
+ 
+  yexpand <- rep(y, each = outn)
+  outid <- seq_len(outn)
+ 
+  tmp <- x * yexpand
+ 
+  dim(tmp) <- c(outn, xdim[3])
+  out <- rowSums(tmp)
+ 
+  dim(out) <- outdim
+ 
+  out
+}
+
+#-------------------------------------------#
+## A function to calculate row or column scores when keeping the other one constant, given overdispersion and importance parameters psi.
+
+scoreCalc = function(X, psis, thetas, abunds, toEstimate = c("rows","columns"), rMat, cMat, lambda, method,  nleqslv.control, libSizes = NULL, global="dbldog",  k, n ,p){
+  
+# @param X: the nxp data matrix
+# @param psis: A vector of length k with the importance parameters psi
+# @param thetas: a vector of length p with dispersion estimates
+# @param abunds: a vector of length p with relative abundances
+# @param toEstimate: a character string, either "rows" or "columns", indicating which scores to estimate
+# @param rMat: a nxk matrix with current row scores
+# @param cMat: a kxp with matrix with current column scores
+# @param libSizes(optional): a vector of length n with estimates for the library sizes
+# @param lambda: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers
+# @param method: Method for jacobian estimation , see nleqslv
+# @param global(optional): global strategy for solving non-linear systems , see nleqslv
+# @param nleqslv.control: a list with control options, see nleqslv
+
+# @return rMat: a nxk matrix with row scores: The same ones as provided or new estimates
+# @return cMat: a pxk with matrix with column scores: The same ones as provided or new estimates
+# @return converged: a boolean indicating if the roots of the system were found
+  
+   if(length(psis) != NCOL(rMat) || length(psis) != NROW(cMat)){
+    stop("Dimensions of psis, rows or columns don't match")
+  } else{
+    }
+  
+  if(is.null(libSizes)){
+    libSizes = rowSums(X)
+  }
+  if(toEstimate == "columns"){
+
+    cMatNewList = glm.nb.col(X = X, reg = t(psis*t(rMat)), current.theta = thetas, abunds = abunds, libSizes = libSizes, cMatInit = cMat, global = global, nleqslv.control = nleqslv.control, k=k, lambdaCol = lambda, method=method, n=n, p=p)
+
+    cMatNew = cMatNewList$cMat
+    # cMatNew=cMatNew/cMatSE #Bad idea!
+#       #Renormalize
+  colScoresNorm = t(apply(cMatNew,1, function(colS){
+    colS - sum(colS * abunds)/sum(abunds) #mean(colS)
+  }))
+  colScoresNorm = t(apply(colScoresNorm, 1, function(y){
+    y/sqrt(sum(abunds * y^2)/sum(abunds))
+  }))
+
+  return(list(rMat=rMat, cMat=colScoresNorm, lambdaCol = cMatNewList$lambdaCol, converged  = cMatNewList$converged))
+  } else{
+
+    rMatNewList = glm.nb.row(X = X, reg = psis*cMat, current.theta = thetas, abunds = abunds, libSizes = libSizes, global =global, nleqslv.control = nleqslv.control, rMatInit = rMat, lambdaRow=lambda, method=method,  n=n, p=p, k=k)
+    
+  rMatNew = rMatNewList$rMat
+  #Renormalize
+  rowScoresNorm = apply(rMatNew,2, function(rowS){
+    rowS - mean(rowS)#
+  })
+  rowScoresNorm = apply(rowScoresNorm, 2, function(y){
+    y/sqrt(sum( y^2))
+  })
+   
+  # rownames(rowScoresNorm) = rownames(X)
+  return(list(rMat=rowScoresNorm, cMat=cMat, lambdaRow = rMatNewList$lambdaRow, converged = rMatNewList$converged))
+    }
+  }
+
+#-------------------------------------------#
+#A function to calculate the column scores for one column through weighted ML
+  
+glm.nb.col = function (X, reg, current.theta, abunds, libSizes, cMatInit, nleqslv.control, k , p,n,lambdaCol, global = "dbldog", method){
+  # @param X: the data vector of length n
+  # @param reg: a nxpxk regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param abunds: a scalar with abundance parameter
+  # @param libSizes : a vector of length n with library sizes
+  # @param cMatInit: a k*p matrix with initial column scores
+  # @param k: a scalar, the dimension of the RC solution
+# @param lambdaCol: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers
+# @param method: Method for jacobian estimation , see nleqslv
+# @param global(optional): global strategy for solving non-linear systems , see nleqslv
+# @param nleqslv.control: a list with control options, see nleqslv
+
+  # @return cMat: a vector length k with estimated column scores
+  # @return lambdaCol: a vector of length 2*k+k*(k-1)/2 with estimates or the lagrange multipliers
+  # @return converged: a boolean indicating if the roots of the system were found
+
+require(nleqslv)
+# cMat = cMatInit
+beta = c(t(cMatInit), lambdaCol)
+
+  if(length(beta) != (k*p  + k*(k-1)/2 + 2*k)){ # + k + k
+    stop("Dimensions of regressor matrix and parameters don't match")
+  }
+# nleqslv.control$trace=TRUE
+keepGoing = TRUE
+globalInd = methodInd = 1
+while(keepGoing){
+tmp = try(nleqslv(fn = dNBllcol, x = beta, current.theta = current.theta, y = X, reg = reg, abunds =abunds, libSizes = libSizes, k=k,  global = global[globalInd], control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method=method[methodInd]), silent=TRUE)
+if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
+ globalInd = globalInd + 1
+ if(globalInd > length(global)){
+   globalInd = 1
+ # nleqslv.control$maxit=200
+    methodInd = methodInd +1
+}
+  if(methodInd > length(method)){
+   keepGoing = FALSE
+ }
+ if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
+  cMat = matrix(tmp$x[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  beta = tmp$x
+    }
+} else if(tmp$termcd==1){
+    keepGoing=FALSE
+  }
+}
+if(class(tmp)=="try-error"){
+  warning("Could not finish iteration of row values!")
+} else{
+  cMat = matrix(tmp$x[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+}
+
+return(list(cMat = cMat, lambdaCol = tmp$x[(k*p+1):length(tmp$x)], converged = tmp$termcd ==1))
+}
+  
+#--------------------------------------#
+#A score function of the NB for the column scores
+
+dNBllcol = function(beta, y, reg, current.theta, abunds, libSizes, k, p, n) {
+  # @param beta: a vector of k*p column scores + k within dimensional centering lambda parameters + k within dimensional normalization parameters +  k(k-1)/2 between dimension lambda parameters
+  # @param y: the data vector of length n
+  # @param reg: a nxk regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param logAbund: a scalar with the LOG OF THE abundance parameter
+  # @param libSizes : a vector of length n with (known) library sizes
+  # @param k: a scalar, the dimension of the RC solution
+  # @param p: a scalar, the number of taxa
+  # @param n: a scalar, the number of samples
+
+  # @return A vector of length p*k+2*k+ k(k-1)/2 evaluations of the lagrangian
+  
+  cMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  # logMu[,K] = reg[,K]*beta
+  mu = exp(reg %*% cMat) * outer(libSizes, abunds)
+  
+  lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+  lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  # lambda3 = beta[(k*p+1):length(beta)] #Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #2*k+
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
+#   score = as.vector(sapply(1:k, function(K){
+#     sapply(1:p, function(P){
+#       sum(reg[,K]*(y[,P]-mu[,P])/(1+t(t(mu[,P])/current.theta[P])))  + 
+#             sum(lambda3Mat[K,]*cMat[,P]*abunds[P]) + lambda1[K]*abunds[P] + lambda2[K]*abunds[P]*
+#         if(LASSO) ifelse(cMat[K,P]>0,1,-1) else 2*cMat[K,P]*abunds[P]
+#           })})) 
+  
+  score = c(t(
+    crossprod(reg,((y-mu)/(1+t(t(mu)/current.theta)))) + 
+                        t(abunds*t(lambda1 + lambda2*2*cMat + (lambda3Mat %*% cMat)))
+    ))
+  
+  centers = colSums(abunds*t(cMat))
+  unitSums = colSums(abunds*t(cMat^2))-1
+  orthogons = unlist(sapply(1:(k-1), function(K){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
+      sum(cMat[K,]*cMat[Kinner,]*abunds)
+    })
+  }))
+
+  return(c(score,centers, unitSums, orthogons))
+}
+
+#-------------------------------------------#
+#A function to calculate the row scores for one row through weighted ML
+  
+glm.nb.row = function (X, reg, current.theta, abunds, libSizes,  rMatInit, nleqslv.control, lambdaRow,k, n, p, global ="dbldog", method){
+  # @param X: the data vector of length p
+  # @param reg: a kxp regressor matrix: outer product of colScores and psis
+  # @param current.theta: a vector of length p,  the current dispersion parameters
+  # @param abunds: a vector of length p with abundance parameters
+  # @param libSizes : a scalar, the library size
+  # @param rVecInit: a vector of length k with initial row scores
+  # @param lambdaRow: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers
+  # @param method: Method for jacobian estimation , see nleqslv
+  # @param global(optional): global strategy for solving non-linear systems , see nleqslv
+  # @param nleqslv.control: a list with control options, see nleqslv
+
+  # @return rMat: a vector length k with estimated row scores
+  # @return lambdaRow: a vector of length 2*k+k*(k-1)/2 with estimates or the lagrange multipliers
+  # @return converged: a boolean indicating if the roots of the system were found
+  
+require(nleqslv)
+# rMat = rMatInit
+keepGoing = TRUE
+globalInd = methodInd = 1
+beta = c(rMatInit, lambdaRow)
+  
+if(length(beta) != (k*(n+2)  + k*(k-1)/2)){ #+ k + k
+    stop("Dimensions of regressor matrix and parameters don't match")
+}
+while(keepGoing){
+tmp = try(nleqslv(fn = dNBllrow, x = beta, current.theta = current.theta, y = X, reg = reg, abunds = abunds, libSizes = libSizes, k=k, global=global[globalInd], control= nleqslv.control, p=p, n=n, jac= NBjacobianRow, method=method[methodInd]), silent=TRUE)
+if(class(tmp)=="try-error" || tmp$termcd %in% c(2,3,4,5,6)){
+ globalInd = globalInd + 1
+ if(globalInd > length(global)){
+   globalInd = 1
+  # nleqslv.control$maxit=200
+   methodInd = methodInd +1
+
+}
+  if(methodInd > length(method)){
+   keepGoing = FALSE
+ }
+ if(class(tmp)=="list" && tmp$termcd %in% c(2,3,4,5,6)){
+   rMat = matrix(tmp$x[1:(k*n)], byrow=FALSE, ncol = k, nrow=n) #
+beta = tmp$x
+    }
+} else if(tmp$termcd==1){
+    keepGoing=FALSE
+  }
+}
+if(class(tmp)=="try-error"){
+  warning("Could not finish iteration of row values!")
+} else{
+   rMat = matrix(tmp$x[1:(k*n)], byrow=FALSE, ncol = k, nrow=n) #
+}
+return(list(rMat = rMat, lambdaRow=tmp$x[(k*n+1):length(tmp$x)], converged = tmp$termcd ==1))
+}
+  
+#--------------------------------------#
+#A score function of the NB for the row scores
+
+dNBllrow= function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p) {
+  # @param beta: a vector of k regression parameters to optimize: the k column scores
+  # @param y: the data vector of length p
+  # @param reg: a kxp regressor matrix: outer product of rowScores and psis
+  # @param current.theta: a scalar,  the current dispersion parameters
+  # @param abunds: a vector of length p with the abundances
+  # @param libSizes : a vector of length n with (known) library sizes
+  # @param k: a scalar, the dimension of the RC solution
+  # @param p: a scalar, the number of taxa
+  # @param n: a scalar, the number of samples
+
+    # @return A vector of length p*k+2*k+ k(k-1)/2 evaluations of the lagrangian
+  rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+#   logMu = vapply(FUN.VALUE= array(0,dim=c(n,p)),1:k, function(i){
+#     outer(rMat[,i],reg[i,])
+#   })
+  # logMu[,K] = reg[,K]*beta
+  mu = exp(rMat %*% reg)* outer(libSizes, abunds)
+  
+  lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+  lambda2 = beta[(k*(n+1)+1):(k*(n+2))] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+#Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #+2*k
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
+#   score = as.vector(sapply(1:k, function(K){
+#     sapply(1:n, function(N){
+#       sum(reg[K,]*(y[N,]-mu[N,])/(1+t(t(mu[N,])/current.theta)))  + 
+#        sum(lambda3Mat[K,]*rMat[N,])+ lambda1[K] + lambda2[K]*
+#         (if (LASSO) ifelse(rMat[N,K]>0,1,-1) else 2*rMat[N,K])
+#           })}))
+  
+  score = c(t(tcrossprod(reg, (y-mu)/(1+t(t(mu)/current.theta))) + lambda1 + lambda2* 2*t(rMat) + t(rMat %*% lambda3Mat)))
+  #
+  centers = colSums(rMat)
+  unitSums = colSums(rMat^2)-1
+  orthogons = unlist(sapply(1:(k-1), function(K){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
+      sum(rMat[,K]*rMat[,Kinner])
+    })
+  }))
+
+  return(c(score,centers, unitSums, orthogons))
+}
+#-------------------------------------------#
+# A function to provide an analytical jacobian in the hope to speed up the calculations
+
+#beta consists of 
+#   - n*k parameters forming rMat
+#   - k parameters forming lambda1, these are the Lagrange multipliers for the centering restrictions (row scores of one dimensions must sum to zero)
+#   - k parameters forming lambda 2 these are the Lagrange multipliers for the normalization restrictions (squares of row scores of one dimensions must sum to one)
+#   - k*(k-1)/2 parameters forming lambda3, the lagrange multiplier of the orthogonality restriction
+
+NBjacobianRow = function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p){
+  #@return a symmetric jacobian matrix of size (n+2) *k + k(k-1)/2
+  rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+  nLambda = k*(k-1)/2+2*k #Number of lambda parameters
+  lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
+
+    mu = exp(rMat %*% reg)* outer(libSizes, abunds)
+
+  Jac = matrix(0, nrow= n*k + nLambda, ncol=n*k + nLambda)
+  #The suymmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+
+  #dLag²/dr_{ik}dlambda_{1k}
+  Jac[1:(n*k),(n*k+1):((n+1)*k)] = c(rep.int(c(rep.int(1,n), rep.int(0,n*k)),k-1), rep.int(1,n)) 
+  #dLag²/dr_{ik}dlambda_{2k}
+  Jac[1:(n*k),((n+1)*k+1):((n+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric",n*k), function(K){c(rep.int(0,(K-1)*n),2 *rMat[,K],rep.int(0,(k-K)*n))})
+  tmp = (1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2
+     
+  for (K in 1:(k-1)){
+      for(Kinner in (K+1):k){
+         #dLag²/dr_{ik}dlambda_{3kk'}
+      # Jac[1:(n*k),((n+2)*k+(K*(2*k-1-K)/2-k+Kinner))] = c(rep(0, n*(K-1)), rMat[,Kinner], rep(0, n*(Kinner-K-1)), rMat[,K],rep(0, n*(k-Kinner)))
+        
+#       for(N in 1:n){
+#           #dLag²/dr_{ik}dr_{ik'}
+#       Jac[N+(n*(K-1)),N+(n*(Kinner-1))] = -sum(reg[K,]*reg[Kinner,]*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2) + lambda3Mat[Kinner, K]
+#       }
+      
+        #dLag²/dr_{ik}dr_{ik'}
+      diag(Jac[(n*(K-1)+1):(n*K),(n*(Kinner-1)+1):(n*Kinner)]) = -tcrossprod(reg[K,]*reg[Kinner,],tmp) + lambda3Mat[Kinner, K]
+      }
+  }
+  #dLag²/dr_{ik}dlambda_{3kk'}
+    Jac[1:(n*k),((n+2)*k+1):(n*k+nLambda)] = unlist(sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",n*k), function(Kinner){
+          c(rep.int(0, n*(K-1)), rMat[,Kinner], rep.int(0, n*(Kinner-K-1)), rMat[,K],rep.int(0, n*(k-Kinner)))
+        })
+      }))
+  
+  #Symmetrize
+  Jac = Jac + t(Jac)
+#dLag²/dr_{ik}²
+#   diag(Jac[1:(n*k),1:(n*k)]) = as.vector(unlist(sapply(1:k, function(K){
+#     sapply(1:n, function(N){
+#       -sum(reg[K,]^2*(1+y[N,]/current.theta)*mu[N,]/(1+mu[N,]/current.theta)^2) + 2*beta[(n+1)*k+K]
+#       })
+#   })))
+  
+    diag(Jac[1:(n*k),1:(n*k)]) = c(t(-tcrossprod(reg^2 ,tmp) + 2*rep(beta[((n+1)*k+1):((n+2)*k)], each = n)))
+    
+#         Jac[1:(n*k),1:(n*k)] = t(-outer(t(reg) %*% reg , (1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2) + 2*rep(beta[((n+1)*k+1):((n+2)*k)], each = n)) * 
+#       do.call(cbind, replicate(k,matrix(rep(t(diag(1,ncol=n, nrow=n)),k), ncol=n, byrow=TRUE),simplify=FALSE))
+  
+  Jac
+#   Jac[1:(n*k),1:(n*k)] = Jac[1:(n*k),1:(n*k)]/n
+#   Jac*lambdaWeights
+}
+#-------------------------------------------#
+# A function to provide an analytical jacobian in the hope to speed up the calculations
+NBjacobianCol = function(beta, y, reg, current.theta, abunds, libSizes, k, n ,p){
+  #@return a symmetric jacobian matrix of size p*k + k(k-1)/2
+  cMat = matrix(beta[1:(k*p)], byrow=TRUE, nrow=k, ncol=p)
+  nLambda = (k*(k-1)/2+2*k) #Number of lambda parameters
+  lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
+  #lambdaWeights = (p+nLambda)/(1+nLambda) #Weigths of the restircting equations
+  
+  #Calculate the mean
+  mu = exp(reg %*% cMat)* outer(libSizes, abunds)
+
+  Jac = matrix(0, nrow= p*k + nLambda, ncol=p*k + nLambda)
+  #The suymmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+#   
+  #dLag²/dr_{ik}dlambda_{1k}
+  Jac[1:(p*k),(p*k+1):((p+1)*k)] = c(rep(c(abunds, rep.int(0,p*k)),k-1), abunds)
+  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),abunds,rep(0,(k-K)*p))})
+  Jac[1:(p*k),((p+1)*k+1):((p+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric", p*k), function(K){c(rep.int(0,(K-1)*p),abunds*2 *cMat[K,],rep.int(0,(k-K)*p))})
+     
+  tmp= (1+t(t(y)/current.theta))*mu/(1+t(t(mu)/current.theta))^2
+  for (K in 1:(k-1)){
+      for(Kinner in (K+1):k){
+
+  #dLag²/dr_{ik}dr_{ik'}
+            diag(Jac[(p*(K-1)+1):(p*K),(p*(Kinner-1)+1):(p*Kinner)]) =  -crossprod(  tmp, (reg[,K]*reg[,Kinner])) + lambda3Mat[Kinner, K]*abunds
+    }
+  }
+  
+    #dLag²/ds_{ik}dlambda_{3kk'}
+    Jac[1:(p*k),((p+2)*k+1):(p*k+nLambda)] = unlist(sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",p*k), function(Kinner){
+          c(rep.int(0, p*(K-1)), abunds*cMat[Kinner,], rep.int(0, p*(Kinner-K-1)), abunds*cMat[K,],rep.int(0, p*(k-Kinner)))
+        })
+      }))
+  
+  #Symmetrize
+  Jac = Jac + t(Jac)
+#dLag²/dr_{ik}²
+
+    diag(Jac[1:(p*k),1:(p*k)]) = c(-crossprod(tmp, reg^2)) + 2*rep(beta[((p+1)*k+1):((p+2)*k)], each = p)*abunds
+  Jac
+  # Jac[1:(p*k),1:(p*k)] = Jac[1:(p*k),1:(p*k)]/p
+  # Jac*lambdaWeights
+}
+#-------------------------------------------#
+## A wrapper function to calculate the overdispersion, abundance and importance parameters
+
+outerLoop = function(X, k, tol = 1e-2, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, libSizes = NULL, rMatInit = NULL, cMatInit = NULL, psiInit = NULL,  global ="dbldog", nleqslv.control=list(),method=c("Broyden"), lambdaRow=NULL, lambdaCol = NULL, dispFrec=10, convNorm = 2){
+  
+  # @param X: a nxp data matrix
+  # @param k: a scalar, number of dimensions in the RC(M) model
+  # @param tol(optional): a scalar, the relative convergende tolerance for the row scores and column scores parameters, defaults to 1e-3  
+  # @param Psitol(optional): a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4
+  # @param maxItOut(optional): an integer, the maximum number of iteration in the outer loop, defaults to 50
+  # @param libSizes(optional) : a vector of length n with (known) library sizes. If not provided, rowSums of x are used
+  # @param verbose(optional): a boolean, should information on iterations be printed? Defaults to TRUE
+  # @param method(optional): Method for jacobian estimation , see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration
+  # @param global(optional): global strategy for solving non-linear systems , see nleqslv
+  # @param nleqslv.control: a list with control options, see nleqslv
+  # @param lambdaRow: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the row scores
+  # @param lambdaCol: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the column scores
+  # @param rMatInit(optional): a nxk matrix with initial row scores. If not provided values from the singular value decomposition will be used as starting values
+  # @param cMatInit(optional): a pxk matrix with initial column scores. If not provided values from the singular value decomposition will be used as starting values
+  # @param psisInit(optional): a vector of length k with inital values for the importance parameters psi. If not provided values from the singular value decomposition will be used as starting values
+  # @param dispFreq: a scalar, how many iterations the algorithm should wait before reestimationg the dispersions
+  # @param convNorm: a scalar, the norm to use to determine convergence
+
+  # @return A list with elements:
+  # @return psis: a vector of length k with estimates for the importance parameters psi
+  # @return thetas: a vector of length p with estimates for the overdispersion
+  # @return rMat: a nxk matrix with estimated row scores
+  # @return cMat: a pxk matrix with estimated column scores
+  # @return converged: a boolean indicating if the algorithm converged
+  # @return rowRec: a n x k x maxItOut array with a record of all rMat estimates through the iterations 
+  # @return colRec: a k x p x maxItOut array with a record of all cMat estimates through the iterations
+  # @return psiRec.: a k x maxItOut array with a record of all psi estimates through the iterations
+  
+ ## 1) Initialization
+  svdX = initSVD(X)
+  #assoc = logmult::rc(X, nd=min(dim(X)-1), weighting = "marginal", se="none", family= "poisson")$assoc
+  n=NROW(X)
+  p=NCOL(X)
+  
+  if(is.null(libSizes)){
+    libSizes = rowSums(X)
+  }
+  abunds = (colSums(X)/sum(X))
+  
+  if(is.null(rMatInit)){
+  rMatInit = svdX$u[,1:k]
+    # rMatInit = assoc$row[,,1]
+  }
+  if(is.null(cMatInit)){
+  cMatInit = t( svdX$v[,1:k] )
+    # cMatInit = t(assoc$col[,,1])
+  }
+  
+  if(is.null(psiInit)){
+  psiInit = svdX$d[1:k]#sort(, decreasing=TRUE) #*sqrt(colSums(rMatInit^2)*rowSums(t(t(cMatInit^2)*abunds)))
+    # psiInit = assoc$phi[1,]
+  }
+  
+#   rMatInit = apply(rMatInit, 2,function(rowS){
+#     rowS - mean(rowS)
+#   })
+  rMatInit = apply(rMatInit, 2,function(rowS){
+      rowS/sqrt(sum(rowS^2))
+  })
+#   cMatInit = t(apply(cMatInit, 1,function(colS){
+#     colS - sum(colS * abunds)/sum(abunds)
+#   }))
+  cMatInit = t(apply(cMatInit, 1,function(colS){
+    colS/sqrt(sum(colS^2 * abunds)/sum(abunds))
+  }))
+  
+  #thetaInit = thetas
+  psi = psiOld = psiInit
+  rMat = rMatOld = rMatInit
+  cMat = cMatOld = cMatInit
+  if(is.null(lambdaRow)) lambdaRow =  rep.int(0,2*k+k*(k-1)/2)
+  if (is.null(lambdaCol)) lambdaCol =  rep.int(0,2*k+k*(k-1)/2)
+
+  iterOut = 1
+  rowRec = array(0,dim=c(NROW(X),k, maxItOut+1))
+  colRec = array(0,dim=c(k,NCOL(X), maxItOut+1))
+  thetaRec = matrix(0,ncol=maxItOut+1, nrow=length(abunds))
+  psiRec = matrix(0,ncol=maxItOut+1, nrow=k)
+
+  ## 2) Propagation
+  
+  while((iterOut ==1) || ((iterOut <= maxItOut) && (!convergence)))
+    {
+    
+  if(verbose && iterOut%%1 == 0){
+  cat("\n","Outer Iteration", iterOut, "\n","\n")
+    if(iterOut!=1){
+  cat("Old psi-estimates: ", psiOld, "\n")
+  cat("New psi-estimates: ", psi, "\n")
+    }
+  }
+  ## 2)a. Store old parameters
+  psiOld = psi
+  rMatOld = rMat
+  cMatOld = cMat
+    
+#   ## 2)b. ML estimation of dispersion
+#   while(iterIn ==1 || (iterIn <= maxItIn) && (any(abs(psi-psiOldIn) > tol))){
+# #     
+#     psiOldIn = psi
+#     cat("Inner iteration ", iterIn, "\n")
+  if((iterOut %% dispFrec) ==0  || iterOut==1){
+  if (verbose) cat("\n Estimating overdispersions \n")
+ thetas = estDisp(X = X, rMat = rMat,cMat =  cMat,  abunds=abunds, libSizes = libSizes, psis = psi, k=k)
+  }
+   # iterIn = 1
+
+  
+#      if(verbose) cat("\n Estimating psis \n")
+#   psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control, k=k)
+  
+      if(verbose){
+    cat("\n Estimating column scores \n")
+              }
+    cMatList = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "columns", rMat = rMat, cMat = cMat, libSizes = libSizes, global =global, nleqslv.control = nleqslv.control, lambda =lambdaCol, method=method,  k=k, n=n, p=p)
+  lambdaCol = cMatList$lambdaCol
+  cMat = cMatList$cMat
+  
+        if(verbose){
+    cat("\n Estimating row scores \n")
+  }
+  rMatFit = scoreCalc(X = X, psis = psi, thetas = thetas, abunds = abunds, toEstimate = "rows", rMat = rMat, cMat = cMat, libSizes = libSizes, global = global, nleqslv.control =nleqslv.control, lambda = lambdaRow, method=method,  k=k, n=n, p=p)
+  #Renormalize to unit sum
+  lambdaRow = rMatFit$lambdaRow
+  rMat = rMatFit$rMat
+  
+      ## 2)c. ML estimation of psis
+ if(verbose) cat("\n Estimating psis \n")
+  psi =  estPsis(X = X, rMat = rMat, cMat = cMat, psiInit = psi, abunds = abunds, libSizes = libSizes, thetas = thetas, nleqslv.control =nleqslv.control, k=k)
+#   iterIn = iterIn+1 
+#   }
+
+  #cMatSE = cMatList$cMatSE
+  rowRec[,, iterOut] = rMat
+  colRec[,, iterOut] = cMat
+  thetaRec [, iterOut] = thetas
+  psiRec[, iterOut] = psi
+  
+#   #Try to jump towards a solution
+#   if(jump && (iterOut %% jumpFreq) ==0 && iterOut>20){
+#   rMat = rMat + (rMat-rowRec[,, iterOut-jumpDist])
+#   cMat = cMat + (cMat-colRec[,, iterOut-jumpDist])
+#   psi = psi + (psi-psiRec[,iterOut-jumpDist])
+#   iterOut = iterOut + 1
+#   rowRec[,, iterOut] = rMat
+#   colRec[,, iterOut] = cMat
+#   thetaRec [, iterOut] = thetas
+#   psiRec[, iterOut] = psi
+#   }
+  
+  ## 2)f. Change iterator
+    iterOut = iterOut + 1
+    
+  ##Check convergence  (any numbered norm for row and column scores)
+  convergence = ((iterOut <= maxItOut) && 
+                   (all(abs(1-psi/psiOld) < Psitol)) &&
+                   ((sum((1-rMatOld/rMat)^convNorm)/n)^(1/convNorm) < tol) && 
+                   ((sum((1-cMatOld/cMat)^convNorm)/p)^(1/convNorm) < tol) )
+} # END while-loop
+  
+  ## 3) Termination
+  
+  rownames(rMat) = rownames(X)
+  colnames(cMat) = colnames(X)
+  rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
+  
+  if(!convergence ){
+    warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
+  }
+    return(list(rMat=rMat, cMat=cMat, thetas = thetas, psis = psi, X=X,
+                converged = convergence, rowRec= rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, lambdaRow=lambdaRow, lambdaCol=lambdaCol))
+}
+#-------------------------------------------#
+#A simple wrapper function for phyloseq objects, passes all argument sonto outerLoop()
+
+phyloWrapper = function(physeq, round=FALSE,...){
+  dat = if (taxa_are_rows(physeq)) t(otu_table(physeq)@.Data) else otu_table(physeq)@.Data
+  if(round) {dat=round(dat, 0)
+  #Ascertain integers and retrim
+  dat=dat[rowSums(dat)>0, colSums(dat)>0]
+  }
+  outerLoop(dat, ...)
+}
+
+#-------------------------------------------#
+## A plotting function that plots the samples as dots and the species as arrows
+
+plotRCM = function(psis, rMat, cMat, X = NULL, thetas = NULL, 
+                   abunds = NULL, arrowFrac = 0.04, biplot = TRUE,
+                   libLoc ="topleft",libLegend=TRUE, libInset = c(0,-0.1), dispInset = c(0,-0.4), abInset = c(0,-0.4),stressSpecies=NULL,asp=0, xpd=TRUE,Colour=NULL,mar=c(4,5,5,5),Dim=c(1,2),  ...){
+  # @param psis: vector of length k with psi estimates
+  # @param rMat: a nxk matrix with final row scores
+  # @param cMat: a pxk with matrix with final column scores
+  # @param Dim (optional): a vector of length 2, indicating which dimensions to fit, defaults to the first two
+  # @param X (optional): the nxp data matrix
+  # @param thetas (optional): a vector of length p with estimates for the overdispersion
+  # @param abunds(optional): a vector of length p with abundance estimates (otherwise it is estimated from the data)
+  # @param arrowFrac(optional): Fraction of largest species to plot. defaults to 0.1
+  # @param biplot(optional): A boolean indicating if species should be added to the plot, defaults to TRUE
+  # @param libLoc(optional): a string, location of the library size legend. Defaults to "topleft"
+  # @param libLegend(optional): a boolean, should library size legend be displayed? defaults to TRUE
+  # @param libInset, dispInset, abInset(optional): numeric vectors of length 2, insets for library size, dispersion and abundance legends
+  # param stressSpecies(optional): names of species to be highlighted
+  # @param ... additional arguments, passed on to the plot() function
+  
+  # @return: NONE,  plots the result in the plotting window
+  # tmp = par(no.readonly = TRUE)
+  par(mar=mar, pty="s")
+  if(!(length(psis)== NCOL(rMat) && length(psis) == NROW(cMat))){
+    stop("Dimensions don't match")
+  }
+  #Reorder dimensions according to importance
+
+  
+  a = Dim[1]
+  b = Dim[2]
+  
+  #Add colours for the library sizes
+  if(!is.null(X) & is.null(Colour)){
+  Colour = ifelse(rowSums(X) < median(rowSums(X)), "blue","red")
+  } else if(!is.null(Colour)){
+  }else {
+    Colour = 1}
+  
+  ## Add linetypes for the dispersions
+  if(!is.null(thetas)){
+    LineType = rowSums(sapply(quantile(1/thetas, c(0.25,0.5,0.75,1)), function(x){
+      1/thetas > x
+    })) 
+  } else {LineType=rep(1, ncol(cMat))}
+  
+  ##Add colours for the abundances
+  if(!is.null(abunds)){
+    lineColour = rowSums(sapply(quantile(abunds, c(0.25,0.5,0.75,1)), function(x){
+      abunds < x
+    })) 
+  } else {lineColour = rep(1, ncol(cMat))}
+  
+  plot(x = rMat[,a] * psis[a],
+  y = rMat[,b] *psis[b],
+  xlab="Dim1",
+  ylab="Dim2",
+  col = Colour,
+  asp=asp,
+  ...)
+  if(!is.null(X) & libLegend){
+  legend(libLoc,legend=c("Small library size","Large library size"),
+         pch=c(1,1), col=c("blue","red"), inset=libInset, xpd=xpd)
+  }
+  
+    if (biplot){
+      #Arrows
+        arrowLengths = apply(cMat[Dim,],2,function(x){sqrt(sum(x^2))})
+    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+        scalingFactor = min(abs(apply(t(t(rMat[,Dim])*psis[Dim]),2, range)))/
+        max(abs(cMat[Dim,id]))*0.99
+    arrows(x0=0,y0=0,x1=cMat[a,id]*scalingFactor,y1=cMat[b, id]*scalingFactor, 
+           lty=LineType[id], col = lineColour[id])
+    if(!is.null(thetas)){
+      legend("top", legend=paste0(">",seq(0,75,25), "th quantile"), 
+             lty=1:4, title="Dispersion", xpd=xpd, inset = dispInset, cex= 0.75)
+    }
+    if(!is.null(abunds)){
+      legend("topright", legend=paste0(">",seq(0,75,25), "th quantile"), 
+             col = 1:4,lty=1, title="Abundance", xpd=TRUE, inset = abInset,cex=0.75)
+    }
+    #if(!is.null(stressSpecies))
+    }
+  # par(tmp)
+}
+#-------------------------------------
+# A function to calculate the likelihoods of
+#-The independence model
+#-The saturated model
+#-The fitted model
+#-All models with dimension k 0<k<K
+#Which overdispersions to use is a non-trivial problem.  One option would be to use the estimated dispersions of the full model for all calculations. Another is to estimate the overdispersions of the independence and lower dimensional models separately and use them. The problem is that if we use the edgeR machinery again, we get stable estimates but not MLE's, so that the likelihood of the independence model can sometimes be larger than that of a RC model. We provide three options, specified through the Disp parameter:
+# - "MLE" Use the MLE's of the separate models where possible,
+# - "edgeR" Use the edgeR robust estimate separately for every model
+liks = function(rcm, Disp=c("edgeR","MLE")){
+  require(MASS)
+  #@param rcm: a list, the output of the outerLoop function
+  
+  #@return a list with components
+    #-indLL: likelihood of the indepence model
+    #-LL1,..., LL[K-1]: likelihood of intermediate models
+    #-LLK: The likelihood of the fitted model
+  #Independence model
+  C = colSums(rcm$X)
+  R = rowSums(rcm$X)
+  onesn =rep.int(1, nrow(rcm$X))
+  onesp = rep.int(1, ncol(rcm$X))
+  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
+  
+  if(Disp=="MLE"){
+    
+  #Estimate dispersions for the independence model
+  # thetasInd = estDisp(rcm$X, cMat=matrix(0,ncol=ncol(rcm$X)), rMat=matrix(0,nrow=nrow(rcm$X)), libSizes=rowSums(rcm$X), abunds=colSums(rcm$X)/sum(rcm$X), psis=0)
+  thetasInd =sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=E[,i])})
+  #The overdispersions of the independence model are larger: This is logical since less variation has been explained in this model
+  
+    #Estimate the overdispersions for the intermediate models and the Full RC model
+    LLintDisp = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
+      mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
+    sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=mu[,i])})
+  })
+
+  } else if(Disp=="edgeR"){
+  #Independence model
+  trended.dispersion.ind  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(E)))
+  thetasInd = 1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(E)), dispersion = trended.dispersion.ind)
+  
+  #RCM models
+  thetasInt = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
+  mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
+  trended.dispersion  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(mu)))
+  1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(mu)), dispersion = trended.dispersion)
+  })
+  LLintDisp=cbind(thetasInd, thetasInt)
+  }  else{stop("No valid dispersion estimation paradigm provided! Choose either MLE or edgeR")}
+    names(LLintDisp) = paste0("dispLL",1:(ncol(rcm$rMat)-1))
+#Now we have the overdispersions, estimate the likelihoods
+  
+  #Estimate the likelihoods
+  LLintList = mapply(1:(ncol(rcm$rMat)-1),1:(ncol(LLintDisp)-2), FUN=function(k, ThetasI){
+    sum(dnbinom(rcm$X, mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k])), size=LLintDisp[,ThetasI], log=TRUE))
+  })
+  names(LLintList) = paste0("LL",1:(ncol(rcm$rMat)-1))
+  indLL = sum(dnbinom(rcm$X, mu=E, size=thetasInd, log=TRUE))
+  
+#Full RC model
+  LLK = sum(dnbinom(rcm$X, mu=E * exp(rcm$rMat %*% (rcm$cMat*rcm$psis)), size=LLintDisp[, ncol(LLintDisp)], log=TRUE))
+    
+  c(indLL=indLL, LLintList,  LLK=LLK)
+}
+```
+
+#Demonstration
+
+## Toy data
+
+### Negative binomial
+
+We generate some data as before with the NB distribution but differing library sizes, apply our algorithm and plot the results.
+
+```{r DataGen}
+#Generate as synthetic dataset with known row and column scores and psi parameters
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+Nsamples= 300
+Ntaxa = 900
+thetas=thetas[1:Ntaxa]
+thetas = thetas[1/thetas<100]
+rhos=rhos[names(thetas)]
+Ntaxa=length(rhos) - length(rhos)%%2
+rhos=rhos[1:Ntaxa]
+thetas = thetas[1:Ntaxa]
+rhos = rhos/sum(rhos)
+
+libSizes4 =c(rep(1e4, floor(Nsamples/2)), rep(1e5, floor(Nsamples/2)))
+psi1 = 7
+psi2 = 5
+#Samples 1-10 and Nsamples - 1 - -10 have increased row scores 1
+rChange1 = c(rep(25,10), rep(0, Nsamples-20), rep(25,10))
+rChange2 = - c(rep(0,5),rep(8,15), rep(0, Nsamples-40), rep(8,15), rep(0,5))
+#Samples 6-15 and Nsamples -6 - -15 have increased row scores 2
+
+#Logical indices for these
+rid1 = rChange1!=0
+rid2 = rChange2!=0
+
+rowScores1 = rnorm(Nsamples-Nsamples%%2, sd=8)  + rChange1
+rowScores2 = rnorm(Nsamples-Nsamples%%2, sd=5) + rChange2
+
+#Taxa 1-10 and Nsamples - 1 - -10 have increased col scores 1
+#Taxa 6-15 and Nsamples -6 - -15 have increased col scores 2
+cChange1 = c(rep(0,10),rep(25,10), rep(0, Ntaxa-30), rep(25,10))
+cChange2 = - c(rep(0,5),rep(2,15), rep(0, Ntaxa-40), rep(2,15), rep(0,5))
+
+cid1 = cChange1!=0
+cid2 = cChange2!=0
+
+colScores1 = rnorm(Ntaxa-Ntaxa%%2, sd = 8) + cChange1
+colScores2 = rnorm(Ntaxa-Ntaxa%%2, sd = 5) + cChange2
+
+normalize = function(mat, weights, dim){
+  mat = apply(mat,dim, function(vec){
+    vec - sum(vec*weights)/sum(weights)#
+  })
+  if(dim==1) mat= t(mat)
+  mat = apply(mat, dim, function(y){
+    y/sqrt(sum(weights*y^2))
+  })
+  if(dim==1) mat =t(mat)
+  return(mat)
+}
+
+rowScoresMat = normalize(cbind(rowScores1, rowScores2),dim=2,weights=rep(1, length(rowScores1)))
+colScoresMat = normalize(rbind(colScores1, colScores2),dim=1,weights=rhos)
+
+meanMat = outer(libSizes4, rhos)* exp(psi1*outer(rowScoresMat[,1],colScoresMat[1,]) + psi2*outer(rowScoresMat[,2],colScoresMat[2,]))
+
+thetaMat = matrix(thetas, nrow=Nsamples, ncol=Ntaxa, byrow=TRUE)
+
+dataMat4 = apply(array(data= c(meanMat, thetaMat), dim=c(Nsamples, Ntaxa, 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})
+colnames(dataMat4) = names(rhos)
+#Introduce DA
+# dataMat4[1:(Nsamples/4),1:(Ntaxa/4)] = sapply(1:(Nsamples/4),function(i){rpois(n = Ntaxa/4, lambda =10)})
+#Remove all zero columns and rows
+cid1 = cid1[ colSums(dataMat4) > 0]
+cid2 = cid2[colSums(dataMat4) > 0 ]
+colScoresMat=colScoresMat[, colSums(dataMat4) > 0]
+rowScoresMat =rowScoresMat[rowSums(dataMat4)>0,]
+dataMat4 = dataMat4[rowSums(dataMat4)>0, colSums(dataMat4) > 0]
+rownames(dataMat4) = paste0("Sample", 1:Nsamples)
+rhos=rhos[colnames(dataMat4)]
+thetas =thetas[colnames(dataMat4)]
+
+# cid1 = cid1[ names(thetas) %in% colnames(dataMat4)]
+# cid2 = cid2[names(thetas) %in% colnames(dataMat4) ]
+
+```
+
+The true data generating mechanism. The green triangles and black crosses indicate samples that deviate from the independence model.
+
+```{r NB true data generation }
+plotRCM(psis = c(psi1, psi2), rMat = rowScoresMat, cMat = colScoresMat, X = dataMat4, biplot = TRUE, libLegend=TRUE, libInset = c(0,-0.1), dispInset = c(0,-0.25), abInset = c(0,-0.25), arrowFrac=0.01, main="True underlying deviations from independence", Dim=c(1,2))
+points(col="green", pch=2, rowScoresMat[rid1 ,1]*psi1, rowScoresMat[rid1 ,2]*psi2)
+points(col="black", pch=3, rowScoresMat[rid2,1]*psi1, rowScoresMat[rid2,2]*psi2)
+```
+
+The true data generating mechanism, now taxa are shown
+
+```{r NB true data generation: Taxa}
+plot(t(colScoresMat), col="blue", main="True underlying departures from independence")
+points(col="black", pch=3, c(colScoresMat[1,cid1]), c(colScoresMat[2,cid1]))
+points(col="green", pch=2, c(colScoresMat[1,cid2]), c(colScoresMat[2,cid2]))
+```
+
+How does this signal in one or more dimensions translate to changes in the mean?
+
+```{r Arrowlenghts true, eval=TRUE}
+#Taxa
+arrowLengthsTrue = apply(colScoresMat, 2,function(x){sqrt(sum(x^2))})
+signalStrengthTrue = exp(rowScoresMat %*% (colScoresMat * c(psi1, psi2)))
+signals = (cid1>0) + (cid2>0)
+
+# df = data.frame(arrowLength = arrowLengthsTrue, signals = mapply(id1,id2,FUN= function(one, two){2-((one==0) + (two==0)) }))
+# boxplot(arrowLength ~ signals, data=df, main="Impact on means vs. number of dimensions modified", xlab="Number of dimensions affected", ylab="Strength of signal")
+
+df = data.frame(meanDev = c(t(signalStrengthTrue)), signals = signals)
+boxplot(meanDev ~ signals, data=df, main="Impact on means vs. number of dimensions modified", xlab="Number of dimensions affected", ylab="log10(True multiplicative change of the mean)", log="y")
+```
+
+It is clear that when there the more dimensions depart from the independence model, the mean is changed miore drastically compared to the independence model
+
+```{r NB effect sizes, eval=FALSE}
+#An overview of multiplicative changes of the mean, to give an idea of the effect sizes
+quantile(exp(outer(c(psi1,psi2),(rowScoresMat %*% colScoresMat))))
+```
+
+```{r Own Method: loglinear NB toy}
+maxItOut = 1e4
+if(!file.exists("toyData.RData")){
+syntNBJob = mcparallel(outerLoop(dataMat4, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=250), tol = 1e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL))#, "pwldog", "cline")), "gline"
+syntNB = mccollect(syntNBJob, FALSE)[[1]]
+save(syntNB,dataMat4, colScoresMat, rowScoresMat, psi1, psi2, libSizes4, rhos, thetas,rid1, rid2, cid1, cid2, file="toyData.RData")
+} else{load("toyData.RData")}#1450 iterations
+```
+
+The algorithm converged after `r sum(syntNB$psiRec[1,]!=0)` iterations and several hours.
+
+#### Check constraints
+
+Weigthed means
+
+```{r toy data constraints}
+apply(syntNB$rMat, 2, function(y){
+  sum(y)
+})
+apply(syntNB$cMat, 1, function(y){
+  sum(y*colSums(dataMat4)/sum(dataMat4))
+})
+```
+
+Weighted variances
+
+```{r variance constraints}
+apply(syntNB$rMat, 2, function(y){
+  sum(y^2)
+})
+apply(syntNB$cMat, 1, function(y){
+  sum(y^2*colSums(dataMat4)/sum(dataMat4))
+})
+```
+
+Orthogonality
+
+```{r orthogonality NB}
+sapply(1:(ncol(syntNB$rMat)-1), function(i){
+  sapply(2:ncol(syntNB$rMat), function(j){
+    sum(syntNB$rMat[,i]*syntNB$rMat[,j])
+  })
+})
+sapply(1:(nrow(syntNB$cMat)-1), function(i){
+  sapply(2:nrow(syntNB$cMat), function(j){
+    sum(colSums(dataMat4)/sum(dataMat4)*syntNB$cMat[i,]*syntNB$cMat[j,])
+  })
+})
+```
+
+Constraints are fulfilled.
+
+#### Biplots
+
+Plot the results, first only the samples.
+
+```{r monoplot samples}
+plotRCM(syntNB$psis, syntNB$rMat, syntNB$cMat, X = dataMat4, thetas = thetas,abunds = rhos, arrowFrac = 0.05, biplot =FALSE, main="Estimated deviations from independence (NB data)", libInset=c(0,-0.1))
+points(y=syntNB$psis[2]*syntNB$rMat[rid1,2], syntNB$psis[1]*syntNB$rMat[rid1,1], col="green", pch=2)
+points(y=syntNB$psis[2]*syntNB$rMat[rid2,2], syntNB$psis[1]*syntNB$rMat[rid2,1], col="black", pch=3)
+```
+
+The algorithm reproduces the original signal very well. Now also add the taxa to make a biplot
+
+```{r NB biplot taxa}
+plotRCM(syntNB$psis, syntNB$rMat, syntNB$cMat, X = dataMat4, arrowFrac = 0.025, biplot =TRUE, main="Estimated deviations from independence in the samples (NB data)")
+points(y=syntNB$psis[2]*syntNB$rMat[rid1,2], syntNB$psis[1]*syntNB$rMat[rid1,1], col="green", pch=2)
+points(y=syntNB$psis[2]*syntNB$rMat[rid2,2], syntNB$psis[1]*syntNB$rMat[rid2,1], col="black", pch=3)
+```
+
+Plot only the taxa to see if they're well identified
+
+```{r NB monoplot taxa}
+plot(t(syntNB$cMat), col="blue", main="Estimated departures from independence in the taxa (NB data)")
+points(col="black", pch=3, c(syntNB$cMat[1,cid1]), c(syntNB$cMat[2,cid1]))
+points(col="green", pch=2, c(syntNB$cMat[1,cid2]), c(syntNB$cMat[2,cid2]))
+```
+
+The taxa signal is recovered indeed
+
+```{r NB plots: taxa, eval=FALSE}
+#Taxa
+arrowLengthsNBest = apply(syntNB$cMat, 2,function(x){sqrt(sum(x^2))})
+
+# colo = c("red","orange", "green")[mapply(id1,id2,FUN= function(one, two){(one==0) + (two==0) +1})]
+# 
+# plot(arrowLengths, col=colo)
+# legend("topright",legend=c("Signal in two dimensions","Signal in one dimensions", "taxa without signal"), pch=1, col=c("red","orange", "green"))
+
+# signalStrengthEst = exp(syntNB$rMat %*% (syntNB$cMat * syntNB$psis))
+# id1 =  c(rep(0,10),rep(25,10), rep(0, Ntaxa-30), rep(25,10))
+# id2 = c(rep(0,5),rep(2,15), rep(0, Ntaxa-40), rep(2,15), rep(0,5))
+# signals = (id1>0) + (id2>0)
+
+df = data.frame(arrowLength = arrowLengthsNBest, signals = (cid1>0) + (cid2>0))
+boxplot(arrowLength ~ signals, data=df, main="Taxa: Length of arrow vs. true number of dimensions modified", xlab="Number of dimensions modified", ylab="Strength of signal (length of the arrow)", log="y")
+
+# dfEst = data.frame(meanDev = c(t(signalStrengthEst)), signals = signals)
+# boxplot(meanDev ~ signals, data=dfEst, main="Impact on means vs. number of dimensions modified", xlab="Number of dimensions truly affected", ylab="log10(Estimated multiplicative change of the mean)", log="y")
+
+#The total arrow length is unrelated to the original signal. Try the first dimension
+```
+
+```{r NB plots: taxa first dimension, eval=FALSE}
+df1 = data.frame(arrowLengthDim1 = syntNB$cMat[1,], signals = (cid1>0) + (cid2>0))
+boxplot(arrowLengthDim1 ~ signals, data=df1, main="Taxa: Estimated length of arrow in dimension 1 vs. true number of dimensions modified", xlab="True Number of dimensions modified", ylab="Estimated strength of signal in first dimension")
+
+# dfEst = data.frame(meanDev = c(t(signalStrengthEst)), signals = signals)
+# boxplot(meanDev ~ signals, data=dfEst, main="Impact on means vs. number of dimensions modified", xlab="Number of dimensions truly affected", ylab="log10(Estimated multiplicative change of the mean)", log="y")
+```
+
+A 300x1000 dataset takes several hours to run. The stronger the signal and the higher the signal to noise ratio, the faster the algorithm will converge
+
+If we put nothing in there (a null simulation, under the independence model) then our function does not find anything either. It does not model random noise.
+
+Let's have a look at the likelihood decomposition
+
+```{r toy data likelihood decomposition}
+toyLiks=liks(syntNB)
+LLfracs = diff(toyLiks)/(toyLiks[length(toyLiks)]-toyLiks[1])
+```
+
+The first dimensions is responsible for `r round(LLfracs[1]*100,1)`% of the improvement in likelihood, the second dimension for `r round(LLfracs[2]*100,1)`%
+
+#### Correspondence analysis
+
+Compare with CA solution
+
+```{r CA solution}
+SVD4 = caSVD(dataMat4)
+plotRCM(SVD4$d[1:2], SVD4$u[,1:2], t(SVD4$v[,1:2]), X = dataMat4, main="Correspondence analysis", arrowFrac = 0.05, thetas = NULL, abunds = colSums(dataMat4)/sum(dataMat4), biplot = TRUE)
+points(SVD4$u[c(1:10),1]*SVD4$d[1],SVD4$u[c(1:10),2]*SVD4$d[2], col="green", pch=2)
+points(SVD4$u[c((Nsamples-9):Nsamples),1]*SVD4$d[1],SVD4$u[c((Nsamples-9):Nsamples),2]*SVD4$d[2], col="black", pch=3)
+```
+
+The signal is not picked up by he correspondence analysis, and the plot is dominated by the differences in library sizes
+
+#### Three dimensions
+
+Try out a three dimensional fit to see how this works out in practice
+
+```{r DataGen 3D}
+#Generate as synthetic dataset with known row and column scores and psi parameters
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+Nsamples3D= 300
+Ntaxa3D = 900
+thetas3D=thetas[1:Ntaxa3D]
+thetas3D = thetas3D[1/thetas3D<100]
+rhos3D=rhos[names(thetas3D)]
+Ntaxa3D=length(rhos3D) - length(rhos3D)%%2
+rhos3D=rhos3D[1:Ntaxa3D]
+thetas3D = thetas3D[1:Ntaxa3D]
+rhos3D = rhos3D/sum(rhos3D)
+
+libSizes3D =c(rep(1e4, floor(Nsamples3D/2)), rep(1e5, floor(Nsamples3D/2)))
+psi1 = 7
+psi2 = 6
+psi3 = 5
+#Samples 1-10 and Nsamples3D - 1 - -10 have increased row scores 1
+rChange1 = c(rep(25,10), rep(0, Nsamples3D-20), rep(25,10))
+rChange2 = - c(rep(0,5),rep(8,15), rep(0, Nsamples3D-40), rep(8,15), rep(0,5))
+rChange3 = c(rep(0,15),rep(10,15), rep(0, Nsamples3D-45), rep(-10,15))
+#Samples 6-15 and Nsamples3D -6 - -15 have increased row scores 2
+
+rowScores3D1 = rnorm(Nsamples3D-Nsamples3D%%2, sd=8)  + rChange1
+rowScores3D2 = rnorm(Nsamples3D-Nsamples3D%%2, sd=5) + rChange2
+rowScores3D3 = rnorm(Nsamples3D-Nsamples3D%%2, sd=7) + rChange3
+
+#Taxa 1-10 and Nsamples3D - 1 - -10 have increased col Scores3D 1
+#Taxa 6-15 and Nsamples3D -6 - -15 have increased col Scores3D 2
+cChange1 = c(rep(0,10),rep(25,10), rep(0, Ntaxa3D-30), rep(25,10))
+cChange2 = - c(rep(0,5),rep(2,15), rep(0, Ntaxa3D-40), rep(2,15), rep(0,5))
+cChange3 = c(rep(4,15),rep(0,5), rep(0, Ntaxa3D-50), rep(5,15), rep(0,15))
+
+colScores3D1 = rnorm(Ntaxa3D-Ntaxa3D%%2, sd = 8) + cChange1
+colScores3D2 = rnorm(Ntaxa3D-Ntaxa3D%%2, sd = 5) + cChange2
+colScores3D3 = rnorm(Ntaxa3D-Ntaxa3D%%2, sd = 6) + cChange3
+
+#Logical indices for these
+rid1 = rChange1!=0
+rid2 = rChange2!=0
+rid3 = rChange3!=0
+
+cid1 = cChange1!=0
+cid2 = cChange2!=0
+cid3 = cChange3!=0
+
+normalize = function(mat, weights, dim){
+  mat = apply(mat,dim, function(vec){
+    vec - sum(vec*weights)/sum(weights)#
+  })
+  if(dim==1) mat= t(mat)
+  mat = apply(mat, dim, function(y){
+    y/sqrt(sum(weights*y^2))
+  })
+  if(dim==1) mat =t(mat)
+  return(mat)
+}
+
+rowScores3DMat = normalize(cbind(rowScores3D1, rowScores3D2, rowScores3D3),dim=2,weights=rep(1, length(rowScores3D1)))
+colScores3DMat = normalize(rbind(colScores3D1, colScores3D2, colScores3D3),dim=1,weights=rhos3D)
+
+meanMat = outer(libSizes3D, rhos3D)*exp(rowScores3DMat %*% (colScores3DMat*c(psi1,psi2,psi3)))
+
+thetaMat = matrix(thetas3D, nrow=Nsamples3D, ncol=Ntaxa3D, byrow=TRUE)
+
+dataMat3D = apply(array(data= c(meanMat, thetaMat), dim=c(Nsamples3D, Ntaxa3D, 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})
+colnames(dataMat3D) = names(rhos3D)
+#Introduce DA
+# dataMat3D[1:(Nsamples3D/4),1:(Ntaxa3D/4)] = sapply(1:(Nsamples3D/4),function(i){rpois(n = Ntaxa3D/4, lambda =10)})
+#Remove all zero columns and rows
+colScores3DMat=colScores3DMat[, colSums(dataMat3D) > 0]
+rowScores3DMat =rowScores3DMat[rowSums(dataMat3D)>0,]
+dataMat3D = dataMat3D[rowSums(dataMat3D)>0, colSums(dataMat3D) > 0]
+rownames(dataMat3D) = paste0("Sample", 1:Nsamples3D)
+rhos3D=rhos3D[colnames(dataMat3D)]
+thetas3D =thetas3D[colnames(dataMat3D)]
+```
+
+```{r Own Method: loglinear NB}
+maxItOut = 1e4
+if(!file.exists("toyData3D.RData")){
+syntNBJob3d = mcparallel(outerLoop(dataMat3D, k=3, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list( maxit=250), tol = 1e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL,convNorm = 1))#, "pwldog", "cline")), "gline"
+syntNB3d = mccollect(syntNBJob3d, FALSE)[[1]]
+save(syntNB3d,dataMat3D, colScores3DMat, rowScores3DMat, psi1, psi2,psi3, libSizes3D, rhos3D, thetas3D, rid1,rid2,rid3, cid1, cid2, cid3,file="toyData3D.RData")
+} else{load("toyData3D.RData")}
+```
+
+Converged after about 2 hours (quicker than expected) and `r sum(syntNB3d$psiRec[1,]!=0)` iterations
+
+```{r NB biplot samples}
+plotRCM(syntNB3d$psis, syntNB3d$rMat, syntNB3d$cMat, X = syntNB3d$X, arrowFrac = 0.025, biplot =TRUE, main="Estimated deviations from independence in the samples (NB data)", Dim = c(1,2))
+points(y=syntNB3d$psis[2]*syntNB3d$rMat[rid1,2], syntNB3d$psis[1]*syntNB3d$rMat[rid1,1], col="green", pch=2)
+points(y=syntNB3d$psis[2]*syntNB3d$rMat[rid2,2], syntNB3d$psis[1]*syntNB3d$rMat[rid2,1], col="black", pch=3)
+points(y=syntNB3d$psis[2]*syntNB3d$rMat[rid3,2], syntNB3d$psis[1]*syntNB3d$rMat[rid3,1], col=26, pch=6)
+```
+
+The signal seems to be confinde mostly to the first dimension. Of course the signal is also much stronger here.
+
+Let's have a look at the likelihood decomposition
+
+```{r toy data likelihood decomposition 3d}
+toyLiks3D=liks(syntNB3d)
+LLfracs3D = diff(toyLiks3D)/(toyLiks3D[length(toyLiks3D)]-toyLiks3D[1])
+```
+
+The first dimensions is responsible for `r round(LLfracs[1]*100,1)`% of the improvement in likelihood, the second dimension for `r round(LLfracs[2]*100,1)`% and the third for `r round(LLfracs[3]*100,1)`%
+
+#### Correspondence analysis (3D)
+
+Compare with CA solution in 3D
+
+```{r CA solution 3d}
+SVD3D = caSVD(dataMat3D)
+plotRCM(SVD3D$d[1:2], SVD3D$u[,1:2], t(SVD3D$v[,1:2]), X = syntNB3d$X, main="Correspondence analysis", arrowFrac = 0.05,  biplot = TRUE)
+points(SVD3D$u[rid1,1]*SVD3D$d[1],SVD3D$u[rid1,2]*SVD3D$d[2], col="green", pch=2)
+points(SVD3D$u[rid2,1]*SVD3D$d[1],SVD3D$u[rid2,2]*SVD3D$d[2], col="black", pch=3)
+```
+
+CA does not detect the signal
+
+###NB with equal signals
+
+We try this again with NB with signals with equal magnitude in both directions, but still independent
+
+```{r DataGen equally sized signals}
+#Generate as synthetic dataset with known row and column scores and psi parameters
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+NsamplesEq= 300
+NtaxaEq = 900
+thetasEq=thetas[1:NtaxaEq]
+thetasEq = thetasEq[1/thetasEq<100]
+rhosEq=rhos[names(thetasEq)]
+NtaxaEq=length(rhosEq) - length(rhosEq)%%2
+rhosEq=rhosEq[1:NtaxaEq]
+thetasEq = thetasEq[1:NtaxaEq]
+rhosEq = rhosEq/sum(rhosEq)
+
+libSizesEq =c(rep(1e4, floor(NsamplesEq/2)), rep(1e5, floor(NsamplesEq/2)))
+psi1Eq = psi2Eq = 7
+
+commonEffectSize = 15
+#Samples 1-10 and NsamplesEq - 1 - -10 have increased row scores 1
+rChange1Eq = sample(c(rep(commonEffectSize,10), rep(0, NsamplesEq-20), rep(commonEffectSize,10)))
+rChange2Eq = sample(- c(rep(0,5),rep(commonEffectSize,15), rep(0, NsamplesEq-40), rep(commonEffectSize,15), rep(0,5)))
+#Samples 6-15 and NsamplesEq -6 - -15 have increased row scores 2
+
+rowScores1Eq = rnorm(NsamplesEq-NsamplesEq%%2, sd=8)  + rChange1Eq
+rowScores2Eq = rnorm(NsamplesEq-NsamplesEq%%2, sd=5) + rChange2Eq
+
+#Taxa 1-10 and NsamplesEq - 1 - -10 have increased col scores 1
+#Taxa 6-15 and NsamplesEq -6 - -15 have increased col scores 2
+cChange1Eq = c(rep(0,10),rep(commonEffectSize,10), rep(0, NtaxaEq-30), rep(commonEffectSize,10))
+cChange2Eq = - c(rep(0,5),rep(commonEffectSize,15), rep(0, NtaxaEq-40), rep(commonEffectSize,15), rep(0,5))
+
+colScores1Eq = rnorm(NtaxaEq-NtaxaEq%%2, sd = 8) + cChange1Eq
+colScores2Eq = rnorm(NtaxaEq-NtaxaEq%%2, sd = 5) + cChange2Eq
+
+#Logical indices for these
+rid1Eq = rChange1Eq!=0
+rid2Eq = rChange2Eq!=0
+
+cid1Eq = cChange1Eq!=0
+cid2Eq = cChange2Eq!=0
+
+normalize = function(mat, weights, dim){
+  mat = apply(mat,dim, function(vec){
+    vec - sum(vec*weights)/sum(weights)#
+  })
+  if(dim==1) mat= t(mat)
+  mat = apply(mat, dim, function(y){
+    y/sqrt(sum(weights*y^2))
+  })
+  if(dim==1) mat =t(mat)
+  return(mat)
+}
+
+rowScoresMatEq = normalize(cbind(rowScores1Eq, rowScores2Eq),dim=2,weights=rep(1, length(rowScores1Eq)))
+colScoresMatEq = normalize(rbind(colScores1Eq, colScores2Eq),dim=1,weights=rhosEq)
+
+meanMatEq = outer(libSizesEq, rhosEq)* exp(psi1Eq*outer(rowScoresMatEq[,1],colScoresMatEq[1,]) + psi2Eq*outer(rowScoresMatEq[,2],colScoresMatEq[2,]))
+
+thetaMatEq = matrix(thetasEq, nrow=NsamplesEq, ncol=NtaxaEq, byrow=TRUE)
+
+dataMatEq = apply(array(data= c(meanMatEq, thetaMatEq), dim=c(NsamplesEq, NtaxaEq, 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})
+colnames(dataMatEq) = names(rhosEq)
+#Introduce DA
+
+colScoresMatEq=colScoresMatEq[, colSums(dataMatEq) > 0]
+rowScoresMatEq =rowScoresMatEq[rowSums(dataMatEq)>0,]
+dataMatEq = dataMatEq[rowSums(dataMatEq)>0, colSums(dataMatEq) > 0]
+rownames(dataMatEq) = paste0("Sample", 1:NsamplesEq)
+rhosEq=rhosEq[colnames(dataMatEq)]
+thetasEq =thetasEq[colnames(dataMatEq)]
+```
+
+```{r NB true data generation eq}
+plotRCM(psis = c(psi1Eq, psi2Eq), rMat = rowScoresMatEq, cMat = colScoresMatEq, X = dataMatEq, biplot = TRUE, libLegend=TRUE, libInset = c(0,-0.1), dispInset = c(0,-0.25), abInset = c(0,-0.25), arrowFrac=0.01, main="True underlying deviations from independence")
+points(col="green", pch=2, rowScoresMatEq[rid1Eq ,1]*psi1Eq, rowScoresMatEq[rid1Eq ,2]*psi2Eq)
+points(col="black", pch=3, rowScoresMatEq[rid2Eq,1]*psi1Eq, rowScoresMatEq[rid2Eq,2]*psi2Eq)
+```
+
+The true data generating mechanism, now taxa are shown
+
+```{r NB true data generation: Taxa eq}
+plot(t(colScoresMatEq), col="blue", main="True underlying departures from independence")
+points(col="black", pch=3, c(colScoresMatEq[1,cid1]), c(colScoresMatEq[2,cid1]))
+points(col="green", pch=2, c(colScoresMatEq[1,cid2]), c(colScoresMatEq[2,cid2]))
+```
+
+An overview of multiplicative changes of the mean, to give an idea of the effect sizes
+
+```{r NB effect sizes eq, eval=FALSE}
+quantile(exp(outer(c(psi1Eq,psi2Eq),(rowScoresMatEq %*% colScoresMatEq))))
+```
+
+```{r Own Method: loglinear NB eq}
+maxItOut = 1e4 
+if(!file.exists("toyDataEq.RData")){
+syntNBJobEq = mcparallel(outerLoop(dataMatEq, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(maxit=250), tol = 1e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL))#, "pwldog", "cline")), "gline"
+syntNBEq = mccollect(syntNBJobEq, FALSE)[[1]]
+save(syntNBEq,dataMatEq, colScoresMatEq, rowScoresMatEq, psi1Eq, psi2Eq, libSizesEq, rhosEq, thetasEq,rid1Eq,rid2Eq,cid1Eq,cid2Eq, file="toyDataEq.RData")
+} else{load("toyDataEq.RData")}#1450 iterations
+```
+
+```{r NB biplot samples eq}
+plotRCM(syntNBEq$psis, syntNBEq$rMat, syntNBEq$cMat, X = dataMatEq, arrowFrac = 0.02, biplot =TRUE, main="Estimated deviations from independence in the samples (NB data)", libLoc = "topright", libInset = c(-0.2,-0.1))
+points(y=syntNBEq$psis[2]*syntNBEq$rMat[rid1Eq,2], syntNBEq$psis[1]*syntNBEq$rMat[rid1Eq,1], col="green", pch=2)
+points(y=syntNBEq$psis[2]*syntNBEq$rMat[rid2Eq,2], syntNBEq$psis[1]*syntNBEq$rMat[rid2Eq,1], col="black", pch=3)
+```
+
+The signals are both recovered very well and they're almost orthogonal, so our method can distinguish the dimensions
+
+### Dirichlet multinomial
+
+We now generate data from another distribution, the Dirichlet multinomial, and see if the algortihm still converges. In this case, the abundances of some of the samples are changed to introduce the signal. This comes down to sampling from three different Dirichlet multinomials: two small groups with differential abundance in a subgroup of taxa, and a larger _NULL_ group.
+
+```{r DataGen: dirmult}
+#Generate as synthetic dataset with the DM
+load("/home/stijn/PhD/American Gut/AGdm.RData")
+NsamplesDM= 300
+NtaxaDM = 900
+pi=AGdm$pi[sample(seq_along(AGdm$pi), NtaxaDM)]
+pi=pi/sum(pi) #Renormalize
+
+#Create signal in the first x/2 taxa of the first y/2 samples and in the last x/2 taxa of the last y/2 samples
+y=80
+x=100
+signalStrength = 20 #Large dispersion, strong signal needed
+piSignal1 = piSignal2 = pi
+piSignal1[1:(x/2)] = pi[1:(x/2)]*signalStrength
+piSignal2[(NtaxaDM-x/2+1):NtaxaDM] = pi[(NtaxaDM-x/2+1):NtaxaDM]*signalStrength
+piSignal1=piSignal1/sum(piSignal1)
+piSignal2=piSignal2/sum(piSignal2)
+
+dmcid1 = 1:NtaxaDM %in% 1:(x/2)
+dmcid2 = 1:NtaxaDM %in% (NtaxaDM-x/2+1):NtaxaDM
+
+#Convert to gammas
+gammaSignal1 <- piSignal1 * (1-AGdm$theta)/AGdm$theta
+gammaSignal2 <- piSignal2 * (1-AGdm$theta)/AGdm$theta
+gamma = pi * (1-AGdm$theta)/AGdm$theta
+
+libSizesDM = sample(c(rep(1e4, floor(NsamplesDM/2)), rep(1e5, floor(NsamplesDM/2))))#Randomize libSizes
+
+dataMat4noSigDM = Dirichlet.multinomial(libSizesDM[(y/2+1):(NsamplesDM-y/2)], gamma)
+dataMat4SigDM1 = Dirichlet.multinomial(libSizesDM[1:(y/2)], gammaSignal1)
+dataMat4SigDM2 = Dirichlet.multinomial(libSizesDM[(NsamplesDM-y/2+1):NsamplesDM], gammaSignal2)
+dataMat4DM =rbind(dataMat4SigDM1, dataMat4noSigDM, dataMat4SigDM2)
+
+dmrid1 = 1:NsamplesDM %in% 1:(y/2)
+dmrid2 = 1:NsamplesDM %in% (NsamplesDM-y/2+1):NsamplesDM
+
+dataMat4DMtrim = dataMat4DM[, colSums(dataMat4DM)>0]
+
+dmcid1=dmcid1[names(pi) %in% colnames(dataMat4DMtrim)]
+dmcid2=dmcid2[names(pi) %in% colnames(dataMat4DMtrim)]
+
+colnames(dataMat4DMtrim) = names(pi)[colSums(dataMat4DM)>0]
+```
+
+
+```{r Own Method: loglinear DM}
+maxItOut = 2e2
+if(!file.exists("toyDataDMRes.RData")){
+DMJob = mcparallel(outerLoop(dataMat4DMtrim, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=TRUE, allowSingular=FALSE, maxit=250), tol = 1e-4,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL, convNorm=1))#, "pwldog", "cline")), "gline"
+DMsol = mccollect(DMJob, FALSE)[[1]]
+save(DMsol,dataMat4DMtrim, pi, piSignal1, piSignal2,x,y,signalStrength, AGdm,dmrid1, dmrid2, dmcid1, dmcid2, file="toyDataDMRes.RData")
+}  else { load(file="toyDataDMRes.RData")}
+```
+
+Apply the algorithm, plot the results and highlight the DA samples and taxa. Green triangles and black crosses represent the two groups with modified abundances.
+
+```{r DM plots}
+#Samples
+plotRCM(DMsol$psis, DMsol$rMat, DMsol$cMat, X = dataMat4DMtrim, arrowFrac = 0.05, biplot =TRUE, main="Dirichlet multinomial (estimated)")#, abunds=colSums(DMsol$X)/sum(DMsol$X), thetas=DMsol$thetas)
+points(y=DMsol$psis[2]*DMsol$rMat[dmrid1,2], DMsol$psis[1]*DMsol$rMat[dmrid1,1], col="green", pch=2)
+points(y=DMsol$psis[2]*DMsol$rMat[dmrid2,2], DMsol$psis[1]*DMsol$rMat[dmrid2,1], col="black", pch=3)
+```
+
+The two signals are being picked up, one in both dimensions(green traingles, group1) and one in the second dimension(black crosses, group2). Are the signals also assigned to the right taxa? In both groups, different subsets of taxa have been modified in abundance.
+
+Plot the taxa
+
+```{r DM taxa plot}
+plot(t(DMsol$cMat), col="blue", main="Estimated departure from independence in the taxa (DM data)", Dim=c(1,2))
+points(y=DMsol$cMat[2,dmcid1], DMsol$cMat[1,dmcid1], col="green", pch=2)
+points(y=DMsol$cMat[2,dmcid2], DMsol$cMat[1,dmcid2], col="black", pch=3)
+```
+
+```{r Dm plots: taxa, eval=FALSE}
+#Taxa
+arrowLengthsDM = apply(DMsol$cMat, 2,function(x){sum(x^2)})
+colo = c(rep("blue",50), rep("red",800), rep("blue", 50))
+names(colo)=colnames(DMsol$X)
+colo=colo[names(arrowLengthsDM)]
+# 
+# plot(arrowLengths, col=colo[names(arrowLengths)])
+# legend("topright",legend=c("taxa with signal", "taxa without signal"), pch=1, col=c("blue","red"))
+NtaxaDM=ncol(DMsol$X)
+dimAf = rep("No signal",length(arrowLengthsDM))
+dimAf[(1:x/2)] = "Subset1"
+dimAf[(NtaxaDM-x/2+1):NtaxaDM] ="Subset2"
+
+dfDM = data.frame(arrowLength = arrowLengthsDM, signals = dimAf)
+boxplot(arrowLength ~ signals, data=dfDM, main="Estimated arrow length vs. true signal", xlab="", ylab="Estimated arrow length", log="y")
+#The second subset of modified taxa has smaller arrow lengths. Look at the first and second dimensions separately
+```
+
+```{r Dm plots: taxa sep dimensions, eval=FALSE}
+dfDM12 = data.frame(arrowLength1 = DMsol$cMat[1,], arrowLength2 = DMsol$cMat[2,], signals = dimAf)
+boxplot(arrowLength1 ~ signals, data=dfDM12, main="Estimated arrow length (Dim 1) vs. true signal", xlab="", ylab="Estimated arrow length in first dimension")
+boxplot(arrowLength2 ~ signals, data=dfDM12, main="Estimated arrow length (Dim 2) vs. true signal", xlab="", ylab="Estimated arrow length in second dimension")
+#The modified taxa of the first subset contribute to both dimensions, those of the second subset only to the first dimensions, which we saw on the biplot already.
+```
+
+#### Likelihood decomposition
+
+```{r DM Data: lldecomp}
+DMLiks=liks(DMsol, Disp="edgeR")
+LLfracsDM = diff(DMLiks)/(DMLiks[length(DMLiks)]-DMLiks[1])
+```
+
+Of the difference in log-likelihood between the independence of the RC(2) model, the first dimension explains `r round(LLfracsDM[1]*100,1)`\%, the second dimension `r round(LLfracsDM[2]*100,1)`\%.
+
+Apparently the largest $\psi$ value does not always correspond to the largest improvement in likelihood ?!?
+
+#### Compare with CA solution
+
+```{r CA solution DM}
+SVD4dm = caSVD(dataMat4DMtrim)
+plotRCM(SVD4dm$d[1:2], SVD4dm$u[,1:2], t(SVD4dm$v[,1:2]), X = dataMat4DMtrim, main="Correspondence analysis (DM data)", arrowFrac = 0.05, thetas = NULL, abunds = NULL, biplot = TRUE)
+points(SVD4dm$u[dmrid1,1]*SVD4dm$d[1],SVD4dm$u[dmrid1,2]*SVD4dm$d[2], col="green", pch=2)
+points(SVD4dm$u[dmrid2,1]*SVD4dm$d[1],SVD4dm$u[dmrid2,2]*SVD4dm$d[2], col="black", pch=3)
+```
+
+The signal is somehow detected by CA but the separation is far from optimal. No domination by library sizes.
+
+### Zero-inflated poisson
+
+We generate some data as before with the ZIP distribution but differing library sizes, apply our algorithm and plot the results.
+
+```{r DataGen: ZIP}
+#Generate as synthetic dataset with known row and column scores and psi parameters
+load("/home/stijn/PhD/American Gut/AGpars.RData")
+NsamplesZIP= 300
+NtaxaZIP = 900
+#The zero inflated probability is normally distibuted around 0.65 with sd=0.1
+zeroProb=abs(rnorm(NtaxaZIP, mean=0.65, sd=0.1))
+rhos=rhos[sample(seq_along(rhos), NtaxaZIP)]
+NtaxaZIP=length(rhos) - length(rhos)%%2
+rhosZIP = rhos/sum(rhos)
+
+libSizesZIP =c(rep(1e4, floor(NsamplesZIP/2)), rep(1e5, floor(NsamplesZIP/2)))
+psi1ZIP = 7
+psi2ZIP = 5
+#Samples 1-10 and NsamplesZIP - 1 - -10 have increased row scores 1
+#Samples 6-15 and NsamplesZIP -6 - -15 have increased row scores 2
+ex1 = c(rep(25,10), rep(0, NsamplesZIP-20), rep(25,10))
+ex2 = c(rep(0,5),rep(8,15), rep(0, NsamplesZIP-40), rep(8,15), rep(0,5))
+rowscores1ZIP = rnorm(NsamplesZIP-NsamplesZIP%%2, sd=8)  + ex1
+rowscores2ZIP = rnorm(NsamplesZIP-NsamplesZIP%%2, sd=5) - ex2
+
+#Taxa 1-10 and NsamplesZIP - 1 - -10 have increased col scores 1
+#Taxa 6-15 and NsamplesZIP -6 - -15 have increased col scores 2
+ex1Tax =  c(rep(0,10),rep(25,10), rep(0, NtaxaZIP-30), rep(25,10))
+ex2Tax = c(rep(0,5),rep(2,15), rep(0, NtaxaZIP-40), rep(2,15), rep(0,5))
+colscores1ZIP = rnorm(NtaxaZIP-NtaxaZIP%%2, sd = 8) + ex1Tax
+colscores2ZIP = rnorm(NtaxaZIP-NtaxaZIP%%2, sd = 5) - ex2Tax
+
+normalize = function(mat, weights, dim){
+  mat = apply(mat,dim, function(vec){
+    vec - sum(vec*weights)/sum(weights)#
+  })
+  if(dim==1) mat= t(mat)
+  mat = apply(mat, dim, function(y){
+    y/sqrt(sum(weights*y^2))
+  })
+  if(dim==1) mat =t(mat)
+  return(mat)
+}
+
+rowscoresMatZIP = normalize(cbind(rowscores1ZIP, rowscores2ZIP),dim=2,weights=rep(1, length(rowscores1ZIP)))
+colscoresMatZIP = normalize(rbind(colscores1ZIP, colscores2ZIP),dim=1,weights=rhos)
+
+meanMat = outer(libSizesZIP, rhos)* exp(psi1ZIP*outer(rowscoresMatZIP[,1],colscoresMatZIP[1,]) + psi2ZIP*outer(rowscoresMatZIP[,2],colscoresMatZIP[2,]))
+
+zeroProbMat = matrix(zeroProb, nrow=NsamplesZIP, ncol=NtaxaZIP, byrow=TRUE)
+
+dataMatZIP = apply(array(data= c(meanMat, zeroProbMat), dim=c(NsamplesZIP, NtaxaZIP, 2)), c(1,2), function(x){rzipois(1,lambda=x[1], pstr0=x[2])})
+colnames(dataMatZIP) = names(rhos)
+#Introduce DA
+# dataMatZIP[1:(NsamplesZIP/4),1:(NtaxaZIP/4)] = sapply(1:(NsamplesZIP/4),function(i){rpois(n = NtaxaZIP/4, lambda =10)})
+#Remove all zero columns and rows
+colscoresMatZIP=colscoresMatZIP[, colSums(dataMatZIP) > 0]
+rowscoresMatZIP =rowscoresMatZIP[rowSums(dataMatZIP)>0,]
+dataMatZIP = dataMatZIP[rowSums(dataMatZIP)>0, colSums(dataMatZIP) > 0]
+rownames(dataMatZIP) = paste0("Sample", 1:NsamplesZIP)
+rhos=rhos[colnames(dataMatZIP)]
+thetas =thetas[colnames(dataMatZIP)]
+plotRCM(psis = c(psi1ZIP, psi2ZIP), rMat = rowscoresMatZIP, cMat = colscoresMatZIP, X = dataMatZIP, biplot = TRUE, libLegend=TRUE, libInset = c(0,-0.2), dispInset = c(0,-0.25), abInset = c(0,-0.25), arrowFrac=0.01, main="Zero inflated Poisson, true signal")
+points(col="green", pch=2, c(rowscoresMatZIP[1:9,1],rowscoresMatZIP[(NsamplesZIP-9):NsamplesZIP,1])*psi1ZIP, c(rowscoresMatZIP[1:9,2],rowscoresMatZIP[(NsamplesZIP-9):NsamplesZIP,2])*psi2ZIP)
+points(col="black", pch=3, c(rowscoresMatZIP[(NsamplesZIP-9):NsamplesZIP,1])*psi1ZIP, c(rowscoresMatZIP[(NsamplesZIP-9):NsamplesZIP,2])*psi2ZIP)
+```
+
+A zero frequency of `r round(mean(dataMatZIP==0),2)` is achieved in this way 
+
+An overview of multiplicative changes of the mean, to give an idea of the effect sizes
+
+```{r ZIP effect sizes}
+quantile(exp(outer(c(psi1ZIP,psi2ZIP),(rowscoresMatZIP %*% colscoresMatZIP))), seq(0,1,0.1))
+```
+
+```{r Own Method: loglinear ZIP, eval=TRUE}
+maxItOut = 1e4
+if(!file.exists("toyDataResZIP.RData")){
+syntZIPJob = mcparallel(outerLoop(dataMat4, k=2, maxItOut = maxItOut, rMat = NULL, cMat =  NULL, psiInit =NULL, nleqslv.control=list(xtol=1e-10, ftol=1e-12, btol=1e-3, sigma=0.5, trace=FALSE, allowSingular=FALSE, maxit=250), tol = 1e-3,Psitol = 1e-4, global = c("dbldog"),method=c("Broyden"), lambdaCol=NULL, lambdaRow = NULL))#, "pwldog", "cline")), "gline"
+syntZIP = mccollect(syntZIPJob, FALSE)[[1]]
+save(syntZIP,dataMatZIP, colscoresMatZIP, rowscoresMatZIP, psi1ZIP, psi2ZIP, libSizesZIP, rhosZIP, ex1, ex2, ex1Tax, ex2Tax, file="toyDataResZIP.RData")
+} else{load("toyDataResZIP.RData")}#1450 iterations
+```
+
+About 3h hours and `r sum(syntZIP$psiRec[1,]!=0)` iterations were needed
+
+Plot the results and highlight the DA samples and taxa
+
+```{r ZIP plots}
+#Samples
+plotRCM(syntZIP$psis, syntZIP$rMat, syntZIP$cMat, X = syntZIP$X, arrowFrac = 0.01, biplot =TRUE, main="Zero-inflated Poisson(estimated)", libInset=c(0,-0), libLoc= "bottomleft")#, abunds=colSums(syntZIP$X)/sum(syntZIP$X), thetas=syntZIP$thetas)
+points(y=syntZIP$psis[2]*syntZIP$rMat[which(ex1>0),2], syntZIP$psis[1]*syntZIP$rMat[which(ex1>0),1], col="green", pch=2)
+points(y=syntZIP$psis[2]*syntZIP$rMat[which(ex2>0),2], syntZIP$psis[1]*syntZIP$rMat[which(ex2>0),1], col="black", pch=3)
+```
+
+The two signals are being picked up, one in both dimensions(black crosses) and one in the second dimension(green triangles). The separation is not superclear in this case but it is there. Evidently this is because our model is "wrong", we make the wrong distributional assumption.
+
+```{r ZIP plots: taxa, eval=FALSE}
+#Still the result is not superclear. Are the signals also assigned to the right taxa? 
+#Taxa
+arrowLengthsZIP = apply(syntZIP$cMat, 2,function(x){sum(x^2)})
+
+# plot(arrowLengths, col=colo[names(arrowLengths)])
+# legend("topright",legend=c("taxa with signal", "taxa without signal"), pch=1, col=c("blue","red"))
+NtaxaZIP=ncol(syntZIP$X)
+dimAf = rep(0,length(arrowLengthsZIP))
+dimAf[which(ex1Tax>0)] = dimAf[which(ex1Tax>0)]+1
+dimAf[which(ex2Tax>0)] = dimAf[which(ex2Tax>0)]+1
+
+dfZIP = data.frame(arrowLength = arrowLengthsZIP, signals = dimAf[ which(colnames(syntZIP$X) %in% names(arrowLengthsZIP))])
+boxplot(arrowLength ~ signals, data=dfZIP, main="Estimated impact on means vs. true number of dimensions modified", xlab="True number of dimensions affected", ylab="Estimated strength of signal", log="y")
+#The taxa responsible for the change have not been identified for ZIP data
+```
+
+##### Likelihood decomposition
+
+```{r ZIP Data: lldecomp}
+ZIPLiks=liks(syntZIP, Disp="edgeR")
+LLfracsZIP = diff(ZIPLiks)/(ZIPLiks[length(ZIPLiks)]-ZIPLiks[1])
+```
+
+Of the difference in log-likelihood between the independence of the RC(2) model, the first dimension explains `r round(LLfracsZIP[1]*100,1)`\%, the second dimension `r round(LLfracsZIP[2]*100,1)`\%.
+
+#### Compare with CA solution
+
+```{r CA solutionZIP}
+SVD4zip = caSVD(syntZIP$X)
+plotRCM(SVD4zip$d[1:2], SVD4zip$u[,1:2], t(SVD4zip$v[,1:2]), X = syntZIP$X, main="Correspondence analysis (ZIP data)", arrowFrac = 0.05, thetas = NULL, abunds = NULL, biplot = TRUE)
+points(SVD4zip$u[ex1>0,1]*SVD4zip$d[1],SVD4zip$u[ex1>0,2]*SVD4zip$d[2], col="green", pch=2)
+points(SVD4zip$u[ex2>0,1]*SVD4zip$d[1],SVD4zip$u[ex2>0,2]*SVD4zip$d[2], col="black", pch=3)
+```
+
+Signal is not detected at all, no domination by library sizes
+
+## Real data
+
+### Kostic data
+
+Longitudinal study of the gut microbiome of infants, all of them with predisposition for diabetes. A total of 776 samples were taken from 33 infants, a total of 2239 taxa have been retained. Covariate data are available on diabetes diagnosis, age at collection, and food intake, amongst others.
+
+We apply our algorithm to the Kostic data and see if it converges
+
+```{r Kostic data}
+load("/home/stijn/PhD/Biplots/Kostic_data/phyloDD.RData")
+# #First try with a reduced version
+# DDtrim=prune_samples(x=phyloDD, sample_sums(phyloDD)>quantile(sample_sums(phyloDD), 0.25))
+# DDtrim2=prune_taxa(x=DDtrim, taxa_sums(DDtrim)>quantile(taxa_sums(DDtrim), 0.25))
+# DDtrim2Job= mcparallel(phyloWrapper(DDtrim2, k=2, nleqslv.control=list(trace=TRUE), method="Broyden", tol=5e-3, maxItOut=5e2))
+# DDtrimLL = mccollect(DDtrim2Job, FALSE)[[1]]
+# save(DDtrimLL, file="DDtrimLL.RData")
+if(!file.exists("DDuntrimLL.RData")){
+DDJob= mcparallel(phyloWrapper(phyloDD, k=2, nleqslv.control=list(trace=TRUE), method="Broyden", tol=5e-3, maxItOut=5e2, jump=TRUE))
+DDLL = mccollect(DDJob, FALSE)[[1]]
+save(DDLL, file="DDuntrimLL.RData")} else {
+load(file="DDuntrimLL.RData")
+}#4-5h of calc
+```
+
+#### Age
+
+The effect of age was already visible in CA and Bray-Curtis distance plots. We also know it is correlated with library sizes. How does our method fare?
+
+```{r Kostic Data: Age}
+#Effect of age
+plotRCM(DDLL$psis, DDLL$rMat, DDLL$cMat, X = otu_table(phyloDD), arrowFrac=0.01, cex= as.integer(sample_data(phyloDD)$Age_at_Collection/356)+1, main="Kostic RC solution: Age")#, abunds=colSums(DDLL$X)/sum(DDLL$X)
+legend("topright", pch=1,pt.cex=c(1,3), legend=c("Younger","Older"))
+```
+
+The effect of age is clearly visible, as is its correlation with the library sizes 
+
+#### Intermezzo library sizes
+
+How do age and library site relate in this dataset?
+
+```{r Kostic Data libSizes}
+load("/home/stijn/PhD/Biplots/Kostic_data/phyloD.RData")
+sample_data(phyloD)$logLibSize = log10(sample_sums(phyloD))
+plot(sample_data(phyloD)$Age_at_Collection,sample_data(phyloD)$logLibSize, xlab="Age at collection(in days)",ylab =  "log10(library size)", main="Library size as a function of age of the baby")
+abline(lm(sample_data(phyloD)$logLibSize~sample_data(phyloD)$Age_at_Collection), col="red", lwd=1.5)
+lines(lowess(sample_data(phyloD)$logLibSize~sample_data(phyloD)$Age_at_Collection), lty=2, col="blue", lwd=2)
+legend("bottomright",legend=c("Linear fit","Lowess smoother"), lty=c(1,2), col=c("red","blue"))
+```
+
+####Breast feeding
+
+```{r Kostic Data: BF}
+plotRCM(DDLL$psis, DDLL$rMat, DDLL$cMat, X = otu_table(phyloDD), arrowFrac=0.01, pch= as.integer(sample_data(phyloDD)$BF))
+legend("topright", pch=c(1,2), legend=c("Not breastfed","Breastfed"))
+```
+
+#### Diabetes
+
+The "TD\_Diagnosed" variabele refers to the diagnosis, "Case\_Control" to the seroconversion which happens earlier. We use the latter for the plot.
+
+```{r Kostic Data: Diabetes}
+plotRCM(DDLL$psis, DDLL$rMat, DDLL$cMat, X = otu_table(phyloDD), arrowFrac=0.01, Colour=c("blue","red")[ as.integer(sample_data(phyloDD)$Case_Control)], libLegend=FALSE)
+legend("topright", pch=c(1),col=c("blue","red"), legend=c("Seroconverter","Healthy"), inset=c(0,-0.1), xpd=TRUE)
+```
+
+No clear disease signal, the age signal is stronger
+
+#### Which taxa?
+
+Which taxa are responsible for these differences? And did the authors come to the same conclusions?
+
+```{r Kostic Data: Taxa}
+taxaDists = colSums(DDLL$cMat^2)
+taxNames = apply(tax_table(phyloDD),1,paste, collapse="_")
+taxNames[taxaDists > quantile(taxaDists, 0.99)]
+```
+
+And to which families do they belong?
+
+```{r Kostic Data: Families}
+famNames = as.vector(tax_table(phyloDD)[,"Family"])
+#famNames[taxaDists > quantile(taxaDists, 0.99)]
+sort(table(famNames[taxaDists > quantile(taxaDists, 0.95)], exclude=1:3))
+```
+
+Mainly Clostridiaceae, Veillonellaceae, Ruminococcaceae and Lachnospiraceae are being identified as responsible for the differences. The latter two were also identified by the authors (see figure 3 of Kostic et al, 2015)
+
+But why the horseshoe shape? The same phenomenon as CA, where there is no _linear_ correlation between the dimensions, but a _quadratic_ one instead?
+
+#### Correspondence analysis
+
+Plot the CA solution as a reference
+
+```{r Kostic CA}
+KostCA=caSVD(DDLL$X)
+plotRCM(psis =KostCA$d[1:2], rMat = KostCA$u[,1:2], cMat = t(KostCA$v[,1:2]), X = DDLL$X, main="Correspondence analysis of Kostic data")
+```
+
+The dependence on library size is much more extreme than in our RC solution. The biological signal related to the age of the baby is strong enough to be detected even by CA in this case.
+
+#### Log-likelihood decomposition
+
+```{r Kostic Data: lldecomp}
+kostLiks=liks(DDLL, Disp="edgeR")
+LLfracsKost = diff(kostLiks)/(kostLiks[length(kostLiks)]-kostLiks[1])
+```
+
+Of the difference in log-likelihood between the independence of the RC(2) model, the first dimension explains `r round(LLfracsKost[1]*100,1)`\%, the second dimension `r round(LLfracsKost[2]*100,1)`\% 
+
+#### Outlier
+
+Now try this again, but include an outlier we've previously removed because it dominated the CA plot
+
+```{r Kostic data Outlier, eval=TRUE}
+load("/home/stijn/PhD/Biplots/Kostic_data/phyloD.RData") 
+if(!file.exists("DDuntrimLLout.RData")){
+DDJobOut= mcparallel(phyloWrapper(phyloD, k=2, nleqslv.control=list(trace=TRUE), method="Broyden", tol=1e-4, maxItOut=1e3, convNorm=1))
+DDLLout = mccollect(DDJobOut, FALSE)[[1]]
+save(DDLLout, file="DDuntrimLLout.RData")
+} else {load(file="DDuntrimLLout.RData")}#4-5h of calc
+```
+
+```{r Kostic Data outlier: Age}
+#Effect of age
+plotRCM(DDLLout$psis, DDLLout$rMat, DDLLout$cMat, X = DDLLout$X, arrowFrac=0.01, cex= as.integer(sample_data(phyloD)$Age_at_Collection/356)+1, main="Kostic RC solution: Age")#, abunds=colSums(DDLLout$X)/sum(DDLLout$X)
+legend(xpd=TRUE,"topright", pch=1,pt.cex=c(1,3), legend=c("Younger","Older"), inset=c(-0.1,-0.1))
+```
+
+No effect of the outlier, our method clearly is robust against it, the plot is clear and not dominated by the one observation. But is the outlier considered an influential taxon/sample by our method?
+
+```{r is outlier influential, include=FALSE}
+outlierSample = setdiff(sample_names(phyloD), sample_names(phyloDD))
+outlierTaxon = names(which(otu_table(phyloD)@.Data[ outlierSample,]>15000))
+DDLLout$rMat[outlierSample,]*DDLLout$psis
+mean(DDLLout$cMat[1,outlierTaxon]>DDLLout$cMat[1,])
+mean(DDLLout$cMat[2,outlierTaxon]>DDLLout$cMat[2,])
+DDLLout$thetas[which(outlierTaxon==taxa_names(phyloD))]
+arrowLengthsOut = apply(DDLLout$cMat, 2, function(x){sum(x^2)})
+mean(arrowLengthsOut[outlierTaxon]>arrowLengthsOut)
+```
+
+Not an outlying sample, a slightly outlying taxon in the first dimension (`r round(mean(DDLLout$cMat[1,outlierTaxon]>DDLLout$cMat[1,])*100,1)`)th percentile). Not an exceptional dispersion, neither an exceptional arrow length. The outlier from correspondence analysis is considered a more or less normal observation by our method.
+
+### American Gut
+
+16S sequencing samples of gut samples of 2392 volunteers, trimmed down to 1784 taxa. The fact that they're self-sampled makes them very noisy. Many covariates available.
+
+```{r AGphylo, eval=FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+if(!file.exists("AGRC.RData")){
+AGjob = mcparallel(phyloWrapper(AGphylo, k=2, nleqslv.control=list(trace=TRUE, maxit=250), method="Broyden", tol=1e-3, maxItOut=1000))
+AGLL = mccollect(AGjob, FALSE)[[1]]
+# AGjob = mcparallel(phyloWrapper(AGphylo, k=2, nleqslv.control=list(trace=TRUE, maxit=250), method="Broyden", tol=1e-3, maxItOut=2e3, rMatInit=AGLL$rMAt, cMatInit=AGLL$cMat, psiInit= AGLL$psis, lambdaCol=AGLL$lambdaCol, lambdaRow=AGLL$lambdaRow))
+# AGLL = mccollect(AGjob, FALSE)[[1]]
+save(AGLL, file="AGRC.RData")
+} else {load(file="AGRC.RData")}
+# AGLL = phyloWrapper(AGphylo, k=2, nleqslv.control=list(trace=TRUE, maxit=200), method="Newton", dispFrec=5, tol=1e-2)
+```
+
+This is a tough one to fit (I haven't managed so far), presumably because it's very large and noisy and no clear biological signal is present.
+
+### Zeller 2014
+
+Both 16S and metagenome sequencing data of stools of colorectal cancer patients and controls. 194 subjects in total have been sequenced. The 16S dataset contains 1820 taxa, the mOTU (metagenomics) one only 613. A few covariates, including cancer status are available.
+
+#### First the regular 16S
+
+```{r Zeller16S, eval=TRUE}
+load(file="/home/stijn/PhD/Simulations/data/zellerData.RData")
+if(!file.exists("ZellerRC16S.RData")){
+Zellerjob16S = mcparallel(phyloWrapper(zellerSphy, k=2, nleqslv.control=list(trace=TRUE, maxit=250), method="Broyden", tol=1e-4, maxItOut=1000, round=TRUE, convNorm=1))
+ZellerRC16S = mccollect(Zellerjob16S, FALSE)[[1]]
+# Zellerjob = mcparallel(phyloWrapper(Zellerphylo, k=2, nleqslv.control=list(trace=TRUE, maxit=250), method="Broyden", tol=1e-3, maxItOut=2e3, rMatInit=ZellerLL$rMAt, cMatInit=ZellerLL$cMat, psiInit= ZellerLL$psis, lambdaCol=ZellerLL$lambdaCol, lambdaRow=ZellerLL$lambdaRow))
+# ZellerLL = mccollect(Zellerjob, FALSE)[[1]]
+save(ZellerRC16S,zellerSphy, file="ZellerRC16S.RData")
+} else {load(file="ZellerRC16S.RData")}
+# ZellerLL = phyloWrapper(Zellerphylo, k=2, nleqslv.control=list(trace=TRUE, maxit=200), method="Newton", dispFrec=5, tol=1e-2)
+```
+
+Converged after `r sum(ZellerRC16S$psiRec[1,]!=0)` iterations
+
+```{r Zeller 16SPlot, eval=TRUE}
+plotRCM(ZellerRC16S$psis, ZellerRC16S$rMat, ZellerRC16S$cMat, X=ZellerRC16S$X, libLoc = "topright", libInset = c(0,-0.05), main="Zeller 16S RC(2) results")
+```
+
+No library size signal
+
+```{r Zeller 16SPlot Cancer, eval=TRUE}
+plotRCM(ZellerRC16S$psis, ZellerRC16S$rMat, ZellerRC16S$cMat, Colour=c("darkred","green", "blue")[as.integer(sample_data(zellerSphy)$Diagnosis)], mar=c(4,4,4,4), arrowFrac=0.02, main="Zeller 16S: Cancer status ")
+legend("topright",legend=c("Cancer","Normal","Small adenoma"), pch=1, col=c("darkred","green", "blue"), inset=c(0,-0.03), xpd=TRUE)
+```
+
+A very clear signal of the cancer patients in the first dimension
+
+Are library size and cancer status related?
+
+```{r Zeller 16S cancer vs libsize}
+plot(rowSums(ZellerRC16S$X)~sample_data(zellerSphy)$Diagnosis, main="Library size vs. cancer status")
+```
+
+Cancer patients have slightly lower library sizes, but is this random noise? Try a Kruskal Wallis test
+
+```{r Zeller 16S cancer vs libsize Kruskal Wallis, echo=TRUE}
+kruskal.test(rowSums(ZellerRC16S$X),sample_data(zellerSphy)$Diagnosis)
+```
+
+The Kruskal-Wallis test is not significant, but I do have some doubts about the randomness of library sizes in general. they too often seem correlated with some covariate, cancer in this case and age in the Kostic dataset.
+
+Which taxa contribute to this distinction?
+
+```{r Zeller Data: Taxa, eval=TRUE}
+taxaDists = colSums(ZellerRC16S$cMat^2)
+taxNames = taxa_names(zellerSphy)
+taxNames[taxaDists > quantile(taxaDists, 0.99)]
+# In dimension1
+taxaDists1 = ZellerRC16S$cMat[1,]
+taxNames[taxaDists1 > quantile(taxaDists1, 0.99)]
+```
+
+No correspondence with the results of the paper
+
+Plot the CA solution as a reference
+
+```{r Zeller CA, eval=TRUE}
+ZellerCA=caSVD(ZellerRC16S$X)
+plotRCM(psis =ZellerCA$d[1:2], rMat = ZellerCA$u[,1:2], cMat = t(ZellerCA$v[,1:2]),  main="Correspondence analysis of 16S Zeller data",Colour=c("darkred","green", "blue")[as.integer(sample_data(zellerSphy)$Diagnosis)], libInset=c(0,-0.1), libLoc = "topright")
+legend("bottomright",legend=c("Cancer","Normal","Small adenoma"), pch=1, col=c("darkred","green", "blue"), inset=c(0,-0.03), xpd=TRUE)
+```
+
+Trim the outlier and try again
+
+```{r Zeller CA outlier, eval=TRUE }
+tmpMat = ZellerRC16S$X[-66,]
+tmpMattrim =tmpMat[rowSums(tmpMat)>0, colSums(tmpMat)>0]
+tmpCA = caSVD(tmpMattrim)
+plotRCM(psis =tmpCA$d[1:2], rMat = tmpCA$u[,1:2], cMat = t(tmpCA$v[,1:2]),  main="Correspondence analysis of 16S Zeller data",Colour=c("darkred","green", "blue")[as.integer(sample_data(zellerSphy)$Diagnosis[-66])], libInset=c(0,-0.1), libLoc = "topright")
+legend("bottomright",legend=c("Cancer","Normal","Small adenoma"), pch=1, col=c("darkred","green", "blue"), inset=c(0,-0.03), xpd=TRUE)
+```
+
+Correspondence analysis detects another outlier now. I'm tempted to see this as another trump of our method: it is less sensitive to these outliers. I guess the overdispersion easily accomodates for this.
+
+##### Likelihood decomposition
+
+```{r Zeller Data: lldecomp}
+zellerLiks=liks(ZellerRC16S, Disp="edgeR")
+LLfracsZeller = diff(zellerLiks)/(zellerLiks[length(zellerLiks)]-zellerLiks[1])
+```
+
+Of the difference in log-likelihood between the independence of the RC(2) model, the first dimension explains `r round(LLfracsZeller[1]*100,1)`\%, the second dimension `r round(LLfracsZeller[2]*100,1)`\% 
+
+#### The metagenomics data
+
+```{r Zellerphylo, eval=TRUE}
+load(file="/home/stijn/PhD/Simulations/data/zellerData.RData")
+if(!file.exists("ZellerRCmeta.RData")){
+Zellerjobmeta = mcparallel(phyloWrapper(zellerMphy, k=2, nleqslv.control=list(trace=TRUE, maxit=250), method="Broyden", tol=1e-4, maxItOut=1000, round=TRUE, convNorm=1))
+ZellerRCmeta = mccollect(Zellerjobmeta, FALSE)[[1]]
+
+# Zellerjobmeta3 = mcparallel(phyloWrapper(zellerMphy, k=2, nleqslv.control=list(trace=TRUE, maxit=250), method="Broyden", tol=1e-4, maxItOut=1000, round=TRUE, rMatInit=ZellerRCmeta$rMat, cMatInit=ZellerRCmeta$cMat, psiInit= ZellerRCmeta$psis, lambdaCol=ZellerRCmeta$lambdaCol, lambdaRow=ZellerRCmeta$lambdaRow, convNorm=1))
+# ZellerRCmeta3 = mccollect(Zellerjobmeta3, FALSE)[[1]]
+
+save(ZellerRCmeta, file="ZellerRCmeta.RData")
+} else {load(file="ZellerRCmeta.RData")}
+# ZellerLL = phyloWrapper(Zellerphylo, k=2, nleqslv.control=list(trace=TRUE, maxit=200), method="Newton", dispFrec=5, tol=1e-2)
+```
+
+Plot the metagenomics results
+
+```{r Zeller metaPlot}
+plotRCM(ZellerRCmeta$psis, ZellerRCmeta$rMat, ZellerRCmeta$cMat, X=ZellerRCmeta$X, libLoc = "topright", libInset = c(0,-0.05), main="Zeller mOTU RC(2) results")
+```
+
+```{r Zeller metaPlot Cancer}
+plotRCM(ZellerRCmeta$psis, ZellerRCmeta$rMat, ZellerRCmeta$cMat, Colour=c("darkred","green", "blue")[as.integer(sample_data(zellerMphy)$Diagnosis)], mar=c(4,4,4,4))
+legend("topright",legend=c("Cancer","Normal","Small adenoma"), pch=1, col=c("darkred","green", "blue"), inset=c(0,-0.03), xpd=TRUE)
+```
+
+There seems to be some library size signal
+
+Plot the library size vs age and vs diagnosis
+
+```{r zeller plot libsize}
+libZeller=rowSums(ZellerRCmeta$X)
+plot(y=libZeller, sample_data(zellerMphy)$Age, ylab="Library size",xlab="Age (years)", main="Library size vs. age")
+```
+
+Unlike the kostic data, library size and age are uncorrelated
+
+```{r zeller plot libSize-Cancer}
+plot(y=libZeller, sample_data(zellerMphy)$Diagnosis, ylab="Library size", main="Library size vs. cancer status")
+```
+
+The first dimension seems to have a Cancer signal although it is not very strong. It does not look unlike Figure 5 of the Zeller _et al._ paper though
+
+```{r Zeller metaPlot Age, eval=FALSE}
+plotRCM(ZellerRCmeta$psis, ZellerRCmeta$rMat, ZellerRCmeta$cMat, cex=sample_data(zellerMphy)$Age/50)
+legend("topright",legend=c("Younger","Older"), pch=1, pt.cex=c(0.9,1.6), inset=c(0,-0.1), xpd=TRUE, main="Zeller mOTU: Age")
+```
+
+```{r Zeller metaPlot BMI, eval=FALSE}
+plotRCM(ZellerRCmeta$psis, ZellerRCmeta$rMat, ZellerRCmeta$cMat, cex=sample_data(zellerMphy)$BMI/20)
+legend("topright",legend=c("Lower BMI","Higher BMI"), pch=1, pt.cex=c(0.9,1.6), inset=c(0,-0.1), xpd=TRUE, main="Zeller mOTU: BMI")
+```
+
+Which taxa have been picked out?
+
+```{r Zeller Data Meta: Taxa}
+taxaDists = colSums(ZellerRCmeta$cMat^2)
+taxNames = taxa_names(zellerMphy)
+taxNames[taxaDists > quantile(taxaDists, 0.95)]
+```
+
+No correspondence with the results of the paper.
+
+This dataset contains only 613 taxa, which might explain the poor correspondence with the 16S data and the paper.
+
+#### Received suggestions for improvement:
+
+ - ZIP => NB gives a better fit and fitting the model definitely isn't easier
+ - Beh papers => Only for ordinal responses
+ - Enforce constraints after estimation => This really is not faster
+ 
+#### Important note: 
+
+Datasets should be properly trimmed on rare species and small library sizes before feeding them to the algorithm
+
+### Note on likelihood decomposition
+
+Sometimes the largest $\psi$ value does not correspond with the largest increase in likelihood. Apparently a greater change in mean does not always imply a greater increase in likelihood. This sounds plausible indeed. 
