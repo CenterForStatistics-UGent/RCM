@@ -324,7 +324,7 @@ dNBpsis = function(beta, X, reg, theta,  k, muMarg){
 
   # @return A vector of length r with the new psi estimates
 
-  mu = exp(arrayprod(reg, beta)) * muMarg
+  mu = exp(arrayprod(reg, beta)) * muMarg 
   
   vapply(1:k,FUN.VALUE=0, function(z){
   sum(reg[,,z]*(X-mu)/(1+t(t(mu)/theta)))
@@ -898,8 +898,8 @@ dNBllrow_1B1 = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights, nLam
   rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
   mu = exp(rMat %*% reg)* muMarg
   
-  lambda1 = beta[k+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[k+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  lambda1 = beta[n+1] #Centering restrictions sum(abunds*r_{ik}) = 0
+  lambda2 = beta[n+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
 #Orthogonality restrictions sum(abunds*r_{ik}*r_{ik'}) = 0. First all of dimension 1, then the remaining of dimension 2 etc. #+2*k
   if(k==1){lambda3Mat=0} else {
   lambda3Mat = matrix(0,ncol=k-1, nrow=k-1)
@@ -1038,9 +1038,12 @@ rMat = apply(rMat, 2, function(rowS){
   rowRec = array(0,dim=c(n,k, maxItOut))
   colRec = thetaRec = array(0,dim=c(k,p, maxItOut))
   psiRec = matrix(0, nrow=k,ncol=maxItOut)
+  convergence = rep(FALSE, k)
   
   for (KK in 1:k){
 
+    cat("Dimension" ,KK, "is being esimated \n")
+    
   #Initialize iteration count
   iterOut = 1
   #Modify offset if needed
@@ -1048,13 +1051,13 @@ rMat = apply(rMat, 2, function(rowS){
 
   ## 2) Propagation
   
-  while((iterOut ==1) || ((iterOut <= maxItOut) && (!convergence)))
+  while((iterOut ==1) || ((iterOut <= maxItOut) && (!convergence[KK])))
     {
     
   if(verbose && iterOut%%1 == 0){
   cat("\n","Outer Iteration", iterOut, "\n","\n")
     if(iterOut!=1){
-  cat("Old psi-estimates: ", psisOld[KK], "\n")
+  cat("Old psi-estimates: ", psisOld, "\n")
   cat("New psi-estimates: ", psis[KK], "\n")
     }
   }
@@ -1066,33 +1069,30 @@ rMat = apply(rMat, 2, function(rowS){
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
     if((iterOut %% dispFrec) ==0  || iterOut==1){
   if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, rMat = rMat[,1:KK,drop=FALSE], cMat = cMat[1:KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], k=1:KK, prior.df = prior.df)
+ thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], k=1:KK, prior.df = prior.df)
   }
     
 #Psis
     if (verbose) cat("\n Estimating psis \n")
-regPsis = outer(rMat[,KK] ,cMat[KK,]*psis[KK])
+regPsis = outer(rMat[,KK] ,cMat[KK,])
 
 psisTmp = try(abs(nleqslv(fn = dNBpsis_1B1, x = psis[KK], theta = thetas, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi_1B1, method=method)$x), silent=TRUE)
 if(!inherits(psisTmp, "try-error")) psis[KK] = psisTmp
 
 #Column scores
-  if (verbose) cat("\n Column scores \n")
+  if (verbose) cat("\n Estimating column scores \n")
 regCol = t(t(rMat[,KK, drop=FALSE])*psis[KK])
 idK = seq_k(KK)
 tmpCol = try(nleqslv(fn = dNBllcol_1B1, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas=thetas, X = X, reg = regCol, muMarg=muMarg, k=KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol_1B1, method=method, colWeights=colWeights, nLambda=(KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE]), silent=TRUE)
 
 if(class(tmpCol)=="list"){
-  cMat = matrix(tmpCol$x[1:p], byrow=TRUE, ncol=p, nrow=k)
-  lambdaCol = tmpCol$x[p + seq_along(idK)]
+  cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
+  cMat[KK,] = tmpCol$x[1:p]
+  lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
 }
 #Normalize (speeds up algorithm if previous step had not converged)
-cMat = t(apply(cMat,1, function(colS){
-    colS - sum(colS * colWeights)/sum(colWeights) 
-  }))
-cMat = t(apply(cMat, 1, function(colS){
-      colS/sqrt(sum(colWeights * colS^2))
-  }))
+cMat[KK,] = cMat[KK,] - sum(cMat[KK,] * colWeights)/sum(colWeights) 
+cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 
 #Row scores
   if (verbose) cat("\n Estimating row scores \n")
@@ -1100,32 +1100,29 @@ regRow = cMat[KK,,drop=FALSE]*psis[KK]
 tmpRow = try(nleqslv(fn = dNBllrow_1B1, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetas, X = X, reg = regRow, muMarg=muMarg, k=KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianRow_1B1, method=method, rowWeights=rowWeights, nLambda=(KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE]), silent=TRUE)
 
 if(class(tmpRow)=="list"){
-  rMat = matrix(tmpRow$x[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
-  lambdaRow = tmpRow$x[((k*n)+1):(k*n+nLambda)]
+  cat(ifelse(tmpRow$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
+  rMat[,KK] = tmpRow$x[1:n]
+  lambdaRow[idK] = tmpRow$x[n + seq_along(idK)]
 }
 
 #Normalize (speeds up algorithm if previous step had not converged)
-rMat = apply(rMat,2, function(rowS){
-    rowS - sum(rowS * rowWeights)/sum(rowWeights) 
-  })
-rMat = apply(rMat, 2, function(rowS){
-      rowS/sqrt(sum(rowWeights * rowS^2))
-  })
+rMat[,KK] = rMat[,KK] - sum(rMat[,KK] * rowWeights)/sum(rowWeights) 
+rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
 
 #Store intermediate estimates
-  rowRec[,, iterOut] = rMat
-  colRec[,, iterOut] = cMat
-  thetaRec [, iterOut] = thetas
-  psiRec[, iterOut] = psis
+  rowRec[,KK, iterOut] = rMat[,KK]
+  colRec[KK,, iterOut] = cMat[KK,]
+  thetaRec [KK,, iterOut] = thetas
+  psiRec[KK, iterOut] = psis[KK]
 
     ## Change iterator
     iterOut = iterOut + 1
     
   ##Check convergence  (any numbered norm for row and column scores)
-  convergence = ((iterOut <= maxItOut) && 
-                   (all(abs(1-psis/psisOld) < Psitol)) &&
-                   ((sum((1-rMat/rMatOld)^convNorm)/n)^(1/convNorm) < tol) && 
-                   ((sum((1-cMat/cMatOld)^convNorm)/p)^(1/convNorm) < tol) )
+  convergence[KK] = ((iterOut <= maxItOut) && 
+                   (all(abs(1-psis[KK]/psisOld) < Psitol)) &&
+                   ((sum((1-rMat[,KK]/rMatOld)^convNorm)/n)^(1/convNorm) < tol) && 
+                   ((sum((1-cMat[KK,]/cMatOld)^convNorm)/p)^(1/convNorm) < tol) )
 } # END while-loop until convergence
   
   }# END for-loop over dimensions
@@ -1136,8 +1133,8 @@ rMat = apply(rMat, 2, function(rowS){
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
   
-  if(!convergence ){
-    warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
+  if(!all(convergence) ){
+    warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
   }
     return(list(converged = convergence,rMat=rMat, cMat=cMat, thetas = thetas, psis = psis, X=X,
                  rowRec= rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, lambdaRow=lambdaRow, lambdaCol=lambdaCol, rowWeights=rowWeights, colWeights=colWeights, iter=iterOut-1, fit="RCM_NB"))
@@ -2606,7 +2603,7 @@ tMat = apply(tMat, 2, function(rowS){
 ```{r Wrapper all dists}
 #A simple wrapper function for phyloseq objects and matrices, for all posible distrbutions passes all argument sonto outerLoop()
 #Trim on prevalence to avoid instability of the algorithm
-RCM = function(dat, round=FALSE, method= c("NB","ZIP", "ZINB"),prevCutOff=0,rowWeights = "uniform", colWeights = "marginal",...){
+RCM = function(dat, round=FALSE, method= c("NB","NB_1B1", "ZIP", "ZINB"),prevCutOff=0.01,rowWeights = "uniform", colWeights = "marginal",...){
   if (class(dat)=="matrix"){
   }else  if(class(dat)=="phyloseq"){
   dat = if (taxa_are_rows(physeq)) t(otu_table(physeq)@.Data) else otu_table(physeq)@.Data
@@ -2644,7 +2641,7 @@ RCM = function(dat, round=FALSE, method= c("NB","ZIP", "ZINB"),prevCutOff=0,rowW
 rowWeightsNum = rowWeightsNum[rownames(dat)]
 colWeightsNum = colWeightsNum[colnames(dat)]
 weightsChar = paste0(rowWeights, colWeights)
-  switch(method, NB=RCM_NB(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum, weightsChar = weightsChar,...), ZIP=RCM_ZIP(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar, ...), ZINB=RCM_ZINB(dat,  rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar,...))
+  switch(method, NB=RCM_NB(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum, weightsChar = weightsChar,...),NB_1B1=RCM_NB_1B1(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum, weightsChar = weightsChar,...), ZIP=RCM_ZIP(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar, ...), ZINB=RCM_ZINB(dat,  rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar,...))
 }
 
 #-------------------------------------
