@@ -5,10 +5,10 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: pdf_document
 ---
 
-```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE}
+```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=11, fig.height=8, root.dir=WD)
-setwd(WD)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=11, fig.height=8, root.dir=WD, purl=FALSE)
+# setwd(WD)
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl")
 # Load all required packages and show version
@@ -17,7 +17,9 @@ for(i in reqpkg)
 #   print(i) 
 #   print(packageVersion(i))
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
-}
+} 
+if(file.exists("/home/stijn/PhD/American Gut/AGpars.RData")) {load("/home/stijn/PhD/American Gut/AGpars.RData")}
+par(pty="s") #Make sure the biplots are square!
 ```
 
 # Introduction
@@ -283,7 +285,7 @@ Newton-Raphson would be incredibly complicated here, the derivatives of the log-
 
 ## Correspondence analysis
 
-```{r Auxfuns Correspondence analysis}
+```{r Auxfuns Correspondence analysis, purl=TRUE}
 ## A function to perform correspondence analysis
 
 caSVD = function(X){
@@ -309,7 +311,7 @@ caSVD = function(X){
 
 ## Negative binomial
 
-```{r Auxfuns, echo=TRUE}
+```{r Auxfuns, echo=TRUE, purl=TRUE}
 #All matrices X are considered to be nxp, i.e. samples are rows and taxa are columns
 
 #--------------------------------------#
@@ -353,7 +355,7 @@ NBjacobianPsi = function(beta, X, reg, muMarg, theta, k){
 
 #---------------------------------------#
 # A function to estimate the overdispersions
-estDisp = function(X, cMat, rMat, muMarg, psis, prior.df=10, k=k, dispWeights=NULL){
+estDisp = function(X, cMat, rMat, muMarg, psis, prior.df=10, dispWeights=NULL){
 # @param X: the nxp named count matrix
 # @param rMat: A nxk matrix with the row weights of every dimension in the columns 
 # @param cMat: A kxp matrix with the column weights of every dimension in the rows 
@@ -688,11 +690,11 @@ rMat = apply(rMat, 2, function(rowS){
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
     if((iterOut %% dispFrec) ==0  || iterOut==1){
   if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, rMat = rMat,cMat =  cMat,  muMarg=muMarg, psis = psis, k=k, prior.df = prior.df)
+ thetas = estDisp(X = X, rMat = rMat,cMat =  cMat,  muMarg=muMarg, psis = psis, prior.df = prior.df)
   }
     
 #Psis
-    if (verbose) cat("\n Estimating psis \n")
+    if (verbose) cat("\n Estimating psis (k=",k,") \n")
 regPsis = sapply(1:k, simplify="array", function(K){
     outer(rMat[,K], cMat[K,])})
 
@@ -772,7 +774,7 @@ rMat = apply(rMat, 2, function(rowS){
 
 Fitting the dimensions one by one
 
-```{r NBauxFuns_1B1}
+```{r NBauxFuns_1B1, purl=TRUE}
 #A small aux function for the length of the lambdas
 seq_k = function(y){
   (y-1)*(2+(y-2)/2) + seq_len(y+1)
@@ -973,7 +975,7 @@ NBjacobianRow_1B1 = function(beta, X, reg, thetas, muMarg, k, n ,p, nlambda, row
 #-------------------------------------------#
 ## A wrapper function to calculate the overdispersion, abundance and importance parameters. Each dimension is estimated one by one
 
-RCM_NB_1B1 = function(X, k, rowWeights, colWeights, weightsChar,tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, libSizes = NULL, NBRCM=NULL,  global ="dbldog", nleqslv.control=list(),method=c("Broyden"), dispFrec=10, convNorm = 2,  prior.df=10){
+RCM_NB_1B1 = function(X, k, rowWeights, colWeights, weightsChar, tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, libSizes = NULL, NBRCM=NULL, global ="dbldog", nleqslv.control=list(), method=c("Broyden"), dispFrec=10, convNorm = 2, prior.df=10){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -1007,13 +1009,23 @@ RCM_NB_1B1 = function(X, k, rowWeights, colWeights, weightsChar,tol = 1e-3, maxI
   n=NROW(X)
   p=NCOL(X)
   nLambda = 2*k+k*(k-1)/2
-  #If previous fit provided, use those starting values
-  if(!is.null(NBRCM)){
-    for(i in c("rMat","cMat","psis","lambdaCol","lambdaRow", "thetas")){
-      assign(i, NBRCM[[i]])
-    }
+  # Pre-allocate arrays to track iterations
+  rowRec = array(0,dim=c(n,k, maxItOut))
+  colRec = thetaRec = array(0,dim=c(k,p, maxItOut))
+  psiRec = matrix(0, nrow=k,ncol=maxItOut)
+  convergence = rep(FALSE, k)
+  iterOut = rep(1,k)
+  
+  #If previous fit provided with higher or equal dimension, stop here
+  if((!is.null(NBRCM)) ){
+    if(NBRCM$fit != "RCM_NB_1B1"){
+      stop("Fit provided is not of same type as the one requested! \n")
+    } else if((k <= NBRCM$k)) {
+      stop("Fit provided is already of the required dimension or higher! \n")
+    } else{}
   #Otherwise try to use intelligent starting values
-    } else{
+  }
+  
  ## 1) Initialization
       #Depending on the weighting schemes, use other starting values
   svdX = switch(weightsChar,
@@ -1049,21 +1061,29 @@ rMat = apply(rMat, 2, function(rowS){
   })
   lambdaRow =  rep.int(0,nLambda)
   lambdaCol =  rep.int(0,nLambda)
-    }
   
-  # Pre-allocate arrays to track iterations
-  rowRec = array(0,dim=c(n,k, maxItOut))
-  colRec = thetaRec = array(0,dim=c(k,p, maxItOut))
-  psiRec = matrix(0, nrow=k,ncol=maxItOut)
-  convergence = rep(FALSE, k)
-  iterOut = rep(1,k)
-  
-  for (KK in 1:k){
+ if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
+   Kprev = NBRCM$k
+   rMat[,1:Kprev] = NBRCM$rMat
+   rowRec[,1:Kprev,] = NBRCM$rowRec
+   cMat[1:Kprev,] = NBRCM$cMat
+   colRec[1:Kprev,,] = NBRCM$colRec
+   psis[1:Kprev] = NBRCM$psis
+   psiRec[1:Kprev,] = NBRCM$psiRec
+   thetas = NBRCM$thetas #Useless now but could prevent code to break when estimation order is changed
+   lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
+   lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
+   convergence[1:Kprev] = NBRCM$converged
+   iterOut[1:Kprev] = NBRCM$iter
+ }
+
+  minK = ifelse(is.null(NBRCM),1,Kprev+1)
+  for (KK in minK:k){
 
     cat("Dimension" ,KK, "is being esimated \n")
     
   #Modify offset if needed
-  if(KK>1){muMarg = muMarg * exp(outer(rMat[,1:(KK-1)] ,cMat[1:(KK-1),]*psis[1:(KK-1)]))}
+  if(KK>1){muMarg = muMarg * exp(rMat[,1:(KK-1), drop=FALSE] %*% (cMat[1:(KK-1),, drop=FALSE]*psis[1:(KK-1)]))}
 
   ## 2) Propagation
   
@@ -1085,11 +1105,11 @@ rMat = apply(rMat, 2, function(rowS){
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
     if((iterOut[KK] %% dispFrec) ==0  || iterOut[KK]==1){
   if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], k=1:KK, prior.df = prior.df)
+ thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df)
   }
     
 #Psis
-    if (verbose) cat("\n Estimating psis \n")
+    if (verbose) cat("\n Estimating psis (k=",k,") \n")
 regPsis = outer(rMat[,KK] ,cMat[KK,])
 
 psisTmp = try(abs(nleqslv(fn = dNBpsis_1B1, x = psis[KK], theta = thetas, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi_1B1, method=method)$x), silent=TRUE)
@@ -1160,7 +1180,7 @@ rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
 
 ## Zero-inflated Poisson
 
-```{r Zero-inflated poisson}
+```{r Zero-inflated poisson, purl=TRUE}
 #----------------------------#
 #expit
 expit=function(x){
@@ -1249,7 +1269,7 @@ cMat = t(apply(cMat, 1, function(colS){
       colS/sqrt(sum(colWeights * colS^2))
   }))
   
-    cat("Estimating psis \n")
+    cat("\n Estimating psis (k=",k,") \n")
     
   regPsi = sapply(1:k, simplify="array", function(K){
     outer(rMat[,K], cMat[K,])
@@ -1375,7 +1395,7 @@ dZipMeanRmat = function(beta, X, reg, muMarg, k,p,n,  Z, nLambda, rowWeights){
   
    lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
   lambda2 = beta[(k*(n+1)+1):(k*(n+2))] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  if(k==1){lambda3Mat==0}else{
+  if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k)
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
   }
@@ -1409,7 +1429,7 @@ ZipJacobianRmat = function(beta, X, reg, muMarg, k, p, n, Z, nLambda, rowWeights
   rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
   mu = exp(rMat %*% reg) * muMarg
 
-    if(k==1){lambda3Mat==0}else{
+    if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
     }
@@ -1464,7 +1484,7 @@ dZipMeanCmat = function(beta, X, muMarg, k,p,n, Z, nLambda, colWeights, reg){
   
   lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(colWeights*c_{ik}) = 0
   lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(colWeights*c^2_{ik}) = 1
-  if(k==1){lambda3Mat==0}else{
+  if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k)
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
 }
@@ -1475,7 +1495,7 @@ dZipMeanCmat = function(beta, X, muMarg, k,p,n, Z, nLambda, colWeights, reg){
   
   centers = colSums(colWeights*t(cMat))
   unitSums = colSums(colWeights*t(cMat^2))-1
-  if(k==1){return(c(score,centers, unitSums, orthogons))}
+  if(k==1){return(c(score,centers, unitSums))}
   orthogons = unlist(sapply(1:(k-1), function(K){
     vapply((K+1):k,FUN.VALUE=0, function(Kinner){
       sum(cMat[K,]*cMat[Kinner,]*colWeights)
@@ -1500,10 +1520,10 @@ ZipJacobianCmat = function(beta, X, psis, rMat, colWeights, k, p, n, muMarg, Z, 
 
   lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(colWeights*r_{ik}) = 0
   lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(colWeights*r^2_{ik}) = 1
-
+  if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k)
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
-  
+  }
     Jac = matrix(0, nrow= p*k + nLambda, ncol=p*k + nLambda)
   #The suXmmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
 
@@ -1511,7 +1531,7 @@ ZipJacobianCmat = function(beta, X, psis, rMat, colWeights, k, p, n, muMarg, Z, 
   Jac[1:(p*k),(p*k+1):((p+1)*k)] = c(rep(c(colWeights, rep.int(0,p*k)),k-1), colWeights)
   #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
   Jac[1:(p*k),((p+1)*k+1):((p+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric", p*k), function(K){c(rep.int(0,(K-1)*p),colWeights*2 *cMat[K,],rep.int(0,(k-K)*p))})
-
+if(k>1){
   for (K in 1:(k-1)){
       for(Kinner in (K+1):k){
         #dLag²/dr_{ik}dr_{ik'}
@@ -1525,6 +1545,7 @@ ZipJacobianCmat = function(beta, X, psis, rMat, colWeights, k, p, n, muMarg, Z, 
           c(rep.int(0, p*(K-1)), colWeights*cMat[Kinner,], rep.int(0, p*(Kinner-K-1)), colWeights*cMat[K,],rep.int(0, p*(k-Kinner)))
         })
       }))
+}
   #Symmetrize
   Jac = Jac + t(Jac)
 
@@ -1589,10 +1610,10 @@ dZipMeanTmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, rowWeights){
 
   lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
   lambda2 = beta[(k*n+k+1):(k*n+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-
+  if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k)
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
-
+}
   score = c(t(t(
     tcrossprod((Z-GZero), reg) + 
                          rowWeights*(t(lambda1 + lambda2*2*t(tMat)) + (tMat %*% lambda3Mat)
@@ -1600,6 +1621,7 @@ dZipMeanTmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, rowWeights){
   
   centers = colSums(tMat*rowWeights)
   unitSums = colSums(tMat^2*rowWeights)-1
+  if(k==1){return(c(score,centers, unitSums))}
   orthogons = unlist(sapply(1:(k-1), function(K){
     vapply((K+1):k,FUN.VALUE=0, function(Kinner){
       sum(tMat[,K]*tMat[,Kinner]*rowWeights)
@@ -1626,9 +1648,10 @@ ZipJacobianTmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, rowWeights){
   lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
   lambda2 = beta[(k*n+k+1):(k*n+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
 
+    if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k)
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
-  
+    }
     Jac = matrix(0, nrow= n*k + nLambda, ncol=n*k + nLambda)
   #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
 
@@ -1637,20 +1660,21 @@ ZipJacobianTmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, rowWeights){
   #dLag²/dr_{ik}dlambda_{2k}
   Jac[1:(n*k),((n+1)*k+1):((n+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric",n*k), function(K){c(rep.int(0,(K-1)*n),2 *tMat[,K]*rowWeights,rep.int(0,(k-K)*n))})
   tmp=muZero/(1+muZero)^2
-
+if(k>1){
   for (K in 1:(k-1)){
       for(Kinner in (K+1):k){
         #dLag²/dr_{ik}dr_{ik'}
       diag(Jac[(n*(K-1)+1):(n*K),(n*(Kinner-1)+1):(n*Kinner)]) = -crossprod(tmp,reg[Kinner,]*reg[K,]) + lambda3Mat[Kinner, K]*rowWeights
       }
   }
+
   #dLag²/dr_{ik}dlambda_{3kk'}
    Jac[1:(n*k),((n+2)*k+1):(n*k+nLambda)] = unlist(sapply(1:(k-1), function(K){
         vapply((K+1):k,FUN.VALUE = vector("numeric",n*k), function(Kinner){
           c(rep.int(0, n*(K-1)), tMat[,Kinner]*rowWeights, rep.int(0, n*(Kinner-K-1)), tMat[,K]*rowWeights,rep.int(0, n*(k-Kinner)))
         })
       }))
-  
+}
   #SXmmetrize
   Jac = Jac + t(Jac)
     diag(Jac[1:(n*k),1:(n*k)]) = c(-tcrossprod(tmp, reg^2) + 2*rep(beta[((n+1)*k+1):((n+2)*k)], each = n)*rowWeights)
@@ -1674,9 +1698,11 @@ dZipMeanVmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, colWeights){
 
   lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(colWeights*r_{ik}) = 0
   lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(colWeights*r^2_{ik}) = 1
+  
+    if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k)
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
-
+}
   score = c(t(
     crossprod(reg,(Z-muZero/(1+muZero))) + 
                         t(colWeights*t(lambda1 + lambda2*2*vMat + (lambda3Mat %*% vMat)))
@@ -1684,6 +1710,7 @@ dZipMeanVmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, colWeights){
   
   centers = colSums(colWeights*t(vMat))
   unitSums = colSums(colWeights*t(vMat^2))-1
+  if(k==1){return(c(score,centers, unitSums))}
   orthogons = unlist(sapply(1:(k-1), function(K){
     vapply((K+1):k,FUN.VALUE=0, function(Kinner){
       sum(vMat[K,]*vMat[Kinner,]*colWeights)
@@ -1706,9 +1733,10 @@ ZipJacobianVmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, colWeights){
   vMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
   muZero = exp(t(t(reg %*% vMat)+Zcol))
 
+    if(k==1){lambda3Mat=0}else{
   lambda3Mat = matrix(0,ncol=k, nrow=k)
   lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
-  
+    }
     Jac = matrix(0, nrow= p*k + nLambda, ncol=p*k + nLambda)
   #The suXmmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
 
@@ -1717,6 +1745,7 @@ ZipJacobianVmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, colWeights){
   #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
   Jac[1:(p*k),((p+1)*k+1):((p+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric", p*k), function(K){c(rep.int(0,(K-1)*p),colWeights*2 *vMat[K,],rep.int(0,(k-K)*p))})
 tmp=muZero/(1+muZero)^2
+if (k>1){
   for (K in 1:(k-1)){
       for(Kinner in (K+1):k){
         #dLag²/dr_{ik}dr_{ik'}
@@ -1729,7 +1758,7 @@ tmp=muZero/(1+muZero)^2
           c(rep.int(0, p*(K-1)), colWeights*vMat[Kinner,], rep.int(0, p*(Kinner-K-1)), colWeights*vMat[K,],rep.int(0, p*(k-Kinner)))
         })
       }))
-  
+}
   #Symmetrize
   Jac = Jac + t(Jac)
     diag(Jac[1:(p*k),1:(p*k)]) = c(t( -crossprod(reg^2,tmp)) + colWeights *2*rep(beta[((p+1)*k+1):((p+2)*k)], each = p))
@@ -1776,7 +1805,6 @@ RCM_ZIP = function(X, k, rowWeights , colWeights, weightsChar, tol = 1e-3, maxIt
   p=NCOL(X)
   nLambda = 2*k+k*(k-1)/2
   
-
   if(!is.null(ZIPRCM)){
     for(i in c("rMat","cMat","psis","lambdaCol","lambdaRow", "lambdaRowZero","lambdaColZero","tMat","vMat","chis","Z","Zcol")){
       assign(i, ZIPRCM[[i]])
@@ -1806,7 +1834,7 @@ rMat = apply(rMat, 2, function(rowS){
       rowS/sqrt(sum(rowWeights * rowS^2))
   })
 
-Zcol = unlist(mclapply(1:ncol(X), mc.cores=3,function(i){
+Zcol = sapply(1:ncol(X), function(i){
  tmp= try(zeroinfl(X[,i]~log(libSizes)|1)$coef$zero, silent=TRUE)
  if(class(tmp)=="try-error"){
    tmp= try(zeroinfl(X[,i]~log(libSizes)|1, EM=TRUE)$coef$zero, silent=TRUE)
@@ -1815,7 +1843,7 @@ Zcol = unlist(mclapply(1:ncol(X), mc.cores=3,function(i){
     }
  }
  tmp
-}))
+})
   #Initial estimates for zeroes is also based on an svd
   Ezeroes = matrix(expit(Zcol), nrow=n, ncol=p, byrow=TRUE)#dpois(0, lambda = outer(libSizes, abunds)*exp(rMat %*%  (psis*cMat)))
   Xzeroes = X==0
@@ -1897,7 +1925,6 @@ tMat = apply(tMat, 2, function(rowS){
 } # END while-loop
   
   ## 3) Termination
-  
   rownames(rMat) = rownames(X)
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
@@ -1906,13 +1933,788 @@ tMat = apply(tMat, 2, function(rowS){
     warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
   }
     return(list(converged = convergence,rMat=rMat, cMat=cMat, psis = psis, X=X,
-                rowRec = rowRec, colRec = colRec, psiRec = psiRec, lambdaRow = lambdaRow, lambdaCol = lambdaCol, lambdaRowZero = lambdaRowZero, lambdaColZero = lambdaColZero, chis = chis, tMat = tMat, vMat = vMat, chiRec = chiRec, rowRecZero = rowRecZero, colRecZero = colRecZero, iter=iterOut, Z=Z, Zcol=Zcol))
+                rowRec = rowRec, colRec = colRec, psiRec = psiRec, lambdaRow = lambdaRow, lambdaCol = lambdaCol, lambdaRowZero = lambdaRowZero, lambdaColZero = lambdaColZero, chis = chis, tMat = tMat, vMat = vMat, chiRec = chiRec, rowRecZero = rowRecZero, colRecZero = colRecZero, iter=iterOut-1, Z=Z, Zcol=Zcol))
+}
+```
+
+## Zero-inflated Poisson: One by one
+
+```{r Zero-inflated poisson, purl=TRUE}
+#----------------------------#
+#expit
+expit=function(x){
+  tmp = exp(x)/(1+exp(x))
+  tmp[is.na(tmp)]=1 #Adjust for overflow
+  tmp}
+
+#-----------------------------------#
+## A function to perform the E-step
+
+EstepZIP  = function(X, rMat, cMat, tMat, vMat, muMarg,  Zcol, psis, chis){
+  
+  # @return: The values of Z
+  expMu = exp(rMat %*% (cMat*psis)) * muMarg
+  regZero =  t(Zcol + t(tMat %*% (vMat * chis)))
+  
+  Z = X
+  Z[X>0] = 0
+  Z[X==0] = (1+exp(-regZero-expMu))[X==0]^(-1)
+  Z
+}
+#-----------------------------------#
+
+## A function to perform the M step: maximize the likelihoods. This will again be an iterative process, estimating the parameters step by step. estimation of poisson and zero-inflated part can occur independently, which opens up opportunities for parallelization.
+
+MstepZIP = function(Z, X, rMat, cMat, tMat, vMat,  k, muMarg,  Zcol, psis, chis, lambdaCol, lambdaRow, lambdaColZero, lambdaRowZero, twoCores=TRUE, tol=1e-3, psiTol = 1e-4, chiTol = psiTol, convNorm = 2 , maxItMean=5 , maxItZeroes= 20,n=n, p=p, global=global, nleqslv.control= nleqslv.control, nLambda, rowWeights, colWeights){
+  
+#Optimization of the mena and zero-inflated components are independent (see Lambert 1992), so fork here
+if(twoCores){
+resList = mclapply(mc.cores=2, c(meanEstZIP, ZIestZIP), function(fun){
+  fun(X=X, rMat=rMat, cMat=cMat, tMat=tMat, chis=chis, vMat=vMat, Zcol=Zcol, lambdaCol=lambdaCol, lambdaRow=lambdaRow, lambdaRowZero=lambdaRowZero, lambdaColZero=lambdaColZero, psiTol=psiTol, chiTol=chiTol, tol=tol, convNorm = convNorm, nleqslv.control = nleqslv.control, global=global, nLambda=nLambda, k=k, Z=Z, muMarg=muMarg,n=n, p=p, psis=psis, maxItMean = maxItMean, maxItZeroes = maxItZeroes, rowWeights=rowWeights, colWeights=colWeights)
+})
+} else{
+  resList = lapply(c(meanEstZIP, ZIestZIP), function(fun){ fun(X=X, rMat=rMat, cMat=cMat, tMat=tMat, chis=chis, vMat=vMat, Zcol=Zcol, lambdaCol=lambdaCol, lambdaRow=lambdaRow, lambdaRowZero=lambdaRowZero, lambdaColZero=lambdaColZero, psiTol=psiTol, chiTol=chiTol, tol=tol, convNorm = convNorm, nleqslv.control = nleqslv.control, global=global, nLambda=nLambda, k=k, Z=Z, muMarg=muMarg,n=n, p=p, psis=psis, maxItMean = maxItMean, maxItZeroes = maxItZeroes, rowWeights=rowWeights, colWeights=colWeights)})
+  }
+
+return(unlist(resList, recursive=FALSE))
+}
+#--------------------------------------#
+
+# A function to estimate the mean component of the ZIP model
+meanEstZIP = function(X, rMat, cMat, Z, muMarg, k, global, nleqslv.control, tol, psiTol,lambdaCol, lambdaRow, convNorm,  nLambda, n, p, psis, rowWeights, colWeights, maxItMean = 10, maxItZeroes = 10,...){
+ #Mean component
+  
+    iter = 1
+  while((iter==1 || !converged) && iter<maxItMean){
+    
+  cat("Inner iteration(mean)", iter, "\n")
+    
+  psiOld = psis
+  rMatOld = rMat
+  cMatOld = cMat
+
+    ## Row scores
+  cat("Estimating row scores mean \n")
+  regRow = cMat*psis
+  rMatSol = try(nleqslv(fn = dZipMeanRmat, x = c(rMat, lambdaRow),X=X, reg =regRow, muMarg=muMarg, k=k, n=n, p=p, global=global, control = nleqslv.control, jac=ZipJacobianRmat, Z=Z, nLambda=nLambda, rowWeights=rowWeights)$x, silent=TRUE)
+  
+  
+  if(class(rMatSol)!="try-error"){
+  rMat = matrix(rMatSol[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+  lambdaRow = rMatSol[(k*n+1):length(rMatSol)]
+  }
+  
+  #Normalize (speeds up algorithm if previous step had not converged)
+rMat = apply(rMat,2, function(rowS){
+    rowS - sum(rowS * rowWeights)/sum(rowWeights) 
+  })
+rMat = apply(rMat, 2, function(rowS){
+      rowS/sqrt(sum(rowWeights * rowS^2))
+  })
+  
+  ## Column scores
+  cat("Estimating column scores mean \n")
+  regCol = t(t(rMat)*psis)
+  cMatSol = try(nleqslv(fn = dZipMeanCmat, x = c(t(cMat), lambdaCol), X=X, reg=regCol, muMarg=muMarg, k=k, n=n, p=p, global=global, control = nleqslv.control, jac=ZipJacobianCmat, Z=Z, nLambda=nLambda, colWeights=colWeights)$x, silent=TRUE)
+    if(class(cMatSol)!="try-error"){
+  cMat = matrix(cMatSol[1:(k*p)], byrow=TRUE, nrow=k, ncol=p)
+  lambdaCol = cMatSol[(k*p+1):length(cMatSol)]
+    }
+  
+cMat = t(apply(cMat,1, function(colS){
+    colS - sum(colS * colWeights)/sum(colWeights) 
+  }))
+cMat = t(apply(cMat, 1, function(colS){
+      colS/sqrt(sum(colWeights * colS^2))
+  }))
+  
+    cat("\n Estimating psis (k=",k,") \n")
+    
+  regPsi = sapply(1:k, simplify="array", function(K){
+    outer(rMat[,K], cMat[K,])
+  })
+
+  psisSol = try(sort(abs(nleqslv(fn = dZipMeanPsi, x = psis, X=X, reg=regPsi, Z=Z, muMarg=muMarg, k=k, global=global, control = nleqslv.control, jac=ZipJacobianPsi)$x), decreasing=TRUE), silent=TRUE)
+    if(class(psisSol)!="try-error") psis=psisSol
+  
+    converged = all(abs(psiOld-psis) < psiTol) &&  (sum(abs(1-rMat/rMatOld)^convNorm))^(1/convNorm) < tol &&  (sum(abs(1-cMat/cMatOld)^convNorm))^(1/convNorm) < tol 
+  iter = iter +1
+  }
+  
+  return(list(cMat=cMat, rMat=rMat, iterMean = iter, psis=psis, convergedMean=converged, lambdaCol = lambdaCol, lambdaRow=lambdaRow))
+}
+#--------------------------------------#
+
+# A function to estimate the zero inflated component of the ZIP model
+
+ZIestZIP = function(X, Z, muMarg, k, global, nleqslv.control, tol, chiTol, tMat, vMat, chis, Zcol,lambdaColZero, lambdaRowZero,convNorm,n, p, nLambda,psis,rowWeightsZeroNum, colWeightsZeroNum, maxItMean = 10, maxItZeroes = 10,...){
+  
+      iter = 1
+  while((iter==1 || !converged) && iter<maxItZeroes){
+   chiOld = chis
+  tMatOld = tMat
+  vMatOld = vMat
+  
+    cat("Inner iteration(zeroes)", iter, "\n")
+
+  # nleqslv.control$trace=FALSE
+  # Zero component
+    ## Chis
+      cat("Estimating chis (zeroes) \n")
+  regChis =  sapply(1:k, simplify="array", function(K){
+    outer(tMat[,K], vMat[K,])
+  })
+  chisSol = try(sort(abs(nleqslv(fn = dZipMeanChi, x = chis, reg=regChis, Z=Z,  k=k, global=global, control = nleqslv.control, Zcol=Zcol, jac=ZipJacobianChi)$x), decreasing=TRUE), silent=TRUE)
+  if(!inherits(chisSol,"try-error")){
+    chis=chisSol
+  }
+  
+    ## Row scoers
+    cat("Estimating row scores zeroes \n")
+    regRowZero = vMat*chis
+    tMatSol = try(nleqslv(fn = dZipMeanTmat, x = c(tMat, lambdaRowZero),  k=k, n=n, reg=regRowZero,p=p, global=global, control = nleqslv.control, Zcol=Zcol, jac=ZipJacobianTmat, Z=Z, nLambda=nLambda, rowWeights=rowWeightsZeroNum)$x, silent=TRUE)
+  if(!inherits(tMatSol,"try-error")){
+    tMat = matrix(tMatSol[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+    lambdaRowZero = tMatSol[(k*n+1):length(tMatSol)]
+      }
+    
+    ## Column scores
+    cat("Estimating column scores zeroes \n")
+    regColZero = t(t(tMat)*chis)
+    vMatSol = try(nleqslv(fn = dZipMeanVmat, x = c(t(vMat), lambdaColZero), reg=regColZero, k=k, n=n, p=p, global=global, control = nleqslv.control, Zcol=Zcol, jac=ZipJacobianVmat, Z=Z, nLambda=nLambda, colWeights=colWeightsZeroNum)$x, silent=TRUE)
+  if(!inherits(vMatSol,"try-error")){
+    vMat = matrix(vMatSol[1:(k*p)], byrow=TRUE, nrow=k, ncol=p)
+    lambdaColZero = vMatSol[(k*p+1):length(vMatSol)]
+          }
+
+  converged = all ((chiOld-chis) < chiTol) &&  (sum(abs(1-tMat/tMatOld)^convNorm))^(1/convNorm) < tol &&  (sum(abs(1-vMat/vMatOld)^convNorm))^(1/convNorm) < tol 
+  iter = iter +1
+}
+  return(list(vMat=vMat, tMat=tMat, iterZI = iter, chis=chis, convergedZI=converged, lambdaColZero=lambdaColZero, lambdaRowZero=lambdaRowZero))
+}
+
+#All matrices X are considered to be nxp, i.e. samples are rows and taxa are columns
+
+llZipMeanRow =  function(beta, X, reg, muMarg, k,p,n,  Z, nLambda, rowWeights){
+  rMat = matrix(beta, ncol=2)
+  tmp = (rMat %*% reg) +log(muMarg)
+  -sum((1-Z)*(X*tmp-exp(tmp)))
+}
+
+#--------------------------------------#
+dZipMeanPsi = function(beta, X, muMarg, k, Z, reg){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param y: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+  mu = exp(arrayprod(reg, beta)) * muMarg
+  
+  vapply(1:k,FUN.VALUE=0, function(u){
+  sum((1 - Z)*(X - mu)*reg[,,u])
+  })
+}
+
+#--------------------------------------#
+#A jacobian for the psi parameters
+ZipJacobianPsi = function(beta, X, reg, muMarg, k, Z){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+  mu = exp(arrayprod(reg, beta)) * muMarg
+  
+  sapply(1:k, function(K){
+    vapply(1:k,FUN.VALUE=0, function(Kinner){
+    sum(mu*reg[,,Kinner]*reg[,,K]*(Z-1))
+  })})
+}
+
+#--------------------------------------#
+dZipMeanRmat = function(beta, X, reg, muMarg, k,p,n,  Z, nLambda, rowWeights){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+
+  rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+  mu = exp(rMat %*% reg) * muMarg
+  
+   lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+  lambda2 = beta[(k*(n+1)+1):(k*(n+2))] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
+  }
+  
+  score = c(t(
+    tcrossprod(reg ,(1-Z)*(X-mu))) + 
+                        rowWeights*(t(lambda1 + lambda2*2*t(rMat)) + (rMat %*% lambda3Mat))
+    )
+  centers = colSums(rMat*rowWeights)
+  unitSums = colSums(rMat^2*rowWeights)-1
+  if(k==1){return(c(score,centers, unitSums))}
+  orthogons = unlist(sapply(1:(k-1), function(K){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
+      sum(rMat[,K]*rMat[,Kinner]*rowWeights)
+    })
+  }))
+    return(c(score,centers, unitSums, orthogons))
+}
+
+#--------------------------------------#
+#A jacobian for the psi parameters
+ZipJacobianRmat = function(beta, X, reg, muMarg, k, p, n, Z, nLambda, rowWeights){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+  
+  rMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+  mu = exp(rMat %*% reg) * muMarg
+
+    if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k) #Reorder to lower triangular matrix
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
+    }
+    Jac = matrix(0, nrow= n*k + nLambda, ncol=n*k + nLambda)
+  #The suXmmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+
+  #dLag²/dr_{ik}dlambda_{1k}
+  Jac[1:(n*k),(n*k+1):((n+1)*k)] = c(rep.int(c(rowWeights, rep.int(0,n*k)),k-1), rowWeights) 
+  #dLag²/dr_{ik}dlambda_{2k}
+  Jac[1:(n*k),((n+1)*k+1):((n+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric",n*k), function(K){c(rep.int(0,(K-1)*n),2*rMat[,K]*rowWeights,rep.int(0,(k-K)*n))})
+  
+  if(k>1){
+
+  for (K in 1:(k-1)){
+      for(Kinner in (K+1):k){
+        #dLag²/dr_{ik}dr_{ik'}
+      diag(Jac[(n*(K-1)+1):(n*K),(n*(Kinner-1)+1):(n*Kinner)]) =  ((1-Z)*(-t(t(mu)* reg[Kinner,]))) %*% reg[K,] +
+         lambda3Mat[Kinner, K]*rowWeights
+      }
+  }
+  #dLag²/dr_{ik}dlambda_{3kk'}
+    Jac[1:(n*k),((n+2)*k+1):(n*k+nLambda)] = unlist(sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",n*k), function(Kinner){
+          c(rep.int(0, n*(K-1)), rMat[,Kinner]*rowWeights, rep.int(0, n*(Kinner-K-1)), rMat[,K]*rowWeights,rep.int(0, n*(k-Kinner)))
+        })
+      }))
+  }
+  #Symmetrize
+  Jac = Jac + t(Jac)
+    diag(Jac[1:(n*k),1:(n*k)]) = c(tcrossprod(-mu*(1-Z), reg^2) + 
+                                     2*rep(beta[((n+1)*k+1):((n+2)*k)], each = n)*rowWeights)
+  Jac
+
+}
+#library(Matrix )
+# JacSpa= Matrix(Jac, sparse=TRUE)
+# image(JacSpa)
+#--------------------------------------#
+dZipMeanCmat = function(beta, X, muMarg, k,p,n, Z, nLambda, colWeights, reg){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param colWeights: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+
+  cMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  mu = exp(reg %*% cMat) * muMarg
+  
+  lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(colWeights*c_{ik}) = 0
+  lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(colWeights*c^2_{ik}) = 1
+  if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
+}
+  score = c(t(
+    crossprod(reg,(1-Z)*(X-mu)) + 
+                        t(colWeights*t(lambda1 + lambda2*2*cMat + (lambda3Mat %*% cMat)))
+    ))
+  
+  centers = colSums(colWeights*t(cMat))
+  unitSums = colSums(colWeights*t(cMat^2))-1
+  if(k==1){return(c(score,centers, unitSums))}
+  orthogons = unlist(sapply(1:(k-1), function(K){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
+      sum(cMat[K,]*cMat[Kinner,]*colWeights)
+    })
+  }))
+    return(c(score,centers, unitSums, orthogons))
+}
+
+#--------------------------------------#
+#A jacobian for the psi parameters
+ZipJacobianCmat = function(beta, X, psis, rMat, colWeights, k, p, n, muMarg, Z, nLambda, reg){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param colWeights: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+  
+  cMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  mu = exp(reg %*% cMat) * muMarg
+
+  lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(colWeights*r_{ik}) = 0
+  lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(colWeights*r^2_{ik}) = 1
+  if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
+  }
+    Jac = matrix(0, nrow= p*k + nLambda, ncol=p*k + nLambda)
+  #The suXmmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+
+  #dLag²/dr_{ik}dlambda_{1k}
+  Jac[1:(p*k),(p*k+1):((p+1)*k)] = c(rep(c(colWeights, rep.int(0,p*k)),k-1), colWeights)
+  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
+  Jac[1:(p*k),((p+1)*k+1):((p+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric", p*k), function(K){c(rep.int(0,(K-1)*p),colWeights*2 *cMat[K,],rep.int(0,(k-K)*p))})
+if(k>1){
+  for (K in 1:(k-1)){
+      for(Kinner in (K+1):k){
+        #dLag²/dr_{ik}dr_{ik'}
+      diag(Jac[(p*(K-1)+1):(p*K),(p*(Kinner-1)+1):(p*Kinner)]) =  crossprod(reg[,K],(1-Z)*(-(mu* reg[,Kinner])))  +
+         lambda3Mat[Kinner, K]*colWeights
+      }
+  }
+    #dLag²/ds_{ik}dlambda_{3kk'}
+    Jac[1:(p*k),((p+2)*k+1):(p*k+nLambda)] = unlist(sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",p*k), function(Kinner){
+          c(rep.int(0, p*(K-1)), colWeights*cMat[Kinner,], rep.int(0, p*(Kinner-K-1)), colWeights*cMat[K,],rep.int(0, p*(k-Kinner)))
+        })
+      }))
+}
+  #Symmetrize
+  Jac = Jac + t(Jac)
+
+         diag(Jac[1:(p*k),1:(p*k)]) = c(crossprod(-mu*(1-Z), reg^2) + 
+                                     2*rep(beta[((p+1)*k+1):((p+2)*k)], each = p)*colWeights)
+  Jac
+}
+
+#--------------------------------------#
+
+dZipMeanChi = function(beta, k, Z, reg, Zcol, nLambda){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+  GZero = expit(t(t(arrayprod(reg, beta))+Zcol))
+  
+  vapply(1:k,FUN.VALUE=0, function(u){
+  sum((Z-GZero)*reg[,,u])
+  })
+  
+}
+
+#--------------------------------------#
+#A jacobian for the psi parameters
+ZipJacobianChi = function(beta, k, Z, reg, Zcol, nLambda){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  expZero = exp(t(t(arrayprod(reg, beta))+Zcol))
+  tmp=expZero/(1+expZero)^2
+  sapply(1:k, function(K){
+    vapply(1:k,FUN.VALUE=0, function(Kinner){
+    -sum(reg[,,Kinner]*reg[,,K]*tmp)
+  })})
+}
+
+#--------------------------------------#
+dZipMeanTmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, rowWeights){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+
+  tMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+  GZero = expit(t(t(tMat %*% reg)+Zcol))
+
+  lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+  lambda2 = beta[(k*n+k+1):(k*n+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
+}
+  score = c(t(t(
+    tcrossprod((Z-GZero), reg) + 
+                         rowWeights*(t(lambda1 + lambda2*2*t(tMat)) + (tMat %*% lambda3Mat)
+    ) )))
+  
+  centers = colSums(tMat*rowWeights)
+  unitSums = colSums(tMat^2*rowWeights)-1
+  if(k==1){return(c(score,centers, unitSums))}
+  orthogons = unlist(sapply(1:(k-1), function(K){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
+      sum(tMat[,K]*tMat[,Kinner]*rowWeights)
+    })
+  }))
+    return(c(score,centers, unitSums, orthogons))
+}
+
+#--------------------------------------#
+#A jacobian for the psi parameters
+ZipJacobianTmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, rowWeights){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param abunds: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+  
+  tMat = matrix(beta[1:(k*n)], byrow=FALSE, ncol=k, nrow=n)
+
+  muZero = exp(t(t(tMat %*% reg)+Zcol))
+
+  lambda1 = beta[(k*n+1):(k*n+k)] #Centering restrictions sum(abunds*r_{ik}) = 0
+  lambda2 = beta[(k*n+k+1):(k*n+2*k)] #normalization restrictions sum(abunds*r^2_{ik}) = 1
+
+    if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(n+2)+1):length(beta)]
+    }
+    Jac = matrix(0, nrow= n*k + nLambda, ncol=n*k + nLambda)
+  #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+
+  #dLag²/dr_{ik}dlambda_{1k}
+  Jac[1:(n*k),(n*k+1):((n+1)*k)] = c(rep.int(c(rowWeights, rep.int(0,n*k)),k-1), rowWeights) 
+  #dLag²/dr_{ik}dlambda_{2k}
+  Jac[1:(n*k),((n+1)*k+1):((n+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric",n*k), function(K){c(rep.int(0,(K-1)*n),2 *tMat[,K]*rowWeights,rep.int(0,(k-K)*n))})
+  tmp=muZero/(1+muZero)^2
+if(k>1){
+  for (K in 1:(k-1)){
+      for(Kinner in (K+1):k){
+        #dLag²/dr_{ik}dr_{ik'}
+      diag(Jac[(n*(K-1)+1):(n*K),(n*(Kinner-1)+1):(n*Kinner)]) = -crossprod(tmp,reg[Kinner,]*reg[K,]) + lambda3Mat[Kinner, K]*rowWeights
+      }
+  }
+
+  #dLag²/dr_{ik}dlambda_{3kk'}
+   Jac[1:(n*k),((n+2)*k+1):(n*k+nLambda)] = unlist(sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",n*k), function(Kinner){
+          c(rep.int(0, n*(K-1)), tMat[,Kinner]*rowWeights, rep.int(0, n*(Kinner-K-1)), tMat[,K]*rowWeights,rep.int(0, n*(k-Kinner)))
+        })
+      }))
+}
+  #SXmmetrize
+  Jac = Jac + t(Jac)
+    diag(Jac[1:(n*k),1:(n*k)]) = c(-tcrossprod(tmp, reg^2) + 2*rep(beta[((n+1)*k+1):((n+2)*k)], each = n)*rowWeights)
+    
+  Jac
+}
+#--------------------------------------#
+dZipMeanVmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, colWeights){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param colWeights: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+
+  # @return A vector of length r with the new psi estimates
+
+  vMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  muZero = exp(t(t(reg %*% vMat)+Zcol))
+
+  lambda1 = beta[(k*p+1):(k*p+k)] #Centering restrictions sum(colWeights*r_{ik}) = 0
+  lambda2 = beta[(k*p+k+1):(k*p+2*k)] #normalization restrictions sum(colWeights*r^2_{ik}) = 1
+  
+    if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
+}
+  score = c(t(
+    crossprod(reg,(Z-muZero/(1+muZero))) + 
+                        t(colWeights*t(lambda1 + lambda2*2*vMat + (lambda3Mat %*% vMat)))
+    ))
+  
+  centers = colSums(colWeights*t(vMat))
+  unitSums = colSums(colWeights*t(vMat^2))-1
+  if(k==1){return(c(score,centers, unitSums))}
+  orthogons = unlist(sapply(1:(k-1), function(K){
+    vapply((K+1):k,FUN.VALUE=0, function(Kinner){
+      sum(vMat[K,]*vMat[Kinner,]*colWeights)
+    })
+  }))
+    return(c(score,centers, unitSums, orthogons))
+}
+
+#--------------------------------------#
+#A jacobian for the psi parameters
+ZipJacobianVmat = function(beta, reg, k,p,n, Z, Zcol, nLambda, colWeights){
+  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
+  # @param X: the nxp data matrix
+  # @param reg: a nxpxr regressor array with r the number of regressors
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param k: a scalar, dimension of the RC solution
+  # @param colWeights: a vector of length p with the abundance parameters
+  # @param libSizes (optional): a vector of length n with (known) library sizes
+  
+  vMat = matrix(beta[1:(k*p)], byrow=TRUE, ncol=p, nrow=k)
+  muZero = exp(t(t(reg %*% vMat)+Zcol))
+
+    if(k==1){lambda3Mat=0}else{
+  lambda3Mat = matrix(0,ncol=k, nrow=k)
+  lambda3Mat[lower.tri(lambda3Mat)] = lambda3Mat[upper.tri(lambda3Mat)]= beta[(k*(p+2)+1):length(beta)]
+    }
+    Jac = matrix(0, nrow= p*k + nLambda, ncol=p*k + nLambda)
+  #The suXmmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+
+  #dLag²/dr_{ik}dlambda_{1k}
+  Jac[1:(p*k),(p*k+1):((p+1)*k)] = c(rep(c(colWeights, rep.int(0,p*k)),k-1), colWeights)
+  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
+  Jac[1:(p*k),((p+1)*k+1):((p+2)*k)] = vapply(1:k,FUN.VALUE = vector("numeric", p*k), function(K){c(rep.int(0,(K-1)*p),colWeights*2 *vMat[K,],rep.int(0,(k-K)*p))})
+tmp=muZero/(1+muZero)^2
+if (k>1){
+  for (K in 1:(k-1)){
+      for(Kinner in (K+1):k){
+        #dLag²/dr_{ik}dr_{ik'}
+      diag(Jac[(p*(K-1)+1):(p*K),(p*(Kinner-1)+1):(p*Kinner)]) = -reg[,Kinner]%*%(reg[,K]*tmp) + lambda3Mat[Kinner, K]*colWeights
+      }
+  }
+    #dLag²/ds_{ik}dlambda_{3kk'}
+    Jac[1:(p*k),((p+2)*k+1):(p*k+nLambda)] = unlist(sapply(1:(k-1), function(K){
+        vapply((K+1):k,FUN.VALUE = vector("numeric",p*k), function(Kinner){
+          c(rep.int(0, p*(K-1)), colWeights*vMat[Kinner,], rep.int(0, p*(Kinner-K-1)), colWeights*vMat[K,],rep.int(0, p*(k-Kinner)))
+        })
+      }))
+}
+  #Symmetrize
+  Jac = Jac + t(Jac)
+    diag(Jac[1:(p*k),1:(p*k)]) = c(t( -crossprod(reg^2,tmp)) + colWeights *2*rep(beta[((p+1)*k+1):((p+2)*k)], each = p))
+    
+  Jac
+}
+#Weighing by abs or relabunds really doesn't matter, only chis and psis get more inflated and deflated
+logit=function(x){log(x/(1-x))}
+
+RCM_ZIP_1B1 = function(X, k, rowWeights , colWeights, weightsChar, tol = 1e-3, maxItOut = 500, psiTol = 1e-4, chiTol=psiTol, verbose = TRUE, global ="dbldog", nleqslv.control=list(),method=c("Broyden"), twoCores=TRUE, convNorm = 2,  maxItMean = 20, maxItZeroes=20, ZIPRCM=NULL){
+  
+  # @param X: a nxp data matrix
+  # @param k: a scalar, number of dimensions in the RC(M) model
+  # @param tol(optional): a scalar, the relative convergende tolerance for the row scores and column scores parameters, defaults to 1e-3  
+  # @param Psitol(optional): a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4
+  # @param maxItOut(optional): an integer, the maximum number of iteration in the outer loop, defaults to 50
+  # @param libSizes(optional) : a vector of length n with (known) library sizes. If not provided, rowSums of x are used
+  # @param verbose(optional): a boolean, should information on iterations be printed? Defaults to TRUE
+  # @param method(optional): Method for jacobian estimation , see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration
+  # @param global(optional): global strategy for solving non-linear systems , see nleqslv
+  # @param nleqslv.control: a list with control options, see nleqslv
+  # @param lambdaRow: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the row scores
+  # @param lambdaCol: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the column scores
+  # @param rMatInit(optional): a nxk matrix with initial row scores. If not provided values from the singular value decomposition will be used as starting values
+  # @param cMatInit(optional): a pxk matrix with initial column scores. If not provided values from the singular value decomposition will be used as starting values
+  # @param psisInit(optional): a vector of length k with inital values for the importance parameters psi. If not provided values from the singular value decomposition will be used as starting values
+  # @param dispFreq: a scalar, how many iterations the algorithm should wait before reestimationg the dispersions
+  # @param convNorm: a scalar, the norm to use to determine convergence
+
+  # @return A list with elements:
+  # @return psis: a vector of length k with estimates for the importance parameters psi
+  # @return thetas: a vector of length p with estimates for the overdispersion
+  # @return rMat: a nxk matrix with estimated row scores
+  # @return cMat: a pxk matrix with estimated column scores
+  # @return converged: a boolean indicating if the algorithm converged
+  # @return rowRec: a n x k x maxItOut array with a record of all rMat estimates through the iterations 
+  # @return colRec: a k x p x maxItOut array with a record of all cMat estimates through the iterations
+  # @return psiRec.: a k x maxItOut array with a record of all psi estimates through the iterations
+  
+  abunds = colSums(X)/sum(X)
+  libSizes = rowSums(X)
+  muMarg = outer(libSizes, abunds) #The marginals to be used as expectation
+  n=NROW(X)
+  p=NCOL(X)
+  nLambda = 2*k+k*(k-1)/2
+  
+  rowRec = rowRecZeroes = array(0,dim=c(n,k, maxItOut))
+  colRec = colRecZeroes = thetaRec = array(0,dim=c(k,p, maxItOut))
+  psiRec = matrix(0, nrow=k,ncol=maxItOut)
+  convergence = rep(FALSE, k)
+  iterOut = rep(1,k)
+  
+  #If previous fit provided with higher or equal dimension, stop here
+  if((!is.null(ZIPRCM)) ){
+    if(ZIPRCM$fit != "RCM_ZIP_1B1"){
+      stop("Fit provided is not of same type as the one requested! \n")
+    } else if((k <= ZIPRCM$k)) {
+      stop("Fit provided is already of the required dimension or higher! \n")
+    } else{}
+  #Otherwise try to use intelligent starting values
+  }
+  
+  if(!is.null(ZIPRCM)){
+    for(i in c("rMat","cMat","psis","lambdaCol","lambdaRow", "lambdaRowZero","lambdaColZero","tMat","vMat","chis","Z","Zcol")){
+      assign(i, ZIPRCM[[i]])
+    }} else{
+      #Depending on the weighting schemes, use other starting values
+  svdX = switch(weightsChar,
+                "marginalmarginal" = svd(diag(1/libSizes) %*% (X-muMarg) %*% diag(1/colSums(X))),
+                "marginaluniform" = svd(diag(1/libSizes) %*% (X-muMarg)),
+                "uniformmarginal" = svd((X-muMarg) %*% diag(1/colSums(X))),
+                "uniformuniform" = svd(X-muMarg))
+  rMat = svdX$u[,1:k,drop=FALSE]
+  cMat = t( svdX$v[,1:k,drop=FALSE] )
+  psis = svdX$d[1:k]
+ 
+  #Redistribute some weight to fit the constraints 
+  psis = c(psis *t(apply(cMat, 1, function(colS){
+      sqrt(sum(colWeights * colS^2))
+  })) * apply(rMat, 2, function(rowS){
+      sqrt(sum(rowWeights * rowS^2))
+  }))
+  
+#Normalize  
+cMat = t(apply(cMat, 1, function(colS){
+      colS/sqrt(sum(colWeights * colS^2))
+  }))
+rMat = apply(rMat, 2, function(rowS){
+      rowS/sqrt(sum(rowWeights * rowS^2))
+  })
+
+Zcol = sapply(1:ncol(X), function(i){
+ tmp= try(zeroinfl(X[,i]~log(libSizes)|1)$coef$zero, silent=TRUE)
+ if(class(tmp)=="try-error"){
+   tmp= try(zeroinfl(X[,i]~log(libSizes)|1, EM=TRUE)$coef$zero, silent=TRUE)
+    if(class(tmp)=="try-error"){
+   tmp = -Inf #If no zeroes => No chance on a structural zero
+    }
+ }
+ tmp
+})
+  #Initial estimates for zeroes is also based on an svd
+  Ezeroes = matrix(expit(Zcol), nrow=n, ncol=p, byrow=TRUE)#dpois(0, lambda = outer(libSizes, abunds)*exp(rMat %*%  (psis*cMat)))
+  Xzeroes = X==0
+  
+  svdZero = svd(diag(sqrt(1/libSizes)) %*%(Xzeroes-Ezeroes)%*% diag(1/sqrt(colSums(X))))
+
+  tMat = svdZero$u[,1:k, drop=FALSE]
+  vMat = t(svdZero$v[,1:k, drop=FALSE])
+  chis = svdZero$d[1:k]
+
+#Redistribute some weight to fit the constraints 
+chis = c(chis *t(apply(vMat, 1, function(colS){
+      sqrt(sum(colWeights * colS^2))
+  })) * apply(tMat, 2, function(rowS){
+      sqrt(sum(rowWeights * rowS^2))
+  }))
+  
+#Normalize  
+vMat = t(apply(vMat, 1, function(colS){
+      colS/sqrt(sum(colWeights * colS^2))
+  }))
+tMat = apply(tMat, 2, function(rowS){
+      rowS/sqrt(sum(rowWeights * rowS^2))
+  })
+  
+  lambdaRow = lambdaCol = lambdaColZero=lambdaRowZero = rep.int(0,nLambda)
+  }
+  
+  iterOut = 1
+  rowRec = rowRecZero = array(0,dim=c(NROW(X),k, maxItOut))
+  colRec = colRecZero = array(0,dim=c(k,NCOL(X), maxItOut))
+  psiRec = chiRec = matrix(0,ncol=maxItOut, nrow=k)
+
+  ## 2) Propagation
+  
+  while((iterOut ==1) || ((iterOut <= maxItOut) && (!convergence)))
+    {
+    
+  if(verbose && iterOut%%1 == 0){
+  cat("\n","Outer Iteration", iterOut, "\n","\n")
+    if(iterOut!=1){
+  cat("Old psi-estimates: ", psiOld, "\n")
+  cat("New psi-estimates: ", psis, "\n")
+    }
+  }
+  ## 2)a. Store old parameters
+  psiOld = psis
+  rMatOld = rMat
+  cMatOld = cMat
+  
+  chiOld = chis
+  tMatOld = tMat
+  vMatOld = vMat 
+
+  #Expectation
+  Z = EstepZIP (X, rMat, cMat, tMat, vMat, muMarg, k, Zcol, psis, chis)
+
+  #Maximization
+  Mlist = MstepZIP(Z = Z, X = X, rMat = rMat, cMat = cMat, tMat = tMat, vMat = vMat, k = k, n=n, p=p, Zcol=Zcol, psis = psis,chis = chis, twoCores=twoCores, tol = tol, psiTol = psiTol, chiTol = chiTol, convNorm = convNorm, global=global, nLambda = nLambda, nleqslv.control = nleqslv.control, lambdaCol = lambdaCol, lambdaRow=lambdaRow, lambdaColZero = lambdaColZero, lambdaRowZero = lambdaRowZero, maxItMean = maxItMean, maxItZeroes = maxItZeroes, muMarg=muMarg, colWeights = colWeights, rowWeights = rowWeights)
+
+  for (x in names(Mlist))
+    {assign(x,Mlist[[x]])}
+  #cMatSE = cMatList$cMatSE
+  rowRec[,, iterOut] = rMat
+  colRec[,, iterOut] = cMat
+  rowRecZero[,, iterOut] = tMat
+  colRecZero[,, iterOut] = vMat
+  psiRec[, iterOut] = psis
+  chiRec[, iterOut] = chis
+  
+  ## 2)f. Change iterator
+    iterOut = iterOut + 1
+    
+  ##Check convergence  (any numbered norm for row and column scores)
+  convergence = ((iterOut <= maxItOut) && 
+                   (all(abs(1-psis/psiOld) < psiTol)) &&
+                   ((sum((1-rMatOld/rMat)^convNorm)/n)^(1/convNorm) < tol) && 
+                   ((sum((1-cMatOld/cMat)^convNorm)/p)^(1/convNorm) < tol) ) && (all(abs(1-chis/chiOld) < chiTol)) &&  (sum(abs(1-tMat/tMatOld)^convNorm)/n)^(1/convNorm) < tol &&  (sum(abs(1-vMat/vMatOld)^convNorm)/p)^(1/convNorm) < tol 
+} # END while-loop
+  
+  ## 3) Termination
+  rownames(rMat) = rownames(X)
+  colnames(cMat) = colnames(X)
+  rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
+  
+  if(!convergence ){
+    warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
+  }
+    return(list(converged = convergence,rMat=rMat, cMat=cMat, psis = psis, X=X,
+                rowRec = rowRec, colRec = colRec, psiRec = psiRec, lambdaRow = lambdaRow, lambdaCol = lambdaCol, lambdaRowZero = lambdaRowZero, lambdaColZero = lambdaColZero, chis = chis, tMat = tMat, vMat = vMat, chiRec = chiRec, rowRecZero = rowRecZero, colRecZero = colRecZero, iter=iterOut-1, Z=Z, Zcol=Zcol))
 }
 ```
 
 ## Zero-inflated negative binomial
 
-```{r ZINB}
+```{r ZINB, purl=TRUE}
 #-----------------------------------#
 ## A function to perform the E-step
 
@@ -1980,7 +2782,7 @@ meanEstZINB = function(X, rMat, cMat, Z, muMarg,  k, global, nleqslv.control, to
   lambdaCol = cMatSol[(k*p+1):length(cMatSol)]
     }
 
-    cat("Estimating psis \n")
+    cat("\n Estimating psis (k=",k,") \n")
 regPsis = sapply(1:k, simplify="array", function(K){outer(rMat[,K], cMat[K,]) })
   psisSol = try(sort(abs(nleqslv(fn = dZinbMeanPsi, reg=regPsis,x = psis, X=X, Z=Z, muMarg=muMarg, k=k, global=global, control = nleqslv.control, jac=ZinbJacobianPsi, thetas=thetas)$x), decreasing=TRUE), silent=TRUE)
     if(class(psisSol)!="try-error") psis=psisSol
@@ -2622,16 +3424,16 @@ tMat = apply(tMat, 2, function(rowS){
     warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
   }
     return(list(converged = convergence, rMat=rMat, cMat=cMat, psis = psis, X=X,
-                 rowRec = rowRec, colRec = colRec, psiRec = psiRec, lambdaRow = lambdaRow, lambdaCol = lambdaCol, lambdaRowZero = lambdaRowZero, lambdaColZero = lambdaColZero, chis = chis, tMat = tMat, vMat = vMat, chiRec = chiRec, rowRecZero = rowRecZero, colRecZero = colRecZero, iter=iterOut, Z=Z, Zcol=Zcol, thetas=thetas))
+                 rowRec = rowRec, colRec = colRec, psiRec = psiRec, lambdaRow = lambdaRow, lambdaCol = lambdaCol, lambdaRowZero = lambdaRowZero, lambdaColZero = lambdaColZero, chis = chis, tMat = tMat, vMat = vMat, chiRec = chiRec, rowRecZero = rowRecZero, colRecZero = colRecZero, iter=iterOut-1, Z=Z, Zcol=Zcol, thetas=thetas))
 }
 ```
 
 ## Wrapper for all distirbutions
 
-```{r Wrapper all dists}
+```{r Wrapper all dists, purl = TRUE}
 #A simple wrapper function for phyloseq objects and matrices, for all posible distrbutions passes all argument sonto outerLoop()
 #Trim on prevalence to avoid instability of the algorithm
-RCM = function(dat, round=FALSE, method= c("NB","NB_1B1", "ZIP", "ZINB"),prevCutOff=0.01,rowWeights = "uniform", colWeights = "marginal",...){
+RCM = function(dat, k,round=FALSE, method= c("NB","NB_1B1", "ZIP", "ZINB"),prevCutOff=0.01,rowWeights = "uniform", colWeights = "marginal",...){
   if (class(dat)=="matrix"){
   }else  if(class(dat)=="phyloseq"){
   dat = if (taxa_are_rows(physeq)) t(otu_table(physeq)@.Data) else otu_table(physeq)@.Data
@@ -2671,9 +3473,11 @@ colWeightsNum = colWeightsNum[colnames(dat)]
 weightsChar = paste0(rowWeights, colWeights)
 
 tic = proc.time() #Time the calculation
-  tmp = switch(method, NB=RCM_NB(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum, weightsChar = weightsChar,...),NB_1B1=RCM_NB_1B1(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum, weightsChar = weightsChar,...), ZIP=RCM_ZIP(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar, ...), ZINB=RCM_ZINB(dat,  rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar,...))
-  tmp$runtime = (proc.time()-tic)[3]
-  tmp
+  tmp = switch(method, NB=RCM_NB(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum, weightsChar = weightsChar, k=k,...),NB_1B1=RCM_NB_1B1(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum, weightsChar = weightsChar, k=k,...), ZIP=RCM_ZIP(dat, rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar, k=k,...), ZINB=RCM_ZINB(dat,  rowWeights=rowWeightsNum, colWeights=colWeightsNum,weightsChar = weightsChar, k=k,...))
+  within(tmp, {
+    runtime = (proc.time()-tic)[3]
+    k = k #Store number of dimensions
+  })
 }
 
 #-------------------------------------
@@ -2755,8 +3559,7 @@ We generate some data as before with the NB distribution but differing library s
 
 ##### Create the data
 
-```{r NB no signal}
-load("/home/stijn/PhD/American Gut/AGpars.RData")
+```{r NB no signal, trace=TRUE}
 #Negative binomial, no signal. Set parameters
 NsamplesNBNS= 300
 NtaxaNBNS = 900
@@ -2801,16 +3604,18 @@ if(!file.exists("toyDataUnifNS.RData")){
 #   #Refitting does not help, new taxa become outlying
   
  #With marginal weights
-    syntNBNSmargJob = mcparallel(RCM(dataMatNBNS, method="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=2e3, colWeights = "marginal", prevCutOff=0.01))
+  #2D
+    syntNBNSmargJob = mcparallel(RCM(dataMatNBNS, method="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal", prevCutOff=0.01))
   syntNBNSmarg=mccollect(syntNBNSmargJob, FALSE)[[1]]
   
-      syntNBNSmarg_1B1Job = mcparallel(RCM(dataMatNBNS, method="NB_1B1", k=2, nleqslv.control= nleqslv.control, maxItOut=2e3, colWeights = "marginal", prevCutOff=0.01))
+      syntNBNSmarg_1B1Job = mcparallel(RCM(dataMatNBNS, method="NB_1B1", k=2, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal", prevCutOff=0.01))
   syntNBNSmarg_1B1=mccollect(syntNBNSmarg_1B1Job, FALSE)[[1]]
   
-      syntNBNSmarg_3Job = mcparallel(RCM(dataMatNBNS, method="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=2e3, colWeights = "marginal", prevCutOff=0.01))
+  #3D
+      syntNBNSmargJob_3 = mcparallel(RCM(dataMatNBNS, method="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal", prevCutOff=0.01))
   syntNBNSmarg_3=mccollect(syntNBNSmargJob_3, FALSE)[[1]]
   
-      syntNBNSmarg_1B1_3Job = mcparallel(RCM(dataMatNBNS, method="NB_1B1", k=3, nleqslv.control= nleqslv.control, maxItOut=2e3, colWeights = "marginal", prevCutOff=0.01))
+      syntNBNSmarg_1B1_3Job = mcparallel(RCM(dataMatNBNS, method="NB_1B1", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal", prevCutOff=0.01))
   syntNBNSmarg_1B1_3=mccollect(syntNBNSmarg_1B1_3Job, FALSE)[[1]]
   
   #Save the results
@@ -2820,29 +3625,19 @@ if(!file.exists("toyDataUnifNS.RData")){
 
 ##### Plot the results
 
-```{r Plot results}
-with(syntNBNSunif, {plot(rMat)})
-with(syntNBNSunif, {plot(t(cMat))}) # We see some outliers for the taxa
+```{r Plot results, purl=FALSE}
+with(syntNBNSmarg_1B1_3, {plot(rMat %*% diag(psis))})
+with(syntNBNSmarg_1B1_3, {plot(t(cMat))}) # No signal in either plot
 #Look at the loadings in function of the library sizes and abunds
+par(pty = "m")
+with(syntNBNSmarg_1B1_3, {plot(cMat[1,], log(colSums(X)), log="")})
+with(syntNBNSmarg_1B1_3, {lines(lowess(cMat[1,], log(colSums(X))))})
+with(syntNBNSmarg_1B1_3, {plot(cMat[2,], log(colSums(X)), log="")})
+with(syntNBNSmarg_1B1_3, {lines(lowess(cMat[2,], log(colSums(X))))})
+with(syntNBNSmarg_1B1_3, {plot(abs(cMat[2,]), colSums(X), log="y")})
+#Maybe a slight abundance/ score relationship? Not very significant anyway
 
-with(syntNBNSunif, {plot(cMat[1,], colSums(X), log="y")})
-with(syntNBNSunif, {plot(abs(cMat[1,]), colSums(X), log="y")})
-with(syntNBNSunif, {plot(cMat[2,], colSums(X), log="y")})
-with(syntNBNSunif, {plot(abs(cMat[2,]), colSums(X), log="y")})
-#Lowly abundant taxa get higher scores
-
-hist(1/syntNBNSunif$thetas)
-
-with(syntNBNSmarg, {plot(cMat[1,], colSums(X), log="y")})
-with(syntNBNSmarg, {plot(abs(cMat[1,]), colSums(X), log="y")})
-with(syntNBNSmarg, {plot(cMat[2,], colSums(X), log="y")})
-with(syntNBNSmarg, {plot(abs(cMat[2,]), colSums(X), log="y")})
-
-hist(1/syntNBNSmarg$thetas)
-#With marginal weighting at least there are no outliers
-
-#DataMat4
-
+par(pty = "s")
 ```
 
 #### NB with signal
@@ -2904,8 +3699,7 @@ names(sampleSigNB) = rownames(dataMatSigNB) = 1:NsamplesNBNS
 
 And now the "model-based" apporach
 
-```{r NB model based data with signal}
-load("/home/stijn/PhD/American Gut/AGpars.RData")
+```{r NB model based data with signal, purl=TRUE}
 #Define parameters
 Nsamples= 300
 Ntaxa = 900
@@ -2917,29 +3711,37 @@ rhos = rhos/sum(rhos); rhos=rhos[1:Ntaxa]; thetas=thetas[1:Ntaxa]
 libSizes4 =c(rep(1e4, floor(Nsamples/2)), rep(1e5, floor(Nsamples/2)))
 
 #Signal strength
-psi1 = 9
-psi2 = 7
+sigStrength = 3
+SD = 1 #The normal standard deviation
 
-#Row scores (add two standard deviations)
-rChange1 = c(rep(2,10), rep(0, Nsamples-20), rep(2,10))
-rChange2 =  c(rep(0,5),rep(2,15), rep(0, Nsamples-40), rep(2,15), rep(0,5))
+#Psis (importance of the dimensions)
+#This does not equal the signal strength, which is the ratio between normal variance and rchange
+psi1 = 10
+psi2 = 8
+
+#Row scores (add three standard deviations)
+rChange1 = rChange2 = integer(Nsamples)
+rChange1[c(1:10,(Nsamples-9):Nsamples)] = sigStrength
+rChange2[c(6:20,(Nsamples-19):(Nsamples-5))] = sigStrength
 
 #Logical indices for these
 rid1 = rChange1!=0
 rid2 = rChange2!=0
 
-rowScores1 = rnorm(Nsamples-Nsamples%%2, sd=1)  + rChange1
-rowScores2 = rnorm(Nsamples-Nsamples%%2, sd=1) + rChange2
+rowScores1 = rnorm(Nsamples-Nsamples%%2, sd=SD)  + rChange1
+rowScores2 = rnorm(Nsamples-Nsamples%%2, sd=SD) + rChange2
 
 #Column scores
-cChange1 = c(rep(0,10),rep(2,20), rep(0, Ntaxa-50), rep(2,20))
-cChange2 = c(rep(0,30),rep(2,25), rep(0, Ntaxa-100), rep(2,25), rep(0,20))
+cChange1 = cChange2 = integer(Ntaxa)
+cChange1[c(11:30,(Ntaxa-19):Ntaxa)] = sigStrength
+cChange2[c(31:55,(Ntaxa-44):(Ntaxa-20))] = sigStrength
+
 
 cid1 = cChange1!=0
 cid2 = cChange2!=0
 
-colScores1 = rnorm(Ntaxa-Ntaxa%%2, sd = 1) + cChange1
-colScores2 = rnorm(Ntaxa-Ntaxa%%2, sd = 1) + cChange2
+colScores1 = rnorm(Ntaxa-Ntaxa%%2, sd = SD) + cChange1
+colScores2 = rnorm(Ntaxa-Ntaxa%%2, sd = SD) + cChange2
 
 # A function to renoralize the scores
 normalize = function(mat, weights, dim){
@@ -2983,7 +3785,7 @@ sampleSigNB = factor(mapply(rid1,rid2,FUN=paste), levels=c("FALSE FALSE", "TRUE 
 
 Test runs show that uniform weights for the taxa are not a good idea: always some taxa become outliers. Therefor they are omitted in the comparisons to come.
 
-```{r fit RC(M) NB with signal}
+```{r fit RC(M) NB with signal, purl=FALSE}
 nleqslv.control = list(trace=TRUE, maxit = 250, cndtol=.Machine$double.eps)
 if(!file.exists("toyDataSig.RData")){
 #   syntNBSigunifJob = mcparallel(RCM(dataMatNBSig, method="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=2e3, prevCutOff=0.01, colWeights ="uniform"))
@@ -2992,8 +3794,8 @@ if(!file.exists("toyDataSig.RData")){
   syntNBSigmargJob = mcparallel(RCM(dataMatNBSig, method="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal"))
   syntNBSigmarg=mccollect(syntNBSigmargJob, FALSE)[[1]] 
   
-    syntNBSigmarg_1B1Job = mcparallel(RCM(dataMatNBSig, method="NB_1B1", k=2, nleqslv.control= nleqslv.control, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal"))
-  syntNBSigmarg_1B1=mccollect(syntNBSigmarg_1B1Job, FALSE)[[1]] 
+#     syntNBSigmarg_1B1Job = mcparallel(RCM(dataMatNBSig, method="NB_1B1", k=2, nleqslv.control= nleqslv.control, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal"))
+#   syntNBSigmarg_1B1=mccollect(syntNBSigmarg_1B1Job, FALSE)[[1]] 
   
     syntNBSigmarg_3Job = mcparallel(RCM(dataMatNBSig, method="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal"))
   syntNBSigmarg_3 = mccollect(syntNBSigmarg_3Job, FALSE)[[1]] 
@@ -3001,17 +3803,15 @@ if(!file.exists("toyDataSig.RData")){
     syntNBSigmarg_1B1_3Job = mcparallel(RCM(dataMatNBSig, method="NB_1B1", k=3, nleqslv.control= nleqslv.control, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal"))
   syntNBSigmarg_1B1_3 = mccollect(syntNBSigmarg_1B1_3Job, FALSE)[[1]] 
  
-  #Not the same as the original solution?? Needs further investigation
-  save(dataMatNBSig, dataMatNBSig_1B1, syntNBSigmarg, syntNBSigmarg_3, syntNBSigmarg_1B1_3, taxaSigNB, sampleSigNB, file="toyDataSig.RData")#syntNBSigunif
+  save(dataMatNBSig,  syntNBSigmarg, syntNBSigmarg_3, syntNBSigmarg_1B1_3, taxaSigNB, sampleSigNB, file="toyDataSig.RData")#syntNBSigunif
 } else {load("toyDataSig.RData")}
 
 # A function to pour the results into a dataframe
 RCMres2DF = function(RCM,  sampleGroups, taxaGroups){
   list(rows =data.frame(r1=RCM$rMat[,1]*RCM$psis[1], r2=RCM$rMat[,2]*RCM$psis[2],  sampleGroups=sampleGroups), columns = data.frame(c1=RCM$cMat[1,], c2=RCM$cMat[2,], taxaGroups=taxaGroups))
 }
-NBunifSigPlotDF = RCMres2DF(syntNBSigunif,  sampleSigNB, taxaSigNB[colMeans(dataMatNBSig==0)<0.99])
-NBmargSigPlotDF = RCMres2DF(syntNBSigmarg,  sampleSigNB, taxaSigNB[colMeans(dataMatNBSig==0)<0.99])
-NBmargSigPlotDF_1B1 = RCMres2DF(syntNBSigmarg_1B1,  sampleSigNB, taxaSigNB[colMeans(dataMatNBSig==0)<0.99])
+NBmargSigPlotDF = RCMres2DF(syntNBSigmarg_3,  sampleSigNB, taxaSigNB[colMeans(dataMatNBSig==0)<0.99])
+NBmargSigPlotDF_1B1 = RCMres2DF(syntNBSigmarg_1B1_3,  sampleSigNB, taxaSigNB[colMeans(dataMatNBSig==0)<0.99])
 
 ggplot(data=NBunifSigPlotDF$rows, aes(x=r1, y=r2, col=sampleGroups)) + geom_point() + scale_colour_manual(values=c("grey50","blue","purple","red"))
 ggplot(data=NBmargSigPlotDF$rows, aes(x=r1, y=r2, col=sampleGroups)) + geom_point() + scale_colour_manual(values=c("grey50","blue","purple","red"))
@@ -3031,7 +3831,7 @@ The column scores are very sensitive to high zero frequencies and dito overdispe
 
 Not evaluated
 
-```{r Nb sig 2, eval=FALSE}
+```{r Nb sig 2, eval=FALSE, purl=FALSE}
 if(!file.exists("toyDataUnifSig2.RData")){
   syntNBSigunifJob2 = mcparallel(RCM(dataMatSigNB, method="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=2e3, prior.df=3))
   syntNBSigunif2=mccollect(syntNBSigunifJob2, FALSE)[[1]] 
@@ -3043,7 +3843,7 @@ if(!file.exists("toyDataUnifSig2.RData")){
 
 ##### Plot the results
 
-```{r RC(M) Nb with signal results}
+```{r RC(M) Nb with signal results, purl=FALSE}
 with(data4RCM3, plot(rMat, col=rowSignal)); legend("topleft", legend=levels(rowSignal), pch=1, col=1:4)
 with(data4RCM3, plot(t(cMat), col=colSignal)); legend("topleft", legend=levels(colSignal), pch=1, col=1:4)
 save(data4RCM3, rid1, rid2, cid1, cid2, file="data4RCM3.RData")
@@ -3244,7 +4044,7 @@ if(!file.exists("syntZIPSig.RData")){
 
 ##### Generate data
 
-```{r ZIP without signal}
+```{r ZINB without signal}
 load("/home/stijn/PhD/American Gut/AGphylo.RData")
 #First estimate the ZIP parameters
 
