@@ -346,7 +346,21 @@ with $e_{il}$ the value of covariate $l$ in sample $i$ and $\zeta_{jl}$ the inte
 
 #### Confounders and zero counts
 
-Filtering out the effect of confounders brings the problems of the zeroes to the fore again. If a taxon has only zero counts in one of the subgroups defined by the confounding variables, the model will fail to fit again. For continuous confounders this is of course not an issue. Maybe there exists a more efficient solution, but for now we will have to trim the taxa for which this occurs from further analysis in order to render the model identifiable. This trimming best occurs alrady before fitting the independence model.
+Filtering out the effect of confounders brings the problems of the zeroes to the fore again. If a taxon has only zero counts in one of the subgroups defined by the confounding variables, the model will fail to fit again. For continuous confounders this is of course not an issue. Maybe there exists a more efficient solution, but for now we will have to trim the taxa for which this occurs from further analysis in order to render the model identifiable. This trimming best occurs already before fitting the independence model.
+
+#### Implementation
+
+For the filtering based on the prevalence and abundance, we need a confounder matrix
+
+ 1. Without intercept
+ 2. With __all__ levels of the categorical variables, so set $contrasts=FALSE$ to avoid hidden reference levels of the factors
+ 
+ When actually filtering on the confounders, we can simply use a confounder matrix
+ 
+ 1. With intercept
+ 2. With treatment coding
+ 
+ In this case all that matters is to change the offset. We will still return the confoundes' parameters though.
 
 ## Zero-inflated poisson
 
@@ -372,6 +386,171 @@ EM algorithm: iterate between
 Unlike the RC(2)NB model, $f_j$ has to be estimated as well, there is no obvious candidate here. We estimate it marginally and then keep it fixed during the iterations. This way the score visualize departures in zero inflation from this independence of zero-inflation between rows and columns.
 
 Newton-Raphson would be incredibly complicated here, the derivatives of the log-likelihood functions barely fit on a page!
+
+# Constrained analysis
+
+So far we haven been doing unconstrained or unsupervised explorative visualization, or _indirect_ gradient analysis. We just visualized the strongest signals in the data, independent of sample covariates. Only then did we use the covariate information to try to correlate the covariates with the latent variables formed by the row and column scores. We usually do this by adding a colour code for the samples in our biplots.
+
+A logical next step is to develop a constrained method in the same framework, i.e. with the same error distribution. We argued that PCoA with Bray-Curtis distance or regular correspondence analysis did not perform well, and we expect the same for canonical correspondence analysis since it relies on the same distributional assumptions. We will visualize those departures from the independence model that can be explained by the sample covariates. Each dimension will thus consist of a linear combination of sample covariates, the weight of each of these covariates in the dimensions reflecting how much they contribute to explaining the variation. For background information see also Zhu _et al._ , 2005, and Zhang and Thas, 2012.
+
+We call our n-by-d covariate matrix $C$, for every sample $i$, $d$ baseline covariates are measured. These covariates can be either discrete or continuous. $c_{iy}$ is the observed value of covariate $y$ in sample $i$, $\mathbf{c_{i.}}$ the whole covariate vector of length $d$ of sample $i$, and $\mathbf{c_{.y}}$ all recorded values of variable $y$.
+
+### Constrained RC(M) model
+
+I can see multiple possible modelling options
+
+1) The classical approach
+
+This model comes from ecology and is the one used by Zhu _et al._ (2005) and Zhang and Thas (2012 and 2016). This assumes each taxon has an optimal combination of covariates, and its expected abundance decreases as the covariates depart from this optimal combination. The expected abundance follows a Gaussian distribution in function of this departure.
+
+The expected counts are modelled as 
+
+$$log(E(X_{ij})) = \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
+
+whereby 
+
+ - $h_{ik} = \boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$ the optimal linear combination of $\mathbf{c}_{i.}$ in dimension $k$
+ - $\boldsymbol{\alpha}_k$ is called the _environmental gradient_
+ - $\alpha_{ky}$ is element corresponding to covariate $y$ of the environmental gradient in dimension $k$
+ - $a_{jk}$ is the maximal logged expected abundance achieved when the linear combination of covariates $\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$ equals the optimum $q_{jk}$
+ - $m_{jk}$ is the tolerance, it determines how fast the expected value decreases as $\mathbf{c}_{i.}$ moves away from its optimal values $\boldsymbol{\alpha}_k^{-t}h_{ik}$
+ 
+ The scales of $h_{ik}$, $q_{jk}$ and $m_{jk}$ are undefined, so we need an additional restriction to render the model identifiable. Zhu _et al._, 2005 propose setting $\sum_{j=1}^p m_{jk}^2/p=1$. Note that $a_{jk}$, $q_{jk}$ and $m_{jk}$ are species specific parameters whereas $\boldsymbol{\alpha}_k$ is specific for the dimension but common to all species.
+
+The estimation iterates between estimating $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_{jk} = \big(a_{jk}, q_{jk}, m_{jk})$.
+
+This model was designed with the ecological context in mind, whereby (continuous) environmental variables such as pH, temperature, sunlight intensity, ion concentrations, distance to landscape elements etc. were measured. However for microbiome data, we usually do not have direct measurements of variables in the ecosystem, but rather characterstics of the patient, which are very often categorical variables. Even for a continuous variable like age the Gaussian assumption seems weird to me. Keeping the other covariates fixed, this would mean there is an optimal age for bacteria to grow and their expected abundance would decrease for older or younger people. This may or may not be a realistic model.
+
+Let's take a look at the nature of the covariate data.
+
+```{r Nature of the covariates, eval=TRUE, purl=FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+load("/home/stijn/PhD/Simulations/data/physeqList4Trim.RData")
+load("/home/stijn/PhD/Simulations/data/zellerData.RData")
+load("/home/stijn/PhD/Biplots/Kostic_data/phyloD.RData")
+tableSamVar = function(x){
+  table(sapply(sample_data(x), class))
+}
+phyList = list("American gut"=AGphylo, "Kostic"=phyloD, "HMP" = physeqList4Trim[["Throat"]], "zeller16S" = zellerSphy, "zellerMetagenomics" = zellerMphy)
+sapply(phyList, tableSamVar)
+```
+
+Most variables are factors or booleans. Below are the names of the variables shown:
+
+```{r covariate names, purl=FALSE}
+sapply(phyList, sample_variables)
+```
+
+I wonder how realistic the Gaussian response model still is with so many categorical variables and so many species. I guess we would best seek some expert advice of microbiome scientists.
+
+2) Classical approach: RC(M) variation
+
+If we want to stay in the RC(M) framework we can also model the mean as:
+
+$$log(E(X_{ij})) =  u + u_i + u_j  + \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
+
+This approach differs from the one proposed in Zhu _et al._, 2005 in the intercepts $u_i$ and $u_j$. These intercepts will still be estimated by maximum likelihood in the first step, just as in the unconstrained case. We do not continue on this track.
+
+3) Constrained RC(M)
+
+A third option would be to drop the whole Gaussian assumption and build a model as follows:
+
+$$log(E(X_{ij})) = u + u_i + u_j  + \sum_{k=1}^K \psi_k s_{jk} f(\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}) $$
+
+with $f$ the response function, which can be linear, quadratic (Gaussian on count scale), non-parametric, ... . The usual restrictions apply to the column scores $\mathbf{s}$:
+
+$$\mathbf{s^tu_{tax}} = \mathbf{0}$$
+$$\mathbf{s_k^tUs_{k'}} = I(k=k')$$
+
+with $u_{tax}$ the vector of $exp(u_j)$'s and  $\mathbf{U}$ a diagonal p-by-p matrix with $u_{tax}$ on the diagonal.
+
+For $\alpha$ (a d-by-k matrix) we could enforce the following restrictions:
+
+- Centering is desirable for the triplot
+
+$$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
+ - Normalization restricts the size, only $\psi_k$ can grow in magnitude
+
+$$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbb{1}_k$$
+
+with $\mathbf{1}$ a vector of ones of length $d$ and $\mathbb{1}_k$ the identity matrix of dimension $k$. However to maintain maximal comparability with the unconstrained RC(M)-model we prefer to set 
+
+$$\mathbf{C}\boldsymbol{\alpha}\mathbf{1} = \mathbf{0}$$
+$$\big(\mathbf{C}\boldsymbol{\alpha}\big)^t\mathbf{C}\boldsymbol{\alpha} = \mathbb{1}_k$$
+
+This approach has the advantage of having a clear relationship to the unconstrained RC(M) model. If there are no covariate data and $C$ only contains intercepts this simplifies to the unconstrained version. We can add the $\boldsymbol{\alpha}_k$'s to to the biplots in order to make triplots and visualize on which variables the departures in the different directions depend most. For discrete covariates in C we will use a non-parametric approach using dummy coding. For the final visualization we will use sum coding for ease of interpretation.
+
+### Response function
+
+For the response function previously a Gaussian has been proposed but this may not be realistic. In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). For any response function with $q$ parameters $\boldsymbol{\beta}_j$ for every taxon $j$ the mean equals:
+
+$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big)$$
+
+and the score function for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
+
+$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv}} = \sum_{i=1}^n \psi s_j \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv}} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
+
+In the linear case (when $f \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) = \beta_0 + \beta_1 \boldsymbol{\alpha}^t \mathbf{C}_{i.}$) this becomes:
+
+$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}} = \sum_{i=1}^n \psi s_j \boldsymbol{\alpha}^t \mathbf{C}_{i.} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
+
+The second order derivative in its general form is just horrible:
+
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv} \partial \beta_{jv'}} = \sum_{i=1}^n \frac{\psi s_j}{1+\frac{\mu_{ij}}{\theta_j}} \Big( \frac{\partial^2 f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj} \partial \beta_{v'j}} (x_{ij} - \mu_{ij}) + \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj}} \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{v'j}} \psi s_j \big(\frac{\mu_{ij}(1-\theta_j(1+\mu_{ij}))-x_{ij}}{\theta_j+\mu_{ij}} \big)  \Big)$$
+
+In the linear case this simplifies to:
+
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}^2 } = \sum_{i=1}^n - \frac{(\psi s_j \boldsymbol{\alpha}^t \mathbf{C}_{i.})^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
+
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1} \partial \beta_{j0} } = \sum_{i=1}^n - \frac{(\psi s_j \boldsymbol{\alpha}^t)^2 \mathbf{C}_{i.} \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
+
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j0}^2 } = \sum_{i=1}^n - \frac{(\psi s_j )^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}$$
+
+Except for the linear case, we will just calculate these numerically in practice, which is necessary anyway when $f$ is non-parametric.
+
+### Constrained RC(M) estimation
+
+We would again first estimate the independence model ($u_i$ and $u_j$) as before, and then estimate one dimension $k$ at the time, conditional on the previous ones. $\mathbf{\psi}$ and $\mathbf{s}$ will be estimated as before. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the likelihood ratio approach from Zhu _et al._ (2005):
+
+$$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}$$
+
+with $p^{(\alpha)}$ and $p^{(\alpha)}_j$ estimated probability density functions without and with taxon labels. $p^{(\alpha)}$ and $p^{(\alpha)}_j$ are calculated as the expected counts under a certain error distribution (e.g. negative binomial) whereby $f_j()$ and $f_0()$ are estimated given $\boldsymbol{\alpha}$ : 
+$$p_j^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) = e_{ij} = \exp\Big[u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big) \Big] $$ 
+and 
+
+$$p^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) = e_{ij0} = \exp\Big[u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta} \big) \Big) \Big] $$ 
+
+(ignoring taxon labels when estimating $f()$).
+
+The likelihood ratio then equals
+
+$$LR(\boldsymbol{\alpha}) = \sum_{i=1}^n \sum_{j=1}^p log(e_{ij})x_{ij}-\sum_{i=1}^n \sum_{j=1}^p log(e_{i.})x_{ij}$$
+
+Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm may be computationally unfeasible. Under non-parametric estimation also no analytical derivative can be calculated so we will have to rely on numerical ones, which will slow down calculations.
+
+The estimation would then proceed as follows:
+
+ 1. Estimate the independence model ($u_i$'s, and $u_j$'s)
+ 2. Find initial values for $\psi_k$ and $s_{jk}$ as before.
+ 3. Iterate between
+  - Estimate $f_j$'s and $f_0$ and corresponding $e_{ij}$ and $e_{i.}$ given $\boldsymbol{\alpha}$
+  - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
+4. Estimate $\psi_k$ and $s_{jk}$ using ML
+5. Repeat steps 3-4 until convergence
+6. Build the triplot
+  a. Plot $\psi_1 \boldsymbol{\alpha}_1^T \mathbf{C}$ vs. $\psi_2 \boldsymbol{\alpha}_2^T \mathbf{C}$ for the samples
+  b. Add $\mathbf{s}_{.1}$ vs . $\mathbf{s}_{.2}$ for the taxa
+  c. Add $\boldsymbol{\alpha}_1$ vs $\boldsymbol{\alpha}_2$ for the variables
+  
+### Restricitions
+
+The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
+
+$$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
+
+$$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbf{1}$$
+
+$$\boldsymbol{\alpha_k}^t\boldsymbol{\alpha_{k'}} = 0$$
 
 # Implementation
 
@@ -690,18 +869,20 @@ estDisp = function (X, cMat, rMat, muMarg, psis, prior.df = 10, dispWeights = NU
 }
 #-------------------------------------------#
 # A function to trim based on confounders to ensure there are no taxa with only zero counts in one of the subgroups defined by the confounders. Returns a trimmed data matrix, should be called prior to fitting the independence model
-trimOnConfounders = function(confounders, X, prevCutOff){
+trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
   # @param confounders: a nxt confounder dataframe. Only numeric values and factors are allowed
   # @param X: the nxp data matrix
   # @param prevCutOff: a scalar, the prevalence cut off
+  # @param minFraction: a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed
+  # @param n: the number of samples
   
   trimmingID = apply(X, 2, function(x){ #Over taxa
     any(apply(confounders, 2, function(conf){ #Over confounding variables
-      tapply(X = x, INDEX = conf, FUN = function(y){mean(y!=0) <= prevCutOff}) #Any all-zero subgroup?
+      tapply(X = x, INDEX = conf, FUN = function(y){mean(y!=0) <= prevCutOff | sum(y)<(n*minFraction)}) #Any all-zero subgroup?
     }))
   })
   
-  X[, trimmingID] #Return trimmed X
+  X[, !trimmingID] #Return trimmed X
 }
 
 #-------------------------------------------#
@@ -733,16 +914,16 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
      }
      return(nleq)
    }) #Estimate response functions
-     
-     cat(NB_params[1], "\n")
-     
+
      thetas = estDisp(X = X, cMat = matrix(0, ncol=p), rMat = matrix(0, nrow=n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params)) #Estimate overdispersion
+     
+     iter = iter +1
      
   convergence = sqrt(mean((NB_params_old-NB_params)^2)) < tol #Check for convergence, L2-norm
   
   }
   
-  list(muMarg = muMarg * exp(confMat %*% NB_params), thetas = thetas)
+  list(muMarg = muMarg * exp(confMat %*% NB_params), thetas = thetas, NB_params = NB_params)
   }
 #An auxiliary R function, kindly provided by Joris
 #-------------------------------------------#
@@ -767,7 +948,7 @@ arrayprod <- function(x,y){
 #-------------------------------------------#
 ## A wrapper function to calculate the overdispersion, abundance and importance parameters. Each dimension is estimated one by one
 
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global ="dbldog", nleqslv.control=list(), method=c("Broyden"), dispFrec=10, convNorm = 2, prior.df=10, marginEst = "MLE", estPsis = TRUE, confounders = NULL, covariates = NULL, responseFun = "linear", prevCutOff = 1e-2){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global ="dbldog", nleqslv.control=list(), method=c("Broyden"), dispFrec=10, convNorm = 2, prior.df=10, marginEst = "MLE", estPsis = TRUE, confoundersFilt = NULL, confounders = NULL, covariates = NULL, responseFun = "linear", prevCutOff = 1e-2, minFraction = 0.1){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -781,7 +962,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   # @param NBRCM: A NBRCM object, typically a previous fit that did not converge. Estimates from this objects will be used as starting values
   # @param dispFreq: a scalar, how many iterations the algorithm should wait before reestimationg the dispersions
   # @param convNorm: a scalar, the norm to use to determine convergence
-  # @param confounders: an nxg matrix with confounders
+  # @param confounders: a list with
+  # -confounders: an nxg matrix with confounders
+  # -confoundersFilt: an nxh matrix with confounders for filtering, with all levels and without intercept
   # @param covariates: an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables already
   # @param responseFun: a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"
 
@@ -800,7 +983,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   Xorig = NULL #An original matrix, not returned of no trimming occurs
   if(!is.null(confounders)){ #First and foremost: filter on confounders
     Xorig = X
-    X = trimOnConfounders(X, confounders = confounders, prevCutOff = prevCutOff)
+    X = trimOnConfounders(X, confounders = confounders$confoundersTrim, prevCutOff = prevCutOff, n=nrow(Xorig), minFraction = minFraction)
   }
   
   n=NROW(X)
@@ -873,9 +1056,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   }
   
   if(!is.null(confounders)){
-  ## Filter out the confounders by adding them to the intercept
-  muMarg = filterConfounders(muMarg = muMarg, confMat = confounders,p=p, X=X, thetas = thetas, nleqslv.control = nleqslv.control, n=n )
-  }
+  ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
+  filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas, nleqslv.control = nleqslv.control, n=n)
+  muMarg = filtObj$muMarg
+  thetas = filtObj$thetas
+  confParams = filtObj$NB_params
+  } else {
+    confParams=NULL
+    }
  ## 1) Initialization
   svdX = svd(diag(1/libSizes) %*% (X-muMarg) %*% diag(1/colSums(X)))
   rMat = svdX$u[,1:k, drop=FALSE]
@@ -883,7 +1071,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   psis = svdX$d[1:k]
 
 #Center
-  
   cMat = t(apply(cMat, 1, function(colS){
       colS-sum(colS*colWeights)/sum(colWeights)
   }))
@@ -1162,7 +1349,7 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(alpha) = paste0("Dim",1:k)
   
-  returnList=list(converged = convergence, alpha = alpha, cMat=cMat, thetas = thetas, psis = psis, X=X, alphaRec = alphaRec, covariates = covariates, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, iter = iterOut-1, fit = "RCM_NB_constr", libSizesMLE = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abundsMLE = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds))
+  returnList=list(converged = convergence, alpha = alpha, cMat=cMat, thetas = thetas, psis = psis, X=X, alphaRec = alphaRec, covariates = covariates, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, iter = iterOut-1, fit = "RCM_NB_constr", libSizesMLE = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abundsMLE = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, covariates = covariates, confParams = confParams)
   }
     if(!all(convergence) ){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
@@ -2863,13 +3050,14 @@ minK = ifelse(is.null(ZINBRCM),1,Kprev+1)
 
 ```{r Wrapper all dists, purl = TRUE}
 #A simple wrapper function for phyloseq objects and matrices, for all posible distributions it passes all argument onto the correct function.
-#Trim on prevalence to avoid instability of the algorithm
-RCM = function(dat, k, round=FALSE, distribution= c("NB", "ZIP", "ZINB"), prevCutOff = 0.01, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, ...){
+#Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
+RCM = function(dat, k, round=FALSE, distribution= c("NB", "ZIP", "ZINB"), prevCutOff = 0.01, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, ...){
   # @param dat: an nxp count matrix or a phyloseq object with an otu_table slot
   # @param k: an integer, the number of dimensions of the RCM solution
   # @param round (optional): a boolean, whether to round to nearest integer. Defaults to FALSE.
   # @param distribution (optional): a character string, the error distribution of the RC(M) model. Defaults to NB
   # @param prevCutoff (optional): a scalar, the prevalance cutoff for the trimming. Defaults to 1e-2
+  # @param minFraction (optional): a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10%
   # @param rowWeights, colWeights (optional): character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
   # @param covariates (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
   # @param confounders (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case dat is a matrix, a nxf matrix or dataframe of confounders Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
@@ -2896,10 +3084,10 @@ RCM = function(dat, k, round=FALSE, distribution= c("NB", "ZIP", "ZINB"), prevCu
 
   colnames(X)=colNames; rownames(X)=rowNames
   X=X[rowSums(X)>0, ] #Remove empty samples
-  X=X[, colMeans(X==0)<(1-prevCutOff)] #Remove txa with low prevalence
+  X=X[, (colMeans(X==0)<(1-prevCutOff)) & (colSums(X)>(n*minFraction))] #Remove txa with low prevalence and those who do not meet the minFraction requirement
   if (distribution %in% c("ZIP","ZINB")) X = X[rowSums(X==0)>0, colSums(X==0)>0] #For a zero-inflated model, make sure every row and column has zeroes
   
-  ##Build confounder matrix if applicable##
+  ##Build confounder matrix if applicable. For the preliminary trimming, we do not include an intercept, but we do include all the levels of the factors using contrasts=FALSE: we want to do the trimming in every subgroup, so no hidden reference levels. For the filtering we just use a model with anintercept and treatment coding##
   if(!is.null(confounders)){
     if(class(confounders) %in% c("vector","matrix")){
       if(NROW(X)!=NROW(confounders)){ #Check dimensions
@@ -2915,30 +3103,41 @@ RCM = function(dat, k, round=FALSE, distribution= c("NB", "ZIP", "ZINB"), prevCu
         if(class(confounders[,1])=="character"){
           warning("Converting character vector to factor! \n")
         }
-        confModelMat = model.matrix(object = as.formula(~ paste(colnames(confounders), sep="+"),"-1")) #Without intercept
+        confModelMatTrim = model.matrix(object = as.formula(paste("~" , paste(colnames(confounders), collapse="+"),"-1")), contrasts.arg = apply(confounders,2,contrasts, contrasts=FALSE)) 
+        confModelMat = model.matrix(object = as.formula(paste("~", paste(colnames(confounders), collapse="+"))), contrasts.arg = apply(confounders,2,contrasts, contrasts=TRUE)) 
       } else {
-        confModelMat = confounders
+        confModelMat = confModelMatTrim = confounders
       }
     } else if(class(confounders) == "dataframe"){
       if(NROW(X)!=NROW(confounders)){ #Check dimensions
         stop("Data and confounder matrix do not have the same number of samples! \n")
       }
-      confModelMat = model.matrix( object = as.formula(~ paste(names(confounders), sep="+"),"-1"))
+      confModelMatTrim = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"),"-1")), contrasts.arg = lapply(confounders[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts=FALSE))
+      confModelMat = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"))), contrasts.arg = lapply(confounders[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts = TRUE))
     } else if(class(confounders)=="character"){
       if(classDat != "phyloseq"){
         stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
       }
-      contrastsList = rep("contr.sum", length(confounders))
-      names(contrastsList) = confounders
-      confModelMat = model.matrix(object = formula(paste("~", paste(confounders, sep="+"),"-1")), data = data.frame(sample_data(dat)), contrasts.arg = as.list(contrastsList))
+      datFrame = data.frame(sample_data(dat)) # The dataframe with the confounders
+    confModelMatTrim = model.matrix(
+        object = formula(paste("~", paste(confounders, collapse="+"),"-1")), 
+        data = datFrame, 
+        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
+                               contrasts, contrasts=FALSE)) 
+    confModelMat = model.matrix(
+        object = formula(paste("~", paste(confounders, collapse="+"))), 
+        data = datFrame, 
+        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
+                               contrasts, contrasts = TRUE)) 
     } else{
       stop("Please provide the confounders either as matrix, dataframe, or character string! \n")
     }
   } else{
-    confModelMat = NULL
+    confModelMat = confModelMatTrim = NULL
   }
 
   ##Build covariate matrix if applicable##
+  # In this case we will 1) Use treatment coding for the dummies to simplify the estimation 2) Include an intercept
   if(!is.null(covariates)){
     if(class(covariates) %in% c("vector","matrix")){
       if(NROW(X)!=NROW(covariates)){ #Check dimensions
@@ -2977,10 +3176,16 @@ RCM = function(dat, k, round=FALSE, distribution= c("NB", "ZIP", "ZINB"), prevCu
   
 tic = proc.time() #Time the calculation
   tmp = switch(distribution, 
-               NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k, confounders  = confModelMat, covariates = covModelMat, prevCutOff = prevCutOff, ...),
-               ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k, confounders  = confModelMat, covariates = covModelMat, prevCutOff = prevCutOff,...),
-               ZINB=RCM_ZINB(X,  rowWeights = rowWeights, colWeights = colWeights, k = k, confounders  = confModelMat, covariates = covModelMat, prevCutOff = prevCutOff,...))
-  if(classDat=="phyloseq"){tmp$physeq = physeq} 
+               NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
+                         confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
+                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ...),
+               ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
+                            confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
+                           covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...),
+               ZINB=RCM_ZINB(X,  rowWeights = rowWeights, colWeights = colWeights, k = k, 
+                              confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
+                             covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...))
+  if(classDat=="phyloseq"){tmp$physeq = dat} 
   within(tmp, {
     runtimeInMins = (proc.time()-tic)[1]/60
     k = k #Store number of dimensions
@@ -3129,6 +3334,162 @@ legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), 
     }
 return(invisible())
   # par(tmp)
+}
+```
+
+## Constrained RC(M)
+
+```{r LRnb, purl=FALSE} 
+# DON'T USE "p" as variable name, partial matching in the grad-function!!!
+
+# A function that returns the value of the log-likelihood ratio of alpha
+LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric"), muMarg, thetas,  cReg, d, ncols, nleqslv.control = list(trace=FALSE), ...){#
+  # @param alpha: a vector of length d, the environmental gradient
+  # @param X: the n-by-p count matrix
+  # @param C: the n-by-d covariate matrix
+  # @param responseFun: a character string indicating the type of response function
+  # @param muMarg: an n-by-p offset matrix
+  # @param thetas: a vector of length p with estimated dispersion parameters (they will not be re-estimated to keep computation time down)
+  # @param ncols: a scalar, the number of columns of X
+  # @param cReg: a vector of length p, column scores * importance parameter
+  
+  # @return: a scalar, the evaluation of the log-likelihood ratio at the given alpha
+  
+	# alpha<-alpha/sqrt(sum(alpha^2))#
+    sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
+    design = switch(responseFun,
+                     linear = model.matrix(~sampleScore),
+                     quadratic = model.matrix(~sampleScore + I(sampleScore^2)))
+hh = rep(0,ncol(design))
+   NB_params = sapply(seq_len(ncols), function(i){
+     nleq = try(nleqslv(hh , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control, jac = JacCol_constr)$x)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
+     if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){
+     nleq = nleqslv(hh , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control)$x # If fails try with numeric jacobian
+     }
+     return(nleq)
+   })
+   #   NB_params_glm = sapply(seq_len(ncols), function(i){
+#      Glm = try(glm(X[,i] ~ I(design * cMat[i] * psi) -1, family = negative.binomial(theta = thetas[i]), offset = log(muMarg[,i]))$coef)
+#      if(class(Glm)=="try-error") {return(c(NA,NA))
+#      } else {return(Glm)}
+#    }) #Same output but our function is much faster (10 fold!) and always converges!
+    mu = muMarg * exp(t(t(design %*% NB_params)* cReg))
+    maxX =max(X)
+    mu[mu > maxX] = maxX
+    mu[mu==0] = 1e-16
+   
+   #Without taxon Labels
+   NB_param_noLab = nleqslv(x = hh , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, control = nleqslv.control, jac = JacCol_constr_noLab)$x
+   muNoLab = muMarg * exp(outer(colSums(t(design) * NB_param_noLab), cReg))
+    muNoLab[muNoLab > maxX] = maxX
+    muNoLab[muNoLab==0] = 1e-16
+ 
+    lr <- sum(X*log(mu))-sum(X*log(muNoLab)) # The likelihood ratio
+    # cat("Likelihood ratio:", lr, "\n")
+    return(-lr) # invert for the optimization
+}
+#--------------------------------------#
+# A function to evaluate the score function for 1 taxon at the time
+dNBllcol_constr = function(betas, X, reg, theta, muMarg, cReg) {
+  # @param beta: a vector of regression parameters (\boldsymbol{beta}_j)
+  # @param X: the nx1 data vector
+  # @param reg: a matrix of regressors with the same length as beta (\mathbf{C} \boldsymbol{\alpha})
+  # @param theta: The dispersion parameter
+  # @param mumarg: offset of length n
+  # @param cReg:  a scalar psi_k * s_{jk}
+
+  # @return The evaluation of the score functions
+
+  mu = exp(c(reg %*% betas)* cReg) * muMarg
+  score =  crossprod((X-mu)/(1+mu/theta) , reg) * cReg
+  return(score)
+}
+#--------------------------------------#
+# The jacobian of this function
+JacCol_constr = function(betas, X, reg, theta, muMarg, cReg) {
+  # @param beta: a vector of regression parameters (\boldsymbol{beta}_j)
+  # @param X: the nx1 data vector
+  # @param reg: a matrix of regressors with the same length as beta (\mathbf{C} \boldsymbol{\alpha})
+  # @param theta: The dispersion parameter
+  # @param mumarg: offset of length n
+  # @param cReg:  a scalar psi_k * s_{jk}
+
+  # @return The jacobian
+
+  mu = exp(c(reg %*% betas)* cReg) * muMarg
+  tmp = (1+X/theta)*mu/(1+mu/theta)^2
+  Jac = crossprod(tmp*reg,reg) * cReg^2 #Don't forget to square cReg!
+  return(-Jac)
+}
+#--------------------------------------#
+# A function to evaluate the score function ignoring taxon labels
+dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
+  # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
+  # @param X: the nxp data matrix
+  # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
+  # @param thetas: The dispersion parameters (a vector of length p)
+  # @param muMarg: offset matrix of dimension nxp
+  # @param cReg: a vector of length p with the column scores * importance parameter
+
+  # @return The evaluation of the score functions (a vector length v)
+
+  mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
+  score = colSums(crossprod((X-mu)/(1+t(t(mu)/thetas)),reg) * cReg)
+  
+  return(score)
+}
+#--------------------------------------#
+# The jacobian of this function
+JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
+  # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
+  # @param X: the nxp data matrix
+  # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
+  # @param thetas: The dispersion parameters (a vector of length p)
+  # @param muMarg: offset matrix of dimension nxp
+
+  # @return The jacobian (a v-by-v matrix)
+
+  mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
+  tmp = t(t((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2) * cReg^2) #Don't forget to square cReg!
+  tmp2 = vapply(1:ncol(reg), FUN.VALUE = tmp, function(x){reg[,x]*tmp})
+  Jac = crossprod(reg, apply(tmp2, c(1,3), sum))  
+  return(-Jac)
+}
+#--------------------------------------#
+# A function to estimate alpha based on the LR-criterion
+estAlpha = function(Alpha, X, CC, d, k, ncols, responseFun = c("linear","quadratic","nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list() ){
+  
+  # @param alpha: a vector of length d, the environmental gradient
+  # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
+  # @param ncols: a scalar, the number of columns of X
+  # @param k: a scalar, dimension index
+  # @param X: the n-by-ncols count matrix
+  # @param C: the n-by-d covariate matrix
+  # @param responseFun: a character string indicating the type of response function
+  # @param muMarg: an n-by-ncols offset matrix
+  # @param thetas: a vector of length ncols with estimated dispersion parameters (they will not be re-estimated within the alpha estimation to keep computation time down)
+  # @param cReg: a vector of length p, column scores * importance parameter
+  
+  # @return: a vector of length  with the new alpha estimate
+  
+  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = c("linear"), muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k) #
+}
+#--------------------------------------#
+# A linear equality constraints function for estAlpha (see ?alabama)
+heq_nb = function(Alpha, alphaK, d, k, ...){
+  center = sum(Alpha)
+  size = sum(Alpha^2)-1
+  if(k==1) { return(c(center, size))}
+  ortho = alphaK %*% Alpha
+  c(center, size, ortho)
+}
+# It's jacobian, returns a matrix with d columns and at least 2 rows
+heq_nb_jac = function(Alpha, alphaK, d, k, ...){
+  center = rep.int(1,d)
+  size = 2*Alpha
+  if(k==1) {return(rbind(center, size))}
+  ortho = alphaK
+  rbind(center, size, ortho)
 }
 ```
 
@@ -4340,6 +4701,18 @@ confDrop = droplevels(conf)[[1]]
 filtRes = lapply(RCMhmpFilt, function(x){
   RCM(x, distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2")
   })
+
+antNarJob = mcparallel(  RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2"))
+antNar = mccollect(antNarJob, wait=FALSE)[[1]]
+save(antNar, file="antNarConfounders.RData")
+
+filtResJob = mcparallel(lapply(RCMhmpFilt, function(x){
+  RCM(x, distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2")
+  }))
+filtRes = mccollect(filtResJob, wait=FALSE)[[1]]
+
+#With two confounders
+confTest = RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = c("sex","RUNCENTER2"))
 ```
 
 The AGP dataset
@@ -4664,324 +5037,7 @@ sapply(solListWSZINB,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
 palette(palStore)
 ```
 
-# Constrained analysis
-
-So far we haven been doing unconstrained or unsupervised explorative visualization, or _indirect_ gradient analysis. We just visualized the strongest signals in the data, independent of sample covariates. Only then did we use the covariate information to try to correlate the covariates with the latent variables formed by the row and column scores. We usually do this by adding a colour code for the samples in our biplots.
-
-A logical next step is to develop a constrained method in the same framework, i.e. with the same error distribution. We argued that PCoA with Bray-Curtis distance or regular correspondence analysis did not perform well, and we expect the same for canonical correspondence analysis since it relies on the same distributional assumptions. We will visualize those departures from the independence model that can be explained by the sample covariates. Each dimension will thus consist of a linear combination of sample covariates, the weight of each of these covariates in the dimensions reflecting how much they contribute to explaining the variation. For background information see also Zhu _et al._ , 2005, and Zhang and Thas, 2012.
-
-We call our n-by-d covariate matrix $C$, for every sample $i$, $d$ baseline covariates are measured. These covariates can be either discrete or continuous. $c_{iy}$ is the observed value of covariate $y$ in sample $i$, $\mathbf{c_{i.}}$ the whole covariate vector of length $d$ of sample $i$, and $\mathbf{c_{.y}}$ all recorded values of variable $y$.
-
-### Constrained RC(M) model
-
-I can see multiple possible modelling options
-
-1) The classical approach
-
-This model comes from ecology and is the one used by Zhu _et al._ (2005) and Zhang and Thas (2012 and 2016). This assumes each taxon has an optimal combination of covariates, and its expected abundance decreases as the covariates depart from this optimal combination. The expected abundance follows a Gaussian distribution in function of this departure.
-
-The expected counts are modelled as 
-
-$$log(E(X_{ij})) = \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
-
-whereby 
-
- - $h_{ik} = \boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$ the optimal linear combination of $\mathbf{c}_{i.}$ in dimension $k$
- - $\boldsymbol{\alpha}_k$ is called the _environmental gradient_
- - $\alpha_{ky}$ is element corresponding to covariate $y$ of the environmental gradient in dimension $k$
- - $a_{jk}$ is the maximal logged expected abundance achieved when the linear combination of covariates $\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$ equals the optimum $q_{jk}$
- - $m_{jk}$ is the tolerance, it determines how fast the expected value decreases as $\mathbf{c}_{i.}$ moves away from its optimal values $\boldsymbol{\alpha}_k^{-t}h_{ik}$
- 
- The scales of $h_{ik}$, $q_{jk}$ and $m_{jk}$ are undefined, so we need an additional restriction to render the model identifiable. Zhu _et al._, 2005 propose setting $\sum_{j=1}^p m_{jk}^2/p=1$. Note that $a_{jk}$, $q_{jk}$ and $m_{jk}$ are species specific parameters whereas $\boldsymbol{\alpha}_k$ is specific for the dimension but common to all species.
-
-The estimation iterates between estimating $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_{jk} = \big(a_{jk}, q_{jk}, m_{jk})$.
-
-This model was designed with the ecological context in mind, whereby (continuous) environmental variables such as pH, temperature, sunlight intensity, ion concentrations, distance to landscape elements etc. were measured. However for microbiome data, we usually do not have direct measurements of variables in the ecosystem, but rather characterstics of the patient, which are very often categorical variables. Even for a continuous variable like age the Gaussian assumption seems weird to me. Keeping the other covariates fixed, this would mean there is an optimal age for bacteria to grow and their expected abundance would decrease for older or younger people. This may or may not be a realistic model.
-
-Let's take a look at the nature of the covariate data.
-
-```{r Nature of the covariates, eval=TRUE, purl=FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-load("/home/stijn/PhD/Simulations/data/physeqList4Trim.RData")
-load("/home/stijn/PhD/Simulations/data/zellerData.RData")
-load("/home/stijn/PhD/Biplots/Kostic_data/phyloD.RData")
-tableSamVar = function(x){
-  table(sapply(sample_data(x), class))
-}
-phyList = list("American gut"=AGphylo, "Kostic"=phyloD, "HMP" = physeqList4Trim[["Throat"]], "zeller16S" = zellerSphy, "zellerMetagenomics" = zellerMphy)
-sapply(phyList, tableSamVar)
-```
-
-Most variables are factors or booleans. Below are the names of the variables shown:
-
-```{r covariate names, purl=FALSE}
-sapply(phyList, sample_variables)
-```
-
-I wonder how realistic the Gaussian response model still is with so many categorical variables and so many species. I guess we would best seek some expert advice of microbiome scientists.
-
-2) Classical approach: RC(M) variation
-
-If we want to stay in the RC(M) framework we can also model the mean as:
-
-$$log(E(X_{ij})) =  u + u_i + u_j  + \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
-
-This approach differs from the one proposed in Zhu _et al._, 2005 in the intercepts $u_i$ and $u_j$. These intercepts will still be estimated by maximum likelihood in the first step, just as in the unconstrained case. We do not continue on this track.
-
-3) Constrained RC(M)
-
-A third option would be to drop the whole Gaussian assumption and build a model as follows:
-
-$$log(E(X_{ij})) = u + u_i + u_j  + \sum_{k=1}^K \psi_k s_{jk} f(\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}) $$
-
-with $f$ the response function, which can be linear, quadratic (Gaussian on count scale), non-parametric, ... . The usual restrictions apply to the column scores $\mathbf{s}$:
-
-$$\mathbf{s^tu_{tax}} = \mathbf{0}$$
-$$\mathbf{s_k^tUs_{k'}} = I(k=k')$$
-
-with $u_{tax}$ the vector of $exp(u_j)$'s and  $\mathbf{U}$ a diagonal p-by-p matrix with $u_{tax}$ on the diagonal.
-
-For $\alpha$ (a d-by-k matrix) we could enforce the following restrictions:
-
-- Centering is desirable for the triplot
-
-$$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
- - Normalization restricts the size, only $\psi_k$ can grow in magnitude
-
-$$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbb{1}_k$$
-
-with $\mathbf{1}$ a vector of ones of length $d$ and $\mathbb{1}_k$ the identity matrix of dimension $k$. However to maintain maximal comparability with the unconstrained RC(M)-model we prefer to set 
-
-$$\mathbf{C}\boldsymbol{\alpha}\mathbf{1} = \mathbf{0}$$
-$$\big(\mathbf{C}\boldsymbol{\alpha}\big)^t\mathbf{C}\boldsymbol{\alpha} = \mathbb{1}_k$$
-
-This approach has the advantage of having a clear relationship to the unconstrained RC(M) model. If there are no covariate data and $C$ only contains intercepts this simplifies to the unconstrained version. We can add the $\boldsymbol{\alpha}_k$'s to to the biplots in order to make triplots and visualize on which variables the departures in the different directions depend most. For discrete covariates in C we will use a non-parametric approach using dummy coding. For the final visualization we will use sum coding for ease of interpretation.
-
-### Response function
-
-For the response function previously a Gaussian has been proposed but this may not be realistic. In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). For any response function with $q$ parameters $\boldsymbol{\beta}_j$ for every taxon $j$ the mean equals:
-
-$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big)$$
-
-and the score function for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
-
-$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv}} = \sum_{i=1}^n \psi s_j \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv}} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
-
-In the linear case (when $f \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) = \beta_0 + \beta_1 \boldsymbol{\alpha}^t \mathbf{C}_{i.}$) this becomes:
-
-$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}} = \sum_{i=1}^n \psi s_j \boldsymbol{\alpha}^t \mathbf{C}_{i.} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
-
-The second order derivative in its general form is just horrible:
-
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv} \partial \beta_{jv'}} = \sum_{i=1}^n \frac{\psi s_j}{1+\frac{\mu_{ij}}{\theta_j}} \Big( \frac{\partial^2 f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj} \partial \beta_{v'j}} (x_{ij} - \mu_{ij}) + \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj}} \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{v'j}} \psi s_j \big(\frac{\mu_{ij}(1-\theta_j(1+\mu_{ij}))-x_{ij}}{\theta_j+\mu_{ij}} \big)  \Big)$$
-
-In the linear case this simplifies to:
-
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}^2 } = \sum_{i=1}^n - \frac{(\psi s_j \boldsymbol{\alpha}^t \mathbf{C}_{i.})^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
-
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1} \partial \beta_{j0} } = \sum_{i=1}^n - \frac{(\psi s_j \boldsymbol{\alpha}^t)^2 \mathbf{C}_{i.} \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
-
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j0}^2 } = \sum_{i=1}^n - \frac{(\psi s_j )^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}$$
-
-Except for the linear case, we will just calculate these numerically in practice, which is necessary anyway when $f$ is non-parametric.
-
-### Constrained RC(M) estimation
-
-We would again first estimate the independence model ($u_i$ and $u_j$) as before, and then estimate one dimension $k$ at the time, conditional on the previous ones. $\mathbf{\psi}$ and $\mathbf{s}$ will be estimated as before. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the likelihood ratio approach from Zhu _et al._ (2005):
-
-$$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}$$
-
-with $p^{(\alpha)}$ and $p^{(\alpha)}_j$ estimated probability density functions without and with taxon labels. $p^{(\alpha)}$ and $p^{(\alpha)}_j$ are calculated as the expected counts under a certain error distribution (e.g. negative binomial) whereby $f_j()$ and $f_0()$ are estimated given $\boldsymbol{\alpha}$ : 
-$$p_j^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) = e_{ij} = \exp\Big[u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big) \Big] $$ 
-and 
-
-$$p^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) = e_{ij0} = \exp\Big[u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta} \big) \Big) \Big] $$ 
-
-(ignoring taxon labels when estimating $f()$).
-
-The likelihood ratio then equals
-
-$$LR(\boldsymbol{\alpha}) = \sum_{i=1}^n \sum_{j=1}^p log(e_{ij})x_{ij}-\sum_{i=1}^n \sum_{j=1}^p log(e_{i.})x_{ij}$$
-
-Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm may be computationally unfeasible. Under non-parametric estimation also no analytical derivative can be calculated so we will have to rely on numerical ones, which will slow down calculations.
-
-The estimation would then proceed as follows:
-
- 1. Estimate the independence model ($u_i$'s, and $u_j$'s)
- 2. Find initial values for $\psi_k$ and $s_{jk}$ as before.
- 3. Iterate between
-  - Estimate $f_j$'s and $f_0$ and corresponding $e_{ij}$ and $e_{i.}$ given $\boldsymbol{\alpha}$
-  - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
-4. Estimate $\psi_k$ and $s_{jk}$ using ML
-5. Repeat steps 3-4 until convergence
-6. Build the triplot
-  a. Plot $\psi_1 \boldsymbol{\alpha}_1^T \mathbf{C}$ vs. $\psi_2 \boldsymbol{\alpha}_2^T \mathbf{C}$ for the samples
-  b. Add $\mathbf{s}_{.1}$ vs . $\mathbf{s}_{.2}$ for the taxa
-  c. Add $\boldsymbol{\alpha}_1$ vs $\boldsymbol{\alpha}_2$ for the variables
-  
-### Restricitions
-
-The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
-
-$$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
-
-$$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbf{1}$$
-
-$$\boldsymbol{\alpha_k}^t\boldsymbol{\alpha_{k'}} = 0$$
-
-```{r LRnb, purl=FALSE} 
-# DON'T USE "p" as variable name, partial matching in the grad-function!!!
-
-# A function that returns the value of the log-likelihood ratio of alpha
-LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric"), muMarg, thetas,  cReg, d, ncols, nleqslv.control = list(trace=FALSE), ...){#
-  # @param alpha: a vector of length d, the environmental gradient
-  # @param X: the n-by-p count matrix
-  # @param C: the n-by-d covariate matrix
-  # @param responseFun: a character string indicating the type of response function
-  # @param muMarg: an n-by-p offset matrix
-  # @param thetas: a vector of length p with estimated dispersion parameters (they will not be re-estimated to keep computation time down)
-  # @param ncols: a scalar, the number of columns of X
-  # @param cReg: a vector of length p, column scores * importance parameter
-  
-  # @return: a scalar, the evaluation of the log-likelihood ratio at the given alpha
-  
-	# alpha<-alpha/sqrt(sum(alpha^2))#
-    sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
-    design = switch(responseFun,
-                     linear = model.matrix(~sampleScore),
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2)))
-hh = rep(0,ncol(design))
-   NB_params = sapply(seq_len(ncols), function(i){
-     nleq = try(nleqslv(hh , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control, jac = JacCol_constr)$x)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
-     if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){
-     nleq = nleqslv(hh , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control)$x # If fails try with numeric jacobian
-     }
-     return(nleq)
-   })
-   #   NB_params_glm = sapply(seq_len(ncols), function(i){
-#      Glm = try(glm(X[,i] ~ I(design * cMat[i] * psi) -1, family = negative.binomial(theta = thetas[i]), offset = log(muMarg[,i]))$coef)
-#      if(class(Glm)=="try-error") {return(c(NA,NA))
-#      } else {return(Glm)}
-#    }) #Same output but our function is much faster (10 fold!) and always converges!
-    mu = muMarg * exp(t(t(design %*% NB_params)* cReg))
-    maxX =max(X)
-    mu[mu > maxX] = maxX
-    mu[mu==0] = 1e-16
-   
-   #Without taxon Labels
-   NB_param_noLab = nleqslv(x = hh , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, control = nleqslv.control, jac = JacCol_constr_noLab)$x
-   muNoLab = muMarg * exp(outer(colSums(t(design) * NB_param_noLab), cReg))
-    muNoLab[muNoLab > maxX] = maxX
-    muNoLab[muNoLab==0] = 1e-16
- 
-    lr <- sum(X*log(mu))-sum(X*log(muNoLab)) # The likelihood ratio
-    # cat("Likelihood ratio:", lr, "\n")
-    return(-lr) # invert for the optimization
-}
-#--------------------------------------#
-# A function to evaluate the score function for 1 taxon at the time
-dNBllcol_constr = function(betas, X, reg, theta, muMarg, cReg) {
-  # @param beta: a vector of regression parameters (\boldsymbol{beta}_j)
-  # @param X: the nx1 data vector
-  # @param reg: a matrix of regressors with the same length as beta (\mathbf{C} \boldsymbol{\alpha})
-  # @param theta: The dispersion parameter
-  # @param mumarg: offset of length n
-  # @param cReg:  a scalar psi_k * s_{jk}
-
-  # @return The evaluation of the score functions
-
-  mu = exp(c(reg %*% betas)* cReg) * muMarg
-  score =  crossprod((X-mu)/(1+mu/theta) , reg) * cReg
-  return(score)
-}
-#--------------------------------------#
-# The jacobian of this function
-JacCol_constr = function(betas, X, reg, theta, muMarg, cReg) {
-  # @param beta: a vector of regression parameters (\boldsymbol{beta}_j)
-  # @param X: the nx1 data vector
-  # @param reg: a matrix of regressors with the same length as beta (\mathbf{C} \boldsymbol{\alpha})
-  # @param theta: The dispersion parameter
-  # @param mumarg: offset of length n
-  # @param cReg:  a scalar psi_k * s_{jk}
-
-  # @return The jacobian
-
-  mu = exp(c(reg %*% betas)* cReg) * muMarg
-  tmp = (1+X/theta)*mu/(1+mu/theta)^2
-  Jac = crossprod(tmp*reg,reg) * cReg^2 #Don't forget to square cReg!
-  return(-Jac)
-}
-#--------------------------------------#
-# A function to evaluate the score function ignoring taxon labels
-dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
-  # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
-  # @param X: the nxp data matrix
-  # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
-  # @param thetas: The dispersion parameters (a vector of length p)
-  # @param muMarg: offset matrix of dimension nxp
-  # @param cReg: a vector of length p with the column scores * importance parameter
-
-  # @return The evaluation of the score functions (a vector length v)
-
-  mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
-  score = colSums(crossprod((X-mu)/(1+t(t(mu)/thetas)),reg) * cReg)
-  
-  return(score)
-}
-#--------------------------------------#
-# The jacobian of this function
-JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
-  # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
-  # @param X: the nxp data matrix
-  # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
-  # @param thetas: The dispersion parameters (a vector of length p)
-  # @param muMarg: offset matrix of dimension nxp
-
-  # @return The jacobian (a v-by-v matrix)
-
-  mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
-  tmp = t(t((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2) * cReg^2) #Don't forget to square cReg!
-  tmp2 = vapply(1:ncol(reg), FUN.VALUE = tmp, function(x){reg[,x]*tmp})
-  Jac = crossprod(reg, apply(tmp2, c(1,3), sum))  
-  return(-Jac)
-}
-#--------------------------------------#
-# A function to estimate alpha based on the LR-criterion
-estAlpha = function(Alpha, X, CC, d, k, ncols, responseFun = c("linear","quadratic","nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list() ){
-  
-  # @param alpha: a vector of length d, the environmental gradient
-  # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
-  # @param ncols: a scalar, the number of columns of X
-  # @param k: a scalar, dimension index
-  # @param X: the n-by-ncols count matrix
-  # @param C: the n-by-d covariate matrix
-  # @param responseFun: a character string indicating the type of response function
-  # @param muMarg: an n-by-ncols offset matrix
-  # @param thetas: a vector of length ncols with estimated dispersion parameters (they will not be re-estimated within the alpha estimation to keep computation time down)
-  # @param cReg: a vector of length p, column scores * importance parameter
-  
-  # @return: a vector of length  with the new alpha estimate
-  
-  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = c("linear"), muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k) #
-}
-#--------------------------------------#
-# A linear equality constraints function for estAlpha (see ?alabama)
-heq_nb = function(Alpha, alphaK, d, k, ...){
-  center = sum(Alpha)
-  size = sum(Alpha^2)-1
-  if(k==1) { return(c(center, size))}
-  ortho = alphaK %*% Alpha
-  c(center, size, ortho)
-}
-# It's jacobian, returns a matrix with d columns and at least 2 rows
-heq_nb_jac = function(Alpha, alphaK, d, k, ...){
-  center = rep.int(1,d)
-  size = 2*Alpha
-  if(k==1) {return(rbind(center, size))}
-  ortho = alphaK
-  rbind(center, size, ortho)
-}
-```
+### Constrained RC(M): tests
 
 Test this method in one dimension, linear response function. Default should probably be: linear for the dummy's of the categorical variables, quadratic or non-parametric for continuous ones.
 
