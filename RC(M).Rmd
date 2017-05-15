@@ -360,7 +360,7 @@ For the filtering based on the prevalence and abundance, we need a confounder ma
  1. With intercept
  2. With treatment coding
  
- In this case all that matters is to change the offset. We will still return the confoundes' parameters though.
+ In this case all that matters is to change the offset formed by the independence model. We will still return the confoundes' parameters though.
 
 ## Zero-inflated poisson
 
@@ -387,9 +387,9 @@ Unlike the RC(2)NB model, $f_j$ has to be estimated as well, there is no obvious
 
 Newton-Raphson would be incredibly complicated here, the derivatives of the log-likelihood functions barely fit on a page!
 
-# Constrained analysis
+## Constrained analysis
 
-So far we haven been doing unconstrained or unsupervised explorative visualization, or _indirect_ gradient analysis. We just visualized the strongest signals in the data, independent of sample covariates. Only then did we use the covariate information to try to correlate the covariates with the latent variables formed by the row and column scores. We usually do this by adding a colour code for the samples in our biplots.
+So far we have been doing unconstrained or unsupervised explorative visualization, or _indirect_ gradient analysis. We just visualized the strongest signals in the data, independent of sample covariates. Only then did we use the covariate information to try to correlate the covariates with the latent variables formed by the row and column scores. We usually do this by adding a colour code for the samples in our biplots.
 
 A logical next step is to develop a constrained method in the same framework, i.e. with the same error distribution. We argued that PCoA with Bray-Curtis distance or regular correspondence analysis did not perform well, and we expect the same for canonical correspondence analysis since it relies on the same distributional assumptions. We will visualize those departures from the independence model that can be explained by the sample covariates. Each dimension will thus consist of a linear combination of sample covariates, the weight of each of these covariates in the dimensions reflecting how much they contribute to explaining the variation. For background information see also Zhu _et al._ , 2005, and Zhang and Thas, 2012.
 
@@ -451,7 +451,7 @@ $$log(E(X_{ij})) =  u + u_i + u_j  + \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - 
 
 This approach differs from the one proposed in Zhu _et al._, 2005 in the intercepts $u_i$ and $u_j$. These intercepts will still be estimated by maximum likelihood in the first step, just as in the unconstrained case. We do not continue on this track.
 
-3) Constrained RC(M)
+3) Constrained RC(M): non-parametric approach
 
 A third option would be to drop the whole Gaussian assumption and build a model as follows:
 
@@ -508,9 +508,9 @@ $$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \bet
 
 Except for the linear case, we will just calculate these numerically in practice, which is necessary anyway when $f$ is non-parametric.
 
-### Constrained RC(M) estimation
+### Constrained RC(M): Estimation
 
-We would again first estimate the independence model ($u_i$ and $u_j$) as before, and then estimate one dimension $k$ at the time, conditional on the previous ones. $\mathbf{\psi}$ and $\mathbf{s}$ will be estimated as before. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the likelihood ratio approach from Zhu _et al._ (2005):
+We would again first estimate the independence model ($u_i$ and $u_j$) as before, and then estimate one dimension $k$ at the time, conditional on the previous ones. If desirable, also the offset can be modified to eliminate some confounding variables. $\mathbf{\psi}$ and $\mathbf{s}$ will be estimated as before. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the likelihood ratio approach from Zhu _et al._ (2005):
 
 $$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}$$
 
@@ -531,13 +531,14 @@ Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm may b
 The estimation would then proceed as follows:
 
  1. Estimate the independence model ($u_i$'s, and $u_j$'s)
- 2. Find initial values for $\psi_k$ and $s_{jk}$ as before.
- 3. Iterate between
+ 2. (Optional): Filter out confounders by modifying offset
+ 3. Find initial values for $\psi_k$ and $s_{jk}$ as before.
+ 4. Iterate between
   - Estimate $f_j$'s and $f_0$ and corresponding $e_{ij}$ and $e_{i.}$ given $\boldsymbol{\alpha}$
   - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
-4. Estimate $\psi_k$ and $s_{jk}$ using ML
-5. Repeat steps 3-4 until convergence
-6. Build the triplot
+5. Estimate $\psi_k$ and $s_{jk}$ using ML
+6. Repeat steps 3-4 until convergence
+7. Build the triplot
   a. Plot $\psi_1 \boldsymbol{\alpha}_1^T \mathbf{C}$ vs. $\psi_2 \boldsymbol{\alpha}_2^T \mathbf{C}$ for the samples
   b. Add $\mathbf{s}_{.1}$ vs . $\mathbf{s}_{.2}$ for the taxa
   c. Add $\boldsymbol{\alpha}_1$ vs $\boldsymbol{\alpha}_2$ for the variables
@@ -546,11 +547,61 @@ The estimation would then proceed as follows:
 
 The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
 
-$$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
+$$\boldsymbol{\alpha}_k^t\mathbf{1} = \mathbf{0}$$
 
-$$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbf{1}$$
+$$\boldsymbol{\alpha}_k^t\boldsymbol{\alpha}_k = \mathbf{1}$$
 
 $$\boldsymbol{\alpha_k}^t\boldsymbol{\alpha_{k'}} = 0$$
+#### Restricitons: Categorical variables
+
+For continuous variables the previous discussion suffises, but for categorical variables special attention is required. For fitting the model we will use _treatment coding_ for simplicity. However, the above centering, normalization and orthogonality constraints should apply to all of the parameters, so using we will need a coding scheme that includes all parameters.
+
+Say we have $d_{cont}$ continuous covariates and $d_{cat}$ categorical variables with $d = d_{cont} + d_{cat}$, and $m_l$ levels for every categorical variable $l$. Then $\boldsymbol{\alpha}_k$ compromises
+
+$$ q = 1 + d_{cont} + \sum_{l=1}^{d_{cat}} (m_l-1) $$
+rows, or $q$ parameters to be estimated. We can write $\boldsymbol{\alpha}_k$ then as:
+
+$$\boldsymbol{\alpha}_k = (\beta_{0}, \beta_{cont_1}, ... , \beta_{cont_{d_{cont}}}, \beta_{cat_{11}}, \beta_{cat_{12}}, ..., \beta_{cat_{1(m_1-1)}}, ...,  \beta_{cat_{d_{cat}(m_{d_{cat}}-1)}})_k$$
+Hereby $\beta_{0k}$ represents the offset of the $k$-th dimension. It represents the log-row score for a sample with all continuous covariates equal to zero and the categorical ones equal to their reference level. 
+
+For imposing the restricitions and for plotting we want a representation whereby all covariate levels are represented so that the parameters sum to 0 within each covariate.
+
+$$\boldsymbol{\alpha}_k' = (\beta_{0}', \beta_{cont_1}', ... , \beta_{cont_{d_{cont}}}', \beta_{cat_{11}}', \beta_{cat_{12}}', ..., \beta_{cat_{1m_1}}', ...,  \beta_{cat_{d_{cat}m_{d_{cat}}}}')_k$$
+under the restriction that for all categorical variables $l$
+
+$$\sum_{m=1}^{m_l} \beta_{cat_{lm}k} = 0$$
+In this case $\beta_{k0}'$ is the _grand mean_: the average value over all groups of the categorical variables and for all continuous covariates equal to zero. It is this $\boldsymbol{\alpha}_k$ that will need to be centered, normalized and orthogonalized. Note that the categorical covariates are already centered by default. Also this representation will come in handy for plotting, centering the levels of the same covariate around zero. We will call this the __zero-sum__ representation. For a single covariate we go from the treatment (with first level the reference level) to the zero sum representation by solving the following system:
+
+$$\begin{pmatrix}
+  1 & 1 & 0 & 0 & 0 & \ldots & 0 \\
+  0 & -1 & 1 & 0 & 0 & \ldots & 0\\
+  0 & 0 & -1 & 1 & 0 &  \ldots & 0\\
+  \vdots & \vdots & \vdots &  \ddots & \ddots &  \vdots & \vdots\\
+  0 & 0 & 0 &  \ldots & 0 &  -1 & 1\\
+  0 & 1 & 1 & \ldots & 1 & 1 & 1\\
+ \end{pmatrix} 
+\begin{pmatrix}
+\beta_0'\\
+\beta_1'\\
+\beta_2'\\
+\beta_3'\\
+\beta_4'\\
+\vdots \\
+\beta_{m_l}'\\
+\end{pmatrix} = 
+ \begin{pmatrix}
+ \beta_0\\
+ \beta_2\\
+ \beta_3\\
+ \beta_4\\
+ \vdots \\
+ \beta_{m_l}'\\
+ 0
+ \end{pmatrix}
+ $$
+For more parameters it suffises to append the system to the existing one, $\beta_0'$ is the only common term in all of them.
+
+\newpage
 
 # Implementation
 
@@ -870,7 +921,7 @@ estDisp = function (X, cMat, rMat, muMarg, psis, prior.df = 10, dispWeights = NU
 #-------------------------------------------#
 # A function to trim based on confounders to ensure there are no taxa with only zero counts in one of the subgroups defined by the confounders. Returns a trimmed data matrix, should be called prior to fitting the independence model
 trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
-  # @param confounders: a nxt confounder dataframe. Only numeric values and factors are allowed
+  # @param confounders: a nxt confounder matrix
   # @param X: the nxp data matrix
   # @param prevCutOff: a scalar, the prevalence cut off
   # @param minFraction: a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed
@@ -881,6 +932,10 @@ trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
       tapply(X = x, INDEX = conf, FUN = function(y){mean(y!=0) <= prevCutOff | sum(y)<(n*minFraction)}) #Any all-zero subgroup?
     }))
   })
+  
+  if(all(trimmingID)){
+    stop("All taxa would be trimmed, please provide a covariate with less levels! \n")
+  }
   
   X[, !trimmingID] #Return trimmed X
 }
@@ -3046,219 +3101,6 @@ minK = ifelse(is.null(ZINBRCM),1,Kprev+1)
 }
 ```
 
-## Wrapper for all distirbutions
-
-```{r Wrapper all dists, purl = TRUE}
-#A simple wrapper function for phyloseq objects and matrices, for all posible distributions it passes all argument onto the correct function.
-#Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
-RCM = function(dat, k, round=FALSE, distribution= c("NB", "ZIP", "ZINB"), prevCutOff = 0.01, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, ...){
-  # @param dat: an nxp count matrix or a phyloseq object with an otu_table slot
-  # @param k: an integer, the number of dimensions of the RCM solution
-  # @param round (optional): a boolean, whether to round to nearest integer. Defaults to FALSE.
-  # @param distribution (optional): a character string, the error distribution of the RC(M) model. Defaults to NB
-  # @param prevCutoff (optional): a scalar, the prevalance cutoff for the trimming. Defaults to 1e-2
-  # @param minFraction (optional): a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10%
-  # @param rowWeights, colWeights (optional): character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
-  # @param covariates (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
-  # @param confounders (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case dat is a matrix, a nxf matrix or dataframe of confounders Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
-  
-  classDat = class(dat) #The class provided
-  
-  ##The count data##
-  if (classDat=="matrix"){
-  X = dat
-  }else  if(classDat=="phyloseq"){
-  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
-  } else {stop("Please provide a matrix or a phyloseq object! \n")}
-  p=ncol(X); n=nrow(X)
-  
-  if(is.null(colnames(X))){colnames(X)=1:ncol(X)}
-  if(is.null(rownames(X))){rownames(X)=1:nrow(X)}
-  colNames = colnames(X); rowNames =rownames(X)
-  # names(rowWeightsNum) =rowNames; names(colWeightsNum) = colNames
-  if(round) {X=round(X, 0) }#Round to integer
-  
-  #Check Xa type
-  if(!all(sapply(X, function(x){(x%%1)==0}))){stop("Please provide integer count matrix! \n")
-    } else{X=matrix(as.integer(X), ncol=ncol(X), nrow=nrow(X))}
-
-  colnames(X)=colNames; rownames(X)=rowNames
-  X=X[rowSums(X)>0, ] #Remove empty samples
-  X=X[, (colMeans(X==0)<(1-prevCutOff)) & (colSums(X)>(n*minFraction))] #Remove txa with low prevalence and those who do not meet the minFraction requirement
-  if (distribution %in% c("ZIP","ZINB")) X = X[rowSums(X==0)>0, colSums(X==0)>0] #For a zero-inflated model, make sure every row and column has zeroes
-  
-  ##Build confounder matrix if applicable. For the preliminary trimming, we do not include an intercept, but we do include all the levels of the factors using contrasts=FALSE: we want to do the trimming in every subgroup, so no hidden reference levels. For the filtering we just use a model with anintercept and treatment coding##
-  if(!is.null(confounders)){
-    if(class(confounders) %in% c("vector","matrix")){
-      if(NROW(X)!=NROW(confounders)){ #Check dimensions
-        stop("Data and confounder matrix do not have the same number of samples! \n")
-      }
-      if(is.vector(confounders)){
-      confounders = as.matrix(confounders) #Convert to matrix if only 1 variable
-      }
-      if(is.null(colnames(confounders))){ #assign names if needed
-        colnames(confounders) = paste("var",seq_len(NCOL(confounders)))
-      }
-      if(class(confounders[,1]) %in% c("character", "factor")){ #If character or factor, build model matrix
-        if(class(confounders[,1])=="character"){
-          warning("Converting character vector to factor! \n")
-        }
-        confModelMatTrim = model.matrix(object = as.formula(paste("~" , paste(colnames(confounders), collapse="+"),"-1")), contrasts.arg = apply(confounders,2,contrasts, contrasts=FALSE)) 
-        confModelMat = model.matrix(object = as.formula(paste("~", paste(colnames(confounders), collapse="+"))), contrasts.arg = apply(confounders,2,contrasts, contrasts=TRUE)) 
-      } else {
-        confModelMat = confModelMatTrim = confounders
-      }
-    } else if(class(confounders) == "dataframe"){
-      if(NROW(X)!=NROW(confounders)){ #Check dimensions
-        stop("Data and confounder matrix do not have the same number of samples! \n")
-      }
-      confModelMatTrim = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"),"-1")), contrasts.arg = lapply(confounders[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts=FALSE))
-      confModelMat = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"))), contrasts.arg = lapply(confounders[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts = TRUE))
-    } else if(class(confounders)=="character"){
-      if(classDat != "phyloseq"){
-        stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
-      }
-      datFrame = data.frame(sample_data(dat)) # The dataframe with the confounders
-    confModelMatTrim = model.matrix(
-        object = formula(paste("~", paste(confounders, collapse="+"),"-1")), 
-        data = datFrame, 
-        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
-                               contrasts, contrasts=FALSE)) 
-    confModelMat = model.matrix(
-        object = formula(paste("~", paste(confounders, collapse="+"))), 
-        data = datFrame, 
-        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
-                               contrasts, contrasts = TRUE)) 
-    } else{
-      stop("Please provide the confounders either as matrix, dataframe, or character string! \n")
-    }
-  } else{
-    confModelMat = confModelMatTrim = NULL
-  }
-
-  ##Build covariate matrix if applicable##
-  # In this case we will 1) Use treatment coding for the dummies to simplify the estimation 2) Include an intercept
-  if(!is.null(covariates)){
-    if(class(covariates) %in% c("vector","matrix")){
-      if(NROW(X)!=NROW(covariates)){ #Check dimensions
-        stop("Data and confounder matrix do not have the same number of samples! \n")
-      }
-      if(is.vector(covariates)){
-      covariates = as.matrix(covariates) #Convert to matrix if only 1 variable
-      }
-      if(is.null(colnames(covariates))){ #assign names if needed
-        colnames(covariates) = paste("var",seq_len(NCOL(covariates)))
-      }
-      if(class(covariates[,1]) %in% c("character", "factor")){ #If character or factor, build model matrix
-        if(class(covariates[,1])=="character"){
-          warning("Converting character vector to factor! \n")
-        }
-        covModelMat = model.matrix( ~ paste(colnames(covariates), sep="+")) #Without intercept
-      } else {
-        covModelMat = covariates
-      }
-    } else if(class(covariates) == "dataframe"){
-      if(NROW(X)!=NROW(covariates)){ #Check dimensions
-        stop("Data and covounder matrix do not have the same number of samples! \n")
-      }
-      covModelMat = model.matrix( ~ paste(names(covariates), sep="+"))
-    } else if(class(covariates)=="character"){
-      if(classDat != "phyloseq"){
-        stop("Providing covariates through variable names is only allowed if phyloseq object is provided! \n")
-      }
-      covModelMat = model.matrix( ~ paste(names(covariates), sep="+"), data=sample_data(dat))
-    } else{
-      stop("Please provide the covariates either as matrix, dataframe, or character string! \n")
-    }
-  } else {
-    covModelMat = NULL
-  }
-  
-tic = proc.time() #Time the calculation
-  tmp = switch(distribution, 
-               NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
-                         confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ...),
-               ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
-                            confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                           covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...),
-               ZINB=RCM_ZINB(X,  rowWeights = rowWeights, colWeights = colWeights, k = k, 
-                              confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                             covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...))
-  if(classDat=="phyloseq"){tmp$physeq = dat} 
-  within(tmp, {
-    runtimeInMins = (proc.time()-tic)[1]/60
-    k = k #Store number of dimensions
-  })
-}
-
-#-------------------------------------
-# A function to calculate the likelihoods of
-#-The independence model
-#-The saturated model
-#-The fitted model
-#-All models with dimension k 0<k<K
-#Which overdispersions to use is a non-trivial problem.  One option would be to use the estimated dispersions of the full model for all calculations. Another is to estimate the overdispersions of the independence and lower dimensional models separately and use them. The problem is that if we use the edgeR machinery again, we get stable estimates but not MLE's, so that the likelihood of the independence model can sometimes be larger than that of a RC model. We provide three options, specified through the Disp parameter:
-# - "MLE" Use the MLE's of the separate models where possible,
-# - "edgeR" Use the edgeR robust estimate separately for every model
-liks = function(rcm, Disp=c("edgeR","MLE")){
-  require(MASS)
-  #@param rcm: a list, the output of the outerLoop function
-  
-  #@return a list with components
-    #-indLL: likelihood of the indepence model
-    #-LL1,..., LL[K-1]: likelihood of intermediate models
-    #-LLK: The likelihood of the fitted model
-  #Independence model
-  C = colSums(rcm$X)
-  R = rowSums(rcm$X)
-  onesn =rep.int(1, nrow(rcm$X))
-  onesp = rep.int(1, ncol(rcm$X))
-  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
-  
-  if(Disp=="MLE"){
-    
-  #Estimate dispersions for the independence model
-  # thetasInd = estDisp(rcm$X, cMat=matrix(0,ncol=ncol(rcm$X)), rMat=matrix(0,nrow=nrow(rcm$X)), libSizes=rowSums(rcm$X), abunds=colSums(rcm$X)/sum(rcm$X), psis=0)
-  thetasInd =sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=E[,i])})
-  #The overdispersions of the independence model are larger: This is logical since less variation has been explained in this model
-  
-    #Estimate the overdispersions for the intermediate models and the Full RC model
-    LLintDisp = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
-      mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
-    sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=mu[,i])})
-  })
-
-  } else if(Disp=="edgeR"){
-  #Independence model
-  trended.dispersion.ind  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(E)))
-  thetasInd = 1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(E)), dispersion = trended.dispersion.ind)
-  
-  #RCM models
-  thetasInt = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
-  mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
-  trended.dispersion  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(mu)))
-  1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(mu)), dispersion = trended.dispersion)
-  })
-  LLintDisp=cbind(thetasInd, thetasInt)
-  }  else{stop("No valid dispersion estimation paradigm provided! Choose either MLE or edgeR")}
-    names(LLintDisp) = paste0("dispLL",1:(ncol(rcm$rMat)-1))
-#Now we have the overdispersions, estimate the likelihoods
-  
-  #Estimate the likelihoods
-  LLintList = mapply(1:(ncol(rcm$rMat)-1),1:(ncol(LLintDisp)-2), FUN=function(k, ThetasI){
-    sum(dnbinom(rcm$X, mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k])), size=LLintDisp[,ThetasI], log=TRUE))
-  })
-  names(LLintList) = paste0("LL",1:(ncol(rcm$rMat)-1))
-  indLL = sum(dnbinom(rcm$X, mu=E, size=thetasInd, log=TRUE))
-  
-#Full RC model
-  LLK = sum(dnbinom(rcm$X, mu=E * exp(rcm$rMat %*% (rcm$cMat*rcm$psis)), size=LLintDisp[, ncol(LLintDisp)], log=TRUE))
-    
-  c(indLL=indLL, LLintList,  LLK=LLK)
-}
-```
-
 ## A plotting function
 
 ```{r plot, purl=TRUE}
@@ -3477,12 +3319,14 @@ estAlpha = function(Alpha, X, CC, d, k, ncols, responseFun = c("linear","quadrat
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
 heq_nb = function(Alpha, alphaK, d, k, ...){
+  # Alpha to AlphaZS
   center = sum(Alpha)
   size = sum(Alpha^2)-1
   if(k==1) { return(c(center, size))}
   ortho = alphaK %*% Alpha
   c(center, size, ortho)
 }
+#--------------------------------------#
 # It's jacobian, returns a matrix with d columns and at least 2 rows
 heq_nb_jac = function(Alpha, alphaK, d, k, ...){
   center = rep.int(1,d)
@@ -3490,6 +3334,233 @@ heq_nb_jac = function(Alpha, alphaK, d, k, ...){
   if(k==1) {return(rbind(center, size))}
   ortho = alphaK
   rbind(center, size, ortho)
+}
+#--------------------------------------#
+# A function that goes from the treatment coding to the zero-sum respresentation.
+treatToZero = function(params){
+  # @param params: a named parameter vector in treatment coding
+  
+  # @return a named parameter vector in zero-sum coding
+}
+#--------------------------------------#
+# A function that goes from the zero-sum coding to the treatment respresentation.
+zeroToTreat = function(params){
+  # @param params: a named parameter vector in zero-sum coding
+  
+  # @return a named parameter vector in treatment coding
+}
+```
+
+## Wrapper for all distributions
+
+```{r Wrapper all dists, purl = TRUE}
+#A simple wrapper function for phyloseq objects and matrices, for all posible distributions it passes all argument onto the correct function.
+#Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
+RCM = function(dat, k, round=FALSE, distribution= c("NB", "ZIP", "ZINB"), prevCutOff = 0.01, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, ...){
+  # @param dat: an nxp count matrix or a phyloseq object with an otu_table slot
+  # @param k: an integer, the number of dimensions of the RCM solution
+  # @param round (optional): a boolean, whether to round to nearest integer. Defaults to FALSE.
+  # @param distribution (optional): a character string, the error distribution of the RC(M) model. Defaults to NB
+  # @param prevCutoff (optional): a scalar, the prevalance cutoff for the trimming. Defaults to 1e-2
+  # @param minFraction (optional): a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10%
+  # @param rowWeights, colWeights (optional): character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
+  # @param covariates (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
+  # @param confounders (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case dat is a matrix, a nxf matrix or dataframe of confounders Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
+  
+  classDat = class(dat) #The class provided
+  
+  ##The count data##
+  if (classDat=="matrix"){
+  X = dat
+  }else  if(classDat=="phyloseq"){
+  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
+  } else {stop("Please provide a matrix or a phyloseq object! \n")}
+  p=ncol(X); n=nrow(X)
+  
+  if(is.null(colnames(X))){colnames(X)=1:ncol(X)}
+  if(is.null(rownames(X))){rownames(X)=1:nrow(X)}
+  colNames = colnames(X); rowNames =rownames(X)
+  # names(rowWeightsNum) =rowNames; names(colWeightsNum) = colNames
+  if(round) {X=round(X, 0) }#Round to integer
+  
+  #Check Xa type
+  if(!all(sapply(X, function(x){(x%%1)==0}))){stop("Please provide integer count matrix! \n")
+    } else{X=matrix(as.integer(X), ncol=ncol(X), nrow=nrow(X))}
+
+  colnames(X)=colNames; rownames(X)=rowNames
+  X=X[rowSums(X)>0, ] #Remove empty samples
+  X=X[, (colMeans(X==0)<(1-prevCutOff)) & (colSums(X)>(n*minFraction))] #Remove txa with low prevalence and those who do not meet the minFraction requirement
+  if (distribution %in% c("ZIP","ZINB")) X = X[rowSums(X==0)>0, colSums(X==0)>0] #For a zero-inflated model, make sure every row and column has zeroes
+  
+  ##Build confounder matrix if applicable. For the preliminary trimming, we do not include an intercept, but we do include all the levels of the factors using contrasts=FALSE: we want to do the trimming in every subgroup, so no hidden reference levels. For the filtering we just use a model with an intercept and treatment coding, here the interest is only in adjusting the offset##
+  if(!is.null(confounders)){
+    if(class(confounders) %in% c("vector","matrix")){
+      if(NROW(X)!=NROW(confounders)){ #Check dimensions
+        stop("Data and confounder matrix do not have the same number of samples! \n")
+      }
+      if(is.vector(confounders)){
+      confounders = as.matrix(confounders) #Convert to matrix if only 1 variable
+      }
+      if(is.null(colnames(confounders))){ #assign names if needed
+        colnames(confounders) = paste("var",seq_len(NCOL(confounders)))
+      }
+      if(class(confounders[,1]) %in% c("character", "factor")){ #If character or factor, build model matrix
+        if(class(confounders[,1])=="character"){
+          warning("Converting character vector to factor! \n")
+        }
+        confModelMatTrim = model.matrix(object = as.formula(paste("~" , paste(colnames(confounders), collapse="+"),"-1")), contrasts.arg = apply(confounders,2,contrasts, contrasts=FALSE)) 
+        confModelMat = model.matrix(object = as.formula(paste("~", paste(colnames(confounders), collapse="+"))), contrasts.arg = apply(confounders,2,contrasts, contrasts=TRUE)) 
+      } else {
+        confModelMat = confModelMatTrim = confounders
+      }
+    } else if(class(confounders) == "dataframe"){
+      if(NROW(X)!=NROW(confounders)){ #Check dimensions
+        stop("Data and confounder matrix do not have the same number of samples! \n")
+      }
+      confModelMatTrim = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"),"-1")), contrasts.arg = lapply(confounders[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts=FALSE))
+      confModelMat = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"))), contrasts.arg = lapply(confounders[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts = TRUE))
+    } else if(class(confounders)=="character"){
+      if(classDat != "phyloseq"){
+        stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
+      }
+      datFrame = data.frame(sample_data(dat)) # The dataframe with the confounders
+    confModelMatTrim = model.matrix(
+        object = formula(paste("~", paste(confounders, collapse="+"),"-1")), 
+        data = datFrame, 
+        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
+                               contrasts, contrasts=FALSE)) 
+    confModelMat = model.matrix(
+        object = formula(paste("~", paste(confounders, collapse="+"))), 
+        data = datFrame, 
+        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
+                               contrasts, contrasts = TRUE)) 
+    } else{
+      stop("Please provide the confounders either as matrix, dataframe, or character string! \n")
+    }
+  } else{
+    confModelMat = confModelMatTrim = NULL
+  }
+
+  ##Build covariate matrix if applicable##
+  # In this case we will 1) Use treatment coding for the dummies to simplify the estimation 2) Include an intercept. The tricky part lies in the normalization of alpha, see introduction.
+  if(!is.null(covariates)){
+    if(class(covariates) %in% c("vector","matrix")){
+      if(NROW(X)!=NROW(covariates)){ #Check dimensions
+        stop("Data and confounder matrix do not have the same number of samples! \n")
+      }
+      if(is.vector(covariates)){
+      covariates = as.matrix(covariates) #Convert to matrix if only 1 variable
+      }
+      if(is.null(colnames(covariates))){ #assign names if needed
+        colnames(covariates) = paste("var",seq_len(NCOL(covariates)))
+      }
+      if(class(covariates[,1]) %in% c("character", "factor")){ #If character or factor, build model matrix
+        if(class(covariates[,1])=="character"){
+          warning("Converting character vector to factor! \n")
+        }
+        covModelMat = model.matrix( ~ paste(colnames(covariates), sep="+")) #Without intercept
+      } else {
+        covModelMat = covariates
+      }
+    } else if(class(covariates) == "dataframe"){
+      if(NROW(X)!=NROW(covariates)){ #Check dimensions
+        stop("Data and covounder matrix do not have the same number of samples! \n")
+      }
+      covModelMat = model.matrix( ~ paste(names(covariates), sep="+"))
+    } else if(class(covariates)=="character"){
+      if(classDat != "phyloseq"){
+        stop("Providing covariates through variable names is only allowed if phyloseq object is provided! \n")
+      }
+      covModelMat = model.matrix( ~ paste(names(covariates), sep="+"), data=sample_data(dat))
+    } else{
+      stop("Please provide the covariates either as matrix, dataframe, or character string! \n")
+    }
+  } else {
+    covModelMat = NULL
+  }
+  
+tic = proc.time() #Time the calculation
+  tmp = switch(distribution, 
+               NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
+                         confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
+                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ...),
+               ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
+                            confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
+                           covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...),
+               ZINB=RCM_ZINB(X,  rowWeights = rowWeights, colWeights = colWeights, k = k, 
+                              confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
+                             covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...))
+  if(classDat=="phyloseq"){tmp$physeq = dat} 
+  within(tmp, {
+    runtimeInMins = (proc.time()-tic)[1]/60
+    k = k #Store number of dimensions
+  })
+}
+
+#-------------------------------------
+# A function to calculate the likelihoods of
+#-The independence model
+#-The saturated model
+#-The fitted model
+#-All models with dimension k 0<k<K
+#Which overdispersions to use is a non-trivial problem.  One option would be to use the estimated dispersions of the full model for all calculations. Another is to estimate the overdispersions of the independence and lower dimensional models separately and use them. The problem is that if we use the edgeR machinery again, we get stable estimates but not MLE's, so that the likelihood of the independence model can sometimes be larger than that of a RC model. We provide three options, specified through the Disp parameter:
+# - "MLE" Use the MLE's of the separate models where possible,
+# - "edgeR" Use the edgeR robust estimate separately for every model
+liks = function(rcm, Disp=c("edgeR","MLE")){
+  require(MASS)
+  #@param rcm: a list, the output of the outerLoop function
+  
+  #@return a list with components
+    #-indLL: likelihood of the indepence model
+    #-LL1,..., LL[K-1]: likelihood of intermediate models
+    #-LLK: The likelihood of the fitted model
+  #Independence model
+  C = colSums(rcm$X)
+  R = rowSums(rcm$X)
+  onesn =rep.int(1, nrow(rcm$X))
+  onesp = rep.int(1, ncol(rcm$X))
+  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
+  
+  if(Disp=="MLE"){
+    
+  #Estimate dispersions for the independence model
+  # thetasInd = estDisp(rcm$X, cMat=matrix(0,ncol=ncol(rcm$X)), rMat=matrix(0,nrow=nrow(rcm$X)), libSizes=rowSums(rcm$X), abunds=colSums(rcm$X)/sum(rcm$X), psis=0)
+  thetasInd =sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=E[,i])})
+  #The overdispersions of the independence model are larger: This is logical since less variation has been explained in this model
+  
+    #Estimate the overdispersions for the intermediate models and the Full RC model
+    LLintDisp = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
+      mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
+    sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=mu[,i])})
+  })
+
+  } else if(Disp=="edgeR"){
+  #Independence model
+  trended.dispersion.ind  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(E)))
+  thetasInd = 1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(E)), dispersion = trended.dispersion.ind)
+  
+  #RCM models
+  thetasInt = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
+  mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
+  trended.dispersion  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(mu)))
+  1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(mu)), dispersion = trended.dispersion)
+  })
+  LLintDisp=cbind(thetasInd, thetasInt)
+  }  else{stop("No valid dispersion estimation paradigm provided! Choose either MLE or edgeR")}
+    names(LLintDisp) = paste0("dispLL",1:(ncol(rcm$rMat)-1))
+#Now we have the overdispersions, estimate the likelihoods
+  
+  #Estimate the likelihoods
+  LLintList = mapply(1:(ncol(rcm$rMat)-1),1:(ncol(LLintDisp)-2), FUN=function(k, ThetasI){
+    sum(dnbinom(rcm$X, mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k])), size=LLintDisp[,ThetasI], log=TRUE))
+  })
+  names(LLintList) = paste0("LL",1:(ncol(rcm$rMat)-1))
+  indLL = sum(dnbinom(rcm$X, mu=E, size=thetasInd, log=TRUE))
+  
+#Full RC model
+  LLK = sum(dnbinom(rcm$X, mu=E * exp(rcm$rMat %*% (rcm$cMat*rcm$psis)), size=LLintDisp[, ncol(LLintDisp)], log=TRUE))
+    
+  c(indLL=indLL, LLintList,  LLK=LLK)
 }
 ```
 
