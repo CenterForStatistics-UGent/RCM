@@ -1003,7 +1003,7 @@ arrayprod <- function(x,y){
 #-------------------------------------------#
 ## A wrapper function to calculate the overdispersion, abundance and importance parameters. Each dimension is estimated one by one
 
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global ="dbldog", nleqslv.control=list(), method=c("Broyden"), dispFrec=10, convNorm = 2, prior.df=10, marginEst = "MLE", estPsis = TRUE, confoundersFilt = NULL, confounders = NULL, covariates = NULL, factorInd = NULL, centMat = NULL, responseFun = "linear", prevCutOff = 1e-2, minFraction = 0.1){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global ="dbldog", nleqslv.control=list(), method=c("Broyden"), dispFrec=10, convNorm = 2, prior.df=10, marginEst = "MLE", estPsis = TRUE, confoundersFilt = NULL, confounders = NULL, covariates = NULL, centMat = NULL, responseFun = "linear", prevCutOff = 1e-2, minFraction = 0.1){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -1330,7 +1330,7 @@ alphaRec = array(0, dim=c(d,k, maxItOut))
   psisOld = psis[KK]
   alphaOld = alpha[,KK]
   cMatOld = cMat[KK,]
-  rMat = covariates %*% alpha[,KK,drop=FALSE]
+  rMat = covariates %*% alpha[,KK,drop=FALSE] #CHECK dimension of covariates!!
  
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
     if((iterOut[KK] %% dispFrec) ==0  || iterOut[KK]==1){
@@ -1363,7 +1363,7 @@ cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 #Row scores
   if (verbose) cat("\n Estimating row scores \n")
 regAlpha = cMat[KK,,drop=TRUE]*psis[KK]
-tmpAlpha = estAlpha(Alpha = alpha[, KK], X = X, CC = covariates, d = d, ncols = p, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , factorInd = factorInd, centMat = centMat)
+tmpAlpha = estAlpha(Alpha = alpha[, KK], X = X, CC = covariates, d = d, ncols = p, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat)
 
 if(class(tmpAlpha)=="list"){
   cat(ifelse(tmpAlpha$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
@@ -3299,7 +3299,7 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
 }
 #--------------------------------------#
 # A function to estimate alpha based on the LR-criterion
-estAlpha = function(Alpha, X, CC, d, k, ncols, factorInd, centMat, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list() ){
+estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list() ){
   
   # @param alpha: a vector of length d, the environmental gradient
   # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
@@ -3314,26 +3314,26 @@ estAlpha = function(Alpha, X, CC, d, k, ncols, factorInd, centMat, responseFun =
   
   # @return: a vector of length  with the new alpha estimate
   
-  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = c("linear"), muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k, factorInd = factorInd, centMat = centMat) #
+  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = c("linear"), muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k, centMat = centMat) #
 }
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
-heq_nb = function(Alpha, alphaK, d, k, factorInd, centMat, ...){
+heq_nb = function(Alpha, alphaK, d, k,  centMat, ...){
   center = sum(Alpha) #Overall centering
-  centerFactors = centMat %*% Alpha[factorInd]
+  centerFactors = centMat %*% Alpha
   size = sum(Alpha^2)-1
   if(k==1) { return(c(center, centerFactors, size))}
   ortho = alphaK %*% Alpha
   c(center, centerFactors, size, ortho)
 }
 #--------------------------------------#
-# It's jacobian, returns a matrix with d columns and at least 2 rows
-heq_nb_jac = function(Alpha, alphaK, d, k, factorInd, centMat, ...){
-  center = rep.int(1,d + sum(factorInd)) #Embed the centerfactors here
+# It's jacobian, returns a matrix with d columns and at least 2 rows (numerically checked with nloptr::check.derivatives)
+heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){
+  center = rep.int(1,d)
   size = 2*Alpha
-  if(k==1) {return(rbind(center, size))}
+  if(k==1) {return(rbind(center, centMat, size))}
   ortho = alphaK
-  rbind(center, size, ortho)
+  rbind(center, size, centMat, ortho)
 }
 ```
 
@@ -3399,7 +3399,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFr
       } else {
         confModelMat = confModelMatTrim = confounders
       }
-    } else if(class(confounders) == "dataframe"){
+    } else if(class(confounders) == "data.frame"){
       if(NROW(X)!=NROW(confounders)){ #Check dimensions
         stop("Data and confounder matrix do not have the same number of samples! \n")
       }
@@ -3410,6 +3410,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFr
         stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
       }
       datFrame = data.frame(sample_data(dat)) # The dataframe with the confounders
+      if(anyNA(datFrame)){stop("Confounders contin missing values!\n")}
     confModelMatTrim = model.matrix(
         object = formula(paste("~", paste(confounders, collapse="+"),"-1")), 
         data = datFrame, 
@@ -3430,40 +3431,44 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFr
   ##Build covariate matrix if applicable##
   # In this case we will 1) Include dummy's for every level of the categorical variable, and force them to sum to zero. This is needed fro plotting and required for normalization. 2) Exclude an intercept. The density function f() will provide this already. See introduction.
   if(!is.null(covariates)){
-    if(class(covariates) %in% c("vector","matrix")){
+    if(class(covariates) == "data.frame"){
       if(NROW(X)!=NROW(covariates)){ #Check dimensions
-        stop("Data and confounder matrix do not have the same number of samples! \n")
+        stop("Data and covariate matrix do not have the same number of samples! \n")
       }
-      if(is.vector(covariates)){
-      covariates = as.matrix(covariates) #Convert to matrix if only 1 variable
-      }
-      if(is.null(colnames(covariates))){ #assign names if needed
-        colnames(covariates) = paste("var",seq_len(NCOL(covariates)))
-      }
-      if(class(covariates[,1]) %in% c("character", "factor")){ #If character or factor, build model matrix
-        if(class(covariates[,1])=="character"){
-          warning("Converting character vector to factor! \n")
-        }
-        covModelMat = model.matrix(object = as.formula(paste("~" , paste(colnames(covariates), collapse="+"),"-1")), contrasts.arg = apply(colnames(covariates),2,contrasts, contrasts=FALSE)) #Without intercept
-      } else {
-        covModelMat = covariates
-      }
-    } else if(class(covariates) == "dataframe"){
-      if(NROW(X)!=NROW(covariates)){ #Check dimensions
-        stop("Data and covounder matrix do not have the same number of samples! \n")
-      }
-      covModelMat = model.matrix( object = as.formula(paste("~", paste(names(covariates), collapse="+"),"-1")), contrasts.arg = lapply(names(covariates)[,sapply(covariates, is.factor),drop=FALSE],contrasts, contrasts=FALSE))
+      nFactorLevels = sapply(covariates, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per variables
+      covModelMat = model.matrix( object = as.formula(paste("~", paste(names(covariates), collapse="+"),"-1")), contrasts.arg = lapply(covariates[sapply(covariates, is.factor)],contrasts, contrasts=FALSE))
+      #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
+    centMat  = t(sapply(seq_along(nFactorLevels), function(i){
+      c(rep.int(0, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
+        rep.int(if(nFactorLevels[i]==1) 0 else 1, nFactorLevels[i]), #Ones within the categorical variable
+        rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #
+    })) 
+    centMat = centMat[rowSums(centMat)>0,] #Remove zero rows, corresponding to the non-factors
+    #Multiply this by the vector of coefficients
+    
+    
     } else if(class(covariates)=="character"){
       if(classDat != "phyloseq"){
         stop("Providing covariates through variable names is only allowed if phyloseq object is provided! \n")
       }
-      if(covariates=="all"){covariates = sample_variables(dat)} #Enable the "all" option if phyloseq object is provided
+      if(covariates[[1]]=="all"){covariates = sample_variables(dat)} #Enable the "all" option if phyloseq object is provided
       datFrame = data.frame(sample_data(dat))[,covariates] # The dataframe with the covariates
-      nFactorLevels = sapply(datFrame[,sapply(datFrame, is.factor)], nlevels) #Number of levels per factor
-      datFrame[,sapply(datFrame, is.factor)][,(nFactorLevels < 2)] = NULL #Drop variables with one level
-      if(any(nFactorLevels < 2)){
-        warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[nFactorLevels < 2], sep = " \n"))
+      nFactorLevels = sapply(datFrame, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
+      datFrame[,sapply(datFrame, is.factor) & (nFactorLevels < 2)] = NULL #Drop factors with one level
+      if(any(sapply(datFrame, is.factor) & (nFactorLevels < 2))){
+        warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[sapply(datFrame, is.factor) & (nFactorLevels < 2)], sep = " \n"),immediate. = TRUE)
       }
+      if(anyNA(datFrame)){
+        NArows = apply(datFrame, 1, anyNA)
+        X = X[!NArows,]
+        datFrame = datFrame[!NArows,]
+        if(!is.null(confModelMat)){
+          confModelMat = confModelMat[!NArows,]
+          confModelMatTrim = confModelMatTrim[!NArows,]
+        }
+        warning(paste("Some covariates contain missing values. We removed samples \n", paste(which(NArows), collapse = ", "), "\n prior to analysis." ),immediate. = TRUE)
+      }
+      
       covariates = names(datFrame)
     covModelMat = model.matrix(
         object = formula(paste("~", paste(covariates, collapse="+"),"-1")), 
@@ -3473,27 +3478,22 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFr
     #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
     centMat  = t(sapply(seq_along(nFactorLevels), function(i){
       c(rep.int(0, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
-        rep.int(1, nFactorLevels[i]), #Ones within the categorical variable
+        rep.int(if(nFactorLevels[i]==1) 0 else 1, nFactorLevels[i]), #Ones within the categorical variable
         rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #
-    })) #Multiply this by the vector of coefficients of the factors
-    # An indicator vector for factors
-    factorInd = unlist(sapply(datFrame, function(x){
-      if(is.factor(x)){
-        rep(TRUE, nlevels(x))
-      } else {FALSE}
-    }))
+    })) 
+    centMat = centMat[rowSums(centMat)>0,]
     } else{
       stop("Please provide the covariates either as matrix, dataframe, or character string! \n")
     }
   } else {
-    covModelMat = factorInd = centMat = NULL
+    covModelMat = centMat = NULL
   }
   
 tic = proc.time() #Time the calculation
   tmp = switch(distribution, 
                NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
                          confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, factorInd = factorInd, centMat = centMat,...),
+                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat,...),
                ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
                             confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
                            covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...),
@@ -5176,15 +5176,15 @@ Now a bit more complicated: two dimensions, dummy's and quadratice relationship
 
 ```{r LRnbchack2, purl=FALSE}
 #Some synthetic data
-n = 60
-p = 400
+n = 40
+p = 200
 d = 5
 var1 = rnorm(n) # an unrelated variable
 var2 = rnorm(n) # A meaningful variable
 var3 = rnorm(n, sd=2) # An even more meaningful variable
 var4 = factor(sample(c(1,1:3), n, replace=TRUE)) # A categorical variable
 var5 = factor(sample(c(1,1,1:3), n, replace=TRUE)) # Another categorical variable
-psi = 1
+psi = 2
 cVec = rnorm(p)*psi
 libSizes = 10^runif(n, 3, 5)
 abunds = 10^runif(p, -5, -3)
@@ -5198,9 +5198,8 @@ alphaT = c(0.2,
 alphaT = alphaT-mean(alphaT)
 alphaT = alphaT/sqrt(sum(alphaT^2))
 regMat = t(
-  cbind(model.matrix(~var1+var2+var3+var4-1, contrasts = list(var4="contr.sum"))
-, model.matrix(~var5-1, contrasts = list( var5="contr.sum")))
-                  )
+  cbind(model.matrix(~var1+var2+var3+var4+var5-1, contrasts.arg = lapply(list(var4 = var4,var5 = var5), contrasts, contrasts=FALSE))
+                  ))
 
 mu = muMarg * exp(outer(c(alphaT %*% regMat),cVec))
 thetasCon = thetas[1:p]
@@ -5210,8 +5209,13 @@ X0 = matrix(rnbinom(n*p, size=thetasCon, mu = t(mu)), ncol = p, byrow = TRUE)
 idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
 X = X0[rowSums(X0)>0,idCol ]
 cVec2 = cVec[idCol]
+muMargObs = outer(rowSums(X), colSums(X)/sum(X))
 
-testRCMconstr2Job = mcparallel(RCM_NB(X = X, k = 2, covariates = t(regMat)[,-c(6,9)] ))
+testAlpha2 = estAlpha(rep(0.01,9), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, k=1)
+
+testRCMconstr2Job = mcparallel(
+  RCM(dat = X, k = 2, covariates = data.frame(var1 = var1, var2 = var2, var3 = var3, var4 = var4, var5 = var5))
+  )
 testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
 ```
 
@@ -5220,6 +5224,8 @@ testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
 ```{r realDataRCM}
 load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 antNarConstr = RCM(physeqListV13[["Anterior.nares"]], k=2, covariates  = c("sex", "RUNCENTER"))
+load("/home/stijn/PhD/Simulations/data/zellerData.RData")
+zellerConstr = RCM(zellerMphy, k=2, covariates  = c("Diagnosis", "BMI", "Age","Gender","Country"), round=TRUE)
 ```
 
 ### Triplots
