@@ -1343,9 +1343,9 @@ rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
   
 d = ncol(covariates)
 
-alpha = matrix(0,d,k)
+alpha = matrix(1,d,k) #Take 1 as starting value(just not zero)
   
-alphaRec = array(0, dim=c(d,k, maxItOut))
+alphaRec = array(1, dim=c(d,k, maxItOut))
   
  if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
    Kprev = NBRCM$k
@@ -3328,7 +3328,7 @@ dNBllcol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
 JacCol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
   # @param beta: a (deg+1)*p matrix of regression parameters with deg the degree of the response function
   # @param X: the nxp data matrix
-  # @param reg: a matrix of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
+  # @param reg: a vector of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
   # @param theta: The dispersion parameter
   # @param mumarg: offset matrix of size nxp
   # @param cReg: a vector of lentgh p psi_k * s_{jk}
@@ -3411,9 +3411,20 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
   mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
   tmp = t(t((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2) * cReg^2) #Don't forget to square cReg!
   tmp2 = vapply(1:ncol(reg), FUN.VALUE = tmp, function(x){reg[,x]*tmp})
-  Jac = crossprod(reg, apply(tmp2, c(1,3), sum))  
+  Jac = crossprod(reg, apply(tmp2, c(1,3), sum))
   return(-Jac)
 }
+
+Rdim = dim(R)
+Xdim = dim(X)
+Rrep = rep(c(R),times = Xdim[2])
+Xrep = rep(c(X), times = Rdim[2])
+tmp = Rrep *Xrep
+dim(tmp) = c(prod(Rdim), Xdim[2])
+tmp2 = rowSums(tmp)
+dim(tmp2) = Rdim
+tmp2
+
 #--------------------------------------#
 # A function to estimate alpha based on the LR-criterion
 estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list() ){
@@ -3431,7 +3442,7 @@ estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear"
   
   # @return: a vector of length  with the new alpha estimate
   
-  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = c("linear"), muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k, centMat = centMat) #
+  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k, centMat = centMat) #
 }
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
@@ -5327,11 +5338,12 @@ idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
 X = X0[rowSums(X0)>0,idCol ]
 cVec2 = cVec[idCol]
 muMargObs = outer(rowSums(X), colSums(X)/sum(X))
+centMat
 
-testAlpha2 = estAlpha(rep(0.01,9), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, k=1)
+testAlpha2 = estAlpha(rep(0.01,9), X, t(regMat), responseFun ="gaussian", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, k=1)
 
 testRCMconstr2Job = mcparallel(
-  RCM(dat = X, k = 2, covariates = data.frame(var1 = var1, var2 = var2, var3 = var3, var4 = var4, var5 = var5))
+  RCM(dat = X, k = 2, covariates = data.frame(var1 = var1, var2 = var2, var3 = var3, var4 = var4, var5 = var5), responseFun = "quadratic")
   )
 testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
 ```
