@@ -36,7 +36,7 @@ setwd(WD)
 
 The aim of this notebook is to wrap the codes to fit the RC(M) model with the negative binomial, zero-inflated poisson and zero-inflated negative binomial models. Also an overview of the theory is given here.
 
-The underlying motivation is to develop an unconstrained visualization technique for the microbiome that does not suffer from the defects of currently applied techniques such as PCA, PCoA with Bray-Curtis distance etc. These methods are in particular sensitive to differences in library size.
+The underlying motivation is to develop a visualization technique for the microbiome that does not suffer from the defects of currently applied techniques such as PCA, PCoA with Bray-Curtis distance etc. These methods are in particular sensitive to differences in library size.
 
 # Theory
 
@@ -74,7 +74,7 @@ $$X = E_{independence} + R^{1/2}U\Sigma VC^{1/2}$$
 
 with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}C^{1/2}V=\mathbf{0}$ (weighted means equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'C^{1/2}V=\mathbf{1}$ (weighted variances equal one) (see VanDerHeijden et al., 1985).
 
-For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \mathbf{v_{2}}$ to correctly represents the distances between the samples. $\mathbf{w_{1}}$ and $\mathbf{w_{2}}$ can then be added to construct a biplot. The orthogonal projection of $\omega_1 v_{ki}$ on $w_{jk}$ then represents the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$.
+For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \mathbf{v_{2}}$ to correctly represent the distances between the samples. $\mathbf{w_{1}}$ and $\mathbf{w_{2}}$ can then be added to construct a biplot. The orthogonal projection of $\omega_1 v_{ki}$ on $w_{jk}$ then represents the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$.
 
 ### Skewness
 
@@ -135,6 +135,7 @@ $$\sum_{i=1}^nw_ir_{ki}r_{k'i} = I(k=k')$$
 $$\sum_{j=1}^pz_js_{kj} = 0$$
 
 $$\sum_{j=1}^pz_js_{kj}s_{k'j} = I(k=k')$$
+Hereby $w_i$ and $z_j$ are row and column weigths.
 
 #### RC(M)-weights
 
@@ -160,7 +161,7 @@ Because the more abundant species are in fact more abundant in the population as
 
 #### RC(M) margins
 
-The most logical choices for the margins have long seemed to use $u=-log(x_{..}$, $u_i = log(x_{i.})$ and $u_j = log(x{.j})$.
+The most logical choices for the margins have long seemed to use $u=-log(x_{..})$, $u_i = log(x_{i.})$ and $u_j = log(x_{.j})$.
 
 However, the library sizes do not correspond to the maximum likelihood estimate of $u_i$ under the Negative Binomial model. As a result the first dimensional row scores $r_{1i}$ tried to correct for this effect and became related (linearly correlated) to the library sizes, which we want to avoid absolutley. To avoid this we set $u=0$ and estimate the $u_i$'s, $u_j$'s and overdispersions iteratively using maximum likelihood in a first step (this converges very quickly). The main disadvantage I see of this approach is that the independence model becomes model dependent. Next we'll have to iterate between fitting the overdispersions, the imporance parameters $\psi$, the $r's$ and the $s's$. 
 
@@ -176,7 +177,7 @@ $$log(E(x_{ij})) = log(x_{i.}) + log(x_{.j}) - log(x_{..}) + log\big(1 + \sum_{k
 
 i.e. an equivalence between the RC(M)-model and correspondence analysis
 
-Since the same restricitions apply to the scores $v_{ki}$ and $w_{jk}$ as to U and V, we can state that  $\psi_k \approx \omega_k$.
+Since the same restricitions apply to the scores $v_{ki}$ and $w_{jk}$ as to U and V, we can state that  $\psi_k \approx \omega_k$. The assumption that the departure from independence seems unlikely in our case, but it does provide us with some starting values.
 
 ### Fitting the RC(M) model
 
@@ -204,9 +205,9 @@ and
 
 $$s_{ik}^{init} = \big(\frac{z_js_{ik}^{SVD}}{\sum_{i=1}^n{s^{SVD}_{ik}}^2z_j}\big)^{1/2}$$
 
-2. If the independence model is estimated by MLE, estimate the $u_i$'s, $u_j$'s and $\theta_j$'s iteratively until convergence (set $u=0$). The estimating equeations are independent (Jacobian is diagonal) so this converges very quickly. Otherwise set $u_i = log(x_{i.})$ , $u_j = log(x_{.j})$ and $u = log(x_{..})$.
-
 #### Iteration
+
+2. If the independence model is estimated by MLE, estimate the $u_i$'s, $u_j$'s and $\theta_j$'s iteratively until convergence (set $u=0$). The estimating equeations are independent (Jacobian is diagonal) so this converges very quickly. Otherwise set $u_i = log(x_{i.})$ , $u_j = log(x_{.j})$ and $u = log(x_{..})$.
 
 3. Estimate overdispersions
 
@@ -224,7 +225,7 @@ to obtain estimates for the overdispersions $\theta_j$, whereby the means $\mu_{
  
  - edgeR robust
  
-To get more stable estimates of the dispersions, RNA-seq packages such as _DESeq_ and _edgeR_ use an empirical Bayes approach to shrink dispersion estimates towards a fitted mean-dispersion trend. Here I use the machinery of edgeR robust (version 3.14.0) to estimate the dispersions
+To get more stable estimates of the dispersions, RNA-seq packages such as _DESeq_ and _edgeR_ use an empirical Bayes approach to shrink dispersion estimates towards a fitted mean-dispersion trend. Here I use the machinery of edgeR robust (version `r packageVersion("edgeR")`) to estimate the dispersions
  
 To reduce the computational cost and because the estimates do not change a lot anyway the estimation of the overdispersions is not repeated in every iteration
 
@@ -278,7 +279,7 @@ $$\frac{\partial Lag(r_{ik}, \mathbf{\lambda}))}{\partial \lambda_{3kk'}} = (\su
 
 . The latter three groups of equations represent the original centering, normalization and orthogonality constraints. 
 
-There are additional equations in the system now, but also as many extra $\lambda$ parameter to optimize. These $\lambda$ parameters are also stored and used as initial values in the next iteration run. There size represent the extent to which the constraints pull away the solution from the optimal, unconstrained solution, but I don't see how we can use that in a biologically of statistically meaningful way.
+There are additional equations in the system now, but also as many extra $\lambda$ parameter to optimize. These $\lambda$ parameters are also stored and used as initial values in the next iteration run. There size represent the extent to which the constraints pull away the solution from the optimal, unconstrained solution, but I don't see how we can use that in a biologically or statistically meaningful way.
 
 We now truly have a system of equations to solve, which we do with the _nleqslv_ package. It is straightforward but a bit cumbersome to also provide the analytical Jacobian, which greatly speeds up the iterations (otherwise it has to be approximated numerically). The Jacobian is sparse and symmetric. with following non-zero entries:
 
@@ -565,7 +566,7 @@ $$\boldsymbol{\alpha}_k = (\beta_{cont_1}, ... , \beta_{cont_{d_{cont}}}, \beta_
 For imposing the restrictions and for plotting we want a representation whereby all covariate levels are represented so that the parameters sum to 0 within each covariate.
 
 $$\boldsymbol{\alpha}_k' = (\beta_{cont_1}', ... , \beta_{cont_{d_{cont}}}', \beta_{cat_{11}}', \beta_{cat_{12}}', ..., \beta_{cat_{1m_1}}', ...,  \beta_{cat_{d_{cat}m_{d_{cat}}}}')_k$$
-Whereby $q' = d_{cont} + \sum_{l=1}^{d_{cat}} (m_l) $, but under the restriction that for all categorical variables $l$
+Whereby $q' = d_{cont} + \sum_{l=1}^{d_{cat}}(m_l)$, but under the restriction that for all categorical variables $l$
 
 $$\sum_{m=1}^{m_l} \beta_{cat_{lm}k}' = 0$$ 
 
@@ -611,7 +612,6 @@ Filtering of rare taxa is not needed in this case, as all covariates are summari
 ## A function to perform correspondence analysis
 
 caSVD = function(X){
-  
 # @param X: the nxp count matrix
   
 # @return: the singular value decomposition of the matrix of pearson residuals
@@ -632,25 +632,25 @@ caSVD = function(X){
 
 ```{r NBauxFuns, purl=TRUE}
 #-------------------------------------#
-#Fit the library sizes (u_i) by ML
+#A score function for the row components of the independence model (library sizes (u_i))
 dNBlibSizes = function(beta, X, reg, thetas){
   mu = exp(outer(beta,reg, "+"))
   rowSums((X-mu)/(1+t(t(mu)/thetas)))
 }
 #------------------------------------#
-# The corresponding Jacobian for the libsizes
+# The corresponding Jacobian
 NBjacobianLibSizes = function(beta, X, reg, thetas){
        mu = exp(outer(beta,reg, "+"))
   diag(-rowSums((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2))
 }
 #-------------------------------------#
-#Fit the abundances (u_j) by ML
+#A score function for the column components of the independence model (mean relative abundances (u_j))
 dNBabunds = function(beta, X, reg, thetas){
     mu = exp(outer(reg,beta, "+"))
   score = colSums((X-mu)/(1+t(t(mu)/thetas)))
 }
 #------------------------------------#
-# The corresponding Jacobian for the libsizes
+# The corresponding Jacobian
 NBjacobianAbunds = function(beta, X, reg, thetas){
     mu = exp(outer(reg,beta, "+"))
   -diag(colSums((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2))
@@ -663,15 +663,15 @@ seq_k = function(y, estPsis=TRUE){
 }
 
 #--------------------------------------#
+# A score function for the psis
 dNBpsis = function(beta, X, reg, theta,  muMarg){
   # @param beta: the current guess for the psi parameter, a scalar
   # @param X: the nxp data matrix
-  # @param rMat: a nx1 matrix with row scores
-  # @param mumarg: the nxp offset
-  # @param cMat: a 1xp matrix with column scores
+  # @param muMarg: the nxp offset
+  # @param reg: the regressor matrix, the outer product of current row and column scores
   # @param theta: a vector of length p with the dispersion parameters
 
-  # @return The evaluation of the score function at beta
+  # @return The evaluation of the score function at beta, a scalar
 
   mu = muMarg * exp(reg* beta)
   
@@ -683,12 +683,11 @@ dNBpsis = function(beta, X, reg, theta,  muMarg){
 NBjacobianPsi = function(beta, X, reg, muMarg, theta){
   # @param beta: the current guess for the psi parameter, a scalar
   # @param X: the nxp data matrix
-  # @param rMat: a nx1 matrix with row scores
-  # @param cMat: a 1xp matrix with column scores
-  # @param mumarg: the nxp offset
+  # @param muMarg: the nxp offset
+  # @param reg: the regressor matrix, the outer product of current row and column scores
   # @param theta: a vector of length p with the dispersion parameters
   
-    # @return The evaluation of the Jacobian function at beta
+  # @return The evaluation of the Jacobian function at beta, a 1x1 matrix
   
   mu = muMarg * exp(reg* beta)
   matrix(-sum(reg^2*(1+t(t(X)/theta))*mu/(1+t(t(mu)/theta))^2),1,1)
@@ -704,9 +703,8 @@ NBpsiInfl = function(psi, X, cMat, rMat, muMarg, theta){
 
 #--------------------------------------#
 #A score function of the NB for the column scores
-
 dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, estPsis) {
-  # @param beta: a matrix of 1*(p+2k+k*(k-1)/2) with p column scores + k within dimensional centering lambda parameters + k within dimensional normalization parameters +  k(k-1)/2 between dimension lambda parameters
+  # @param beta: vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
   # @param X: the nxp data matrix
   # @param reg: a nx1 regressor matrix: outer product of rowScores and psis
   # @param theta: a vector of length p with the dispersion parameters
@@ -717,8 +715,9 @@ dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, 
   # @param nLambda: the number of restrictions
   # @param colWeights: the weights used for the restrictions
   # @param cMatK: the lower dimensions of the colScores
+  # @param estPsis: a boolean, whether the psi parameters should be estimated
 
-  # @return A vector of length p+2*k+ k(k-1)/2 evaluations of the derivative of lagrangian
+  # @return A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
   
   cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
   
@@ -726,10 +725,10 @@ dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, 
   # logMu[,K] = reg[,K]*beta
   mu = exp(reg %*% cMat) * muMarg
   
-  lambda1 = beta[p+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = if(estPsis) beta[p+2] else 0 #normalization restrictions sum(abunds*r^2_{ik}) = 1
+  lambda1 = beta[p+1] #Lagrangian multiplier for centering restrictions sum(abunds*r_{ik}) = 0
+  lambda2 = if(estPsis) beta[p+2] else 0 #Lagrangian multiplier for normalization restrictions sum(abunds*r^2_{ik}) = 1
   
-  lambda3 = if(k==1){0} else {beta[(p + 2 + estPsis):length(beta)]}
+  lambda3 = if(k==1){0} else {beta[(p + 2 + estPsis):length(beta)]} #Lagrangian multiplier for orhtogonalization restriction
   
   score = crossprod(reg,((X-mu)/(1+t(t(mu)/thetas)))) + (colWeights*lambda1 + colWeights*lambda2*2*cMat + (lambda3 %*% cMatK)*colWeights)
 
@@ -753,7 +752,20 @@ dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, 
 #--------------------------------------#
 # A function to provide an analytical jacobian in the hope to speed up the calculations
 NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLambda, cMatK, estPsis){
-  #@return a symmetric jacobian matrix of size p*k + k(k-1)/2
+  # @param beta: vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
+  # @param X: the nxp data matrix
+  # @param reg: a nx1 regressor matrix: outer product of rowScores and psis
+  # @param theta: a vector of length p with the dispersion parameters
+  # @param mumarg: the nxp offset
+  # @param k: a scalar, the dimension of the RC solution
+  # @param p: a scalar, the number of taxa
+  # @param n: a scalar, the number of samples
+  # @param nLambda: the number of restrictions
+  # @param colWeights: the weights used for the restrictions
+  # @param cMatK: the lower dimensions of the colScores
+  # @param estPsis: a boolean, whether the psi parameters should be estimated
+  
+  #@return a symmetric jacobian matrix of size p + k +1
   cMat = matrix(beta[1:p], byrow=TRUE, nrow=1, ncol=p)
 
   nLambda = if(estPsis) nLambda  else nLambda - 1
@@ -812,19 +824,20 @@ getInflCol = function(score, InvJac, parIndex){
 
 #-------------------------------------------#
 #A score function of the NB for the row scores
-
 dNBllrow = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights, nLambda, rMatK) {
   # @param beta: a vector of k regression parameters to optimize: the k column scores
-  # @param y: the data vector of length p
-  # @param reg: a kxp regressor matrix: outer product of rowScores and psis
-  # @param thetas: a scalar,  the current dispersion parameters
-  # @param abunds: a vector of length p with the abundances
-  # @param libSizes : a vector of length n with (known) library sizes
+  # @param X: the data matrix of dimensions nxp
+  # @param reg: a 1xp regressor matrix: outer product of rowScores and psis
+  # @param thetas: a vector of length p with the current dispersion parameters
+  # @param muMarg: an nxp offset matrix
   # @param k: a scalar, the dimension of the RC solution
   # @param p: a scalar, the number of taxa
   # @param n: a scalar, the number of samples
+  # @param rowWeights: a vector of length n, the weights used for the restrictions
+  # @param nLambda: an integer, the number of lagrangian multipliers
+  # @param rMatK: the lower dimension row scores
 
-    # @return A vector of length p*k+2*k+ k(k-1)/2 evaluations of the lagrangian
+  # @return A vector of length n + k +1 with evaluations of the derivative of the lagrangian
   rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
   mu = exp(rMat %*% reg)* muMarg
   
@@ -844,16 +857,27 @@ dNBllrow = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights, nLambda,
   return(c(score,center, unitSum, orthogons))
 }
 #-------------------------------------------#
-# A function to provide an analytical jacobian in the hope to speed up the calculations
-
+# A function to provide an analytical jacobian to speed up the calculations
 NBjacobianRow = function(beta, X, reg, thetas, muMarg, k, n ,p, nlambda, rowWeights, nLambda, rMatK){
+  # @param beta: a vector of k regression parameters to optimize: the k column scores
+  # @param X: the data matrix of dimensions nxp
+  # @param reg: a 1xp regressor matrix: outer product of rowScores and psis
+  # @param thetas: a vector of length p with the current dispersion parameters
+  # @param muMarg: an nxp offset matrix
+  # @param k: a scalar, the dimension of the RC solution
+  # @param p: a scalar, the number of taxa
+  # @param n: a scalar, the number of samples
+  # @param rowWeights: a vector of length n, the weights used for the restrictions
+  # @param nLambda: an integer, the number of lagrangian multipliers
+  # @param rMatK: the lower dimension row scores
+  
   #@return a symmetric jacobian matrix of size (n+2) *k + k(k-1)/2
   rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
 
   mu = exp(rMat %*% reg)* muMarg
 
   Jac = matrix(0, nrow= n + nLambda, ncol= n + nLambda)
-  #The suymmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:n, n+1] = rowWeights
@@ -901,9 +925,19 @@ getInflRow = function(score, InvJac, parIndex){
 }
 
 #-------------------------------------------#
-# A function to estimate the overdispersion with empirical Bayes using the edgeR pacakage
+# A function to estimate the overdispersion of the NB with empirical Bayes using the edgeR pacakage
 estDisp = function (X, cMat, rMat, muMarg, psis, prior.df = 10, dispWeights = NULL)
 {
+  # @param X: the data matrix of dimensions nxp
+  # @param cMat: a 1xp colum scores matrix
+  # @param rMat: a nx1 rowscores matrix
+  # @param muMarg: an nxp offset matrix
+  # @param psis: a scalar, the current psi estimate
+  # @param prior.df(optional): an integer, number of degrees of freedom of the prior for the Bayesian shrinkage
+  # @param dispWeights (optional): Weights for estimating the dispersion in a zero-inflated model
+  
+  # @return A vector of length p with dispersion estimates
+  
   require(edgeR)
   logMeansMat = t(rMat %*% (cMat * psis) + log(muMarg))
   trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL,
@@ -926,6 +960,8 @@ trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
   # @param prevCutOff: a scalar, the prevalence cut off
   # @param minFraction: a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed
   # @param n: the number of samples
+  
+  # @return A trimmed data matrix nxp'
   
   trimmingID = apply(X, 2, function(x){ #Over taxa
     any(apply(confounders, 2, function(conf){ #Over confounding variables
@@ -952,8 +988,10 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
   # @param tol: a scalar, the convergence tolerance
   # @param maxIt (optional): maximum number of iterations, defaults to 20
 
-  # @return thetas: new theta estimates
-  # @return muMarg: a new offset matrix
+  # @return a list with components:
+  # -thetas: new theta estimates
+  # -muMarg: a new offset matrix
+  # -NB_params: the estimated parameters of the interaction terms
 
   NB_params = matrix(0, ncol(confMat), p)
 
@@ -980,16 +1018,19 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
   
   list(muMarg = muMarg * exp(confMat %*% NB_params), thetas = thetas, NB_params = NB_params)
   }
-#An auxiliary R function, kindly provided by Joris
+#An auxiliary R function to "array" multiply an array with a vector, kindly provided by Joris
 #-------------------------------------------#
 arrayprod <- function(x,y){
+  # @param x: a axbxc array
+  # @param y: a vector of length c matrix
+  
+  # @return a axb matrix
   xdim <- dim(x)
   outdim <- xdim[1:2]
   outn <- prod(outdim)
  
   yexpand <- rep(y, each = outn)
-  outid <- seq_len(outn)
- 
+
   tmp <- x * yexpand
  
   dim(tmp) <- c(outn, xdim[3])
@@ -1001,40 +1042,65 @@ arrayprod <- function(x,y){
 }
 
 #-------------------------------------------#
-## A wrapper function to calculate the overdispersion, abundance and importance parameters. Each dimension is estimated one by one
+## A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k. Not intended to be called directly but only through the RCM() function
 
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global ="dbldog", nleqslv.control=list(), method=c("Broyden"), dispFrec=10, convNorm = 2, prior.df=10, marginEst = "MLE", estPsis = TRUE, confoundersFilt = NULL, confounders = NULL, covariates = NULL, centMat = NULL, responseFun = "linear", prevCutOff = 1e-2, minFraction = 0.1){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global ="dbldog", nleqslv.control=list(), method="Broyden", dispFrec=10, convNorm = 2, prior.df=10, marginEst = "MLE", estPsis = TRUE, confounders = NULL, prevCutOff = 1e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear"){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
+  # @param rowWeights(optional): a character string, either "uniform" or "marginal" row weights. Defaults to "uniform" 
+  # @param colWeights(optional): a character string, either "uniform" or "marginal" column weights. Defaults to "uniform "marginal"
   # @param tol(optional): a scalar, the relative convergende tolerance for the row scores and column scores parameters, defaults to 1e-3  
-  # @param Psitol(optional): a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4
-  # @param maxItOut(optional): an integer, the maximum number of iteration in the outer loop, defaults to 50
+   # @param maxItOut(optional): an integer, the maximum number of iteration in the outer loop, defaults to 500
+   # @param Psitol(optional): a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4
   # @param verbose(optional): a boolean, should information on iterations be printed? Defaults to TRUE
-  # @param method(optional): Method for solving non-linear equations, see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration
-  # @param global(optional): global strategy for solving non-linear systems , see nleqslv
-  # @param nleqslv.control: a list with control options, see nleqslv
-  # @param NBRCM: A NBRCM object, typically a previous fit that did not converge. Estimates from this objects will be used as starting values
-  # @param dispFreq: a scalar, how many iterations the algorithm should wait before reestimationg the dispersions
-  # @param convNorm: a scalar, the norm to use to determine convergence
-  # @param confounders: a list with
+  # @param NBRCM(optional): a previously fitted NBRCM object, from which the lower dimensions can be extracted. Only useful if NBRCM$xk < k  
+  # @param global(optional): global strategy for solving non-linear systems, see ?nleqslv
+   # @param nleqslv.control(optional): a list with control options, see nleqslv
+  # @param method(optional): Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm
+  # @param dispFreq(optional): an integer, how many iterations the algorithm should wait before reestimationg the dispersions
+  # @param convNorm(optional): a scalar, the norm to use to determine convergence
+  # @param prior.df(optional): an integer, see estDisp()
+  # @param marginEst(optional): a character string, either "MLE" or "marginSums", indicating how the independence model should be estimated
+  # @param estPsis(optional): a boolean, should psi parameters be estimated separately?
+  # @param confounders(optional): a list with
   # -confounders: an nxg matrix with confounders
   # -confoundersFilt: an nxh matrix with confounders for filtering, with all levels and without intercept
-  # @param covariates: an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables already
-  # @param responseFun: a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"
+  # @param covariates(optional): an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables alreyad
+  # @param centMat(optional): a fxd matrix containing the contrasts to center the categorical variables. f equals the number of continuous variables + the total number of levels of the categorical variables.
+  # @param responseFun(optional): a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"
+  # @param prevCutOff(optional): a scalar: the minimum prevalence needed to retain a taxon before the the confounder filtering 
+  # @param minFraction(optional): a scalar, total taxon abundance should equal minFraction*n if it wants to be retained before the confounder filtering
 
   # @return A list with elements:
-  # @return psis: a vector of length k with estimates for the importance parameters psi
-  # @return thetas: a vector of length p with estimates for the overdispersion
-  # @return rMat: a nxk matrix with estimated row scores
-  # @return cMat: a pxk matrix with estimated column scores
-  # @return converged: a boolean indicating if the algorithm converged
-  # @return rowRec: a n x k x maxItOut array with a record of all rMat estimates through the iterations 
-  # @return colRec: a k x p x maxItOut array with a record of all cMat estimates through the iterations
-  # @return psiRec.: a k x maxItOut array with a record of all psi estimates through the iterations
-  # @return iter: number of iterations
-  # @return X: the original fitting matrix
+  # - converged: a vector of booleans of length k indicating if the algorithm converged for every dimension
+  # - rMat (if not constrained: a nxk matrix with estimated row scores
+  # - cMat: a kxp matrix with estimated column scores
+  # - psis: a vector of length k with estimates for the importance parameters psi
+  # - thetas: a vector of length p with estimates for the overdispersion
+  # - rowRec(if not constrained): a n x k x maxItOut array with a record of all rMat estimates through the iterations 
+  # - colRec: a k x p x maxItOut array with a record of all cMat estimates through the iterations
+  # - psiRec.: a k x maxItOut array with a record of all psi estimates through the iterations
+  # - thetaRec: a matrix of dimension pxmaxItOut with estimates for the overdispersion along the way
+  # - iter: number of iterations
+  # - Xorig (if confounders provided): the original fitting matrix
+  # - X: the trimmed matrix if confounders provided, otherwise the original one
+  # - fit: type of fit, either "RCM_NB" or "RCM_NB_constr"
+  # - lambdaRow(if not constrained): vector of Lagrange multipliers for the rows
+  # - lambdaCol: vector of Lagrange multipliers for the columns
+  # - rowWeights(if not constrained): the row weights used
+  # - colWeights: the column weights used
+
+  # - alpha(if constrained): the kxd matrix of environmental gradients
+  # - alphaRec(if constrained): the kxdxmaxItOut array of alpha estimates along the iterations
+  # - covariates(if constrained): the matrix of covariates
   
+  # - libSizes: a vector of length n with estimated library sizes
+  # - abunds: a vector of length p with estimated mean relative abundances
+  
+  # - confounders(if provided): the confounder matrix
+  # - confParams: the parameters used to filter out the confounders
+
   Xorig = NULL #An original matrix, not returned of no trimming occurs
   if(!is.null(confounders[[1]])){ #First and foremost: filter on confounders
     Xorig = X
@@ -1269,21 +1335,13 @@ rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
 
-    returnList = list(converged = convergence,rMat=rMat, cMat=cMat, thetas = thetas, psis = psis, X=X,
-                 rowRec= rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, lambdaRow=lambdaRow, lambdaCol=lambdaCol, rowWeights=rowWeights, colWeights=colWeights, iter=iterOut-1, fit="RCM_NB", libSizesMLE = switch(marginEst, "MLE"=exp(logLibSizesMLE), "marginSums" = libSizes), abundsMLE = switch(marginEst, "MLE"=exp(logAbundsMLE), "marginSums"=abunds))
+    returnList =   list(converged = convergence, rMat = rMat, cMat=cMat, psis = psis, thetas = thetas,  rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaRow = lambdaRow, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
+       libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), 
+       confounders = confounders, confParams = confParams)
   
   } else { #If covariates provided, do a constrained analysis
   
 d = ncol(covariates)
-
-# alpha0 = vapply(1:20L,FUN.VALUE = matrix(0,d,k), function(x){
-#   id = sample(seq_len(n),d)
-#   Matrix::solve(covariates[id,], rMat[id,]) #invert definition to obtain starting values, nd average the result over 20 instances. This is a bit far-fetched perhaps?
-# }) 
-# 
-# alpha = as.matrix(apply(alpha0, c(1,2), mean))
-#   alpha = t(t(alpha) - colMeans(alpha))
-#   alpha = t(t(alpha)/sqrt(apply(alpha,2, function(x){sum(x^2)}))) #Center and normalize
 
 alpha = matrix(0,d,k)
   
@@ -1404,7 +1462,10 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(alpha) = paste0("Dim",1:k)
   
-  returnList=list(converged = convergence, alpha = alpha, cMat=cMat, thetas = thetas, psis = psis, X=X, alphaRec = alphaRec, covariates = covariates, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, iter = iterOut-1, fit = "RCM_NB_constr", libSizesMLE = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abundsMLE = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, covariates = covariates, confParams = confParams)
+   returnList = list(converged = convergence, cMat=cMat, psis = psis, thetas = thetas, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,  
+       alpha = alpha, alphaRec = alphaRec, covariates = covariates,  
+       libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), 
+       confounders = confounders, confParams = confParams)
   }
     if(!all(convergence) ){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
@@ -1414,7 +1475,7 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
 #-------------------------------------------#
 ```
 
-## Zero-inflated Poisson
+### Zero-inflated Poisson
 
 ```{r Zero-inflated poisson 1B1, purl=TRUE}
 #----------------------------#
@@ -3238,7 +3299,7 @@ dNBllcol_constr = function(betas, X, reg, theta, muMarg, cReg) {
   # @param reg: a matrix of regressors with the same length as beta (\mathbf{C} \boldsymbol{\alpha})
   # @param theta: The dispersion parameter
   # @param mumarg: offset of length n
-  # @param cReg:  a scalar psi_k * s_{jk}
+  # @param cReg:a scalar psi_k * s_{jk}
 
   # @return The evaluation of the score functions
 
@@ -3246,6 +3307,62 @@ dNBllcol_constr = function(betas, X, reg, theta, muMarg, cReg) {
   score =  crossprod((X-mu)/(1+mu/theta) , reg) * cReg
   return(score)
 }
+#--------------------------------------#
+# Try this for all taxa combined
+dNBllcol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
+  # @param beta: a (deg+1)*p matrix of regression parameters with deg the degree of the response function
+  # @param X: the nxp data matrix
+  # @param reg: a matrix of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
+  # @param theta: The dispersion parameter
+  # @param mumarg: offset matrix of size nxp
+  # @param cReg: a vector of lentgh p psi_k * s_{jk}
+
+  # @return The evaluation of the score functions, a matrix of size (deg+1)*p
+
+  mu = exp(c(reg %*% betas)* cReg) * muMarg
+  score =  crossprod((X-mu)/(1+mu/theta) , reg) * cReg
+  return(c(score)) #First all intercepts, then all slopes
+}
+#--------------------------------------#
+# The jacobian of this function
+JacCol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
+  # @param beta: a (deg+1)*p matrix of regression parameters with deg the degree of the response function
+  # @param X: the nxp data matrix
+  # @param reg: a matrix of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
+  # @param theta: The dispersion parameter
+  # @param mumarg: offset matrix of size nxp
+  # @param cReg: a vector of lentgh p psi_k * s_{jk}
+
+  # @return The jacobian, a (deg+1)*p x (deg+1)*p matrix
+
+  mu = exp(c(reg %*% betas)* cReg) * muMarg
+  tmp = t(t((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2) * cReg^2)
+  Jac = crossprod(tmp,reg)*reg #Don't forget to square cReg!
+  return(-Jac)
+}
+#--------------------------------------#
+# An auxiliary function that multiplies an array by a matrix
+arraymatrixprod = function(x,y){
+  # @param x: a axbxc array
+  # @param y: a bxc matrix
+  
+  # @return a vector of length a
+  xdim <- dim(x)
+  outdim <- xdim[1:2]
+  outn <- prod(outdim)
+ 
+  yexpand <- rep(y, each = outn)
+
+  tmp <- x * yexpand
+ 
+  dim(tmp) <- c(outn, xdim[3])
+  out <- rowSums(tmp)
+ 
+  dim(out) <- outdim
+ 
+  out
+}
+
 #--------------------------------------#
 # The jacobian of this function
 JacCol_constr = function(betas, X, reg, theta, muMarg, cReg) {
