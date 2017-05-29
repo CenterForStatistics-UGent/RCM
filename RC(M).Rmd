@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "alabama")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "alabama","magic")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -1421,7 +1421,7 @@ cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 #Row scores
   if (verbose) cat("\n Estimating row scores \n")
 regAlpha = cMat[KK,,drop=TRUE]*psis[KK]
-tmpAlpha = estAlpha(Alpha = alpha[, KK], X = X, CC = covariates, d = d, ncols = p, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat)
+tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, p=p)
 
 if(class(tmpAlpha)=="list"){
   cat(ifelse(tmpAlpha$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
@@ -3246,7 +3246,7 @@ return(invisible())
 # DON'T USE "p" as variable name, partial matching in the grad-function in the numDeriv package!!!
 
 # A function that returns the value of the log-likelihood ratio of alpha
-LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric"), muMarg, thetas,  cReg, d, ncols, nleqslv.control = list(trace=FALSE), ...){#
+LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric"), muMarg, thetas,  cReg, d, ncols, nleqslv.control = list(trace=FALSE),n, p, ...){#
   # @param alpha: a vector of length d, the environmental gradient
   # @param X: the n-by-p count matrix
   # @param C: the n-by-d covariate matrix
@@ -3255,6 +3255,8 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
   # @param thetas: a vector of length p with estimated dispersion parameters (they will not be re-estimated to keep computation time down)
   # @param ncols: a scalar, the number of columns of X
   # @param cReg: a vector of length p, column scores * importance parameter
+  # @param n: number of samples
+  # @param p: number of taxa
   
   # @return: a scalar, the evaluation of the log-likelihood ratio at the given alpha
   
@@ -3263,7 +3265,8 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
     design = switch(responseFun,
                      linear = model.matrix(~sampleScore),
                      quadratic = model.matrix(~sampleScore + I(sampleScore^2))) #With intercept
-hh = rep(0,ncol(design))
+    v = ncol(design)
+hh = rep.int(0,v)
    NB_params = sapply(seq_len(ncols), function(i){
      nleq = try(nleqslv(hh , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control, jac = JacCol_constr)$x)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
      if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){
@@ -3276,13 +3279,16 @@ hh = rep(0,ncol(design))
 #      if(class(Glm)=="try-error") {return(c(NA,NA))
 #      } else {return(Glm)}
 #    }) #Same output but our function is much faster (10 fold!) and always converges!
+   # A matrix based approach
+   # NB_params_mat = matrix(nleqslv(matrix(1,v,p) , reg = design,  fn = dNBllcol_constr_mat, theta = thetas[1:p], muMarg = muMarg, cReg = cReg, aX = X, control = nleqslv.control, jac = JacCol_constr_mat)$x,v,p)
+   
     mu = muMarg * exp(t(t(design %*% NB_params)* cReg))
     maxX =max(X)
     mu[mu > maxX] = maxX
     mu[mu==0] = 1e-16
    
    #Without taxon Labels
-   NB_param_noLab = nleqslv(x = hh , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, control = nleqslv.control, jac = JacCol_constr_noLab)$x
+   NB_param_noLab = nleqslv(x = hh , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, control = nleqslv.control, jac = JacCol_constr_noLab, n=n, p=p, v=v)$x
    muNoLab = muMarg * exp(outer(colSums(t(design) * NB_param_noLab), cReg))
     muNoLab[muNoLab > maxX] = maxX
     muNoLab[muNoLab==0] = 1e-16
@@ -3309,7 +3315,7 @@ dNBllcol_constr = function(betas, X, reg, theta, muMarg, cReg) {
 }
 #--------------------------------------#
 # Try this for all taxa combined
-dNBllcol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
+dNBllcol_constr_mat = function(betas, aX, reg, theta, muMarg, cReg) {
   # @param beta: a (deg+1)*p matrix of regression parameters with deg the degree of the response function
   # @param X: the nxp data matrix
   # @param reg: a matrix of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
@@ -3317,15 +3323,15 @@ dNBllcol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
   # @param mumarg: offset matrix of size nxp
   # @param cReg: a vector of lentgh p psi_k * s_{jk}
 
-  # @return The evaluation of the score functions, a matrix of size (deg+1)*p
+  # @return The evaluation of the score functions, a matrix of size p*(deg+1)
 
-  mu = exp(c(reg %*% betas)* cReg) * muMarg
-  score =  crossprod((X-mu)/(1+mu/theta) , reg) * cReg
-  return(c(score)) #First all intercepts, then all slopes
+  mu = exp(t(t(reg %*% betas)* cReg)) * muMarg
+  score =  crossprod((aX-mu)/(1+t(t(mu)/theta)) , reg) * cReg
+  return(c(t(score))) #Taxon per taxon
 }
 #--------------------------------------#
 # The jacobian of this function
-JacCol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
+JacCol_constr_mat = function(betas, aX, reg, theta, muMarg, cReg) {
   # @param beta: a (deg+1)*p matrix of regression parameters with deg the degree of the response function
   # @param X: the nxp data matrix
   # @param reg: a vector of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
@@ -3333,21 +3339,29 @@ JacCol_constr_mat = function(betas, X, reg, theta, muMarg, cReg) {
   # @param mumarg: offset matrix of size nxp
   # @param cReg: a vector of lentgh p psi_k * s_{jk}
 
-  # @return The jacobian, a (deg+1)*p x (deg+1)*p matrix
-
-  mu = exp(c(reg %*% betas)* cReg) * muMarg
-  tmp = t(t((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2) * cReg^2)
-  Jac = crossprod(tmp,reg)*reg #Don't forget to square cReg!
+  # @return The jacobian, a (deg+1)*p x (deg+1)*p matrix, a block correlation matrix
+v=ncol(reg);p=ncol(aX)
+  mu = exp(t(t(reg %*% betas)* cReg)) * muMarg
+  tmp = t(t((1+t(t(X)/theta))*mu/(1+t(t(mu)/theta))^2)*cReg^2)
+  tmp2 =  vapply(seq_len(v), FUN.VALUE = tmp, function(x){reg[,x]*tmp})
+  tmp3 =  vapply(seq_len(v), FUN.VALUE = betas, function(x){crossprod(reg,tmp2[,,x])})
+  Jac = matrix(0, p*v, p*v)
+  ind = as.logical(Reduce(f=adiag,lapply(seq_len(p),function(x){matrix(TRUE,v,v)})))
+  Jac[ind] = apply(tmp3,2,identity)
   return(-Jac)
 }
 #--------------------------------------#
 # An auxiliary function that multiplies an array by a matrix
 arraymatrixprod = function(x,y){
   # @param x: a axbxc array
-  # @param y: a bxc matrix
+  # @param y: an axd matrix
   
-  # @return a vector of length a
-  xdim <- dim(x)
+  # @return a dxbxc array
+  
+  xdim <- dim(x) #c(a,b,c)
+  ydim = dim(y) #c(a,d)
+  expand <- rep(c(y), times = prod(xdim[2:3]))
+  
   outdim <- xdim[1:2]
   outn <- prod(outdim)
  
@@ -3382,7 +3396,7 @@ JacCol_constr = function(betas, X, reg, theta, muMarg, cReg) {
 }
 #--------------------------------------#
 # A function to evaluate the score function ignoring taxon labels
-dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
+dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg, ...) {
   # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
   # @param X: the nxp data matrix
   # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
@@ -3399,7 +3413,7 @@ dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
 }
 #--------------------------------------#
 # The jacobian of this function
-JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
+JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg, n , p, v, old=TRUE) {
   # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
   # @param X: the nxp data matrix
   # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
@@ -3410,24 +3424,12 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg) {
 
   mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
   tmp = t(t((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2) * cReg^2) #Don't forget to square cReg!
-  tmp2 = vapply(1:ncol(reg), FUN.VALUE = tmp, function(x){reg[,x]*tmp})
-  Jac = crossprod(reg, apply(tmp2, c(1,3), sum))
-  return(-Jac)
-}
-
-Rdim = dim(R)
-Xdim = dim(X)
-Rrep = rep(c(R),times = Xdim[2])
-Xrep = rep(c(X), times = Rdim[2])
-tmp = Rrep *Xrep
-dim(tmp) = c(prod(Rdim), Xdim[2])
-tmp2 = rowSums(tmp)
-dim(tmp2) = Rdim
-tmp2
+  -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric", n), function(x){rowSums(reg[,x]*tmp)}))
+  }
 
 #--------------------------------------#
 # A function to estimate alpha based on the LR-criterion
-estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list() ){
+estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list(), n, p ){
   
   # @param alpha: a vector of length d, the environmental gradient
   # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
@@ -3442,24 +3444,22 @@ estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear"
   
   # @return: a vector of length  with the new alpha estimate
   
-  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k, centMat = centMat) #
+  alphaNew = constrOptim.nl(par = Alpha, fn =LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k, centMat = centMat, n=n, p=p) #
 }
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
 heq_nb = function(Alpha, alphaK, d, k,  centMat, ...){
-  center = sum(Alpha) #Overall centering
-  centerFactors = centMat %*% Alpha
+  centerFactors = centMat %*% Alpha #Includes overal centering
   size = sum(Alpha^2)-1
-  if(k==1) { return(c(center, centerFactors, size))}
+  if(k==1) { return(c( centerFactors, size))}
   ortho = alphaK %*% Alpha
   c(center, centerFactors, size, ortho)
 }
 #--------------------------------------#
 # It's jacobian, returns a matrix with d columns and at least 2 rows (numerically checked with nloptr::check.derivatives)
 heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){
-  center = rep.int(1,d)
   size = 2*Alpha
-  if(k==1) {return(rbind(center, centMat, size))}
+  if(k==1) {return(rbind( centMat, size))}
   ortho = alphaK
   rbind(center, size, centMat, ortho)
 }
@@ -3572,6 +3572,8 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFr
         rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #
     })) 
     centMat = centMat[rowSums(centMat)>0,] #Remove zero rows, corresponding to the non-factors
+    centMat = rbind(1, centMat) # Add a row of ones for the overal sum
+    
     #Multiply this by the vector of coefficients
     
     
@@ -3610,6 +3612,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFr
         rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #
     })) 
     centMat = centMat[rowSums(centMat)>0,]
+     centMat = rbind(1, centMat)
     } else{
       stop("Please provide the covariates either as matrix, dataframe, or character string! \n")
     }
@@ -5260,6 +5263,7 @@ Test this method in one dimension, linear response function. Default should prob
 
 ```{r LRnbchack, purl=FALSE}
 #Some synthetic data
+#FIX ME! mistake in centMat when no categorical covariates
 n = 40
 p = 200
 d = 3
