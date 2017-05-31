@@ -527,7 +527,45 @@ The likelihood ratio then equals
 
 $$LR(\boldsymbol{\alpha}) = \sum_{i=1}^n \sum_{j=1}^p log(e_{ij})x_{ij}-\sum_{i=1}^n \sum_{j=1}^p log(e_{i.})x_{ij}$$
 
-Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm may be computationally unfeasible. Under non-parametric estimation also no analytical derivative can be calculated so we will have to rely on numerical ones, which will slow down calculations.
+Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm may be computationally unfeasible.
+
+#### Naive approach
+
+The naive approach to optimize $LR(\alpha)$ would be to use constrained optimization (constraining the $\alpha$'s to be zero-centered etc.) and estimate $p_j^{(\alpha)}$ and $p^{(\alpha)}$ in every evaluation of this function. This implies a analytical jacobian cannot be estimated and requires a huge amount of re-estimation of the response functions. This naive approach is computationally unfeasible
+
+#### Iterative approach
+
+A smarter approach is to iterate between estimating $\alpha$ by optimizing $LR(\alpha)$ given $p_j^{(\alpha)}$ and $p^{(\alpha)}$, and estimating $p_j^{(\alpha)}$ and $p^{(\alpha)}$ given $\alpha$. This results in much fewer estimations of $p_j^{(\alpha)}$ and $p^{(\alpha)}$ and allows to optimize $LR(\alpha)$ by finding the roots of $\frac{\partial LR(\alpha)}{d \alpha} = 0$ (and analytically specifying the second order derivative).
+
+Convergence is assumed when every single change in $\alpha$ is below a tolerance level (infinity norm).
+
+In case of linear response functions, the likelihood ration then equals
+
+$$ LR(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{jk} \boldsymbol{\alpha}_k - \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{k} \boldsymbol{\alpha}_k$$
+$$ =  \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{jk} \boldsymbol{\alpha}_k - \boldsymbol{\beta}_{k} \boldsymbol{\alpha}_k \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} $$
+
+Taking into account the restrictions mentioned above, the associated Lagrangian becomes
+
+$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \psi_k \Big(\sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{jk} \boldsymbol{\alpha}_k - \boldsymbol{\beta}_{k} \boldsymbol{\alpha}_k \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{1} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k}$$
+
+with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first to the (k-1)th column.
+
+The first order derivative becomes
+
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk}} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \beta_{1jyk} - \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \beta_{1.yk} \Big) + \lambda_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_{-k}$$
+Together with the restrictions, this is almost a linear set of equations but for the term $\lambda_{2k} \boldsymbol{\alpha}_k$. The second order derivatives are
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk}^2} =  2\lambda_{2k} $$
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partial \alpha_{y'k}} =  2\lambda_{2k}$$
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partial \lambda_{1k}} =  1$$
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partial \lambda_{2k}} =  2\boldsymbol{\alpha}_k$$
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_{k} \partial \boldsymbol{\lambda}_{orth,k}} =  \boldsymbol{\alpha}_{-k}$$
+
+#### Algorithm
 
 The estimation would then proceed as follows:
 
@@ -1434,7 +1472,7 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
        libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), 
        confounders = confounders, confParams = confParams)
   }
-    if(!all(convergence) ){
+    if(!all(convergence)){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
     }
   return(returnList)
@@ -3234,6 +3272,45 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
     sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
     #cat(sampleScore, "\n \n")
     design = switch(responseFun,
+                     linear = model.matrix(~sampleScore),
+                     quadratic = model.matrix(~sampleScore + I(sampleScore^2))) #With intercept
+
+   # A matrix based approach (leads to singular jacobians)
+   # NB_params_mat = matrix(nleqslv(matrix(1,v,p) , reg = design,  fn = dNBllcol_constr_mat, theta = thetas[1:p], muMarg = muMarg, cReg = cReg, aX = X, control = nleqslv.control, jac = JacCol_constr_mat)$x,v,p)
+
+    mu = muMarg * exp(t(t(design %*% NB_params)* cReg))
+    maxX =max(X)
+    mu[mu > maxX] = maxX
+    mu[mu==0] = 1e-16
+   
+   muNoLab = muMarg * exp(outer(colSums(t(design) * NB_params_noLab), cReg))
+    muNoLab[muNoLab > maxX] = maxX
+    muNoLab[muNoLab==0] = 1e-16
+ 
+    lr <- sum(X*log(mu))-sum(X*log(muNoLab)) # The likelihood ratio
+    return(-lr) # opposite sign for the minimization procedure
+}
+#--------------------------------------#
+# A function that returns the value of the partial derivative of the log-likelihood ratio of alpha to alpha, keeping the response functions fixed
+LR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), muMarg,   cReg, nleqslv.control = list(trace=FALSE), NB_params, NB_params_noLab, ...){
+  # @param Alpha: a vector of length d, the environmental gradient
+  # @param X: the n-by-p count matrix
+  # @param CC: the n-by-d covariate matrix
+  # @param responseFun: a character string indicating the type of response function
+  # @param muMarg: an n-by-p offset matrix
+  # @param thetas: a vector of length p with estimated dispersion parameters (they will not be re-estimated to keep computation time down)
+  # @param ncols: a scalar, the number of columns of X
+  # @param cReg: a vector of length p, column scores * importance parameter
+  # @param nleqslv.control: the control list for the nleqslv() function
+  # @param n: number of samples
+  # @param NB_params_start: Starting values for the NB_params
+  # @param NB_params_start_noLab: Starting values for the NB_params without label
+  # @param v: an integer, number of parameters to be estimated
+
+  # @return: a scalar, the evaluation of the log-likelihood ratio at the given alpha
+  
+    sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
+  design = switch(responseFun,
                      linear = model.matrix(~sampleScore),
                      quadratic = model.matrix(~sampleScore + I(sampleScore^2))) #With intercept
 
