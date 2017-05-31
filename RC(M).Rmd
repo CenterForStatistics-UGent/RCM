@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "alabama")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "alabama", "vegan")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -1025,7 +1025,7 @@ arrayprod <- function(x,y){
 #-------------------------------------------#
 ## A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k. Not intended to be called directly but only through the RCM() function
 
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global ="dbldog", nleqslv.control=list(), jacMethod="Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 1e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear"){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 1e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear"){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -1272,7 +1272,7 @@ cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 regRow = cMat[KK,,drop=FALSE]*psis[KK]
 tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg=muMarg, k=KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianRow, method=jacMethod, rowWeights=rowWeights, nLambda=(KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE])
 
-  cat(ifelse(tmpRow$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
+  if(verbose) cat(ifelse(tmpRow$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
   rMat[,KK] = tmpRow$x[1:n]
   lambdaRow[idK] = tmpRow$x[n + seq_along(idK)]
 
@@ -1320,6 +1320,9 @@ alpha = t(t(alpha)-colMeans(alpha))
 alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
 
 alphaRec = array(0, dim=c(d,k, maxItOut))
+v = switch(responseFun, linear = 2, quadratic = 3, 1)
+NB_params = matrix(0,v,p) #Initiate parameters of the response function
+NB_params_noLab = matrix(0,v,1)
   
  if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
    Kprev = NBRCM$k
@@ -1345,7 +1348,6 @@ alphaRec = array(0, dim=c(d,k, maxItOut))
   if(KK>1){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
 
     idK = seq_k(KK)
-    idK = seq_k(KK)
   ## 2) Propagation
   
   while((iterOut[KK] ==1) || ((iterOut[KK] <= maxItOut) && (!convergence[KK])))
@@ -1368,24 +1370,22 @@ alphaRec = array(0, dim=c(d,k, maxItOut))
     if((iterOut[KK] %% dispFrec) ==0  || iterOut[KK]==1){
   if (verbose) cat("\n Estimating overdispersions \n")
  thetas = estDisp(X = X, rMat = rMat, cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
+ thetasMat = matrix(thetas, n, p, byrow=TRUE)
   }
 
 #Psis
     if (verbose) cat("\n Estimating psis (k = ",KK,") \n", sep="")
 regPsis = outer(c(rMat) ,cMat[KK,])
 
-psisTmp = try(abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetas, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method = jacMethod)$x), silent=TRUE)
-if(!inherits(psisTmp, "try-error")) psis[KK] = psisTmp
+psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta =  thetasMat , X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method = jacMethod)$x)
 #Column scores
-  if (verbose) cat("\n Estimating column scores \n")
+if (verbose) cat("\n Estimating column scores \n")
 regCol = rMat*psis[KK]
-tmpCol = try(nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas = thetas, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE]), silent=TRUE)
+tmpCol = nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE])
 
-if(class(tmpCol)=="list"){
   cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
   cMat[KK,] = tmpCol$x[1:p]
   lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
-}
 #Normalize (speeds up algorithm if previous step had not converged)
 
 cMat[KK,] = cMat[KK,] - sum(cMat[KK,] * colWeights)/sum(colWeights) 
@@ -1394,13 +1394,12 @@ cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 #Row scores
   if (verbose) cat("\n Estimating row scores \n")
 regAlpha = cMat[KK,,drop=TRUE]*psis[KK]
-tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, p=p)
+tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas =  thetasMat , cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, NB_params = NB_params, NB_params_noLab = NB_params_noLab) #Provide previous parameters of the response function since they might provide good estimates
 
-if(class(tmpAlpha)=="list"){
-  cat(ifelse(tmpAlpha$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
-  alpha[,KK] = tmpAlpha$par
-  # lambdaAlpha[idK] = tmpAlpha$lambda
-}
+if(verbose)  cat(ifelse(tmpAlpha$converged, "Row scores converged \n", "Row scores DID NOT converge \n"))
+  alpha[,KK] = tmpAlpha$Alpha
+  NB_params = tmpAlpha$NB_params
+  NB_params_noLab = tmpAlpha$NB_params_noLab
 
 #Normalize (speeds up algorithm if previous step had not converged)
 alpha[,KK] = alpha[,KK] - mean(alpha[,KK]) 
@@ -3213,8 +3212,8 @@ return(invisible())
 ```{r LRnb, purl=FALSE} 
 # DON'T USE "p" as variable name, partial matching in the grad-function in the numDeriv package!!!
 
-# A function that returns the value of the log-likelihood ratio of alpha
-LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric"), muMarg, thetas,  cReg, ncols, nleqslv.control = list(trace=FALSE),n, NB_params_start, NB_params_start_noLab, v, ...){#
+# A function that returns the value of the log-likelihood ratio of alpha, keeping the response functions fixed
+LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric"), muMarg,   cReg, nleqslv.control = list(trace=FALSE), NB_params, NB_params_noLab, ...){#
   # @param Alpha: a vector of length d, the environmental gradient
   # @param X: the n-by-p count matrix
   # @param CC: the n-by-d covariate matrix
@@ -3233,26 +3232,25 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
   
 	# alpha<-alpha/sqrt(sum(alpha^2))#
     sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
+    #cat(sampleScore, "\n \n")
     design = switch(responseFun,
                      linear = model.matrix(~sampleScore),
                      quadratic = model.matrix(~sampleScore + I(sampleScore^2))) #With intercept
 
-   # A matrix based approach
+   # A matrix based approach (leads to singular jacobians)
    # NB_params_mat = matrix(nleqslv(matrix(1,v,p) , reg = design,  fn = dNBllcol_constr_mat, theta = thetas[1:p], muMarg = muMarg, cReg = cReg, aX = X, control = nleqslv.control, jac = JacCol_constr_mat)$x,v,p)
-    NB_params = estNBparams(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, ncols =ncols, initParam = NB_params_start, v = v)
-   
+
     mu = muMarg * exp(t(t(design %*% NB_params)* cReg))
     maxX =max(X)
     mu[mu > maxX] = maxX
     mu[mu==0] = 1e-16
    
-NB_param_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, initParam = NB_params_start_noLab, n = n, v = v)
-   muNoLab = muMarg * exp(outer(colSums(t(design) * NB_param_noLab), cReg))
+   muNoLab = muMarg * exp(outer(colSums(t(design) * NB_params_noLab), cReg))
     muNoLab[muNoLab > maxX] = maxX
     muNoLab[muNoLab==0] = 1e-16
  
     lr <- sum(X*log(mu))-sum(X*log(muNoLab)) # The likelihood ratio
-    return(-lr) # invert for the optimization
+    return(-lr) # opposite sign for the minimization procedure
 }
 
 #--------------------------------------#
@@ -3357,7 +3355,7 @@ dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg, ...) {
   # @return The evaluation of the score functions (a vector length v)
 
   mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
-  colSums(crossprod((X-mu)/(1+t(t(mu)/thetas)),reg) * cReg)
+  colSums(crossprod((X-mu)/(1+(mu/thetas)),reg) * cReg)
 
 }
 #--------------------------------------#
@@ -3372,13 +3370,13 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg, n ,v) {
   # @return The jacobian (a v-by-v matrix)
 
   mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
-  tmp = t(t((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2) * cReg^2) #Don't forget to square cReg!
+  tmp = t(t((1+(X/thetas))*mu/(1+(mu/thetas))^2) * cReg^2) #Don't forget to square cReg!
   -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric", n), function(x){rowSums(reg[,x]*tmp)}))
   }
 
 #--------------------------------------#
 # A function to estimate alpha based on the LR-criterion
-estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=TRUE), control.optim=list(trace=TRUE), nleqslv.control = list(), n, p ){
+estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v,maxItAlpha = 50, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=FALSE), control.optim=list(trace=FALSE), nleqslv.control = list(), convNorm = 2, tol=1e-3, NB_params = NULL, NB_params_noLab = NULL){
   
   # @param alpha: a vector of length d, the environmental gradient
   # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
@@ -3388,25 +3386,36 @@ estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, responseFun = c("linear"
   # @param C: the n-by-d covariate matrix
   # @param responseFun: a character string indicating the type of response function
   # @param muMarg: an n-by-ncols offset matrix
-  # @param thetas: a vector of length ncols with estimated dispersion parameters (they will not be re-estimated within the alpha estimation to keep computation time down)
+  # @param thetas: nxp matrix with with estimated dispersion parameters (they will not be re-estimated within the alpha estimation to keep computation time down)
   # @param cReg: a vector of length p, column scores * importance parameter
+  # @param maxItAlpha: an integer, the maximum number of iterations
   
   # @return: a vector of length  with the new alpha estimate
   
-  v = switch(responseFun, linear = 2, quadratic = 3, 1)
+  iterA = 1
+  
+  while ((iterA == 1) || ((iterA <= maxItAlpha) &&                           
+             (!convergenceA))) { 
+    
+    AlphaOld = Alpha
+  cat(iterA, "\n")
+  #New strategy: estimate the parameters and then optimize alpha, iterate between both.
   sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
   design = switch(responseFun,
                      linear = model.matrix(~sampleScore),
                      quadratic = model.matrix(~sampleScore + I(sampleScore^2))) #With intercept
   
-  initParam = estNBparams(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = matrix(0,v,p), v = v)
-  
-initParamNoLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, initParam = rep.int(0,v), n = n, v = v)
+NB_params = estNBparams(design = design, thetas = thetas[1,], muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, ncols =ncols, initParam = NB_params, v = v)
 
-initParam = matrix(0,n,v)
-initParamNoLab = initParam[,1,drop=FALSE]
+NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab, n = n, v = v)
   
-  constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, thetas = thetas, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = k, centMat = centMat, n=n, NB_params_start = initParam, NB_params_start_noLab = initParamNoLab,v =v) #
+  Alpha = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, NB_params = NB_params, NB_params_noLab = NB_params_noLab, v = v)$par #
+  
+  iterA = iterA + 1
+  convergenceA = sum((AlphaOld - Alpha)^convNorm)^(1/convNorm) < tol
+  } 
+  
+  return(list(Alpha = Alpha, NB_params = NB_params, NB_params_noLab = NB_params_noLab, convergence = convergenceA))
 }
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
@@ -5164,7 +5173,6 @@ Test this method in one dimension, linear response function. Default should prob
 
 ```{r LRnbchack, purl=FALSE}
 #Some synthetic data
-#FIX ME! mistake in centMat when no categorical covariates
 n = 40
 p = 200
 d = 3
@@ -5191,9 +5199,10 @@ X = X0[rowSums(X0)>0,idCol ]
 cVec2 = cVec[idCol]
 muMargObs = outer(rowSums(X), colSums(X)/sum(X))
 
-testLR = LR_nb(alphaT, X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d= nrow(regMat), ncols=ncol(X))
+testLR = LR_nb(alphaT, X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d= nrow(regMat), ncols=ncol(X),v=2)
+centMat = rbind(1, matrix(0,3,3))
 
-testAlpha = estAlpha(c(0.01,0.01,0.01), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL)
+testAlpha = estAlpha(c(0.01,0.01,0.01), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = matrix(thetasCon[idCol],nrow(X),ncol(X), byrow=TRUE), cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, n=nrow(X), k=1)
 
 #Works really well, only a trifle slow!
 testRCMconstrJob = mcparallel(RCM_NB(X = X, k = 1, covariates = t(regMat)))
