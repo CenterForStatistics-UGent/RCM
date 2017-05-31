@@ -909,13 +909,14 @@ getInflRow = function(score, InvJac, parIndex){
 
 #-------------------------------------------#
 # A function to estimate the overdispersion of the NB with empirical Bayes using the edgeR pacakage
-estDisp = function (X, cMat, rMat, muMarg, psis, prior.df = 10, dispWeights = NULL)
+estDisp = function (X, cMat, rMat, muMarg, psis, trended.dispersion, prior.df = 10, dispWeights = NULL)
 {
   # @param X: the data matrix of dimensions nxp
   # @param cMat: a 1xp colum scores matrix
   # @param rMat: a nx1 rowscores matrix
   # @param muMarg: an nxp offset matrix
   # @param psis: a scalar, the current psi estimate
+  # @param trended.dispersion: a vector of length p with pre-calculated trended.dispersion estimates. They do not vary in function of the offset anyway
   # @param prior.df(optional): an integer, number of degrees of freedom of the prior for the Bayesian shrinkage
   # @param dispWeights (optional): Weights for estimating the dispersion in a zero-inflated model
   
@@ -923,11 +924,8 @@ estDisp = function (X, cMat, rMat, muMarg, psis, prior.df = 10, dispWeights = NU
   
   require(edgeR)
   logMeansMat = t(rMat %*% (cMat * psis) + log(muMarg))
-  trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL,
-                                               method = "bin.loess", offset = logMeansMat, weights = dispWeights)
   thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL,
-                                        prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion,
-                                        weights = dispWeights)
+                                        prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
   if (anyNA(thetaEsts)) {
     idNA = is.na(thetaEsts)
     thetaEsts[idNA] = mean(thetaEsts[!idNA])
@@ -991,7 +989,7 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
      return(nleq)
    }) #Estimate response functions
 
-     thetas = estDisp(X = X, cMat = matrix(0, ncol=p), rMat = matrix(0, nrow=n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params)) #Estimate overdispersion
+     thetas = estDisp(X = X, cMat = matrix(0, ncol=p), rMat = matrix(0, nrow=n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params), trended.dispersion = trended.dispersion) #Estimate overdispersion
      
      iter = iter +1
      
@@ -1048,7 +1046,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   # @param confounders(optional): a list with
   # -confounders: an nxg matrix with confounders
   # -confoundersFilt: an nxh matrix with confounders for filtering, with all levels and without intercept
-  # @param covariates(optional): an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables alreyad
+  # @param covariates(optional): an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables already
   # @param centMat(optional): a fxd matrix containing the contrasts to center the categorical variables. f equals the number of continuous variables + the total number of levels of the categorical variables.
   # @param responseFun(optional): a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"
   # @param prevCutOff(optional): a scalar: the minimum prevalence needed to retain a taxon before the the confounder filtering 
@@ -1096,6 +1094,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   abunds = colSums(X)/sum(X)
   libSizes = rowSums(X)
   
+  #Get the trended-dispersion estimates. Very insensitive to the offset so only need to be calculated once
+  trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(libSizes, abunds))), weights = dispWeights)
+
   if(marginEst == "MLE"){
 
   logLibSizesMLE = log(libSizes)
@@ -1109,7 +1110,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
      libsOld = logLibSizesMLE
      absOld = logAbundsMLE
      
-         thetas = estDisp(X = X, rMat = as.matrix(rep(0,n)), cMat = t(as.matrix(rep(0,p))),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, prior.df = prior.df)
+         thetas = estDisp(X = X, rMat = as.matrix(rep(0,n)), cMat = t(as.matrix(rep(0,p))),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, prior.df = prior.df, trended.dispersion = trended.dispersion)
          thetasMat = matrix(thetas, n, p, byrow=TRUE)
 
  logLibSizesMLE = nleqslv(fn = dNBlibSizes, x = logLibSizesMLE, theta = thetasMat, X = X, reg=logAbundsMLE, global=global, control = nleqslv.control, jac=NBjacobianLibSizes, method=jacMethod)$x
@@ -1246,7 +1247,7 @@ rMat = apply(rMat, 2, function(rowS){
 #Overdispersions (not at every iterations to speed things up, the estimates do not change a lot anyway)
     if((iterOut[KK] %% dispFrec) ==0){
   if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df)
+ thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
  thetasMat = matrix(thetas, n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
   }
 #Psis
@@ -1366,7 +1367,7 @@ alphaRec = array(0, dim=c(d,k, maxItOut))
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
     if((iterOut[KK] %% dispFrec) ==0  || iterOut[KK]==1){
   if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, rMat = rMat, cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df)
+ thetas = estDisp(X = X, rMat = rMat, cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
   }
 
 #Psis
@@ -3718,32 +3719,6 @@ if(!file.exists("toyDataNS.RData")){
       syntNBNSmargunif_3Job = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "marginal",colWeights ="uniform", prevCutOff=0.01))
   syntNBNSmargunif_3 = mccollect(syntNBNSmargunif_3Job, FALSE)[[1]]
   
-  #Only weight the normalization, unfiorm weights for the rows
-  Dim = dim(dataMatNBNS)
-  unifWeights = rep(1/Dim[2], Dim[2])
-  margWeights = colSums(dataMatNBNS)/sum(dataMatNBNS)
-  colWeightsTest1 = cbind(unifWeights, margWeights, unifWeights)
-  colWeightsTest2 = cbind(margWeights, margWeights, unifWeights)
-  colWeightsTest3 = cbind(margWeights, unifWeights, unifWeights)
-  
- testJob1 = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "marginal",colWeights = colWeightsTest1, prevCutOff=0.01))
-  test1 = mccollect(testJob1, FALSE)[[1]]
-  
- testJob2 = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "marginal",colWeights = colWeightsTest2, prevCutOff=0.01))
-  test2 = mccollect(testJob2, FALSE)[[1]]
-  
-   testJob3 = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "marginal",colWeights = colWeightsTest3, prevCutOff=0.01))
-  test3 = mccollect(testJob3, FALSE)[[1]]
-  
-   testJob1unif = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "uniform",colWeights = colWeightsTest1, prevCutOff=0.01))
-  test1unif = mccollect(testJob1unif, FALSE)[[1]]
-  
- testJob2unif = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "uniform",colWeights = colWeightsTest2, prevCutOff=0.01))
-  test2unif = mccollect(testJob2unif, FALSE)[[1]]
-  
-   testJob3unif = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "uniform",colWeights = colWeightsTest3, prevCutOff=0.01))
-  test3unif = mccollect(testJob3unif, FALSE)[[1]]
-  
    syntNBNSmargmarg_2JobMLE = mcparallel(RCM(dataMatNBNS, distribution="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal",rowWeights ="marginal", prevCutOff=0.01, marginEst = "MLE"))
   syntNBNSmargmarg_2MLE = mccollect(syntNBNSmargmarg_2JobMLE, FALSE)[[1]]
   
@@ -4136,40 +4111,7 @@ if(!file.exists("toyDataSigab.RData")){
       syntNBSigunifunif_abJob = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="uniform", rowWeights = "uniform"))
   syntNBSigunifunif_ab = mccollect(syntNBSigunifunif_abJob, FALSE)[[1]] #Check
   
-    Dim = dim(dataMatSigNBab)
-  unifWeightsAb = rep(1/Dim[2], Dim[2])
-  margWeightsAb = colSums(dataMatSigNBab)/sum(dataMatSigNBab)
-  colWeightsTestAb1 = cbind(unifWeightsAb, margWeightsAb, unifWeightsAb)
-  colWeightsTestAb2 = cbind(margWeightsAb, margWeightsAb, unifWeightsAb)
-  colWeightsTestAb3 = cbind(margWeightsAb, unifWeightsAb, unifWeightsAb)
-  
-  testAbJob1 = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = "marginal", colWeights = colWeightsTestAb1, prevCutOff=0.01))
-  testAb1 = mccollect(testAbJob1, FALSE)[[1]]
-  
- testAbJob2 = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = "marginal", colWeights = colWeightsTestAb2, prevCutOff=0.01))
-  testAb2 = mccollect(testAbJob2, FALSE)[[1]]
-  
- testAbJob3 = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = "marginal", colWeights = colWeightsTestAb3, prevCutOff=0.01))
-  testAb3 = mccollect(testAbJob3, FALSE)[[1]]
-  
-  testAbJob1unif = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = "uniform", colWeights = colWeightsTestAb1, prevCutOff=0.01))
-  testAb1unif = mccollect(testAbJob1unif, FALSE)[[1]]
-  
- testAbJob2unif = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = "uniform", colWeights = colWeightsTestAb2, prevCutOff=0.01))
-  testAb2unif = mccollect(testAbJob2unif, FALSE)[[1]]
-  
-  testAbJob3unif = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = "uniform", colWeights = colWeightsTestAb3, prevCutOff=0.01))
-  testAb3unif = mccollect(testAbJob3unif, FALSE)[[1]]
-  
-  #Try inverse weighting?
-    testAbJobInv = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = sum(dataMatSigNBab)/rowSums(dataMatSigNBab), colWeights =1/margWeightsAb, prevCutOff=0.01))
-  testAbInv = mccollect(testAbJobInv, FALSE)[[1]]
-  
-  #More realistic libsizes
-      testAbJobLibs = mcparallel(RCM(dataMatSigNBabag, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=1e3, rowWeights = "uniform", colWeights = "marginal", prevCutOff=0.01))
-  testAbLibs = mccollect(testAbJobLibs, FALSE)[[1]]
-  
-      syntNBSigmargmarg_abJobMLE = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "marginal", marginEst = "MLE"))
+        syntNBSigmargmarg_abJobMLE = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "marginal", marginEst = "MLE"))
   syntNBSigmargmarg_abMLE = mccollect(syntNBSigmargmarg_abJobMLE, FALSE)[[1]] 
   
       syntNBSigunifmarg_abJobMLE = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE"))
