@@ -474,7 +474,7 @@ $$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
 
 $$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbb{1}_k$$
 
-with $\mathbf{1}$ a vector of ones of length $d$ and $\mathbb{1}_k$ the identity matrix of dimension $k$. However to maintain maximal comparability with the unconstrained RC(M)-model we prefer to set 
+with $\mathbf{1}$ a vector of ones of length $d$ and $\mathbb{1}_k$ the identity matrix of dimension $k$. However to maintain maximal comparability with the unconstrained RC(M)-model we could also set 
 
 $$\mathbf{C}\boldsymbol{\alpha}\mathbf{1} = \mathbf{0}$$
 $$\big(\mathbf{C}\boldsymbol{\alpha}\big)^t\mathbf{C}\boldsymbol{\alpha} = \mathbb{1}_k$$
@@ -564,6 +564,7 @@ $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partia
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partial \lambda_{2k}} =  2\boldsymbol{\alpha}_k$$
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_{k} \partial \boldsymbol{\lambda}_{orth,k}} =  \boldsymbol{\alpha}_{-k}$$
+All other second order derivatives equal zero. 
 
 #### Algorithm
 
@@ -809,7 +810,7 @@ NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLam
 
     #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
-    Jac[1:p,(p+3):(p+nLambda)] = t(t(cMatK)*colWeights)
+    Jac[1:p,(p+3):(p+nLambda)] = t(cMatK)*colWeights
   }
 
   #Symmetrize
@@ -1063,7 +1064,7 @@ arrayprod <- function(x,y){
 #-------------------------------------------#
 ## A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k. Not intended to be called directly but only through the RCM() function
 
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 1e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear"){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 1e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear"){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -1118,7 +1119,54 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   
   # - confounders(if provided): the confounder matrix
   # - confParams: the parameters used to filter out the confounders
-
+  
+    #If previous fit provided with higher or equal dimension, stop here
+  if((!is.null(NBRCM)) ){
+    if(NBRCM$fit != "RCM_NB"){
+      stop("Fit provided is not of same type as the one requested! \n Make sure you used exactly the same trimming parameters, otherwise start a new fit. \n")
+    } else if((k <= NBRCM$k)) {
+      stop("Fit provided is already of the required dimension or higher! \n")
+    } else{
+      #Read in all starting values
+      rMat = NBRCM$rMat
+      cMat = NBRCM$cMat
+      psis = NBRCM$psis
+      Kprev = NBRCM$k
+      if(!all(X == NBRCM$X)){ stop("Different count matrix provided from original fit! \n")
+      } else {X = NBRCM$X}
+      n=NROW(X)
+      p=NCOL(X)
+      thetas = NBRCM$thetas
+      thetasMat = matrix(thetas, byrow = TRUE, n, p)
+      rowWeights = NBRCM$rowWeights
+      colWeights = NBRCM$colWeights
+      libSizesMLE = NBRCM$libSizesMLE
+      abundsMLE = NBRCM$abundsMLE
+      #Extend the record matrices
+      rowRec = array(0, dim = c(n,k,maxItOut))
+      rowRec[,1:Kprev,] = NBRCM$rowRec
+      colRec = array(0, dim = c(k,p,maxItOut))
+      colRec[1:Kprev,,] = NBRCM$colRec
+      thetaRec = array(0, dim = c(k,p,maxItOut))
+      thetaRec[1:Kprev,,] = NBRCM$thetaRec
+      psiRec = array(0, dim = c(k,maxItOut))
+      psiRec[1:Kprev,] = NBRCM$psiRec
+      lambdaCol = lambdaRow = rep(0, k*(2+(k-1)/2))
+      lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
+      lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
+      convergence = c(NBRCM$converged, rep(FALSE, k-Kprev))
+      iterOut = c(NBRCM$iter, rep(1,k-Kprev))
+      muMarg = outer(libSizesMLE, abundsMLE)*exp( rMat %*% (cMat*psis))
+      # Fill out the other columns of the SVD
+      svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
+      newK = (Kprev+1):k
+      rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
+      cMat = rbind(cMat, t(svdX$v[,newK, drop=FALSE]))
+      psis = c(psis, svdX$d[newK])
+      trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(rowSums(X), colSums(X)/sum(X)))), weights = NULL)
+    }
+  #Otherwise start the fit from scratch
+  } else {
   Xorig = NULL #An original matrix, not returned of no trimming occurs
   if(!is.null(confounders[[1]])){ #First and foremost: filter on confounders
     Xorig = X
@@ -1133,7 +1181,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   libSizes = rowSums(X)
   
   #Get the trended-dispersion estimates. Very insensitive to the offset so only need to be calculated once
-  trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(libSizes, abunds))), weights = dispWeights)
+  trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(libSizes, abunds))), weights = NULL)
 
   if(marginEst == "MLE"){
 
@@ -1145,8 +1193,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   cat("Estimating the independence model \n")
   
    while((initIter ==1) || ((initIter <= maxItOut) && (!convergenceInit))){
-     libsOld = logLibSizesMLE
-     absOld = logAbundsMLE
+     logLibsOld = logLibSizesMLE
+     logAbsOld = logAbundsMLE
      
          thetas = estDisp(X = X, rMat = as.matrix(rep(0,n)), cMat = t(as.matrix(rep(0,p))),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, prior.df = prior.df, trended.dispersion = trended.dispersion)
          thetasMat = matrix(thetas, n, p, byrow=TRUE)
@@ -1156,8 +1204,8 @@ logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = 
   initIter = initIter + 1
   
   convergenceInit = ((initIter <= maxItOut) && 
-                    ((sum(abs(1-logLibSizesMLE/libsOld)^convNorm)/n)^(1/convNorm) < tol) && 
-                   ((sum(abs(1-logAbundsMLE/absOld)^convNorm)/p)^(1/convNorm) < tol) )
+                    ((sum(abs(1-logLibSizesMLE/logLibsOld)^convNorm)/n)^(1/convNorm) < tol) && 
+                   ((sum(abs(1-logAbundsMLE/logAbsOld)^convNorm)/p)^(1/convNorm) < tol) )
   
    }
   #Converges very fast, even when dispersions are re-estimated. For the library sizes there is a big difference, for the abundances less so
@@ -1168,6 +1216,7 @@ logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = 
   } else{
     stop("No valid margin estimation paradigm provided! \n")
   }
+  
   
   rowWeights = switch(paste(marginEst, rowWeights, sep = "_"),
                       "marginSums_marginal" = libSizes/sum(libSizes),
@@ -1188,16 +1237,6 @@ logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = 
   convergence = rep(FALSE, k)
   iterOut = rep(1,k)
 
-  #If previous fit provided with higher or equal dimension, stop here
-  if((!is.null(NBRCM)) ){
-    if(NBRCM$fit != "RCM_NB"){
-      stop("Fit provided is not of same type as the one requested! \n")
-    } else if((k <= NBRCM$k)) {
-      stop("Fit provided is already of the required dimension or higher! \n")
-    } else{}
-  #Otherwise try to use intelligent starting values
-  }
-  
   if(!is.null(confounders[[1]])){
   ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
   filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas, nleqslv.control = nleqslv.control, n=n)
@@ -1238,24 +1277,10 @@ rMat = apply(rMat, 2, function(rowS){
   })
   lambdaRow =  rep.int(0,nLambda)
   lambdaCol =  rep.int(0,nLambda )
+  } # END if-else: no previous fot provided
   
   if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
   
- if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
-   Kprev = NBRCM$k
-   rMat[,1:Kprev] = NBRCM$rMat
-   rowRec[,1:Kprev,] = NBRCM$rowRec
-   cMat[1:Kprev,] = NBRCM$cMat
-   colRec[1:Kprev,,] = NBRCM$colRec
-   psis[1:Kprev] = NBRCM$psis
-   psiRec[1:Kprev,] = NBRCM$psiRec
-   thetas = NBRCM$thetas #Useless now but could prevent code from breaking when estimation order is changed
-   lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
-   lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
-   convergence[1:Kprev] = NBRCM$converged
-   iterOut[1:Kprev] = NBRCM$iter
- }
-
   minK = ifelse(is.null(NBRCM),1,Kprev+1)
   for (KK in minK:k){
 
@@ -1283,20 +1308,20 @@ rMat = apply(rMat, 2, function(rowS){
   cMatOld = cMat[KK,]
  
 #Overdispersions (not at every iterations to speed things up, the estimates do not change a lot anyway)
-    if((iterOut[KK] %% dispFrec) ==0){
+    if((iterOut[KK] %% dispFrec) ==0 || (iterOut[KK]==1)){
   if (verbose) cat("\n Estimating overdispersions \n")
  thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
  thetasMat = matrix(thetas, n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
   }
 #Psis
-    if (verbose) cat("\n Estimating psis (k =",KK,") \n")
+    if (verbose) cat("\n Estimating psis \n")
 regPsis = outer(rMat[,KK] ,cMat[KK,])
 
 psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method=jacMethod)$x)
 #Column scores
   if (verbose) cat("\n Estimating column scores \n")
-regCol = t(t(rMat[,KK, drop=FALSE])*psis[KK])
-tmpCol = nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE])
+regCol = rMat[,KK, drop=FALSE]*psis[KK]
+tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,], lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE])
 
   cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
   cMat[KK,] = tmpCol$x[1:p]
@@ -1350,8 +1375,7 @@ rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
   
 d = ncol(covariates)
 
-CCA =cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
-alias = CCA$alias
+CCA = cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
 alpha = matrix(0,d,k)
 alpha[!colnames(covariates) %in% alias,] = CCA$biplot[,1:k]
 alpha = t(t(alpha)-colMeans(alpha))
@@ -1363,18 +1387,8 @@ NB_params = matrix(0,v,p) #Initiate parameters of the response function
 NB_params_noLab = matrix(0,v,1)
   
  if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
-   Kprev = NBRCM$k
    alpha[,1:Kprev] = NBRCM$alpha
    alphaRec[,1:Kprev,] = NBRCM$alphaRec
-   cMat[1:Kprev,] = NBRCM$cMat
-   colRec[1:Kprev,,] = NBRCM$colRec
-   psis[1:Kprev] = NBRCM$psis
-   psiRec[1:Kprev,] = NBRCM$psiRec
-   thetas = NBRCM$thetas #Useless now but could prevent code from breaking when estimation order is changed
-   lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
-   lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
-   convergence[1:Kprev] = NBRCM$converged
-   iterOut[1:Kprev] = NBRCM$iter
  }
 
   minK = ifelse(is.null(NBRCM),1,Kprev+1)
@@ -3291,8 +3305,8 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
     return(-lr) # opposite sign for the minimization procedure
 }
 #--------------------------------------#
-# A function that returns the value of the partial derivative of the log-likelihood ratio of alpha to alpha, keeping the response functions fixed
-LR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), muMarg,   cReg, nleqslv.control = list(trace=FALSE), NB_params, NB_params_noLab, ...){
+# A function that returns the value of the partial derivative of the log-likelihood ratio to alpha, keeping the response functions fixed
+dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), muMarg,   cReg, nleqslv.control = list(trace=FALSE), NB_params, NB_params_noLab, ...){
   # @param Alpha: a vector of length d, the environmental gradient
   # @param X: the n-by-p count matrix
   # @param CC: the n-by-d covariate matrix
@@ -3308,26 +3322,15 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparam
   # @param v: an integer, number of parameters to be estimated
 
   # @return: a scalar, the evaluation of the log-likelihood ratio at the given alpha
-  
-    sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
-  design = switch(responseFun,
-                     linear = model.matrix(~sampleScore),
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2))) #With intercept
-
-   # A matrix based approach (leads to singular jacobians)
-   # NB_params_mat = matrix(nleqslv(matrix(1,v,p) , reg = design,  fn = dNBllcol_constr_mat, theta = thetas[1:p], muMarg = muMarg, cReg = cReg, aX = X, control = nleqslv.control, jac = JacCol_constr_mat)$x,v,p)
-
-    mu = muMarg * exp(t(t(design %*% NB_params)* cReg))
-    maxX =max(X)
-    mu[mu > maxX] = maxX
-    mu[mu==0] = 1e-16
-   
-   muNoLab = muMarg * exp(outer(colSums(t(design) * NB_params_noLab), cReg))
-    muNoLab[muNoLab > maxX] = maxX
-    muNoLab[muNoLab==0] = 1e-16
- 
-    lr <- sum(X*log(mu))-sum(X*log(muNoLab)) # The likelihood ratio
-    return(-lr) # opposite sign for the minimization procedure
+  lag = psi*(outer(cMat*betaJ)*X*alpha-beta*alpha * sum(X %*% cMat)) + lambda1*sum(alpha) + lambda2 * (sum(alpha^2)-1) + lambda3 * alpha %*% alphaT
+  center = sum(alpha)
+  norm = sum(alpha^2) -1
+  if(k>1){
+  ortho = alpha %*% alphaT
+  return(c(lag, center, norm, ortho))
+  } else {
+    return(c(lag, center, norm))
+  }
 }
 
 #--------------------------------------#
@@ -3516,7 +3519,7 @@ heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){
 ```{r Wrapper all dists, purl = TRUE}
 #A simple wrapper function for phyloseq objects and matrices, for all posible distributions it passes all argument onto the correct function.
 #Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
-RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, ...){
+RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
   # @param dat: an nxp count matrix or a phyloseq object with an otu_table slot
   # @param k: an integer, the number of dimensions of the RCM solution
   # @param round (optional): a boolean, whether to round to nearest integer. Defaults to FALSE.
@@ -3526,6 +3529,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFr
   # @param rowWeights, colWeights (optional): character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
   # @param covariates (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
   # @param confounders (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case dat is a matrix, a nxf matrix or dataframe of confounders Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
+  # @param prevFit(optional) An object with a previous fit, normally from a lower dimension, that should be extended.
   
   classDat = class(dat) #The class provided
   
@@ -3670,16 +3674,16 @@ tic = proc.time() #Time the calculation
   tmp = switch(distribution, 
                NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
                          confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat,...),
+                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat, NBRCM = prevfit,...),
                ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
                             confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                           covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...),
+                           covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZIPRCM = prevFit,...),
                ZINB=RCM_ZINB(X,  rowWeights = rowWeights, colWeights = colWeights, k = k, 
                               confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                             covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction,...))
+                             covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZINBRCM = prevFit, ...))
   if(classDat=="phyloseq"){tmp$physeq = dat} 
   within(tmp, {
-    runtimeInMins = (proc.time()-tic)[1]/60
+    runtimeInMins = if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} + (proc.time()-tic)[1]/60 # Sum the runtimes
     k = k #Store number of dimensions
   })
 }
@@ -5339,6 +5343,8 @@ testRCMconstr2Job = mcparallel(
 testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
 ```
 
+### Triplots
+
 ### Real data application
 
 ```{r realDataRCM}
@@ -5348,7 +5354,27 @@ load("/home/stijn/PhD/Simulations/data/zellerData.RData")
 zellerConstr = RCM(zellerMphy, k=2, covariates  = c("Diagnosis", "BMI", "Age","Gender","Country"), round=TRUE)
 ```
 
-### Triplots
+# Method evaluation
+
+After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way.
+
+## Generating datasets
+
+As ways of generating test datasets we see three different options
+
+  1) Parametric simulation with the negative binomial with known abundances
+  2) Non-parametric simulation with SimSeq
+  3) Real datasets with alleged biological signal known
+  
+  Parametric simulation is needed as a first check but evidently favours our method. SimSeq is a reasonably neutral tool, we will only use WMW to obtain the lfdr. Real datasets will need to complement our analysis but they may not be possible to evaluate in a high-throughput way, this will need to happen empirically.
+  
+## Evaluating the biplot
+
+For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy
+
+### Within vs. between distance
+
+A first intuitive approach would be to compare the within cluster distances on the plot to the distances between the clusters. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$. The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance. The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$
 
 \newpage
 
