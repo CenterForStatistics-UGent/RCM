@@ -5376,6 +5376,21 @@ For the simulation we will need multiple repetitions to prove the superiority of
 
 A first intuitive approach would be to compare the within cluster distances on the plot to the distances between the clusters. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$. The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance. The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$
 
+## Competing methods
+
+### Unconstrained
+
+ - PCoA
+   * Bray-Curtis dissimilarity (Forest ecology)
+   * UniFrac distance (Mirobial ecology)
+ - Corresponence analysis (CA) (Statistics)
+   * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
+   
+### Constrained
+
+  - Constrained PCoA?
+  - Constrained correspondence analysis (CCA)
+
 \newpage
 
 #### Some comments on analysing microbiome count data
