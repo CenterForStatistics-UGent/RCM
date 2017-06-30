@@ -10,9 +10,9 @@ output:
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "alabama", "vegan")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "vegan")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -25,7 +25,7 @@ par(pty="s") #Make sure the biplots are square!
 palStore = palette()
 ```
 
-```{r setwd, eval=FALSE, echo=FALSE}
+```{r setwd, eval=FALSE, echo=FALSE, purl = FALSE}
 setwd(WD)
 ```
 
@@ -40,11 +40,13 @@ The underlying motivation is to develop a visualization technique for the microb
 
 # Theory
 
-## Correspondence analysis
+## Unconstrained analysis
+
+### Correspondence analysis
 
 Suppose we have a $nxp$ count data matrix $\mathbf{X}$ with $n$ samples and $p$ taxa, with $i$ and $j$ row respectively column indices.
 
-### Independence model
+#### Independence model
 
 Under independence between rows and columns we model the counts in a contingency table as 
 
@@ -52,7 +54,7 @@ $$E(X_{ij}) = a_i b_j$$
 
 whereby usually $a_i=x_{i.}=\sum_{j=1}^px_{ij}$ (the library sizes) and $b_j=\frac{x_{.j}}{x_{..}}=\frac{\sum_{i=1}^nx_{ij}}{\sum_{j=1}^p\sum_{i=1}^nx_{ij}}$ (the average relative abundances).
 
-### Reconsitution formula of Correspondence Analysis (CA)
+#### Reconsitution formula of Correspondence Analysis (CA)
 
 A more extended model is
 
@@ -76,7 +78,7 @@ with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}C^{1/2}V=\mathbf{0}$ (weig
 
 For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \mathbf{v_{2}}$ to correctly represent the distances between the samples. $\mathbf{w_{1}}$ and $\mathbf{w_{2}}$ can then be added to construct a biplot. The orthogonal projection of $\omega_1 v_{ki}$ on $w_{jk}$ then represents the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$.
 
-### Skewness
+#### Skewness
 
 Because of the skewness of the distribution, the residuals are also very skewed. If we have an expectation of around 1, it is very likely to observe a zero, but much less likely to observe a 2. Still both deviations are weighted equally. I think a residual-based approach is ill suited to asymmetric, skewed data. Also the library size correction will never be appropriate, so that part of the biplot will reflect differences in library sizes. We considered decomposing
 
@@ -88,7 +90,7 @@ $$R^{-a}(X-E)C^{-b}$$
 
 and estimate $a$ and $b$ by maximum likelihood but we did not really see how to go on from here.
 
-## Hellinger distance
+### Hellinger distance
 
 With PCoA, any distance metric can be used to produce a distance matrix, which can be decomposed to make biplots.
 
@@ -98,7 +100,7 @@ $$\frac{X}{\sqrt{Var(X)}} \approx \frac{X}{\sqrt{X}} = \sqrt{X}$$
 
 The rationale is that each observation x is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes.
 
-## Log-linear analysis
+### Log-linear analysis
 
 Another modelling approach is to use log-linear modelling an thereby introduce the negative binomial as error term. We know from previous goodness of fit testing that this is an appropriate error model for microbiome data.
 
@@ -363,7 +365,7 @@ For the filtering based on the prevalence and abundance, we need a confounder ma
  
  In this case all that matters is to change the offset formed by the independence model. We will still return the confoundes' parameters though.
 
-## Zero-inflated poisson
+### Zero-inflated poisson
 
 We could also augment our model with a zero-inflated Poisson rather than a negative binomial distribution. This opens additional modeling perspectives. We can model the chance on a structural zeroes:
 
@@ -371,11 +373,11 @@ $$logit(P(X_{ij}=0)) = f + f_i + f_j + t_{i1}v_{j1}\chi_1 + t_{i2}v_{j2}\chi_2$$
 
 The probability of a strucutral zero does not depend on the sample: strucutural zeroes are assumed to be truly absent species and not due to undersampling. All samples come from the same population under $H_0$, and there the structural zeroes are only dependent on the columns. Therefor we set all $f_i=0$. In practice $f$ is not estimated either, instead $f_j$ is estimated without restrictions. The terms $t_{i1}v_{j1}\chi_1 + t_{i2}v_{j2}\chi_2$ indicate in which two independent directions the observed number of zeroes deviates from this base level. I think we need the term $f_i$ because otherwise the first dimension $t_{i1}$ scores will start correcting for it. The independence moel in this case is that the chance on a structural zero only depends on the marginal probabilities. A logit model without an intercept does not make sense, it assumes a baseline probability of structural zero of 0.5.
 
-### Restrictions
+#### Restrictions
 
 The same restrictions apply to the scores $t_i$ and $v_j$ as to $r_i$ and $s_j$
 
-### Estimation (see Lambert 1992 for details)
+#### Estimation (see Lambert 1992 for details)
 
 The mean and zero probability are modelled independently, absence of a species is independent of its abundance when it is present. Say $Z=0$ when $X$ is from the Poisson state and $Z=1$ when X is a structural zero. Evidently, when $X=0$, Z is unknown.
 
@@ -452,42 +454,41 @@ $$log(E(X_{ij})) =  u + u_i + u_j  + \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - 
 
 This approach differs from the one proposed in Zhu _et al._, 2005 in the intercepts $u_i$ and $u_j$. These intercepts will still be estimated by maximum likelihood in the first step, just as in the unconstrained case. We do not continue on this track.
 
-3) Constrained RC(M): non-parametric approach
+3) Constrained RC(M)
 
 A third option would be to drop the whole Gaussian assumption and build a model as follows:
 
-$$log(E(X_{ij})) = u + u_i + u_j  + \sum_{k=1}^K \psi_k s_{jk} f(\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}) $$
+$$log(E(X_{ij})) = u + u_i + u_j  + \sum_{k=1}^K \psi_k s_{jk} f_j(\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}) $$
 
-with $f$ the response function, which can be linear, quadratic (Gaussian on count scale), non-parametric, ... . The usual restrictions apply to the column scores $\mathbf{s}$:
+with $f_j$ the species-specific response function, which can be linear, quadratic (Gaussian on count scale), non-parametric, ... . The usual restrictions apply to the column scores $\mathbf{s}$:
 
 $$\mathbf{s^tu_{tax}} = \mathbf{0}$$
 $$\mathbf{s_k^tUs_{k'}} = I(k=k')$$
 
 with $u_{tax}$ the vector of $exp(u_j)$'s and  $\mathbf{U}$ a diagonal p-by-p matrix with $u_{tax}$ on the diagonal.
 
-For $\alpha$ (a d-by-k matrix) we could enforce the following restrictions:
+For $\alpha$ (a d-by-k matrix) we enforce the following restrictions:
 
-- Centering is desirable for the triplot
+- Centering is desirable for the triplot (if $k \geq 2$)
 
 $$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
- - Normalization restricts the size, only $\psi_k$ can grow in magnitude
+- Normalization restricts the size, only $\psi_k$ can grow in magnitude (if $k \geq 3$)
 
 $$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbb{1}_k$$
 
-with $\mathbf{1}$ a vector of ones of length $d$ and $\mathbb{1}_k$ the identity matrix of dimension $k$. However to maintain maximal comparability with the unconstrained RC(M)-model we could also set 
-
-$$\mathbf{C}\boldsymbol{\alpha}\mathbf{1} = \mathbf{0}$$
-$$\big(\mathbf{C}\boldsymbol{\alpha}\big)^t\mathbf{C}\boldsymbol{\alpha} = \mathbb{1}_k$$
-
-This approach has the advantage of having a clear relationship to the unconstrained RC(M) model. If there are no covariate data and $C$ only contains intercepts this simplifies to the unconstrained version. We can add the $\boldsymbol{\alpha}_k$'s to to the biplots in order to make triplots and visualize on which variables the departures in the different directions depend most. For discrete covariates in C we will use a non-parametric approach using dummy coding. For the final visualization we will use sum coding for ease of interpretation.
+with $\mathbf{1}$ a vector of ones of length $d$ and $\mathbb{1}_k$ the identity matrix of dimension $k$.
 
 ### Response function
 
-For the response function previously a Gaussian has been proposed but this may not be realistic. In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). For any response function with $q$ parameters $\boldsymbol{\beta}_j$ for every taxon $j$ the mean equals:
+For the response function previously a Gaussian has been proposed but this may not be realistic. Also the setting is different: we are looking for response function that maximize the __departure from independence__, no longer the abundances themselves! In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). For any response function with $q$ parameters $\boldsymbol{\beta}_j$ for every taxon $j$ the mean equals:
 
-$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big)$$
+$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big).$$
 
-and the score function for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
+Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters estimated per response function $f_j$ is much smaller than the number of samples $n$.
+
+#### Estimating the response function
+
+The score function for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
 
 $$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv}} = \sum_{i=1}^n \psi s_j \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv}} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
 
@@ -948,21 +949,27 @@ getInflRow = function(score, InvJac, parIndex){
 
 #-------------------------------------------#
 # A function to estimate the overdispersion of the NB with empirical Bayes using the edgeR pacakage
-estDisp = function (X, cMat, rMat, muMarg, psis, trended.dispersion, prior.df = 10, dispWeights = NULL)
+estDisp = function (X, cMat, rMat = NULL, muMarg, psis, trended.dispersion, prior.df = 10, dispWeights = NULL, ...)
 {
   # @param X: the data matrix of dimensions nxp
   # @param cMat: a 1xp colum scores matrix
-  # @param rMat: a nx1 rowscores matrix
+  # @param rMat(optional): a nx1 rowscores matrix, if unconstrained
   # @param muMarg: an nxp offset matrix
   # @param psis: a scalar, the current psi estimate
   # @param trended.dispersion: a vector of length p with pre-calculated trended.dispersion estimates. They do not vary in function of the offset anyway
   # @param prior.df(optional): an integer, number of degrees of freedom of the prior for the Bayesian shrinkage
   # @param dispWeights (optional): Weights for estimating the dispersion in a zero-inflated model
+  # @param ...: More arguments, passed on to the getLogMeansMatConstr()-function
   
   # @return A vector of length p with dispersion estimates
   
   require(edgeR)
-  logMeansMat = t(rMat %*% (cMat * psis) + log(muMarg))
+  logMeansMat = 
+    if(!is.null(rMat)){ #Unconstrained
+      t(rMat %*% (cMat * psis) + log(muMarg))
+    } else { #Constrained
+      getLogMeansMatConstr(psis = psis, cMat = cMat, muMarg = muMarg, ...)
+    }
   thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL,
                                         prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
   if (anyNA(thetaEsts)) {
@@ -972,6 +979,14 @@ estDisp = function (X, cMat, rMat, muMarg, psis, trended.dispersion, prior.df = 
   }
   return(thetas = thetaEsts)
 }
+#-------------------------------------------#
+# A function to obtained a logged offset in case of constrained ordination
+getLogMeansMatConstr = function(psis, cMat, muMarg, ...){
+  # @param cMat: a 1xp colum scores matrix
+  # @param muMarg: an nxp offset matrix
+  # @param psis: a scalar, the current psi estimate
+}
+
 #-------------------------------------------#
 # A function to trim based on confounders to ensure there are no taxa with only zero counts in one of the subgroups defined by the confounders. Returns a trimmed data matrix, should be called prior to fitting the independence model
 trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
@@ -1064,7 +1079,7 @@ arrayprod <- function(x,y){
 #-------------------------------------------#
 ## A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k. Not intended to be called directly but only through the RCM() function
 
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 1e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear"){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear"){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -1088,7 +1103,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   # @param covariates(optional): an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables already
   # @param centMat(optional): a fxd matrix containing the contrasts to center the categorical variables. f equals the number of continuous variables + the total number of levels of the categorical variables.
   # @param responseFun(optional): a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"
-  # @param prevCutOff(optional): a scalar: the minimum prevalence needed to retain a taxon before the the confounder filtering 
+  # @param prevCutOff(optional): a scalar: the minimum prevalence needed to retain a taxon before the the confounder filtering
   # @param minFraction(optional): a scalar, total taxon abundance should equal minFraction*n if it wants to be retained before the confounder filtering
 
   # @return A list with elements:
@@ -1140,8 +1155,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       thetasMat = matrix(thetas, byrow = TRUE, n, p)
       rowWeights = NBRCM$rowWeights
       colWeights = NBRCM$colWeights
-      libSizesMLE = NBRCM$libSizesMLE
-      abundsMLE = NBRCM$abundsMLE
+      libSizesMLE = NBRCM$libSizes
+      abundsMLE = NBRCM$abunds
       #Extend the record matrices
       rowRec = array(0, dim = c(n,k,maxItOut))
       rowRec[,1:Kprev,] = NBRCM$rowRec
@@ -1298,8 +1313,8 @@ rMat = apply(rMat, 2, function(rowS){
   if(verbose && iterOut[KK]%%1 == 0){
   cat("\n","Outer Iteration", iterOut[KK], "\n","\n")
     if(iterOut[KK]!=1){
-  cat("Old psi-estimates: ", psisOld, "\n")
-  cat("New psi-estimates: ", psis[KK], "\n")
+  cat("Old psi-estimate: ", psisOld, "\n")
+  cat("New psi-estimate: ", psis[KK], "\n")
     }
   }
   ## 2)a. Store old parameters
@@ -1367,7 +1382,7 @@ rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
 
-    returnList =   list(converged = convergence, rMat = rMat, cMat=cMat, psis = psis, thetas = thetas,  rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaRow = lambdaRow, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
+    returnList =   list(converged = convergence, rMat = rMat, cMat=cMat, psis = psis, thetas = thetas,  rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
        libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), 
        confounders = confounders, confParams = confParams)
   
@@ -1382,16 +1397,18 @@ alpha = t(t(alpha)-colMeans(alpha))
 alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
 
 alphaRec = array(0, dim=c(d,k, maxItOut))
-v = switch(responseFun, linear = 2, quadratic = 3, 1)
-NB_params = matrix(0,v,p) #Initiate parameters of the response function
-NB_params_noLab = matrix(0,v,1)
+v = switch(responseFun, linear = 2, quadratic = 3, 1) #Number of parameters per taxon
+NB_params = array(0,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise
+NB_params_noLab = matrix(0,v,k) #Initiate parameters of the response function, ignoring taxon-labels
   
  if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
    alpha[,1:Kprev] = NBRCM$alpha
    alphaRec[,1:Kprev,] = NBRCM$alphaRec
+   NB_params[,,1:Kprev] = NBRCM$NB_params
+   NB_params_noLab[,,1:Kprev] = NBRCM$NB_params_noLab
  }
 
-  minK = ifelse(is.null(NBRCM),1,Kprev+1)
+  minK = ifelse(is.null(NBRCM),1,Kprev+1) #Next dimension to fit
   for (KK in minK:k){
 
     cat("Dimension" ,KK, "is being esimated \n")
@@ -1399,7 +1416,7 @@ NB_params_noLab = matrix(0,v,1)
   #Modify offset if needed
   if(KK>1){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
 
-    idK = seq_k(KK)
+  idK = seq_k(KK)
   ## 2) Propagation
   
   while((iterOut[KK] ==1) || ((iterOut[KK] <= maxItOut) && (!convergence[KK])))
@@ -1408,20 +1425,19 @@ NB_params_noLab = matrix(0,v,1)
   if(verbose && iterOut[KK]%%1 == 0){
   cat("\n","Outer Iteration", iterOut[KK], "\n","\n")
     if(iterOut[KK]!=1){
-  cat("Old psi-estimates: ", psisOld, "\n")
-  cat("New psi-estimates: ", psis[KK], "\n")
+  cat("Old psi-estimate: ", psisOld, "\n")
+  cat("New psi-estimate: ", psis[KK], "\n")
     }
   }
-  ## 2)a. Store old parameters
+  ## 2)a. Store old parameters to check for convergence
   psisOld = psis[KK]
   alphaOld = alpha[,KK]
   cMatOld = cMat[KK,]
-  rMat = covariates %*% alpha[,KK,drop=FALSE] #CHECK dimension of covariates!!
- 
+
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
-    if((iterOut[KK] %% dispFrec) ==0  || iterOut[KK]==1){
-  if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, rMat = rMat, cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
+  if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
+    if (verbose) cat("\n Estimating overdispersions \n")
+ thetas = estDisp(X = X, alpha = alpha, NB_params = NB_params, cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
  thetasMat = matrix(thetas, n, p, byrow=TRUE)
   }
 
@@ -2267,8 +2283,8 @@ RCM_ZIP = function(X, k, rowWeights, colWeights, weightsChar, tol = 1e-3, maxItO
   if(verbose && iterOut[KK]%%1 == 0){
   cat("\n","Outer Iteration", iterOut[KK], "\n","\n")
     if(iterOut[KK]!=1){
-  cat("Old psi-estimates: ", psiOld, "\n")
-  cat("New psi-estimates: ", psis[KK], "\n")
+  cat("Old psi-estimate: ", psiOld, "\n")
+  cat("New psi-estimate: ", psis[KK], "\n")
   cat("Old chi-estimates: ", chiOld, "\n")
   cat("New chi-estimates: ", chis[KK], "\n")
     }
@@ -3122,8 +3138,8 @@ minK = ifelse(is.null(ZINBRCM),1,Kprev+1)
   if(verbose && iterOut[KK]%%1 == 0){
   cat("\n","Outer Iteration", iterOut[KK], "\n","\n")
     if(iterOut[KK]!=1){
-  cat("Old psi-estimates: ", psiOld, "\n")
-  cat("New psi-estimates: ", psis[KK], "\n")
+  cat("Old psi-estimate: ", psiOld, "\n")
+  cat("New psi-estimate: ", psis[KK], "\n")
     }
   }
   ## 2)a. Store old parameters
@@ -3257,11 +3273,63 @@ legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), 
 return(invisible())
   # par(tmp)
 }
+# A ggplot2-version
+PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="black", plotArrows =TRUE) {
+    #Retrieve dots (will be passed on to aes())
+    dotList=list(...)
+    
+    #Construct datafame for samples
+    dataSam <- data.frame(RCMfit$rMat[, Dim] %*% diag(RCMfit$psis[Dim]))
+    names(dataSam)=paste0("Dim", Dim)
+    #Get the colours
+    if(!is.null(colour) && !is.factor(colour)){
+      colourPlot = get_variable(RCMfit$physeq, colour)
+    } else if(is.factor(colour)){
+      colourPlot = colour} else {dataSam$colourPlot=1}
+    
+    #     #Set colour palette
+    if(is.null(Palette)){
+Palette=rainbow(length(unique(colourPlot)))
+    }  
+
+    #Construct dataframe for taxa
+    dataTax = data.frame(t(RCMfit$cMat[Dim,]))
+    arrowLengths = apply(RCMfit$cMat[Dim,],2,function(x){sqrt(sum(x^2))})
+    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+    if(is.null(scalingFactor)){
+    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(RCMfit$cMat[Dim,id]))*0.99
+    }
+    #Filter out small arrows
+    dataTax = dataTax[id,] * scalingFactor
+    names(dataTax)=paste0("Dim", Dim)
+
+    plot = ggplot(dataSam, aes(x=Dim1, y=Dim2, col = colourPlot, ...)) + 
+      geom_point(size=size) +
+      if(is.null(colour)) {guides(color=FALSE)}
+    
+    #add legend names
+    if(!is.null(colLegend) & is.factor(colourPlot) ){
+      plot = plot + scale_colour_manual(name=colLegend, values =Palette)
+    }    else if(!is.null(colLegend) & !is.factor(colourPlot) ){
+      plot = plot + scale_colour_continuous(name=colLegend)
+    } 
+    if(!is.null(shapeLegend)){
+      plot = plot + scale_shape_discrete(name=shapeLegend)
+    }
+  
+    #Add arrows
+    if(length(arrowCol)>1){
+     arrowCol = Palette[c(arrowCol[id])] 
+    }
+    if(plotArrows){
+    plot <- plot + geom_segment(data=dataTax, aes(x=0, y=0, xend=Dim1, yend=Dim2, shape=NULL), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)}
+    plot
+}
 ```
 
 ## Constrained RC(M)
 
-```{r LRnb, purl=FALSE} 
+```{r LRnb, purl=TRUE} 
 # DON'T USE "p" as variable name, partial matching in the grad-function in the numDeriv package!!!
 
 # A function that returns the value of the log-likelihood ratio of alpha, keeping the response functions fixed
@@ -3519,12 +3587,12 @@ heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){
 ```{r Wrapper all dists, purl = TRUE}
 #A simple wrapper function for phyloseq objects and matrices, for all posible distributions it passes all argument onto the correct function.
 #Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
-RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.01, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
+RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
   # @param dat: an nxp count matrix or a phyloseq object with an otu_table slot
   # @param k: an integer, the number of dimensions of the RCM solution
   # @param round (optional): a boolean, whether to round to nearest integer. Defaults to FALSE.
   # @param distribution (optional): a character string, the error distribution of the RC(M) model. Defaults to NB
-  # @param prevCutoff (optional): a scalar, the prevalance cutoff for the trimming. Defaults to 1e-2
+  # @param prevCutoff (optional): a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2
   # @param minFraction (optional): a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10%
   # @param rowWeights, colWeights (optional): character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
   # @param covariates (optional): In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
@@ -3674,7 +3742,7 @@ tic = proc.time() #Time the calculation
   tmp = switch(distribution, 
                NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
                          confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
-                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat, NBRCM = prevfit,...),
+                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat, NBRCM = prevFit,...),
                ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k, 
                             confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
                            covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZIPRCM = prevFit,...),
@@ -3767,7 +3835,7 @@ We generate some data as before with the NB distribution but differing library s
 
 ##### Create the data
 
-```{r NB no signal}
+```{r NB no signal, purl = FALSE}
 #Negative binomial, no signal. Set parameters
 NsamplesNBNS = 300
 NtaxaNBNS = 1100
@@ -3791,7 +3859,7 @@ dataMatNBNS = makeNBdata(meanNBNS, thetaMatNBNS)
 
 ##### Fit the RC(M) model
 
-```{r fit RCM}
+```{r fit RCM, purl = FALSE}
 #Set control parameters
 nleqslv.control = list(trace=FALSE, maxit = 500, cndtol=.Machine$double.eps)
 #Fit the RC(M) model
@@ -3861,21 +3929,21 @@ lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,rMat[,1] 
 
 Dimension 2
 
-```{r loadings vs. library sizes dim2, results='hide'}
+```{r loadings vs. library sizes dim2, results='hide', purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,rMat[,2] *psis[2],rowSums(X), ylab="Library sizes",xlab="Dim2", sub = paste0("Cor = ",round(cor(rMat[,2], rowSums(X)),2)) )})})
 ```
 
 Dimension 3
 
-```{r loadings vs. library sizes dim3, results='hide'}
+```{r loadings vs. library sizes dim3, results='hide', purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListNS), function(Y){try(with(solListNS[[Y]], {plot(main=Y,rMat[,3] *psis[3],rowSums(X), ylab="Library sizes",xlab="Dim3", sub = paste0("Cor = ",round(cor(rMat[,3], rowSums(X)),2)))}))})
 ```
 
 In all weighing schemes, the row scores of the first dimension increase with library size (not in absolute values but they form a gradient). This is likely a result of a discrepancy between the MLE estimates of the sequencing depths under the NB model and the library size (row sums of our count table $\sum_{j=1}^px_{ij}$, which are also just an _estimate_ of the sequencing depth, which does not account for different variances between species but treats them all equally).  The sum of NB-distributed variables is also approximately NB-distributed, although this is not mathematically guaranteed. The first dimension of the MLE row scores estimates then tries to correct for this aberration so that its effect disappears in the higher dimensions. We plot the estimates of the sequencing depths of the two different estimators
 
-```{r plotSequencingDepthEstimators}
+```{r plotSequencingDepthEstimators, purl = FALSE}
 par(mfrow=c(1,1), pty="s")
 with(solListNS[["unifunifMLE"]], {plot(rowSums(X),libSizesMLE, xlab ="Library sizes", ylab = "MLE sequencing depth",log="xy")})
 abline(0,1);abline(h=c(1e4,1e5), col="red");abline(v=c(1e4,1e5), col="red")
@@ -3889,7 +3957,7 @@ There exist considerable differences between both estimation strategies, the MLE
 
 Now let's take a look at the taxon plots
 
-```{r NBNS taxon plots, results='hide'}
+```{r NBNS taxon plots, results='hide', purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,t(cMat), ylab="Dim2",xlab="Dim1")}) })
 ```
@@ -3898,7 +3966,7 @@ The taxon plots of the fits with uniform weights for the taxa are used ($z_j = 1
 
 The taxon plot of second and third dimension
 
-```{r taxonPlot2and3D, results='hide'}
+```{r taxonPlot2and3D, results='hide', purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListNS), function(Y){try(with(solListNS[[Y]], {plot(main=Y,t(cMat[2:3,]), xlab = "Dim2",ylab="Dim3")}))})
 ```
@@ -3907,7 +3975,7 @@ No more outliers in the higher dimensions
 
 Are the taxon scores related to the abundances in any way?
 
-```{r taxonScesvsAbunds1D, results='hide'}
+```{r taxonScesvsAbunds1D, results='hide', purl = FALSE}
 #Abundances
 par(mfrow=c(2,4))
 sapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,abs(cMat[1,]), colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="abs(Dim1)", sub = paste0("Cor = ",round(cor(abs(cMat[1,]), log(colSums(X))),2)))})})
@@ -3915,7 +3983,7 @@ sapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,abs(cMat[
 
 Marginal centering weights causes the column scores to slightly correlate with the abundances
 
-```{r taxonScesvsAbunds23D, results='hide'}
+```{r taxonScesvsAbunds23D, results='hide', purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,abs(cMat[2,]), colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="abs(Dim2)", sub = paste0("Cor = ",round(cor(abs(cMat[2,]), log(colSums(X))),2)))})})
 par(mfrow=c(2,4))
@@ -3926,7 +3994,7 @@ No more problems in higher dimensions.
 
 Do the taxon scores relate to the overdispersions?
 
-```{r taxonScesvsthetas, results='hide'}
+```{r taxonScesvsthetas, results='hide', purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y, abs(cMat[1,]), thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="abs(Dim1)", sub = paste0("Cor = ",round(cor(abs(cMat[1,]), log(thetas)),2)))})})
 par(mfrow=c(2,4))
@@ -3937,7 +4005,7 @@ Large overdispersions get larger scores in all dimensions. This need not be a pr
 
 How do the MLE estimates for the mean abundances differ from the column sums?
 
-```{r MLEvsColsums, results='hide'}
+```{r MLEvsColsums, results='hide', purl = FALSE}
 par(mfrow=c(1,1))
 with(solListNS[["unifunifMLE"]], {plot(main="MLE abundances vs column sum abundances", colSums(X)/sum(X), abundsMLE, log="xy", cex=0.5, ylab="MLE abundances", xlab="Column sum abundance")})
 abline(0,1)
@@ -3955,7 +4023,7 @@ Note that since we are estimating offsets the value of the regressor is 1. In th
 
 Take a look at the influence function values for the influence on the first psi parameters
 
-```{r NS influence measures: psis, results="hide"}
+```{r NS influence measures: psis, results="hide", purl = FALSE}
 infl1 = lapply(solListNS, function(x, i){
   infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
   id=abs(infl) > quantile( abs(infl),0.995)
@@ -3978,7 +4046,7 @@ Larger abundances, larger influences in all weighting schemes (remember it is a 
 
 Influence vs libSizes
 
-```{r Influence vs libSizes, results="hide"}
+```{r Influence vs libSizes, results="hide", purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(infl1), function(x){
   with(infl1[[x]], plot(log(abs(c(infl)))~rep(cut(log(libsizes),8),ncol(infl)), main=x, ylab = "log(|Influence|)",xlab = "log library size")) #Very heavy!
@@ -3989,7 +4057,7 @@ No clear trend of influence in function of the library sizes
 
 How are the most influential observations as compared to the bulk of the observations?
 
-```{r Influence vs non-influential observations}
+```{r Influence vs non-influential observations, purl = FALSE}
 lapply(names(infl1), function(x){
   with(infl1[[x]], {rbind(expectationsAll = quantile(outer(libsizes, abunds)),
        expectationsInfluentialObservation =quantile(outer(libsizes, abunds)[id])) })
@@ -4004,7 +4072,7 @@ The most influential observations are zero counts (or low counts) in highly abun
 
 Plot the influence vs. observed abundances
 
-```{r X vs Infl(X), results="hide"}
+```{r X vs Infl(X), results="hide", purl = FALSE}
 #Expectations
 par(mfrow=c(2,4))
 lapply(names(infl1), function(x){
@@ -4016,7 +4084,7 @@ abline(v=0, col="red")
 
 Versus expected abundances
 
-```{r Infl vs observed abundances, results="hide"}
+```{r Infl vs observed abundances, results="hide", purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(infl1), function(x){
   id = sample(1:prod(dim(solListNS[[x]]$X)), size=10000)
@@ -4027,7 +4095,7 @@ plot(outer(rowSums(solListNS[[x]]$X), colSums(solListNS[[x]]$X)/sum(solListNS[[x
 
 Versus Raw residuals (Observed - Expected count)
 
-```{r vs Pearson residuals, results = "hide"}
+```{r vs Pearson residuals, results = "hide", purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(infl1), function(x){
    id = sample(1:prod(dim(solListNS[[x]]$X)), size=10000) #Take a susbet for computability
@@ -4037,7 +4105,7 @@ plot((solListNS[[x]]$X-outer(rowSums(solListNS[[x]]$X), colSums(solListNS[[x]]$X
 ```
 
 
-```{r psi2Infl, eval=FALSE}
+```{r psi2Infl, eval=FALSE, purl = FALSE}
 infl2 = lapply(solListNS, function(x, i){
   infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
   id=abs(infl) > quantile( abs(infl),0.995)
@@ -4072,7 +4140,7 @@ Under the uniform weighting scheme for the taxa, one single observation will get
 
 Influence on the colScores
 
-```{r NBNS influence colscores, eval=FALSE}
+```{r NBNS influence colscores, eval=FALSE, purl = FALSE}
 inflCol1 = lapply(solListNS, function(x){
   try(with(x, NBcolInfl(X, psis, cMat, rMat,thetas , colWeights , k=1 , lambdaCol)))
 })
@@ -4081,7 +4149,7 @@ inflCol1 = lapply(solListNS, function(x){
 
 ```
 
-```{r NBNS influence rowscores, eval=FALSE}
+```{r NBNS influence rowscores, eval=FALSE, purl = FALSE}
 inflRowList1 = lapply(solListNS, function(x){
   try(with(x, NBrowInfl(X, psis, cMat, rMat,thetas , rowWeights , k=1 , lambdaRow)))
 })
@@ -4110,7 +4178,7 @@ The signal is introduced by sampling from different distributions in which each 
 
 With modified abundances (4 groups)
 
-```{r NB with signal abundance,eval=FALSE}
+```{r NB with signal abundance,eval=FALSE , purl = FALSE}
 rhosNBSigref = rhosNBSig1 = rhosNBSig2 = rhosNBSig3 = rhosNBSig4 = rhosNBNS
 
 load("/home/stijn/PhD/American Gut/AGphylo.RData")
@@ -4185,7 +4253,7 @@ save(dataMatSigNBab, taxaSigNBab, sampleSigNBab, file = "abData.RData")
 
 #### The abundance based approach: fit
 
-```{r Fit3Dab, eval=FALSE}
+```{r Fit3Dab, eval=FALSE, purl = FALSE}
 nleqslv.control.ab = list(trace=TRUE, maxit = 500, cndtol=.Machine$double.eps)
 if(!file.exists("toyDataSigab.RData")){
 
@@ -4217,7 +4285,7 @@ if(!file.exists("toyDataSigab.RData")){
 } else {load("toyDataSigab.RData")}
 ```
 
-```{r ab plots, include=FALSE}
+```{r ab plots, include=FALSE, purl = FALSE}
 load("toyDataSigABserver.RData") 
 # solListWSab = list("unifunif" = syntNBSigunifunif_ab, "unifmarg" = syntNBSigunifmarg_ab, "margunif" = syntNBSigmargunif_ab, "margmarg" = syntNBSigmargmarg_ab, "unifmargunifRmarg" = testAb1,  "margmargunifRmarg"=testAb2, "margunifunifRmarg" = testAb3, "unifmargunifRunif" = testAb1unif, "margmargunifRunif"=testAb2unif, "margunifunifRunif" = testAb3unif, "inverse"= testAbInv, "testEqualLibs" =   testAbLibs, "unifunifMLE" = syntNBSigunifunif_abMLE, "unifmargMLE" = syntNBSigunifmarg_abMLE, "margunifMLE" = syntNBSigmargunif_abMLE, "margmargMLE" = syntNBSigmargmarg_abMLE )
 names(sigListAB) = c("unifunif","unifunifMLE","margunif","margunifMLE","unifmarg","unifmargMLE","margmarg","margmargMLE")
@@ -4236,7 +4304,7 @@ The first abbreviation refers to the weighting scheme for the rows(samples), the
 
 \newpage
 
-```{r abSignalPlots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9}
+```{r abSignalPlots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
 cols = c("grey", "red","blue","purple","green","brown","cyan","orange","black",  "magenta","yellow","pink", "darkblue","grey75","cadetblue") 
 palette(cols)
 par(mfrow=c(1,1), mar = c(4,4,4,4), mai=c(0,0,0,0))
@@ -4247,7 +4315,7 @@ lapply(names(solListWSab), function(Y){plotRCM(solListWSab[[Y]], samColour = sam
 
 \newpage
 
-```{r abSignalPlots23D, results='hide', fig.show="hold", fig.width = 12, fig.height = 9}
+```{r abSignalPlots23D, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
 palette(cols)
 par(mfrow=c(1,1))
 lapply(names(solListWSab), function(Y){try(plotRCM(solListWSab[[Y]], samColour = sampleSigNBab, main=Y, biplot=FALSE, Dim = c(1,3), libInset=c(-0.8,0)))})
@@ -4257,7 +4325,7 @@ Only when the margins are estimated with MLE are the first two dimensions used t
 
 #### Sample scores vs. libsizes
 
-```{r abSignalPlots 13D, results='hide', fig.show="hold"}
+```{r abSignalPlots 13D, results='hide', fig.show="hold", purl = FALSE}
 par(mfrow=c(2,4))
 #Maybe a function of the library sizes
 lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {
@@ -4270,7 +4338,7 @@ lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {
 
 Look at the scores' relationship to the library sizes more directly.
 
-```{r ab libsizes, results='hide', fig.show="hold", eval=FALSE}
+```{r ab libsizes, results='hide', fig.show="hold", eval=FALSE, purl = FALSE}
 #Look at the loadings in function of the library sizes and abunds
 par(pty = "m", mfrow = c(1,1), mar = c(5,4,4,4))
 logP="x"
@@ -4286,7 +4354,7 @@ In the MLE framework for the offsets, dependence on the library sizes has disapp
 
 Compare MLE and rowSums estimators for the sequencing depth
 
-```{r plotSequencingDepthEstimatorsAb}
+```{r plotSequencingDepthEstimatorsAb, purl = FALSE}
 par(mfrow=c(1,1), pty="s")
 with(solListWSab[["unifunifMLE"]], {plot(rowSums(X),libSizesMLE, xlab ="Library sizes", ylab = "MLE sequencing depth",log="xy")})
  abline(0,1);#abline(h=c(1e4,1e5), col="red");abline(v=c(1e4,1e5), col="red")
@@ -4300,7 +4368,7 @@ The MLE estimate is generally larger than the rowSums estimate (presumably since
 
 Now let's take a look at the taxon plots
 
-```{r NBab taxon plots, results='hide', eval=FALSE}
+```{r NBab taxon plots, results='hide', eval=FALSE, purl = FALSE}
 par(mfrow=c(1,1), pty="s")
 palette(cols)
 lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,t(cMat), ylab="Dim2",xlab="Dim1", col = taxaSigNBab)}); legend("topright",legend = levels(taxaSigNBab), col=cols,pch= 1, cex=0.7, inset = c(-0.80,0), xpd=TRUE) })
@@ -4310,7 +4378,7 @@ For the uniform weighting of the samples we see outliers for the taxa
 
 Are the taxon scores related to the abundances in any way?
 
-```{r taxonScesvsAbunds1Dab, results='hide', eval=FALSE}
+```{r taxonScesvsAbunds1Dab, results='hide', eval=FALSE, purl = FALSE}
 #Abundances
 par(mfrow=c(1,1), mar=c(5,4,4,4))
 sapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,cMat[1,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim1", sub = paste0("Cor = ", round(cor(cMat[1,], colSums(X)),2)))})})
@@ -4318,7 +4386,7 @@ sapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,cMat[
 
 The MLE offset estimation does reduce correlation with the mean abundances.
 
-```{r taxonScesvsAbunds23Dab, results='hide', eval=FALSE}
+```{r taxonScesvsAbunds23Dab, results='hide', eval=FALSE, purl = FALSE}
 # Second and third dimensions
 par(mfrow=c(1,1), mar=c(5,4,4,4))
 lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,cMat[2,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim2", sub = paste0("Cor = ", round(cor(cMat[2,], colSums(X)),2)))})})
@@ -4330,7 +4398,7 @@ No more problems with correlation in higher dimensions.
 
 Do the taxon scores relate to the overdispersions?
 
-```{r taxonScesvsthetas1, results='hide', eval=FALSE}
+```{r taxonScesvsthetas1, results='hide', eval=FALSE, purl = FALSE}
 par(mfrow=c(1,1))
 lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,abs(cMat[1,]), thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="Dim1", sub = paste0("Cor = ", round(cor(abs(cMat[1,]), thetas),2)))})})
 par(mfrow=c(1,1))
@@ -4339,7 +4407,7 @@ lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,cMat[
 
 No real relationship with overdispersions
 
-```{r lagrange multipliers, eval=FALSE}
+```{r lagrange multipliers, eval=FALSE, purl = FALSE}
 ##### Lagrange multipliers
 par(mfrow=c(2,4))
 lapply(names(solListWSab), function(Y){cat(Y, "\n");solListWSab[[Y]]$lambdaCol})
@@ -4349,7 +4417,7 @@ lapply(names(solListWSab), function(Y){cat(Y, "\n");solListWSab[[Y]]$lambdaCol})
 
 First two dimensions
 
-```{r ab biplots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9}
+```{r ab biplots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
 #par(mfrow=c(2,4), mai = c(2,2,2,4))
 par(mfrow=c(1,1))
 palette(cols)
@@ -4358,7 +4426,7 @@ lapply(names(solListWSab), function(Y){plotRCM(solListWSab[[Y]], samColour = sam
 
 Fisrt and third dimension
 
-```{r ab23 biplots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9}
+```{r ab23 biplots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
 #par(mfrow=c(2,4), mai = c(2,2,2,4))
 par(mfrow=c(1,1))
 palette(cols)
@@ -4369,7 +4437,7 @@ lapply(names(solListWSab), function(Y){plotRCM(solListWSab[[Y]], samColour = sam
 
 Take a look at the influence function values on the psis
 
-```{r Ab influence measures: psis, eval=FALSE}
+```{r Ab influence measures: psis, eval=FALSE, purl = FALSE}
 infl1 = lapply(solListWSab, function(x, i){ 
   infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
   id=abs(infl) > quantile( abs(infl),0.995)
@@ -4434,7 +4502,7 @@ The most influential observations are zero counts in highly abundant species and
 
 Influence on the colScores
 
-```{r Ab influence colscores, eval=FALSE}
+```{r Ab influence colscores, eval=FALSE, purl = FALSE}
 inflColList1 = lapply(solListWSab, function(x){
   try(with(x, NBcolInfl(X, psis, cMat, rMat,thetas , colWeights = if(is.matrix(colWeights)) colWeights else{ cbind(colWeights, colWeights, colWeights)} , k=1 , lambdaCol)))
 })
@@ -4449,7 +4517,7 @@ lapply(inflCol1, function(x){
 
 As expected, the samples with the signal have the highest impact on the score
 
-```{r Ab influence rowscores Ab, eval=FALSE}
+```{r Ab influence rowscores Ab, eval=FALSE, purl = FALSE}
 inflRowList1 = lapply(solListWSab, function(x){
   try(with(x, NBrowInfl(X, psis, cMat, rMat,thetas , rowWeights , k=1 , lambdaRow)))
 })
@@ -4470,7 +4538,7 @@ lapply(names(inflRow1), function(x){
 Evidently, the observation from the sample itself has the largest influence. In the marginal weighting scheme for the libsizes, the larger libsizes sometimes get a larger influence, although the effect may be small.
 
 
-```{r tolerances, eval=FALSE}
+```{r tolerances, eval=FALSE, purl = FALSE}
 #Achieved tolerances
 tolAchPsi = with(syntNBSigmargmarg_ab, lapply(1:k, function(y){sapply( 2:iter[y], function(x){abs(1-psiRec[y,x]/psiRec[y,x-1])})}))
 par(mfrow=c(1,3))
@@ -4483,7 +4551,7 @@ with(syntNBSigmargmarg_ab,plot(psiRec[3,1:iter[3]])) #Weird jumps, don't stop to
 
 We sample abundances and library sizes log-uniformly to get a better view of the scores in function of them
 
-```{r NB with signal lu}
+```{r NB with signal lu, purl = FALSE}
 makeNBdata=function(meanMat, thetaMat){apply(array(data= c(meanMat, thetaMat), dim=c(nrow(meanMat), ncol(meanMat), 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})}
 NtaxaLogUnif = 1000
 NsamplesLogUnif = 300
@@ -4560,7 +4628,7 @@ names(sampleSigNBLU) = rownames(dataMatSigNBLU) = 1:NsamplesLogUnif
 
 Fit the RC(M) model to the logUnif data
 
-```{r Fit3Dlu, eval=FALSE}
+```{r Fit3Dlu, eval=FALSE, purl = FALSE}
 nleqslv.control.lu = list(trace=TRUE, maxit = 500, cndtol=.Machine$double.eps)
 if(!file.exists("toyDataSigLU.RData")){
 
@@ -4601,7 +4669,7 @@ if(!file.exists("toyDataSigLU.RData")){
 
 LU plots
 
-```{r LU plots, include=FALSE}
+```{r LU plots, include=FALSE, purl = FALSE}
 load("toyDataSigLUserver.RData")
 # solListWSLU = list("unifunif" = syntNBSigunifunif_LU, "unifmarg" = syntNBSigunifmarg_LU, "margunif" = syntNBSigmargunif_LU, "margmarg" = syntNBSigmargmarg_LU, "unifmargunifRmarg" = testLU1,  "margmargunifRmarg"=testLU2, "margunifunifRmarg" = testLU3, "unifmargunifRunif" = testLU1unif, "margmargunifRunif"=testLU2unif, "margunifunifRunif" = testLU3unif, "inverse"= testLUInv, "testEqualLibs" =   testLULibs, "unifunifMLE" = syntNBSigunifunif_LUMLE, "unifmargMLE" = syntNBSigunifmarg_LUMLE, "margunifMLE" = syntNBSigmargunif_LUMLE, "margmargMLE" = syntNBSigmargmarg_LUMLE )
 names(sigListLU) = c("unifunif","unifunifMLE","margunif","margunifMLE","unifmarg","unifmargMLE","margmarg","margmargMLE")
@@ -4618,21 +4686,21 @@ The first Abreviation refers to the weighting scheme for the rows(samples), the 
 
 ##### Sample plots
 
-```{r LUSignalPlots, eval=FALSE}
+```{r LUSignalPlots, eval=FALSE, purl = FALSE}
 cols = c("grey", "red","blue","purple","green","brown","cyan","black", "orange", "magenta","yellow","pink", "olive","grey75","grey85") 
 palette(cols)
 par(mfrow=c(2,4))
 lapply(names(solListWSLU), function(Y){plotRCM(solListWSLU[[Y]], samColour = sampleSigNBLU, main=Y, biplot=FALSE, Dim = c(1,2), libInset=c(-0.8,0))})
 ```
 
-```{r LUSignalPlots23D, eval=FALSE}
+```{r LUSignalPlots23D, eval=FALSE, purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListWSLU), function(Y){try(plotRCM(solListWSLU[[Y]], samColour = sampleSigNBLU, main=Y, biplot=FALSE, Dim = c(1,3), libInset=c(-0.8,0)))})
 ```
 
 Only when the margins are estimated with MLE are the first two dimensions used to separate the signal well. Especially the uniform weighting for the samples and marginal for the columns (as was our first intuition) appears to perform well. Also uniform weighting for both yields good results.
 
-```{r LUSignalPlots 13D, eval=FALSE}
+```{r LUSignalPlots 13D, eval=FALSE, purl = FALSE}
 par(mfrow=c(2,4))
 #Maybe a function of the library sizes
 lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {
@@ -4647,7 +4715,7 @@ On these plots it is clear that when the margins are estimated using the library
 
 Look at the scores' relationship to the library sizes more directly.
 
-```{r LU libsizes, eval=FALSE, results = "hide"}
+```{r LU libsizes, eval=FALSE, results = "hide", purl = FALSE}
 #Look at the loadings in function of the library sizes and abunds
 par(pty = "m", mfrow = c(2,4), mar=c(5,4,4,4))
 logP="y"
@@ -4663,7 +4731,7 @@ In the MLE framework for the offsets, dependence on the library sizes has disapp
 
 Now let's take a look at the taxon plots
 
-```{r NBLU taxon plots, results='hide', eval=FALSE}
+```{r NBLU taxon plots, results='hide', eval=FALSE, purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,t(cMat), ylab="Dim2",xlab="Dim1", col = taxaSigNBLU)}); legend("topright",legend = levels(taxaSigNBLU), col=cols,pch= 1, cex=0.7, inset = c(-0.80,0), xpd=TRUE) })
 ```
@@ -4672,7 +4740,7 @@ For the uniform weighting of the samples we see outliers for the taxa
 
 Are the taxon scores related to the abundances in any way?
 
-```{r taxonScesvsabunds1DLU, results='hide', eval=FALSE}
+```{r taxonScesvsabunds1DLU, results='hide', eval=FALSE, purl = FALSE}
 #abundances
 par(mfrow=c(2,4), mar=c(5,4,4,4))
 sapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,cMat[1,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim1", sub = paste0("Cor = ", round(cor(cMat[1,], colSums(X)),2)))})})
@@ -4682,7 +4750,7 @@ The MLE offset estimation does reduce correlation with the mean abundances.
 
 Second and third dimensions
 
-```{r taxonScesvsabunds23DLU, results='hide', eval=FALSE}
+```{r taxonScesvsabunds23DLU, results='hide', eval=FALSE, purl = FALSE}
 par(mfrow=c(2,4), mar=c(5,4,4,4))
 lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,cMat[2,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim2", sub = paste0("Cor = ", round(cor(cMat[2,], colSums(X)),2)))})})
 par(mfrow=c(2,4), mar=c(5,4,4,4))
@@ -4693,7 +4761,7 @@ No more problems with correlation in higher dimensions.
 
 Do the taxon scores relate to the overdispersions?
 
-```{r taxonScesvsthetas2, results='hide', eval=FALSE}
+```{r taxonScesvsthetas2, results='hide', eval=FALSE, purl = FALSE}
 par(mfrow=c(2,4))
 lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,abs(cMat[1,]), thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="Dim1", sub = paste0("Cor = ", round(cor(abs(cMat[1,]), thetas),2)))})})
 par(mfrow=c(2,4))
@@ -4702,7 +4770,7 @@ lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,cMat[
 
 No real relationship with overdispersions
 
-```{r lagrange multiplierslu, eval=FALSE}
+```{r lagrange multiplierslu, eval=FALSE, purl = FALSE}
 ##### Lagrange multipliers
 par(mfrow=c(2,4))
 lapply(names(solListWSLU), function(Y){cat(Y, "\n");solListWSLU[[Y]]$lambdaCol})
@@ -4710,7 +4778,7 @@ lapply(names(solListWSLU), function(Y){cat(Y, "\n");solListWSLU[[Y]]$lambdaCol})
 
 ##### Biplots
 
-```{r LU biplots, results='hide', eval=FALSE}
+```{r LU biplots, results='hide', eval=FALSE, purl = FALSE}
 par(mfrow=c(2,4), mai = c(2,2,2,4))
 par(mfrow=c(1,1))
 lapply(names(solListWSLU), function(Y){plotRCM(solListWSLU[[Y]], samColour = sampleSigNBLU, main=Y, biplot=TRUE, Dim = c(1,3), taxColour=tmp, taxLegPos = "bottomright", abundLeg=TRUE, taxCol  =cols, taxInset = c(-1.45,-0.75), libCex = 0.65, libInset = c(-0.85,0), arrowFrac = 0.05)})
@@ -4720,7 +4788,7 @@ lapply(names(solListWSLU), function(Y){plotRCM(solListWSLU[[Y]], samColour = sam
 
 Take a look at the influence function values on the psis
 
-```{r LU influence measures: psis, eval=FALSE}
+```{r LU influence measures: psis, eval=FALSE, purl = FALSE}
 infl1 = lapply(solListWSLU, function(x, i){ 
   infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
   id=LUs(infl) > quantile( LUs(infl),0.995)
@@ -4785,7 +4853,7 @@ The most influential observations are zero counts in highly abundant species and
 
 Influence on the colScores
 
-```{r LU influence colscores, eval=FALSE}
+```{r LU influence colscores, eval=FALSE, purl = FALSE}
 inflColList1 = lapply(solListWSLU, function(x){
   try(with(x, NBcolInfl(X, psis, cMat, rMat,thetas , colWeights = if(is.matrix(colWeights)) colWeights else{ cbind(colWeights, colWeights, colWeights)} , k=1 , lambdaCol)))
 })
@@ -4800,7 +4868,7 @@ lapply(inflCol1, function(x){
 
 As expected, the samples with the signal have the highest impact on the score
 
-```{r LU influence rowscores LU, eval=FALSE}
+```{r LU influence rowscores LU, eval=FALSE, purl = FALSE}
 inflRowList1 = lapply(solListWSLU, function(x){
   try(with(x, NBrowInfl(X, psis, cMat, rMat,thetas , rowWeights , k=1 , lambdaRow)))
 })
@@ -4822,7 +4890,7 @@ Evidently, the observation from the sample itself has the largest influence. In 
 
 Achieved tolerances
 
-```{r toleranceslu, eval=FALSE}
+```{r toleranceslu, eval=FALSE, purl = FALSE}
 tolAchPsi = with(syntNBSigmargmarg_LU, lapply(1:k, function(y){sapply( 2:iter[y], function(x){LUs(1-psiRec[y,x]/psiRec[y,x-1])})}))
 par(mfrow=c(1,3))
 lapply(tolAchPsi, function(x){plot(x, log="y");LUline(h=0.01, col="red"); abline(h=0.001, col="blue")})
@@ -4834,7 +4902,7 @@ with(syntNBSigmargmarg_LU,plot(psiRec[3,1:iter[3]])) #Weird jumps, don't stop to
 
 Finally we also apply the method to real datasets
 
-```{r RC(M)_NB real datasets}
+```{r RC(M)_NB real datasets, purl = FALSE}
 realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease" )
 load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 load("/home/stijn/PhD/Simulations/data/AGphylo.RData")
@@ -4853,7 +4921,7 @@ sapply(resListRCM,function(x){x$iter})
 
 The HMP dataset
 
-```{r HMP plot}
+```{r HMP plot, purl = FALSE}
 SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
   levels(get_variable("RUNCENTER",physeq=x))
 }))))
@@ -4919,7 +4987,7 @@ par(mfrow = c(1,1))
 ```
 
 
-```{r filterTwoConfounders}
+```{r filterTwoConfounders, purl = FALSE}
 #With two confounders
 confTestJob = mcparallel(RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = c("sex","RUNCENTER2")))
 confTest = mccollect(confTestJob, wait=FALSE)[[1]]
@@ -4928,7 +4996,7 @@ save(confTest, file="/home/stijn/PhD/Biplots/confTestHMP.RData")
 
 The AGP dataset
 
-```{r AGPplots}
+```{r AGPplots, purl = FALSE}
 par(mfrow = c(3,3))
 AGPvars = c("IBD","AGE","SEX","PREGNANT","LACTOSE","ASTHMA","DIABETES", "DIET_TYPE","COUNTRY")
 sapply(AGPvars, function(x){
@@ -4938,7 +5006,7 @@ plotRCM(resListRCM[["AGP"]], biplot=FALSE, samColour = x, main=x, libInset = c(-
 
 The AGP dataset is presumably too noisy to find much of a signal
 
-```{r fitting process}
+```{r fitting process, purl = FALSE}
 lapply(names(resListRCM), function(x){with(resListRCM[[x]],{ plot(main=x, rowRec[2,1,1:iter[1]])})})
 ```
 
@@ -4946,22 +5014,33 @@ AGP is known to be very noisy and does not yield anything.
 
 The Zeller data
 
-```{r load zeller RC(M) NB results}
+```{r load zeller RC(M) NB results, purl = FALSE}
 load("/home/stijn/PhD/Simulations/data/zellerData.RData")
-zellers = c("zellerMeta","zeller16S")
-zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
-  load(x)
-  RCMres
-})
 
+zellers = c("zellerMeta","zeller16S")
+# zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
+#   load(x)
+#   RCMres
+# })
+if(!file.exists("zellerSphyRCM.RData")){
+zellerSphyRCM = RCM(zellerSphy, k=2, round = TRUE) # Less than one minute!
+save(zellerSphyRCM, file="zellerSphyRCM.RData")
+} else {load("zellerSphyRCM.RData")}
+
+if(!file.exists("zellerMphyRCM.RData")){
+zellerMphyRCM = RCM(zellerMphy, k=2, round = TRUE, prevCutOff = 0.05, minFraction = 0.15) # Less than one minute! More trimming needed here
+save(zellerMphyRCM, file="zellerMphyRCM.RData")
+} else {load("zellerMphyRCM.RData")}
+
+zellerRCM  =list(zellerMphyRCM, zellerSphyRCM)
 names(zellerRCM) = zellers
 
 sapply(zellerRCM,function(x){x$converged}) # All converged
 sapply(zellerRCM,function(x){x$runtime})
 sapply(zellerRCM,function(x){x$iter})
 
-zellerRCM[[1]]$physeq = zellerMphy 
-zellerRCM[[2]]$physeq = zellerSphy 
+# zellerRCM[[1]]$physeq = zellerMphy 
+# zellerRCM[[2]]$physeq = zellerSphy 
 
 cols = c("darkblue","orange","darkgreen", "brown","black", "blue","magenta","cadetblue","cyan", "yellow", "grey80","grey70","pink") 
 palette(cols)
@@ -4974,7 +5053,10 @@ sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samCo
 
 For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups.
 
-We need a plotRCMgg() function (a ggplot function to plot the continuous variables)!
+```{r plotZellerSphy, purl = FALSE}
+PCbiplot(zellerMphyRCM, colour = "Age")
+PCbiplot(zellerMphyRCM, colour = "BMI")
+```
 
 ### Zero-inflated poisson
 
@@ -4982,7 +5064,7 @@ We need a plotRCMgg() function (a ggplot function to plot the continuous variabl
 
 ##### Generate data
 
-```{r ZIP without signal, eval=FALSE}
+```{r ZIP without signal, eval=FALSE, purl = FALSE}
 load("/home/stijn/PhD/American Gut/AGphylo.RData")
 #First estimate the ZIP parameters
 
@@ -5019,7 +5101,7 @@ save(dataMatZIPnoSig, file = "zipNSData.RData")
 
 ##### Fit RC(M)
 
-```{r RC(M) fit, eval=FALSE}
+```{r RC(M) fit, eval=FALSE, purl = FALSE}
 nleqslv.controlZIP = list(trace=TRUE, maxit=250, cndtol = .Machine$double.eps, allowSingular=TRUE)
 if(!file.exists("syntZIPnoSig.RData")){
   syntZIPnoSigUnifUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP", k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "uniform", maxItOut=5e0))
@@ -5041,7 +5123,7 @@ if(!file.exists("syntZIPnoSig.RData")){
 
 ##### Plot the results
 
-```{r RC(M) zip, eval=FALSE}
+```{r RC(M) zip, eval=FALSE, purl = FALSE}
 load(file="toyDataNoSigZIPserver.RData")
 solListWSZIP = noSigListZIP[sapply(noSigListZIP, class)=="list"]
 #Runtimes and convergence
@@ -5055,7 +5137,7 @@ sapply(solListWSZIP,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
 
 #### ZIP with signal
 
-```{r ZIP with signal, eval=FALSE}
+```{r ZIP with signal, eval=FALSE, purl = FALSE}
 load("/home/stijn/PhD/American Gut/AGphylo.RData")
 #First estimate/load the ZIP parameters
 
@@ -5244,7 +5326,7 @@ sapply(solListWSZINB,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
 
 #### Restore defaults
 
-```{r restore defaults, eval=FALSE}
+```{r restore defaults, eval=FALSE, purl = FALSE}
 palette(palStore)
 ```
 
@@ -5347,7 +5429,7 @@ testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
 
 ### Real data application
 
-```{r realDataRCM}
+```{r realDataRCM, purl = FALSE}
 load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 antNarConstr = RCM(physeqListV13[["Anterior.nares"]], k=2, covariates  = c("sex", "RUNCENTER"))
 load("/home/stijn/PhD/Simulations/data/zellerData.RData")
@@ -5358,38 +5440,110 @@ zellerConstr = RCM(zellerMphy, k=2, covariates  = c("Diagnosis", "BMI", "Age","G
 
 After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way.
 
-## Generating datasets
+## Unconstrained RC(M)
+
+### Generating datasets
 
 As ways of generating test datasets we see three different options
 
-  1) Parametric simulation with the negative binomial with known abundances
+  1) Parametric simulation with the negative binomial with known abundances. 
   2) Non-parametric simulation with SimSeq
-  3) Real datasets with alleged biological signal known
+  3) Real datasets with biological signal allegedly known
   
-  Parametric simulation is needed as a first check but evidently favours our method. SimSeq is a reasonably neutral tool, we will only use WMW to obtain the lfdr. Real datasets will need to complement our analysis but they may not be possible to evaluate in a high-throughput way, this will need to happen empirically.
+  Parametric simulation is needed as a first check but evidently favours our method (if we use the negative binomial distribution). SimSeq is a reasonably neutral tool, we will only use WMW to obtain the lfdr. Real datasets will need to complement our analysis but it may not be possible to evaluate them in a high-throughput way, this will need to happen empirically.
   
-## Evaluating the biplot
+#### Parametric simulations
 
-For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy
+##### Negative binomial
 
-### Within vs. between distance
+The negative binomial is the assumed distribution of our method. As a result we should outperform all other methods in this setting.
 
-A first intuitive approach would be to compare the within cluster distances on the plot to the distances between the clusters. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$. The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance. The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$
+###### Simulate from different distributions
 
-## Competing methods
+In this setting we will simulate data from 4 unrelated negative binomial distributions. Because of this clustering should be very good.
 
-### Unconstrained
+```{r NBunrelatedDistr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+
+load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
+rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
+thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+#Library sizes
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
+
+if(!file.exists(file = "simRCMunconstr1.RData")){
+datList1 = mclapply(mc.cores=4, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sapply(1:nPop, function(x){sample(rhoEst, p)})[,groupInd]
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+list(dataMat = dataMat, group = groupFactor, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+
+RCMresList1 = mclapply(mc.cores=4, datList1, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+})
+save(RCMresList1, groupFactor, file = "simRCMunconstr1.RData")
+} else {load(file = "simRCMunconstr1.RData")}
+```
+  
+### Evaluating the biplot
+
+For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
+
+#### Within vs. overall distance
+
+A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
+
+We could perhaps look for the distance based method that minimizes $\frac{d_{m, within}}{d_{m, overall}}$?
+
+This approach can be applied to the row scores (samples) as well as the column scores (taxa).
+
+#### Correlation with library sizes
+
+The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
+
+(Absolute values of) Pearson and/or Spearman correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot.
+
+<!---
+The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance.
+--->
+
+## Constrained RC(M)
+
+# Competing methods
+
+## Unconstrained RC(M)
 
  - PCoA
    * Bray-Curtis dissimilarity (Forest ecology)
-   * UniFrac distance (Mirobial ecology)
+   * UniFrac distance (Microbial ecology, uses phylogenetic information)
+   * See Warton _et al._ (2012): Distance-based multivariate analyses confound
+location and dispersion effects
  - Corresponence analysis (CA) (Statistics)
-   * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
+ - CoDa: PCoA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
+  * Dependence on pseudocounts?
+ - Bayesian Nonparametric Ordination (Ren _et al._ (2016))
    
-### Constrained
+## Constrained
 
   - Constrained PCoA?
   - Constrained correspondence analysis (CCA)
+    * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
 
 \newpage
 
