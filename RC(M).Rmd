@@ -484,9 +484,9 @@ For the response function previously a Gaussian has been proposed but this may n
 
 $$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big).$$
 
-Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters estimated per response function $f_j$ is much smaller than the number of samples $n$.
+Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters estimated per response function $f_j$ is much smaller than the number of samples $n$. In practice in R we will work with a row score matrix
 
-#### Estimating the response function
+#### Score equations
 
 The score function for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
 
@@ -574,12 +574,13 @@ The estimation would then proceed as follows:
  1. Estimate the independence model ($u_i$'s, and $u_j$'s)
  2. (Optional): Filter out confounders by modifying offset
  3. Find initial values for $\psi_k$ and $s_{jk}$ as before.
- 4. Iterate between
+ 4. Find starting values for $\alpha$ based on CCA
+ 5. Iterate between
   - Estimate $f_j$'s and $f_0$ and corresponding $e_{ij}$ and $e_{i.}$ given $\boldsymbol{\alpha}$
   - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
-5. Estimate $\psi_k$ and $s_{jk}$ using ML
-6. Repeat steps 3-4 until convergence
-7. Build the triplot
+  6. Estimate $\psi_k$ and $s_{jk}$ using ML and overdispersions using empirical Bayes
+7. Repeat steps 4-6 until convergence
+8. Build the triplot
   a. Plot $\psi_1 \boldsymbol{\alpha}_1^T \mathbf{C}$ vs. $\psi_2 \boldsymbol{\alpha}_2^T \mathbf{C}$ for the samples
   b. Add $\mathbf{s}_{.1}$ vs . $\mathbf{s}_{.2}$ for the taxa
   c. Add $\boldsymbol{\alpha}_1$ vs $\boldsymbol{\alpha}_2$ for the variables
@@ -641,6 +642,14 @@ For more parameters it suffises to append the system to the existing one, $\beta
 --->
 
 Filtering of rare taxa is not needed in this case, as all covariates are summarized in one "continuous" row score.
+
+### Triplot
+
+The interpretation of the triplot is different from the one from Zhu _et al._ (2005), and also different from that of the unconstrained RC(M).
+
+ - The components of $\alpha_k$ represent the extent to which the covariates contribute to the departure from independence in dimension $k$. Categorical variables are centered, all their levels are shown. For a scale-free solution, the continuous variables should be centered and scaled. Should the dummy variables not also be normalized then? QUESTION!
+ - The samples represent the values of the product of the environmental gradient with their covariates. Samples close together in one dimension come from similar environments, considering that environmental gradient.
+ - The taxa still represent the departure from independence of the taxa. They will be multiplied by the importance parameters $\psi$ in this case. A large score in a dimension means that the taxon departs from uniformity because of changes in the environmental conditions in this dimension. Taxa close together respond in a similar way to changes in environmental conditions. The sample-taxon distances and projections are meaningless in this case.
 
 \newpage
 
@@ -743,7 +752,7 @@ NBpsiInfl = function(psi, X, cMat, rMat, muMarg, theta){
 
 #--------------------------------------#
 #A score function of the NB for the column scores
-dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK) {
+dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, constrained = FALSE) {
   # @param beta: vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
   # @param X: the nxp data matrix
   # @param reg: a nx1 regressor matrix: outer product of rowScores and psis
@@ -755,20 +764,24 @@ dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, 
   # @param nLambda: the number of restrictions
   # @param colWeights: the weights used for the restrictions
   # @param cMatK: the lower dimensions of the colScores
-
+  # @param constrained: a boolean, indicates if ordination is constrained.
+  
   # @return A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
   
   cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
   
-  # logMu[,K] = reg[,K]*beta
-  mu = exp(reg %*% cMat) * muMarg
+  mu = if (constrained){exp(t(t(reg) * c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
   
   lambda1 = beta[p+1] #Lagrangian multiplier for centering restrictions sum(abunds*r_{ik}) = 0
   lambda2 = beta[p+2] #Lagrangian multiplier for normalization restrictions sum(abunds*r^2_{ik}) = 1
   
   lambda3 = if(k==1){0} else {beta[(p + 3):length(beta)]} #Lagrangian multiplier for orhtogonalization restriction
   
-  score = crossprod(reg,((X-mu)/(1+mu/thetas))) + (colWeights*lambda1 + colWeights*lambda2*2*cMat + (lambda3 %*% cMatK)*colWeights)
+  score = if(constrained) {
+    colSums(reg*((X-mu)/(1+mu/thetas))) + (colWeights*lambda1 + colWeights*lambda2*2*cMat + (lambda3 %*% cMatK)*colWeights)
+  } else {
+    crossprod(reg,((X-mu)/(1+mu/thetas))) + (colWeights*lambda1 + colWeights*lambda2*2*cMat + (lambda3 %*% cMatK)*colWeights)
+    }
 
   center = sum(colWeights*cMat)
   unitSum = sum(colWeights*cMat^2)-1
@@ -780,7 +793,7 @@ dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, 
 }
 #--------------------------------------#
 # A function to provide an analytical jacobian in the hope to speed up the calculations
-NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLambda, cMatK){
+NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLambda, cMatK, constrained = FALSE){
   # @param beta: vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
   # @param X: the nxp data matrix
   # @param reg: a nx1 regressor matrix: outer product of rowScores and psis
@@ -792,12 +805,13 @@ NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLam
   # @param nLambda: the number of restrictions
   # @param colWeights: the weights used for the restrictions
   # @param cMatK: the lower dimensions of the colScores
+  # @param constrained: a boolean, indicates if ordination is constrained.
 
   #@return a symmetric jacobian matrix of size p + k +1
   cMat = matrix(beta[1:p], byrow=TRUE, nrow=1, ncol=p)
 
   #Calculate the mean
-  mu = exp(reg %*% cMat)* muMarg
+  mu = if (constrained){exp(t(t(reg) * c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
   
   Jac = matrix(0, nrow= p + nLambda, ncol=p + nLambda)
   #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
@@ -816,9 +830,12 @@ NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLam
 
   #Symmetrize
    Jac = Jac + t(Jac)
-#dLag²/dr_{ik}²
-
-    diag(Jac[1:p,1:p]) = -crossprod(tmp, reg^2) + 2*beta[p+2]*colWeights
+  #dLag²/dr_{ik}²
+    diag(Jac[1:p,1:p]) = if(constrained) {
+          -colSums(tmp * reg^2) + 2*beta[p+2]*colWeights
+    } else {
+    -crossprod(tmp, reg^2) + 2*beta[p+2]*colWeights
+    }
   Jac
 }
 #--------------------------------------#
@@ -949,7 +966,7 @@ getInflRow = function(score, InvJac, parIndex){
 
 #-------------------------------------------#
 # A function to estimate the overdispersion of the NB with empirical Bayes using the edgeR pacakage
-estDisp = function (X, cMat, rMat = NULL, muMarg, psis, trended.dispersion, prior.df = 10, dispWeights = NULL, ...)
+estDisp = function (X, cMat, rMat = NULL, muMarg, psis, trended.dispersion, prior.df = 10, dispWeights = NULL, rowMat = NULL)
 {
   # @param X: the data matrix of dimensions nxp
   # @param cMat: a 1xp colum scores matrix
@@ -959,7 +976,7 @@ estDisp = function (X, cMat, rMat = NULL, muMarg, psis, trended.dispersion, prio
   # @param trended.dispersion: a vector of length p with pre-calculated trended.dispersion estimates. They do not vary in function of the offset anyway
   # @param prior.df(optional): an integer, number of degrees of freedom of the prior for the Bayesian shrinkage
   # @param dispWeights (optional): Weights for estimating the dispersion in a zero-inflated model
-  # @param ...: More arguments, passed on to the getLogMeansMatConstr()-function
+  # @param rowMat: matrix of row scores in case of constrained ordination
   
   # @return A vector of length p with dispersion estimates
   
@@ -968,7 +985,7 @@ estDisp = function (X, cMat, rMat = NULL, muMarg, psis, trended.dispersion, prio
     if(!is.null(rMat)){ #Unconstrained
       t(rMat %*% (cMat * psis) + log(muMarg))
     } else { #Constrained
-      getLogMeansMatConstr(psis = psis, cMat = cMat, muMarg = muMarg, ...)
+      t(log(muMarg) + psis* t(t(rowMat)*c(cMat)))
     }
   thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL,
                                         prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
@@ -979,14 +996,6 @@ estDisp = function (X, cMat, rMat = NULL, muMarg, psis, trended.dispersion, prio
   }
   return(thetas = thetaEsts)
 }
-#-------------------------------------------#
-# A function to obtained a logged offset in case of constrained ordination
-getLogMeansMatConstr = function(psis, cMat, muMarg, ...){
-  # @param cMat: a 1xp colum scores matrix
-  # @param muMarg: an nxp offset matrix
-  # @param psis: a scalar, the current psi estimate
-}
-
 #-------------------------------------------#
 # A function to trim based on confounders to ensure there are no taxa with only zero counts in one of the subgroups defined by the confounders. Returns a trimmed data matrix, should be called prior to fitting the independence model
 trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
@@ -1014,7 +1023,7 @@ trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
 #-------------------------------------------#
 #A function to filter out the effect of known confounders. This is done by fitting interactions of every taxon with the levels of the confounders. 
 
-filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, tol = 1e-3, maxIt = 20){
+filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, trended.dispersion, tol = 1e-3, maxIt = 20){
   # @param muMarg: a nxp matrix, the current offset
   # @param confounders: a nxt confounder matrix
   # @param X: the nxp data matrix
@@ -1075,7 +1084,9 @@ arrayprod <- function(x,y){
  
   out
 }
+```
 
+```{r Negative binomial fit function, purl = TRUE}
 #-------------------------------------------#
 ## A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k. Not intended to be called directly but only through the RCM() function
 
@@ -1135,6 +1146,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   # - confounders(if provided): the confounder matrix
   # - confParams: the parameters used to filter out the confounders
   
+  Xorig = NULL #An original matrix, not returned if no trimming occurs
+  
     #If previous fit provided with higher or equal dimension, stop here
   if((!is.null(NBRCM)) ){
     if(NBRCM$fit != "RCM_NB"){
@@ -1156,8 +1169,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       rowWeights = NBRCM$rowWeights
       colWeights = NBRCM$colWeights
       libSizesMLE = NBRCM$libSizes
+      logLibSizesMLE  =log(libSizesMLE)
       abundsMLE = NBRCM$abunds
-      #Extend the record matrices
+      logAbundsMLE = log(abundsMLE)
+      #Extend the record matrices, force same number of outer iterations as previous fit
+      if(dim(NBRCM$rowRec)[3]!=maxItOut){
+        maxItOut = dim(NBRCM$rowRec)[3]
+        warning("Using same number of outer iterations as old fit! \n")
+      }
       rowRec = array(0, dim = c(n,k,maxItOut))
       rowRec[,1:Kprev,] = NBRCM$rowRec
       colRec = array(0, dim = c(k,p,maxItOut))
@@ -1172,17 +1191,19 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       convergence = c(NBRCM$converged, rep(FALSE, k-Kprev))
       iterOut = c(NBRCM$iter, rep(1,k-Kprev))
       muMarg = outer(libSizesMLE, abundsMLE)*exp( rMat %*% (cMat*psis))
-      # Fill out the other columns of the SVD
+      # Fill out the other columns of the SVD (in case of unconstrained analysis)
+      if(is.null(covariates)){
       svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
       newK = (Kprev+1):k
       rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
       cMat = rbind(cMat, t(svdX$v[,newK, drop=FALSE]))
       psis = c(psis, svdX$d[newK])
+      }
       trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(rowSums(X), colSums(X)/sum(X)))), weights = NULL)
+      confParams = NBRCM$confParams
     }
   #Otherwise start the fit from scratch
   } else {
-  Xorig = NULL #An original matrix, not returned of no trimming occurs
   if(!is.null(confounders[[1]])){ #First and foremost: filter on confounders
     Xorig = X
     X = trimOnConfounders(X, confounders = confounders$confoundersTrim, prevCutOff = prevCutOff, n=nrow(Xorig), minFraction = minFraction)
@@ -1254,7 +1275,7 @@ logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = 
 
   if(!is.null(confounders[[1]])){
   ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
-  filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas, nleqslv.control = nleqslv.control, n=n)
+  filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas, nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
   muMarg = filtObj$muMarg
   thetas = filtObj$thetas
   confParams = filtObj$NB_params
@@ -1389,12 +1410,19 @@ rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
   } else { #If covariates provided, do a constrained analysis
   
 d = ncol(covariates)
-
 CCA = cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
 alpha = matrix(0,d,k)
-alpha[!colnames(covariates) %in% alias,] = CCA$biplot[,1:k]
+alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,1:k] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
 alpha = t(t(alpha)-colMeans(alpha))
 alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
+if(!is.null(NBRCM)){
+ newK = (Kprev+1):k
+ cMat = rbind(cMat, t(CCA$eig[,newK, drop=FALSE]))
+ psis = c(psis, CCA$eig[newK])
+} else {
+  cMat = t(CCA$v)[1:k,,drop=FALSE]
+  psis = CCA$eig[1:k]
+}
 
 alphaRec = array(0, dim=c(d,k, maxItOut))
 v = switch(responseFun, linear = 2, quadratic = 3, 1) #Number of parameters per taxon
@@ -1433,27 +1461,30 @@ NB_params_noLab = matrix(0,v,k) #Initiate parameters of the response function, i
   psisOld = psis[KK]
   alphaOld = alpha[,KK]
   cMatOld = cMat[KK,]
+  
+  #The matrix of row scores
+  rowMat = getRowMatConstr(v = v, NB_params = NB_params[,,KK], covariates = covariates, alpha = alpha)
 
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
   if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
     if (verbose) cat("\n Estimating overdispersions \n")
- thetas = estDisp(X = X, alpha = alpha, NB_params = NB_params, cMat = cMat[KK,,drop=FALSE],  muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
+ thetas = estDisp(X = X, cMat = cMat[KK,,drop=FALSE],  muMarg = muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
  thetasMat = matrix(thetas, n, p, byrow=TRUE)
   }
 
 #Psis
-    if (verbose) cat("\n Estimating psis (k = ",KK,") \n", sep="")
-regPsis = outer(c(rMat) ,cMat[KK,])
+    if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
+regPsis = t(t(rowMat) *cMat[KK,])
 
 psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta =  thetasMat , X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method = jacMethod)$x)
 #Column scores
 if (verbose) cat("\n Estimating column scores \n")
-regCol = rMat*psis[KK]
-tmpCol = nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE])
+regCol = rowMat*psis[KK]
+tmpCol = nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
 
-  cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
-  cMat[KK,] = tmpCol$x[1:p]
-  lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
+cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
+cMat[KK,] = tmpCol$x[1:p]
+lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
 #Normalize (speeds up algorithm if previous step had not converged)
 
 cMat[KK,] = cMat[KK,] - sum(cMat[KK,] * colWeights)/sum(colWeights) 
@@ -1462,12 +1493,12 @@ cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 #Row scores
   if (verbose) cat("\n Estimating row scores \n")
 regAlpha = cMat[KK,,drop=TRUE]*psis[KK]
-tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas =  thetasMat , cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, NB_params = NB_params, NB_params_noLab = NB_params_noLab) #Provide previous parameters of the response function since they might provide good estimates
+tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas =  thetasMat , cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[,KK]) #Provide previous parameters of the response function since they might provide good initial estimates
 
 if(verbose)  cat(ifelse(tmpAlpha$converged, "Row scores converged \n", "Row scores DID NOT converge \n"))
   alpha[,KK] = tmpAlpha$Alpha
-  NB_params = tmpAlpha$NB_params
-  NB_params_noLab = tmpAlpha$NB_params_noLab
+  NB_params[,,KK] = tmpAlpha$NB_params
+  NB_params_noLab[,KK] = tmpAlpha$NB_params_noLab
 
 #Normalize (speeds up algorithm if previous step had not converged)
 alpha[,KK] = alpha[,KK] - mean(alpha[,KK]) 
@@ -1498,7 +1529,7 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
   rownames(cMat) = colnames(alpha) = paste0("Dim",1:k)
   
    returnList = list(converged = convergence, cMat=cMat, psis = psis, thetas = thetas, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,  
-       alpha = alpha, alphaRec = alphaRec, covariates = covariates,  
+       alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab,
        libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), 
        confounders = confounders, confParams = confParams)
   }
@@ -3404,6 +3435,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
 #--------------------------------------#
 # A function to estimate the taxon-wise NB-params
 estNBparams = function(design, thetas, muMarg, cReg, X, nleqslv.control, ncols, initParam,v){
+  
 vapply(seq_len(ncols), FUN.VALUE = vector("numeric",v), function(i){
      nleq = try(nleqslv(initParam[,i] , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control, jac = JacCol_constr)$x, silent=TRUE)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
      # if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){
@@ -3411,7 +3443,9 @@ vapply(seq_len(ncols), FUN.VALUE = vector("numeric",v), function(i){
      # }
      if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){nleq = rep.int(0,v)}
      return(nleq)
-})}
+})
+  
+  }
 
 #--------------------------------------#
 # A function to estimate the NB-params ignoring the taxon labels
@@ -3580,6 +3614,23 @@ heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){
   if(k==1) {return(rbind( centMat, 2*Alpha))
     } else {rbind(centMat, 2*Alpha, alphaK)}
 }
+#-------------------------------------------#
+# A function to obtained the matrix of row scores for the constrained case
+getRowMatConstr = function(v, NB_params, alpha, covariates, ...){
+  # @param v: an integer, the number of parameters per taxon: the degree of the polynomial + 1
+  # @param NB_params: a v-by-p matrix with parameters of the taxon-wise response functions 
+  # @param alpha: a d-by-k vector of environmental gradients
+  # @param covariates: a n-by-d matrix of covariates
+
+  # @return: a n-by-p offset matrix
+  
+  envir = covariates %*% alpha
+  desMat = model.matrix( switch(as.character(v), 
+                               "2"=as.formula(~envir),
+                               "3" = as.formula(~envir + I(envir^2)), 
+                               stop("Only linear and quadratic response functions supported so far! \n")))
+  desMat %*% NB_params
+}
 ```
 
 ## Wrapper for all distributions
@@ -3615,7 +3666,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
   # names(rowWeightsNum) =rowNames; names(colWeightsNum) = colNames
   if(round) {X=round(X, 0) }#Round to integer
   
-  #Check Xa type
+  #Check X type
   if(!all(sapply(X, function(x){(x%%1)==0}))){stop("Please provide integer count matrix! \n")
     } else{X=matrix(as.integer(X), ncol=ncol(X), nrow=nrow(X))}
 
@@ -3640,8 +3691,8 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
         if(class(confounders[,1])=="character"){
           warning("Converting character vector to factor! \n")
         }
-        confModelMatTrim = model.matrix(object = as.formula(paste("~" , paste(colnames(confounders), collapse="+"),"-1")), contrasts.arg = apply(colnames(confounders),2,contrasts, contrasts=FALSE)) 
-        confModelMat = model.matrix(object = as.formula(paste("~", paste(colnames(confounders), collapse="+"))), contrasts.arg = apply(colnames(confounders),2,contrasts, contrasts=TRUE)) 
+        confModelMatTrim = model.matrix(object = as.formula(paste("~" , paste(colnames(confounders), collapse="+"),"-1")), contrasts.arg = apply(colnames(confounders),2,contrasts, contrasts=FALSE)) #No intercept for preliminary trimming
+        confModelMat = model.matrix(object = as.formula(paste("~", paste(colnames(confounders), collapse="+"))), contrasts.arg = apply(colnames(confounders),2,contrasts, contrasts=TRUE)) #With intercept for filtering
       } else {
         confModelMat = confModelMatTrim = confounders
       }
@@ -3649,8 +3700,16 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
       if(NROW(X)!=NROW(confounders)){ #Check dimensions
         stop("Data and confounder matrix do not have the same number of samples! \n")
       }
-      confModelMatTrim = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"),"-1")), contrasts.arg = lapply(names(confounders)[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts=FALSE))
-      confModelMat = model.matrix( object = as.formula(paste("~", paste(names(confounders), collapse="+"))), contrasts.arg = lapply(names(confounders)[,sapply(confounders, is.factor),drop=FALSE],contrasts, contrasts = TRUE))
+      confModelMatTrim = model.matrix( #No intercept for preliminary trimming
+        object = as.formula(paste("~", paste(names(confounders), collapse="+"),"-1")),
+        data = datFrame, 
+        contrasts.arg = lapply(confounders[sapply(confounders, is.factor)],
+                               contrasts, contrasts=FALSE))
+      confModelMat = model.matrix( #With intercept for filtering
+        object = as.formula(paste("~", paste(names(confounders), collapse="+"))), 
+        data = datFrame, 
+        contrasts.arg = lapply(confounders[sapply(confounders, is.factor)],
+                               contrasts, contrasts = TRUE))
     } else if(class(confounders)=="character"){
       if(classDat != "phyloseq"){
         stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
@@ -3660,12 +3719,12 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     confModelMatTrim = model.matrix(
         object = formula(paste("~", paste(confounders, collapse="+"),"-1")), 
         data = datFrame, 
-        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
+        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor), drop=FALSE][, confounders,drop=FALSE],
                                contrasts, contrasts=FALSE)) 
     confModelMat = model.matrix(
         object = formula(paste("~", paste(confounders, collapse="+"))), 
         data = datFrame, 
-        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, confounders,drop=FALSE],
+        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor), drop=FALSE][, confounders,drop=FALSE],
                                contrasts, contrasts = TRUE)) 
     } else{
       stop("Please provide the confounders either as matrix, dataframe, or character string! \n")
@@ -3721,7 +3780,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     covModelMat = model.matrix(
         object = formula(paste("~", paste(covariates, collapse="+"),"-1")), 
         data = datFrame, 
-        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor)][, names(datFrame)[sapply(datFrame, is.factor)],drop=FALSE],
+        contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor)],
                                contrasts, contrasts=FALSE)) 
     #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
     centMat  = t(sapply(seq_along(nFactorLevels), function(i){
@@ -3824,6 +3883,52 @@ liks = function(rcm, Disp=c("edgeR","MLE")){
 ```
 
 # Demonstration
+
+## Test the software
+
+Some preliminary test to make sure everything runs without errors
+
+```{r tests}
+n=50;p=200
+counts = matrix(rpois(n*p, 5), n, p)
+covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6))
+physeq = phyloseq(otu_table(counts, taxa_are_rows = FALSE), sample_data(covars))
+confounderVec = get_variable(physeq, "country")
+
+#Unconstrained one dimension matrix
+un1Dmat = RCM(counts, k=1)
+# Add two dimensions
+un3Dmat = RCM(dat = counts, prevFit = un1Dmat, k=3)
+
+#Unconstrained one dimension phyloseq
+un1DmatPhy = RCM(physeq, k=1)
+# Add two dimensions (even accepts a matrix!)
+un3DmatPhy = RCM(dat = counts, prevFit = un1DmatPhy, k=3)
+
+#Unconstrained one dimension matrix with confounder filtering
+un1DmatConf = RCM(counts, k=1, confounders = data.frame(confounderVec))
+# Add two dimensions
+un3DmatConf = RCM(dat = counts, prevFit = un1DmatConf, k=3)
+
+#Check some requirements
+str(un3DmatConf$confParams)
+colSums(un3Dmat$rMat^2)
+crossprod(un3Dmat$rMat)
+colSums(t(un3Dmat$cMat) * un3Dmat$abunds)
+rowSums(un3Dmat$cMat^2)
+sum(un3Dmat$cMat[1,]* un3Dmat$cMat[2,] * un3Dmat$abunds)
+# All is well!
+
+#Unconstrained one dimension physeq with confounder filtering
+un1DmatConfPhy = RCM(physeq, k=1, confounders = "country")
+# Add two dimensions
+un3DmatConfPhy = RCM(dat = counts, prevFit = un1DmatConf, k=3)
+
+#Constrained one dimension matrix with confounder filtering
+con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq))
+# Add two dimensions
+con3Dmat = RCM(dat = counts, prevFit = con1Dmat, k=3)
+```
 
 ## Toy data
 
