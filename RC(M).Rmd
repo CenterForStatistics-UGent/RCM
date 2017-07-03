@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "vegan")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "vegan", "alabama")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -1272,7 +1272,6 @@ logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = 
   psiRec = matrix(0, nrow=k,ncol=maxItOut)
   convergence = rep(FALSE, k)
   iterOut = rep(1,k)
-
   if(!is.null(confounders[[1]])){
   ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
   filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas, nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
@@ -1524,7 +1523,7 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
 
   ## 3) Termination
   
-  rownames(alpha) = rownames(X)
+  rownames(alpha) = colnames(covariates)
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(alpha) = paste0("Dim",1:k)
   
@@ -3580,7 +3579,7 @@ estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v,maxItAlpha = 50, re
              (!convergenceA))) { 
     
     AlphaOld = Alpha
-  cat(iterA, "\n")
+  cat("Environmental gradient iteration ",iterA, "\n")
   #New strategy: estimate the parameters and then optimize alpha, iterate between both.
   sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
   design = switch(responseFun,
@@ -3740,45 +3739,44 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
       if(NROW(X)!=NROW(covariates)){ #Check dimensions
         stop("Data and covariate matrix do not have the same number of samples! \n")
       }
-      nFactorLevels = sapply(covariates, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per variables
-      covModelMat = model.matrix( object = as.formula(paste("~", paste(names(covariates), collapse="+"),"-1")), contrasts.arg = lapply(covariates[sapply(covariates, is.factor)],contrasts, contrasts=FALSE))
-      #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
-    centMat  = t(sapply(seq_along(nFactorLevels), function(i){
-      c(rep.int(0, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
-        rep.int(if(nFactorLevels[i]==1) 0 else 1, nFactorLevels[i]), #Ones within the categorical variable
-        rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #
-    })) 
-    centMat = centMat[rowSums(centMat)>0,] #Remove zero rows, corresponding to the non-factors
-    centMat = rbind(1, centMat) # Add a row of ones for the overal sum
-    
-    #Multiply this by the vector of coefficients
-    
-    
+    datFrame = covariates
+    covariatesNames = names(covariates)
     } else if(class(covariates)=="character"){
       if(classDat != "phyloseq"){
         stop("Providing covariates through variable names is only allowed if phyloseq object is provided! \n")
       }
       if(covariates[[1]]=="all"){covariates = sample_variables(dat)} #Enable the "all" option if phyloseq object is provided
       datFrame = data.frame(sample_data(dat))[,covariates] # The dataframe with the covariates
-      nFactorLevels = sapply(datFrame, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
-      datFrame[,sapply(datFrame, is.factor) & (nFactorLevels < 2)] = NULL #Drop factors with one level
-      if(any(sapply(datFrame, is.factor) & (nFactorLevels < 2))){
+      covariatesNames = covariates
+    } else{
+      stop("Please provide the covariates either as matrix, dataframe, or character string! \n")
+    }
+    
+    if(any(sapply(datFrame, is.logical))){
+      datFrame[,sapply(datFrame, is.logical)] = sapply(datFrame[,sapply(datFrame, is.logical)], as.factor) #Convert logicals to factors
+    warning("Logicals converted to factors! \n", immediate. = TRUE)
+    }
+    if(any(sapply(datFrame, is.character))){
+      warning("Character vectors treated as factors! \n", immediate. = TRUE)
+    }
+    nFactorLevels = sapply(datFrame, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
+    datFrame[,sapply(datFrame, is.factor) & (nFactorLevels < 2)] = NULL #Drop factors with one level
+    if(any(sapply(datFrame, is.factor) & (nFactorLevels < 2))){
         warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[sapply(datFrame, is.factor) & (nFactorLevels < 2)], sep = " \n"),immediate. = TRUE)
       }
       if(anyNA(datFrame)){
         NArows = apply(datFrame, 1, anyNA)
         X = X[!NArows,]
         datFrame = datFrame[!NArows,]
-        if(!is.null(confModelMat)){
+       if(!is.null(confModelMat)){
           confModelMat = confModelMat[!NArows,]
           confModelMatTrim = confModelMatTrim[!NArows,]
         }
         warning(paste("Some covariates contain missing values. We removed samples \n", paste(which(NArows), collapse = ", "), "\n prior to analysis." ),immediate. = TRUE)
       }
       
-      covariates = names(datFrame)
-    covModelMat = model.matrix(
-        object = formula(paste("~", paste(covariates, collapse="+"),"-1")), 
+      covModelMat = model.matrix(
+        object = formula(paste("~", paste(covariatesNames, collapse="+"),"-1")), 
         data = datFrame, 
         contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor)],
                                contrasts, contrasts=FALSE)) 
@@ -3786,13 +3784,11 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     centMat  = t(sapply(seq_along(nFactorLevels), function(i){
       c(rep.int(0, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
         rep.int(if(nFactorLevels[i]==1) 0 else 1, nFactorLevels[i]), #Ones within the categorical variable
-        rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #
+        rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #Zeroes after
     })) 
-    centMat = centMat[rowSums(centMat)>0,]
-     centMat = rbind(1, centMat)
-    } else{
-      stop("Please provide the covariates either as matrix, dataframe, or character string! \n")
-    }
+
+    centMat = centMat[rowSums(centMat)>0,] #Remove zero rows, corresponding to the non-factors
+    centMat = rbind(1, centMat) # Add a row of ones for the overal sum
   } else {
     covModelMat = centMat = NULL
   }
@@ -3924,10 +3920,10 @@ un1DmatConfPhy = RCM(physeq, k=1, confounders = "country")
 # Add two dimensions
 un3DmatConfPhy = RCM(dat = counts, prevFit = un1DmatConf, k=3)
 
-#Constrained one dimension matrix with confounder filtering
+#Constrained one dimension matrix without confounder filtering
 con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq))
 # Add two dimensions
-con3Dmat = RCM(dat = counts, prevFit = con1Dmat, k=3)
+con3Dmat = RCM(dat = physeq, prevFit = con1Dmat, k=3, covariates =  sample_variables(physeq))
 ```
 
 ## Toy data
