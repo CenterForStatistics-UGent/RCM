@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "vegan", "alabama")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -512,7 +512,7 @@ Except for the linear case, we will just calculate these numerically in practice
 
 ### Constrained RC(M): Estimation
 
-We would again first estimate the independence model ($u_i$ and $u_j$) as before, and then estimate one dimension $k$ at the time, conditional on the previous ones. If desirable, also the offset can be modified to eliminate some confounding variables. $\mathbf{\psi}$ and $\mathbf{s}$ will be estimated as before. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the likelihood ratio approach from Zhu _et al._ (2005):
+We would again first estimate the independence model ($u_i$ and $u_j$) as before, and then estimate one dimension at the time, conditional on the previous ones. If desirable, also the offset can be modified to eliminate some confounding variables. $\mathbf{\psi}$ and $\mathbf{s}$ will be estimated as before. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the log-likelihood ratio approach from Zhu _et al._ (2005):
 
 $$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) \big)^{x_{ij}}}$$
 
@@ -526,9 +526,13 @@ $$p^{(\alpha)}(\boldsymbol{\alpha}^T \mathbf{c}_i) = e_{ij0} = \exp\Big[u_i + u_
 
 The likelihood ratio then equals
 
-$$LR(\boldsymbol{\alpha}) = \sum_{i=1}^n \sum_{j=1}^p log(e_{ij})x_{ij}-\sum_{i=1}^n \sum_{j=1}^p log(e_{i.})x_{ij}$$
+$$LR(\boldsymbol{\alpha}) = \sum_{i=1}^n \sum_{j=1}^p log(e_{ij})x_{ij}-\sum_{i=1}^n \sum_{j=1}^p log(e_{ij0})x_{ij}$$
+
+$$LR(\boldsymbol{\alpha}) = \sum_{i=1}^n \sum_{j=1}^p log(e_{ij})x_{ij}-\sum_{i=1}^n \sum_{j=1}^p log(e_{ij0})x_{ij}$$
 
 Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm may be computationally unfeasible.
+
+### Estimating the environmental gradient
 
 #### Naive approach
 
@@ -536,33 +540,37 @@ The naive approach to optimize $LR(\alpha)$ would be to use constrained optimiza
 
 #### Iterative approach
 
-A smarter approach is to iterate between estimating $\alpha$ by optimizing $LR(\alpha)$ given $p_j^{(\alpha)}$ and $p^{(\alpha)}$, and estimating $p_j^{(\alpha)}$ and $p^{(\alpha)}$ given $\alpha$. This results in much fewer estimations of $p_j^{(\alpha)}$ and $p^{(\alpha)}$ and allows to optimize $LR(\alpha)$ by finding the roots of $\frac{\partial LR(\alpha)}{d \alpha} = 0$ (and analytically specifying the second order derivative).
+A smarter approach is to iterate between estimating $\alpha$ by optimizing $LR(\alpha)$ given $p_j^{(\alpha)}$ and $p^{(\alpha)}$, and estimating $p_j^{(\alpha)}$ and $p^{(\alpha)}$ given $\alpha$. This results in much fewer estimations of $p_j^{(\alpha)}$ and $p^{(\alpha)}$ and allows to optimize $LR(\alpha)$ by finding the roots of $\frac{\partial LR(\alpha)}{\partial \alpha} = 0$ (and analytically specifying the second order derivative).
 
 Convergence is assumed when every single change in $\alpha$ is below a tolerance level (infinity norm).
 
-In case of linear response functions, the likelihood ration then equals
+In case of linear response functions, the likelihood ratio then equals (dropping the k-subscripts)
 
-$$ LR(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{jk} \boldsymbol{\alpha}_k - \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{k} \boldsymbol{\alpha}_k$$
-$$ =  \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{jk} \boldsymbol{\alpha}_k - \boldsymbol{\beta}_{k} \boldsymbol{\alpha}_k \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} $$
+$$ LR(\boldsymbol{\alpha}| \boldsymbol{\beta}_{j}, \boldsymbol{\beta}) = \sum_{i=1}^n \sum_{j=1}^p \psi s_{j}x_{ij} \Big(\mathbf{C}_i \boldsymbol{\alpha} (\beta_{1j} - \beta_{1}) + (\beta_{0j} - \beta_{0}) \Big)$$
 
 Taking into account the restrictions mentioned above, the associated Lagrangian becomes
 
-$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \psi_k \Big(\sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \boldsymbol{\beta}_{jk} \boldsymbol{\alpha}_k - \boldsymbol{\beta}_{k} \boldsymbol{\alpha}_k \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{1} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k}$$
+$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \psi_k \Big(\sum_{i=1}^n  \sum_{j=1}^p s_{j}x_{ij} \big(\mathbf{C}_i \boldsymbol{\alpha} (\beta_{1j} - \beta_{1}) + (\beta_{0j} - \beta_{0}) \big) \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{1} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k}$$
 
 with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first to the (k-1)th column.
 
-The first order derivative becomes
+The first order derivatives become
 
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk}} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \beta_{1jyk} - \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \beta_{1.yk} \Big) + \lambda_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_{-k}$$
-Together with the restrictions, this is almost a linear set of equations but for the term $\lambda_{2k} \boldsymbol{\alpha}_k$. The second order derivatives are
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk}x_{ij} \mathbf{C}_i (\beta_{1j} - \beta_{1}) \Big) + \lambda_{1k}\mathbf{1} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk}^2} =  2\lambda_{2k} $$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{1k}} = \boldsymbol{\alpha}_k^t\mathbf{1} = 0$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{2k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1 = 0$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{3k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} = 0$$
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partial \alpha_{y'k}} =  2\lambda_{2k}$$
+The second order derivatives are
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partial \lambda_{1k}} =  1$$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} =  2\lambda_{2k} $$
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \alpha_{yk} \partial \lambda_{2k}} =  2\boldsymbol{\alpha}_k$$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k \partial \boldsymbol{\alpha}_{k'}} =  \boldsymbol{\lambda}_{orth,k}$$
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k \partial \lambda_{1k}} =  1$$
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k \partial \lambda_{2k}} =  2\boldsymbol{\alpha}_k$$
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_{k} \partial \boldsymbol{\lambda}_{orth,k}} =  \boldsymbol{\alpha}_{-k}$$
 All other second order derivatives equal zero. 
@@ -580,11 +588,7 @@ The estimation would then proceed as follows:
   - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
   6. Estimate $\psi_k$ and $s_{jk}$ using ML and overdispersions using empirical Bayes
 7. Repeat steps 4-6 until convergence
-8. Build the triplot
-  a. Plot $\psi_1 \boldsymbol{\alpha}_1^T \mathbf{C}$ vs. $\psi_2 \boldsymbol{\alpha}_2^T \mathbf{C}$ for the samples
-  b. Add $\mathbf{s}_{.1}$ vs . $\mathbf{s}_{.2}$ for the taxa
-  c. Add $\boldsymbol{\alpha}_1$ vs $\boldsymbol{\alpha}_2$ for the variables
-  
+
 ### Restricitions
 
 The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
@@ -814,7 +818,7 @@ NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLam
   mu = if (constrained){exp(t(t(reg) * c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
   
   Jac = matrix(0, nrow= p + nLambda, ncol=p + nLambda)
-  #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 #   
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:p,(p+1)] = colWeights
@@ -917,7 +921,7 @@ NBjacobianRow = function(beta, X, reg, thetas, muMarg, k, n ,p, nlambda, rowWeig
   mu = exp(rMat %*% reg)* muMarg
 
   Jac = matrix(0, nrow= n + nLambda, ncol= n + nLambda)
-  #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:n, n+1] = rowWeights
@@ -1435,11 +1439,14 @@ NB_params_noLab = matrix(0,v,k) #Initiate parameters of the response function, i
    NB_params_noLab[,,1:Kprev] = NBRCM$NB_params_noLab
  }
 
+#Number of lambda parameters for centering
+nLambda1s = NROW(centMat)
+
   minK = ifelse(is.null(NBRCM),1,Kprev+1) #Next dimension to fit
   for (KK in minK:k){
-
-    cat("Dimension" ,KK, "is being esimated \n")
     
+  cat("Dimension" ,KK, "is being esimated \n")
+  
   #Modify offset if needed
   if(KK>1){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
 
@@ -1490,14 +1497,15 @@ cMat[KK,] = cMat[KK,] - sum(cMat[KK,] * colWeights)/sum(colWeights)
 cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 
 #Row scores
-  if (verbose) cat("\n Estimating row scores \n")
+  if (verbose) cat("\n Estimating environmental gradient \n")
 regAlpha = cMat[KK,,drop=TRUE]*psis[KK]
-tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas =  thetasMat , cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[,KK]) #Provide previous parameters of the response function since they might provide good initial estimates
+tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas =  thetasMat , cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[,KK], psi = psis[KK], cMat = cMat[KK,,drop=TRUE], nLambda1s = nLambda1s, nLambda = KK + nLambda1s) #Provide previous parameters of the response function since they might provide good initial estimates
 
 if(verbose)  cat(ifelse(tmpAlpha$converged, "Row scores converged \n", "Row scores DID NOT converge \n"))
   alpha[,KK] = tmpAlpha$Alpha
   NB_params[,,KK] = tmpAlpha$NB_params
   NB_params_noLab[,KK] = tmpAlpha$NB_params_noLab
+  alphaLambdas[, KK] = tmpAlpha$alphaLambdas
 
 #Normalize (speeds up algorithm if previous step had not converged)
 alpha[,KK] = alpha[,KK] - mean(alpha[,KK]) 
@@ -1787,7 +1795,7 @@ ZipJacobianRmat = function(beta, X, reg, muMarg, n,k, nLambda, Z, rowWeights, rM
   mu = exp(rMat %*% reg) * muMarg
 
   Jac = matrix(0, nrow= n + nLambda, ncol=n + nLambda)
-  #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:n, n+1] = rowWeights
@@ -1848,7 +1856,7 @@ ZipJacobianCmat = function(beta, X, psis, rMat, colWeights, k, p, muMarg, Z, nLa
   mu = exp(reg %*% cMat) * muMarg
 
 Jac = matrix(0, nrow= p + nLambda, ncol = p + nLambda)
-  #The suXmmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The suXmmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:p,(p+1)] = colWeights
@@ -2001,7 +2009,7 @@ ZipJacobianTmat = function(beta, reg, k, n, Z, zeroMarg, nLambda, rowWeights, tM
   muZero = exp(tMat %*% reg + logit(zeroMarg))
 
   Jac = matrix(0, nrow= n + nLambda, ncol= n + nLambda)
-  #The suymmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The suymmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:n, n+1] = rowWeights
@@ -2063,7 +2071,7 @@ ZipJacobianVmat = function(beta, reg, k, p, Z, zeroMarg, nLambda, colWeights, vM
   muZero = exp(reg %*% vMat +logit(zeroMarg))
 
     Jac = matrix(0, nrow= p + nLambda, ncol=p + nLambda)
-  #The suXmmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The suXmmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:p,(p+1)] = colWeights
@@ -2691,7 +2699,7 @@ ZinbJacobianRmat = function(beta, X, reg, muMarg, k, n, Z, nLambda, thetas, rowW
   mu = exp(rMat %*% reg) * muMarg
 
   Jac = matrix(0, nrow = n + nLambda, ncol=n + nLambda)
-  #The suymmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The suymmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:n, n+1] = rowWeights
@@ -2757,7 +2765,7 @@ ZinbJacobianCmat = function(beta, X, reg, colWeights, k, p, Z, nLambda, thetas, 
 
   tmp= ((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2)*(1-Z)
   Jac = matrix(0, nrow = p + nLambda, ncol = p + nLambda)
-  #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:p,(p+1)] = colWeights
@@ -2920,7 +2928,7 @@ ZinbJacobianVmat = function(beta, reg, colWeights, k, p, Z, zeroMarg, nLambda, v
   # tmp[is.infinite(expZero)]=0
 
   Jac = matrix(0, nrow = p + nLambda, ncol = p + nLambda)
-  #The symmetric jacobian matrix, equal to the fisher information. The upper part is filled first, then mirror image is taken for lower triangle
+  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
 
   #dLag²/dr_{ik}dlambda_{1k}
   Jac[1:p,(p+1)] = colWeights
@@ -3404,31 +3412,80 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
 }
 #--------------------------------------#
 # A function that returns the value of the partial derivative of the log-likelihood ratio to alpha, keeping the response functions fixed
-dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), muMarg,   cReg, nleqslv.control = list(trace=FALSE), NB_params, NB_params_noLab, ...){
-  # @param Alpha: a vector of length d, the environmental gradient
+dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, centMat, nLambda, nLambda1s,  ...){
+  # @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
   # @param X: the n-by-p count matrix
-  # @param CC: the n-by-d covariate matrix
+  # @param CC: a n-by-d covariate vector
   # @param responseFun: a character string indicating the type of response function
-  # @param muMarg: an n-by-p offset matrix
-  # @param thetas: a vector of length p with estimated dispersion parameters (they will not be re-estimated to keep computation time down)
-  # @param ncols: a scalar, the number of columns of X
-  # @param cReg: a vector of length p, column scores * importance parameter
-  # @param nleqslv.control: the control list for the nleqslv() function
-  # @param n: number of samples
+  # @param NB_params: Starting values for the NB_params
+  # @param NB_params_noLab: Starting values for the NB_params without label
+  # @param d: an integer, the number of covariate parameters
+  # @param k: an integer, the current dimension
+  # @param centMat: a nLambda1s-by-d centering matrix
+
+  # @return: The value of the lagrangian and the constraining equations
+  
+  #Extract the parameters
+  alpha = Alpha[seq_len(d)]
+  lambda1s = Alpha[d+seq_len(nLambda1s)] #Multiple centering requirements now!
+  lambda2 = Alpha[d+nLambda1s+1]
+  lambda3 = if(k==1) {0} else {Alpha[(d+nLambda1s+2):(d+nLambda)]}
+  
+  lag = switch(responseFun, #The lagrangian depends on the shape of the response function
+               "linear" = c(psi*(crossprod(X %*% (cMat* (NB_params[2,]-NB_params_noLab[2])), CC))) + 
+                 colSums(lambda1s * centMat) +
+                 lambda2 * 2 *alpha + 
+                 alphaK %*% lambda3,
+               "quadratic" = stop("Quadratic RF not implemented yet! \n"),
+               stop("Unknown response function provided! \n"))
+  centerFactors = centMat %*% alpha #Includes overal centering
+  size = sum(alpha^2)-1
+  if(k==1) { return(c(lag, centerFactors, size))}
+  ortho = tcrossprod(alphaK ,alpha)
+  c(lag, centerFactors, size, ortho)
+}
+#--------------------------------------#
+# A function that returns the Jacobian of the likelihood ratio
+LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, ...){
+  # @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
+  # @param X: the n-by-p count matrix
+  # @param CC: a n-by-d covariate vector
+  # @param responseFun: a character string indicating the type of response function
   # @param NB_params_start: Starting values for the NB_params
   # @param NB_params_start_noLab: Starting values for the NB_params without label
-  # @param v: an integer, number of parameters to be estimated
+  # @param d: an integer, the number of covariate parameters
+  # @param k: an integer, the current dimension
 
-  # @return: a scalar, the evaluation of the log-likelihood ratio at the given alpha
-  lag = psi*(outer(cMat*betaJ)*X*alpha-beta*alpha * sum(X %*% cMat)) + lambda1*sum(alpha) + lambda2 * (sum(alpha^2)-1) + lambda3 * alpha %*% alphaT
-  center = sum(alpha)
-  norm = sum(alpha^2) -1
+  # @return: The jacobian, a d-by-d symmetric matrix
+  #Extract the parameters
+  alpha = Alpha[seq_len(d)]
+  lambda1s = Alpha[d+nLambda1s] #Multiple centering requirements now!
+  lambda2 = Alpha[d+nLambda1s+1]
+  lambda3 = if(k==1) {0} else {Alpha[(d+nLambda1s+2):(d+nLambda)]}
+  
+  Jac = matrix(0, nrow= d + nLambda, ncol = d + nLambda)
+  #dLag²/dalpha_{yk}dlambda_{1k}
+  Jac[1:d,(d+1)] = colWeights
+  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
+  Jac[1:d,d+2] = colWeights*2 *cMat
+
+  tmp = (1+X/thetas)*mu/(1+mu/thetas)^2
+
+    #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
-  ortho = alpha %*% alphaT
-  return(c(lag, center, norm, ortho))
-  } else {
-    return(c(lag, center, norm))
+    Jac[1:p,(p+3):(p+nLambda)] = t(cMatK)*colWeights
   }
+
+  #Symmetrize
+   Jac = Jac + t(Jac)
+  #dLag²/dr_{ik}²
+    diag(Jac[1:p,1:p]) = if(constrained) {
+          -colSums(tmp * reg^2) + 2*beta[p+2]*colWeights
+    } else {
+    -crossprod(tmp, reg^2) + 2*beta[p+2]*colWeights
+    }
+  Jac
+  
 }
 
 #--------------------------------------#
@@ -3557,12 +3614,15 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg, n ,v) {
 
 #--------------------------------------#
 # A function to estimate alpha based on the LR-criterion
-estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v,maxItAlpha = 50, responseFun = c("linear", "quadratic", "nonparametric"), muMarg, thetas, cReg, alphaK, control.outer = list(trace=FALSE), control.optim=list(trace=FALSE), nleqslv.control = list(), convNorm = 2, tol=1e-3, NB_params = NULL, NB_params_noLab = NULL){
+estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v, nLambda1s, nLambda, muMarg, thetas, cReg, cMat, psi, alphaK, maxItAlpha = 50, responseFun = c("linear", "quadratic", "nonparametric"),  control.outer = list(trace=FALSE), control.optim=list(trace=FALSE), nleqslv.control = list(), convNorm = 2, tol=1e-3, NB_params = NULL, NB_params_noLab = NULL, analytic = FALSE){
   
   # @param alpha: a vector of length d, the environmental gradient
   # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
   # @param ncols: a scalar, the number of columns of X
   # @param k: a scalar, dimension index
+  # @param v: an integer, the number of parameters per taxon of the response function
+  # @param nLambdas1: an integer, number of centering equations
+  # @param nLambdas: an integer, total number of lambda parameters
   # @param X: the n-by-ncols count matrix
   # @param C: the n-by-d covariate matrix
   # @param responseFun: a character string indicating the type of response function
@@ -3590,13 +3650,19 @@ NB_params = estNBparams(design = design, thetas = thetas[1,], muMarg = muMarg, c
 
 NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab, n = n, v = v)
   
-  Alpha = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, NB_params = NB_params, NB_params_noLab = NB_params_noLab, v = v)$par #
+ if(analytic){
+  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1sE)$x
+  Alpha = AlphaTmp[seq_len(d)]
+  lambdasAlpha = AlphaTmp[d+(1:nLambdas)]
+} else {
+   Alpha = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, NB_params = NB_params, NB_params_noLab = NB_params_noLab, v = v)$par #
+}
   
   iterA = iterA + 1
   convergenceA = sum((AlphaOld - Alpha)^convNorm)^(1/convNorm) < tol
   } 
   
-  return(list(Alpha = Alpha, NB_params = NB_params, NB_params_noLab = NB_params_noLab, convergence = convergenceA))
+  return(list(Alpha = Alpha, NB_params = NB_params, NB_params_noLab = NB_params_noLab, convergence = convergenceA, lambdasAlpha = lambdasAlpha))
 }
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
@@ -5449,11 +5515,11 @@ libSizes = 10^runif(n, 3, 5)
 abunds = 10^runif(p, -5, -3)
 abunds = abunds/sum(abunds)
 muMarg = outer(libSizes, abunds)
-alphaT = c(0.2,1,1.5)
-alphaT = alphaT-mean(alphaT)
-alphaT = alphaT/sqrt(sum(alphaT^2))
+alphaK = c(0.2,1,1.5)
+alphaK = alphaK-mean(alphaK)
+alphaK = alphaK/sqrt(sum(alphaK^2))
 regMat = rbind(var1, var2,var3)
-mu = muMarg * exp(outer(c(alphaT %*% regMat),cVec))
+mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
 thetasCon = thetas[1:p]
 prevCut = 0.1
 
@@ -5463,7 +5529,7 @@ X = X0[rowSums(X0)>0,idCol ]
 cVec2 = cVec[idCol]
 muMargObs = outer(rowSums(X), colSums(X)/sum(X))
 
-testLR = LR_nb(alphaT, X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d= nrow(regMat), ncols=ncol(X),v=2)
+testLR = LR_nb(alphaK, X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d= nrow(regMat), ncols=ncol(X),v=2)
 centMat = rbind(1, matrix(0,3,3))
 
 testAlpha = estAlpha(c(0.01,0.01,0.01), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = matrix(thetasCon[idCol],nrow(X),ncol(X), byrow=TRUE), cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, n=nrow(X), k=1)
@@ -5472,10 +5538,10 @@ testAlpha = estAlpha(c(0.01,0.01,0.01), X, t(regMat), responseFun ="linear", muM
 testRCMconstrJob = mcparallel(RCM_NB(X = X, k = 1, covariates = t(regMat)))
 testRCMconstr = mccollect(testRCMconstrJob, wait=FALSE)[[1]]
 
-save(testRCMconstr,X, regMat, cVec2, alphaT, file="testRCMconstr.RData")
+save(testRCMconstr,X, regMat, cVec2, alphaK, file="testRCMconstr.RData")
 plot(c(testRCMconstr$cMat), cVec2)
-plot(testRCMconstr$alpha, alphaT) #Not bad!!
-plot(alphaT %*% regMat, c(testRCMconstr$alpha) %*% regMat)
+plot(testRCMconstr$alpha, alphaK) #Not bad!!
+plot(alphaK %*% regMat, c(testRCMconstr$alpha) %*% regMat)
 ```
 
 Now a bit more complicated: two dimensions, dummy's and quadratice relationship
@@ -5496,18 +5562,18 @@ libSizes = 10^runif(n, 3, 5)
 abunds = 10^runif(p, -5, -3)
 abunds = abunds/sum(abunds)
 muMarg = outer(libSizes, abunds)
-alphaT = c(0.2,
+alphaK = c(0.2,
            1,
            1.5,
            1.2,0.9,-3.1,
            1.1,-2.5,1.4) #The categorical variables with zero-sum coding (they center around zero by default. Remember to estimate with treatment coding but normalize based on zero-sum coding.)
-alphaT = alphaT-mean(alphaT)
-alphaT = alphaT/sqrt(sum(alphaT^2))
+alphaK = alphaK-mean(alphaK)
+alphaK = alphaK/sqrt(sum(alphaK^2))
 regMat = t(
   cbind(model.matrix(~var1+var2+var3+var4+var5-1, contrasts.arg = lapply(list(var4 = var4,var5 = var5), contrasts, contrasts=FALSE))
                   ))
 
-mu = muMarg * exp(outer(c(alphaT %*% regMat),cVec))
+mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
 thetasCon = thetas[1:p]
 prevCut = 0.1
 
