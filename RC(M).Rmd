@@ -5680,6 +5680,38 @@ We could perhaps look for the distance based method that minimizes $\frac{d_{m, 
 
 This approach can be applied to the row scores (samples) as well as the column scores (taxa).
 
+```{r within vs. between distances}
+# A function to calculate these within and overall distances
+distanceFun = function(coord, clusters){
+  # @param coord: an nxk matrix of coordinates
+  # @param clusters: a factor of length n with cluster memberships
+  
+  withinDist = tapply(seq_len(nrow(coord)), clusters, function(x){
+    coordsX = coord[x,]
+    centerX = colMeans(coordsX)
+    dists = apply(coordsX, 1, function(y){
+      dist(rbind(y, centerX))
+    })
+    return(dists)
+  } )
+  
+  overalCenter = colMeans(coord)
+  overalDist = apply(coord, 1, function(y){
+    dist(rbind(y, centerX))
+  })
+  list(withinDist = withinDist, overalDist =  overalDist)
+  
+}
+```
+
+#### Silhouette
+
+See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
+
+$$s(i) = \frac{a(i) - b(i)}{max\big(a(i), b(i)\big)}$$
+
+The silhouette can take values between +1 for optimal separation and -1 for wrong classification. We can averag the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
+
 #### Correlation with library sizes
 
 The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
