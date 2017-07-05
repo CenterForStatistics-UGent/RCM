@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -5611,9 +5611,10 @@ zellerConstr = RCM(zellerMphy, k=2, covariates  = c("Diagnosis", "BMI", "Age","G
 
  - PCoA
    * Bray-Curtis dissimilarity (Forest ecology)
-   * UniFrac distance (Microbial ecology, uses phylogenetic information)
+   * UniFrac distance (Microbial ecology, uses phylogenetic information) => This will be difficult since it does not rely on counts, or only partially in case of weighted unifrac
    * See Warton _et al._ (2012): Distance-based multivariate analyses confound
 location and dispersion effects
+   * PCoA also has the drawback of not yielding any species scores, it is an eigenvalue rather than a singular value method. The information on the individual species is lost in the distance calculation 
  - Corresponence analysis (CA) (Statistics)
  - CoDa: PCoA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
   * Dependence on pseudocounts?
@@ -5627,7 +5628,7 @@ location and dispersion effects
 # Main concern is that this approach ignores the fact that we have count data that are heteroscedastic
 
 # This function is build after the supplementary files of Gloor and Reid, 2016. Only the abundance filtering is made less severe
-CoDa = function(dat, abCutOff = 1e-6){
+CoDa = function(dat, abCutOff = 1e-6, scale = FALSE){
   require(zCompositions)
   classDat = class(dat) #The class provided
   
@@ -5650,13 +5651,13 @@ Xtrim = Xnorm[,apply(Xnorm,2,min)>abCutOff]
 Xcrl <- apply(Xtrim, 1, function(x){log(x) - mean(log(x))})
 
 # Apply PCA
-prcomp(Xcrl) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
+prcomp(Xcrl, scale = scale) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
 }
 ```
 
 ```{r nonparametricBayesian}
 # A bayesian approach, gets a bit complicated
-data(JRphylo) # A vaginal dataset
+#data(JRphylo) # A vaginal dataset
 nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3, a2 = 4, m = 10, alpha = 10, beta = 0 )){
   require(DirFactor)
   classDat = class(dat) #The class provided
@@ -5667,10 +5668,8 @@ nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3
   }else  if(classDat=="phyloseq"){
   X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
   } else {stop("Please provide a matrix or a phyloseq object! \n")}
-  
-  mcmc = DirFactor(t(dat), hyper, step = 100)
+  DirFactor(t(dat), hyper, step = 100)
 }
-
 ```
    
 ## Constrained
@@ -5681,7 +5680,93 @@ nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3
 
 # Method evaluation
 
-After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way.
+After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way. For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
+
+## Within vs. overall distance
+
+A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
+
+We could perhaps look for the distance based method that minimizes $\frac{d_{m, within}}{d_{m, overall}}$?
+
+This approach can be applied to the row scores (samples) as well as the column scores (taxa).
+
+```{r within vs. between distances}
+# A function to calculate these within and overall distances
+distanceFun = function(coord, clusters, Dim = c(1,2)){
+  # @param coord: an nxk matrix of coordinates
+  # @param clusters: a factor of length n with cluster memberships
+  # @param Dim: The dimensions to look at, defaults to the first two
+  
+  # @return: a list with
+    # -withinDist: within distances
+    # -overalDist: the n overal distances
+  
+  coord = coord[,Dim, drop=FALSE]
+  
+  withinDist = tapply(seq_len(nrow(coord)), clusters, function(x){
+    coordsX = coord[x,]
+    centerX = colMeans(coordsX)
+    dists = apply(coordsX, 1, function(y){
+      dist(rbind(y, centerX))
+    })
+    return(dists)
+  } )
+  
+  overalCenter = colMeans(coord)
+  overalDist = apply(coord, 1, function(y){
+    dist(rbind(y, overalCenter))
+  })
+  list(withinDist = withinDist, overalDist =  overalDist)
+  
+}
+```
+
+## Silhouette
+
+See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
+
+$$s(i) = \frac{a(i) - b(i)}{max\big(a(i), b(i)\big)}$$
+
+The silhouette can take values between +1 for optimal separation and -1 for wrong classification. If a poin i close to the centroid of its own cluster but very far from all the others the methods has performed well and is rewarded with a high silhouette. We can average the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
+
+```{r silhouette}
+silhouette = function(coord, clusters, Dim = c(1,2)){
+  # @param coord: an nxk matrix of coordinates
+  # @param clusters: a factor of length n with cluster memberships
+  # @param Dim: The dimensions to look at, defaults to the first two
+ 
+  # @return a vector of n silhouettes
+  
+  coord = coord[,Dim, drop=FALSE]
+  
+  distMat = as.matrix(dist(coord)) # all distances
+  avDists = apply(distMat, 1 , function(x){
+    tapply(x[x!=0], clusters[x!=0], mean) #Exclude observation itself
+  }) # Average distances with clusters
+  ais = sapply(seq_along(clusters), function(i){
+    avDists[clusters[i], i]
+  }) #Average distance to own cluster
+  bis = sapply(seq_along(clusters), function(i){
+    min(avDists[clusters[i]!=levels(clusters), i])
+  }) #Average distance to nearest cluster
+  
+  silhouette = mapply(ais, bis, FUN = function(a,b){(b-a)/max(a,b)}) #The silhouette
+  
+  return(silhouette)
+}
+```
+
+## Correlation with library sizes
+
+The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
+
+(Absolute values of) Pearson and/or Spearman correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot.
+
+<!---
+The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance.
+--->
+
+# Simulations
 
 ## Unconstrained RC(M)
 
@@ -5745,100 +5830,152 @@ RCMresList1 = mclapply(mc.cores=4, datList1, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
 })
 CAresList1 = lapply(datList1, caSVD)
-  
-})
-CodaReslist1 = 
-BCresList1 = 
-save(RCMresList1, file = "RCMsim/resList1.RData")
+CodaResList1 = lapply(datList1, CoDa)
+CodaScaledResList1 = lapply(datList1, CoDa, scale = TRUE)
+BCresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+JSDresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
+resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCresList1, JSDresList1,
+                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD){
+                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD)
+                  }, 
+                  SIMPLIFY = FALSE
+)
+save(resList1, file = "RCMsim/resList1.RData")
 } else {load(file = "RCMsim/resList1.RData")}
-
 ```
-  
-### Evaluating the biplot
 
-For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
-
-#### Within vs. overall distance
-
-A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
-
-We could perhaps look for the distance based method that minimizes $\frac{d_{m, within}}{d_{m, overall}}$?
-
-This approach can be applied to the row scores (samples) as well as the column scores (taxa).
-
-```{r within vs. between distances}
-# A function to calculate these within and overall distances
-distanceFun = function(coord, clusters){
-  # @param coord: an nxk matrix of coordinates
-  # @param clusters: a factor of length n with cluster memberships
-  
-  # @return: a list with
-    # -withinDist: within distances
-    # -overalDist: the n overal distances
-  
-  withinDist = tapply(seq_len(nrow(coord)), clusters, function(x){
-    coordsX = coord[x,]
-    centerX = colMeans(coordsX)
-    dists = apply(coordsX, 1, function(y){
-      dist(rbind(y, centerX))
-    })
-    return(dists)
-  } )
-  
-  overalCenter = colMeans(coord)
-  overalDist = apply(coord, 1, function(y){
-    dist(rbind(y, overalCenter))
-  })
-  list(withinDist = withinDist, overalDist =  overalDist)
-  
+```{r extract row vectors}
+#A function to extract the row vectors multiplied by importance elements
+extractRows = function(x){
+  with(x, list(
+    RCM = RCM$rMat %*% diag(RCM$psis),
+    CA = CA$u %*% diag(CA$d),
+    CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
+    CoDaScale = CoDaScale$rotation %*% diag(CoDaScale$sdev^2),
+    BC = BC$vectors %*% diag(BC$values$Eigenvalues),
+    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))])
+    ))
 }
 ```
 
-#### Silhouette
+```{r resList1 sampleBiplot, eval = FALSE, purl = FALSE}
+#A sample biplot
+resList1Rows = lapply(resList1, extractRows)
+par(mfrow = c(2,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList1))
+obj = resList1Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2")})
+# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
+# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
+# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
+# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
+# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
+rm(ID, obj)
+par(mfrow = c(1,1))
+# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. 
 
-See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
+par(mfrow = c(2,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList1))
+obj = resList1Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3")})
+# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
+# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
+# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
+# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
+# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
+rm(ID, obj)
+par(mfrow = c(1,1))
 
-$$s(i) = \frac{a(i) - b(i)}{max\big(a(i), b(i)\big)}$$
-
-The silhouette can take values between +1 for optimal separation and -1 for wrong classification. We can averag the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
-
-```{r silhouette}
-silhouette = function(coord, clusters){
-  # @param coord: an nxk matrix of coordinates
-  # @param clusters: a factor of length n with cluster memberships
- 
-  # @return a vector of n silhouettes
+#PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
+```
   
-  distMat = as.matrix(dist(coord)) # all distances
-  avDists = apply(distMat, 1 , function(x){
-    tapply(x[x!=0], clusters[x!=0], mean) #Exclude observation itself
-  }) # Average distances with clusters
-  ais = sapply(seq_along(clusters), function(i){
-    avDists[clusters[i], i]
-  }) #Average distance to own cluster
-  bis = sapply(seq_along(clusters), function(i){
-    min(avDists[clusters[i]!=levels(clusters), i])
-  }) #Average distance to nearest cluster
-  
-  silhouette = mapply(ais, bis, FUN = function(a,b){(b-a)/max(a,b)}) #The silhouette
-  
-  return(silhouette)
-}
+```{r resList1Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+sil1  = lapply(resList1Rows, function(x){
+  sapply(x, silhouette, clusters = groupFactor)
+})
+meanSil1 = sapply(sil1, function(x){
+  colMeans(x)
+})
+meanSil1df = melt(meanSil1, value.name = "Silhouette", varnames = c("Method"))
+boxplot(Silhouette~Method, main = "Mean silhouettes by method", data = meanSil1df)
+meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
+points(meansSil, col="red", pch=18, cex = 1.6)
 ```
 
-#### Correlation with library sizes
+```{r resList1Evaldist, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+dist1  = lapply(resList1Rows, function(x){
+  sapply(x, silhouette, clusters = groupFactor)
+})
+meanSil1 = sapply(sil1, function(x){
+  colMeans(x)
+})
+meanSil1df = melt(meanSil1, value.name = "Silhouette", varnames = c("Method"))
+boxplot(Silhouette~Method, main = "Mean silhouettes by method", data = meanSil1df)
+meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
+points(meansSil, col="red", pch=18, cex = 1.6)
+```
 
-The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
+###### Simulate from related distributions
 
-(Absolute values of) Pearson and/or Spearman correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot.
+In this setting we will simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances
 
-<!---
-The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance.
---->
+```{r NBrelatedDistr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 10
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor2 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+
+if(!file.exists(file = "RCMsim/datList2.RData")){
+datList2 = mclapply(mc.cores=4, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species)
+rhosSampled = sapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*10
+  rhos/sum(rhos) #renormalize
+}, rhos = rhosSampled0)[,groupInd]
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
+} else {load(file = "RCMsim/datList2.RData")}
+
+# Results
+if(!file.exists(file = "RCMsim/resList2.RData")){
+RCMresList2 = mclapply(mc.cores=4, datList1, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+})
+CAresList1 = lapply(datList1, caSVD)
+CodaResList1 = lapply(datList1, CoDa)
+CodaScaledResList1 = lapply(datList1, CoDa, scale = TRUE)
+BCresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+JSDresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
+resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCresList1, JSDresList1,
+                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD){
+                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD)
+                  }, 
+                  SIMPLIFY = FALSE
+)
+save(resList1, file = "RCMsim/resList2.RData")
+} else {load(file = "RCMsim/resList2.RData")}
+```
 
 ## Constrained RC(M)
-
-
 
 \newpage
 
