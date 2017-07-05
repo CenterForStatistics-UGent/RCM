@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -668,7 +668,9 @@ caSVD = function(X){
 # @param X: the nxp count matrix
   
 # @return: the singular value decomposition of the matrix of pearson residuals
-  
+  if(class(X)=="phyloseq"){
+  X = if (taxa_are_rows(X)) t(otu_table(X)@.Data) else otu_table(X)@.Data
+  }
   C = colSums(X)
   R = rowSums(X)
   onesn =rep.int(1, nrow(X))
@@ -5603,6 +5605,80 @@ load("/home/stijn/PhD/Simulations/data/zellerData.RData")
 zellerConstr = RCM(zellerMphy, k=2, covariates  = c("Diagnosis", "BMI", "Age","Gender","Country"), round=TRUE)
 ```
 
+# Competing methods
+
+## Unconstrained RC(M)
+
+ - PCoA
+   * Bray-Curtis dissimilarity (Forest ecology)
+   * UniFrac distance (Microbial ecology, uses phylogenetic information)
+   * See Warton _et al._ (2012): Distance-based multivariate analyses confound
+location and dispersion effects
+ - Corresponence analysis (CA) (Statistics)
+ - CoDa: PCoA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
+  * Dependence on pseudocounts?
+ - Bayesian Nonparametric Ordination (Ren _et al._ (2016))
+ 
+```{r CoDA}
+# The compositional approach:
+ # Zeroes are fixed somehow
+ # log-ratio transform of relative abundances
+ # PCA on transformed values
+# Main concern is that this approach ignores the fact that we have count data that are heteroscedastic
+
+# This function is build after the supplementary files of Gloor and Reid, 2016. Only the abundance filtering is made less severe
+CoDa = function(dat, abCutOff = 1e-6){
+  require(zCompositions)
+  classDat = class(dat) #The class provided
+  
+  ##The count data##
+  if (classDat=="matrix"){
+  X = dat
+  }else  if(classDat=="phyloseq"){
+  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
+  } else {stop("Please provide a matrix or a phyloseq object! \n")}
+  
+Xzero <- as.matrix(cmultRepl(X=X, method="CZM", output="counts")) #Correct zeroes in a Bayesian way
+
+# convert to proportions 
+Xnorm = Xzero/rowSums(Xzero)
+
+#Trim on abundance in any sample
+Xtrim = Xnorm[,apply(Xnorm,2,min)>abCutOff]
+
+# make our compositional dataset
+Xcrl <- apply(Xtrim, 1, function(x){log(x) - mean(log(x))})
+
+# Apply PCA
+prcomp(Xcrl) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
+}
+```
+
+```{r nonparametricBayesian}
+# A bayesian approach, gets a bit complicated
+data(JRphylo) # A vaginal dataset
+nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3, a2 = 4, m = 10, alpha = 10, beta = 0 )){
+  require(DirFactor)
+  classDat = class(dat) #The class provided
+  
+  ##The count data##
+  if (classDat=="matrix"){
+  X = dat
+  }else  if(classDat=="phyloseq"){
+  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
+  } else {stop("Please provide a matrix or a phyloseq object! \n")}
+  
+  mcmc = DirFactor(t(dat), hyper, step = 100)
+}
+
+```
+   
+## Constrained
+
+  - Constrained PCoA?
+  - Constrained correspondence analysis (CCA)
+    * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
+
 # Method evaluation
 
 After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way.
@@ -5648,7 +5724,7 @@ groupFactor = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:
 load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
 
-if(!file.exists(file = "simRCMunconstr1.RData")){
+if(!file.exists(file = "RCMsim/datList1.RData")){
 datList1 = mclapply(mc.cores=4, 1:reps, function(i){
 ## Sample parameters
 rhosSampled = sapply(1:nPop, function(x){sample(rhoEst, p)})[,groupInd]
@@ -5660,12 +5736,22 @@ meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
 list(dataMat = dataMat, group = groupFactor, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
 })
+save(datList1,groupFactor,  file = "RCMsim/datList1.RData")
+} else {load(file = "RCMsim/datList1.RData")}
 
+# Results
+if(!file.exists(file = "RCMsim/resList1.RData")){
 RCMresList1 = mclapply(mc.cores=4, datList1, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
 })
-save(RCMresList1, groupFactor, file = "simRCMunconstr1.RData")
-} else {load(file = "simRCMunconstr1.RData")}
+CAresList1 = lapply(datList1, caSVD)
+  
+})
+CodaReslist1 = 
+BCresList1 = 
+save(RCMresList1, file = "RCMsim/resList1.RData")
+} else {load(file = "RCMsim/resList1.RData")}
+
 ```
   
 ### Evaluating the biplot
@@ -5686,6 +5772,10 @@ distanceFun = function(coord, clusters){
   # @param coord: an nxk matrix of coordinates
   # @param clusters: a factor of length n with cluster memberships
   
+  # @return: a list with
+    # -withinDist: within distances
+    # -overalDist: the n overal distances
+  
   withinDist = tapply(seq_len(nrow(coord)), clusters, function(x){
     coordsX = coord[x,]
     centerX = colMeans(coordsX)
@@ -5697,7 +5787,7 @@ distanceFun = function(coord, clusters){
   
   overalCenter = colMeans(coord)
   overalDist = apply(coord, 1, function(y){
-    dist(rbind(y, centerX))
+    dist(rbind(y, overalCenter))
   })
   list(withinDist = withinDist, overalDist =  overalDist)
   
@@ -5712,6 +5802,30 @@ $$s(i) = \frac{a(i) - b(i)}{max\big(a(i), b(i)\big)}$$
 
 The silhouette can take values between +1 for optimal separation and -1 for wrong classification. We can averag the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
 
+```{r silhouette}
+silhouette = function(coord, clusters){
+  # @param coord: an nxk matrix of coordinates
+  # @param clusters: a factor of length n with cluster memberships
+ 
+  # @return a vector of n silhouettes
+  
+  distMat = as.matrix(dist(coord)) # all distances
+  avDists = apply(distMat, 1 , function(x){
+    tapply(x[x!=0], clusters[x!=0], mean) #Exclude observation itself
+  }) # Average distances with clusters
+  ais = sapply(seq_along(clusters), function(i){
+    avDists[clusters[i], i]
+  }) #Average distance to own cluster
+  bis = sapply(seq_along(clusters), function(i){
+    min(avDists[clusters[i]!=levels(clusters), i])
+  }) #Average distance to nearest cluster
+  
+  silhouette = mapply(ais, bis, FUN = function(a,b){(b-a)/max(a,b)}) #The silhouette
+  
+  return(silhouette)
+}
+```
+
 #### Correlation with library sizes
 
 The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
@@ -5724,25 +5838,7 @@ The between distance between groups m and m' is then defined as $d_{mm'} = d_{eu
 
 ## Constrained RC(M)
 
-# Competing methods
 
-## Unconstrained RC(M)
-
- - PCoA
-   * Bray-Curtis dissimilarity (Forest ecology)
-   * UniFrac distance (Microbial ecology, uses phylogenetic information)
-   * See Warton _et al._ (2012): Distance-based multivariate analyses confound
-location and dispersion effects
- - Corresponence analysis (CA) (Statistics)
- - CoDa: PCoA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
-  * Dependence on pseudocounts?
- - Bayesian Nonparametric Ordination (Ren _et al._ (2016))
-   
-## Constrained
-
-  - Constrained PCoA?
-  - Constrained correspondence analysis (CCA)
-    * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
 
 \newpage
 
