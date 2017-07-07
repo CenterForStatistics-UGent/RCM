@@ -1453,7 +1453,7 @@ if(verbose)  cat(ifelse(tmpAlpha$converged, "Row scores converged \n", "Row scor
   alpha[,KK] = tmpAlpha$Alpha
   NB_params[,,KK] = tmpAlpha$NB_params
   NB_params_noLab[,KK] = tmpAlpha$NB_params_noLab
-  if(analytic) lambdasAlpha[, KK] = tmpAlpha$lambdasAlpha
+  if(analytic) lambdasAlpha = tmpAlpha$lambdasAlpha
 
 #Normalize (speeds up algorithm if previous step had not converged)
 alpha[,KK] = alpha[,KK] - mean(alpha[,KK]) 
@@ -3358,7 +3358,7 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
 }
 #--------------------------------------#
 # A function that returns the value of the partial derivative of the log-likelihood ratio to alpha, keeping the response functions fixed
-dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, centMat, nLambda, nLambda1s, thetaMat,  ...){
+dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, centMat, nLambda, nLambda1s, thetaMat, muMarg,  ...){
   # @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
   # @param X: the n-by-p count matrix
   # @param CC: a n-by-d covariate vector
@@ -3376,11 +3376,21 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   lambda1s = Alpha[d+seq_len(nLambda1s)] #Multiple centering requirements now!
   lambda2 = Alpha[d+nLambda1s+1]
   lambda3 = if(k==1) {0} else {Alpha[(d+nLambda1s+2):(d+nLambda)]}
+  
+  sampleScore = CC %*% alpha #A linear combination of the environmental variables yields the sampleScore 
+  design = switch(responseFun,
+                     linear = model.matrix(~sampleScore),#With intercept
+                     quadratic = model.matrix(~sampleScore + I(sampleScore^2)),
+                    stop("Non-parametric model not yet implemented")
+                    ) 
+  
+  mu = muMarg * exp(rowMultiply(design %*% NB_params, cMat*psi))
+  mu0 = muMarg * exp(outer(c(design %*% NB_params_noLab), cMat*psi))
 
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
-               "linear" = psi * (crossprod(CC, rowMultiply((X-mu)/(1+mu/thetaMat), cMat*NB_params[,2])) - crossprod(CC, rowMultiply((X-mu)/(1+mu/thetaMat), cMat*NB_params_noLab[2]))) +
-                 lambda1s * (centMat %*% alpha) +
-                 lambda2 * 2 *alpha + 
+               "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[,2]) - crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) %*% (cMat*NB_params_noLab[2])) +
+                 c(lambda1s %*% centMat)  +
+                 lambda2 * 2 * alpha + 
                  alphaK %*% lambda3,
                "quadratic" = stop("Quadratic RF not implemented yet! \n"),
                stop("Unknown response function provided! \n"))
@@ -3594,9 +3604,10 @@ NB_params = estNBparams(design = design, thetas = thetas[1,], muMarg = muMarg, c
 NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab, n = n, v = v)
   
  if(analytic){
-  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas)$x
+   
+  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg)$x
   Alpha = AlphaTmp[seq_len(d)]
-  lambdasAlpha = AlphaTmp[d+(1:nLambdas)]
+  lambdasAlpha = AlphaTmp[d+(1:nLambda)]
 } else {
    Alpha = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, NB_params = NB_params, NB_params_noLab = NB_params_noLab, v = v, thetaMat = thetas)$par #
 }
@@ -3962,7 +3973,7 @@ un1DmatConfPhy = RCM(physeq, k=1, confounders = "country")
 un3DmatConfPhy = RCM(dat = counts, prevFit = un1DmatConf, k=3)
 
 #Constrained one dimension matrix without confounder filtering
-con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq))
+con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq), analytic = TRUE)
 # Add two dimensions
 con3Dmat = RCM(dat = physeq, prevFit = con1Dmat, k=3, covariates =  sample_variables(physeq))
 ```
