@@ -514,11 +514,17 @@ Except for the linear case, we will just calculate these numerically in practice
 
 The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
 
-$$\boldsymbol{\alpha}_k^t\mathbf{1} = \mathbf{0}$$
+
 
 $$\boldsymbol{\alpha}_k^t\boldsymbol{\alpha}_k = \mathbf{1}$$
 
 $$\boldsymbol{\alpha_k}^t\boldsymbol{\alpha_{k'}} = 0$$
+One restriction I intended to include but whcih turns out to be a very bad idea is to center the $\alpha$'s:
+
+$$\boldsymbol{\alpha}_k^t\mathbf{1} = \mathbf{0}$$
+
+This would force the parameter of a single continuous covariate to be 0, the parameters of two continuous variables to be each other's opposite
+
 #### Restricitons: Categorical variables
 
 For continuous variables the previous discussion suffises, but for categorical variables special attention is required. In a regular, unrestricted setting one would use treatment coding, setting one of the levels of the variable to be the reference level and estimate no parameter for it. However, the above centering, normalization and orthogonality constraints render the result dependent on the choice of reference level, which is of course highly undesirable. Also for quick understanding of the biplot it would be convenient to plot all the values of the categorical variable, and save the reader the trouble of looking up the reference value. Because of these two reasons we will need a coding scheme that includes all parameters.
@@ -553,7 +559,7 @@ The naive approach to optimize $LR(\alpha)$ would be to use constrained optimiza
 
 A smarter approach (also the one proposed by Zhu and Hastie, 2005) is to iterate between estimating $\alpha$ by optimizing $LR(\alpha)$ given $p_j^{(\alpha)}$ and $p^{(\alpha)}$, and estimating $p_j^{(\alpha)}$ and $p^{(\alpha)}$ given $\alpha$. This results in much fewer estimations of $p_j^{(\alpha)}$ and $p^{(\alpha)}$ and allows to optimize $LR(\alpha)$ by finding the roots of $\frac{\partial LR(\alpha)}{\partial \alpha} = 0$ (and analytically specifying the second order derivative).
 
-Convergence is assumed when every single change in $\alpha$ is below a tolerance level (infinity norm).
+Convergence is assumed when every single change in $\alpha$ is below a tolerance level (infinity norm), or when the L2-norm of alpha is below a tolerance level.
 
 $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the log-likelihood ratio approach from Zhu _et al._ (2005):
 
@@ -742,7 +748,7 @@ dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, 
   
   cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
   
-  mu = if (constrained){exp(t(t(reg) * c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
+  mu = if (constrained){exp(rowMultiply(reg, c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
   
   lambda1 = beta[p+1] #Lagrangian multiplier for centering restrictions sum(abunds*r_{ik}) = 0
   lambda2 = beta[p+2] #Lagrangian multiplier for normalization restrictions sum(abunds*r^2_{ik}) = 1
@@ -783,7 +789,7 @@ NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLam
   cMat = matrix(beta[1:p], byrow=TRUE, nrow=1, ncol=p)
 
   #Calculate the mean
-  mu = if (constrained){exp(t(t(reg) * c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
+  mu = if (constrained){exp(rowMultiply(reg, c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
   
   Jac = matrix(0, nrow= p + nLambda, ncol=p + nLambda)
   #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
@@ -956,7 +962,7 @@ estDisp = function (X, cMat, rMat = NULL, muMarg, psis, trended.dispersion, prio
     if(!is.null(rMat)){ #Unconstrained
       t(rMat %*% (cMat * psis) + log(muMarg))
     } else { #Constrained
-      t(log(muMarg) + psis* t(t(rowMat)*c(cMat)))
+      t(log(muMarg) + psis* rowMultiply(rowMat,c(cMat)))
     }
   thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL,
                                         prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
@@ -1039,7 +1045,7 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
 #-------------------------------------------#
 ## A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k. Not intended to be called directly but only through the RCM() function
 
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear", analytic = FALSE){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = ifelse(is.null(covariates), 1e-12, 1-16)), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear", analytic = TRUE){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -1099,9 +1105,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   
     #If previous fit provided with higher or equal dimension, stop here
   if((!is.null(NBRCM)) ){
-    if(NBRCM$fit != "RCM_NB"){
+    if((is.null(covariates) & NBRCM$fit != "RCM_NB") | (!is.null(covariates) & NBRCM$fit != "RCM_NB_constr")){
       stop("Fit provided is not of same type as the one requested! \n Make sure you used exactly the same trimming parameters, otherwise start a new fit. \n")
-    } else if((k <= NBRCM$k)) {
+      }else if((k <= NBRCM$k)) {
       stop("Fit provided is already of the required dimension or higher! \n")
     } else{
       #Read in all starting values
@@ -1122,12 +1128,21 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       abundsMLE = NBRCM$abunds
       logAbundsMLE = log(abundsMLE)
       #Extend the record matrices, force same number of outer iterations as previous fit
-      if(dim(NBRCM$rowRec)[3]!=maxItOut){
-        maxItOut = dim(NBRCM$rowRec)[3]
+      if(dim(NBRCM$colRec)[3]!=maxItOut){
+        maxItOut = dim(NBRCM$colRec)[3]
         warning("Using same number of outer iterations as old fit! \n")
       }
+      newK = (Kprev+1):k
+      if(is.null(covariates)){
       rowRec = array(0, dim = c(n,k,maxItOut))
       rowRec[,1:Kprev,] = NBRCM$rowRec
+      lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
+      svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
+      rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
+      cMat = rbind(cMat, t(svdX$v[,newK, drop=FALSE]))
+      psis = c(psis, svdX$d[newK])
+      }
+      muMarg = outer(libSizesMLE, abundsMLE)
       colRec = array(0, dim = c(k,p,maxItOut))
       colRec[1:Kprev,,] = NBRCM$colRec
       thetaRec = array(0, dim = c(k,p,maxItOut))
@@ -1136,19 +1151,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       psiRec[1:Kprev,] = NBRCM$psiRec
       lambdaCol = lambdaRow = rep(0, k*(2+(k-1)/2))
       lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
-      lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
       convergence = c(NBRCM$converged, rep(FALSE, k-Kprev))
       iterOut = c(NBRCM$iter, rep(1,k-Kprev))
-      muMarg = outer(libSizesMLE, abundsMLE)*exp( rMat %*% (cMat*psis))
-      # Fill out the other columns of the SVD (in case of unconstrained analysis)
-      if(is.null(covariates)){
-      svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
-      newK = (Kprev+1):k
-      rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
-      cMat = rbind(cMat, t(svdX$v[,newK, drop=FALSE]))
-      psis = c(psis, svdX$d[newK])
-      }
-      trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(rowSums(X), colSums(X)/sum(X)))), weights = NULL)
+      trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(outer(logLibSizesMLE, logAbundsMLE, FUN = "+")), weights = NULL)
       confParams = NBRCM$confParams
     }
   #Otherwise start the fit from scratch
@@ -1194,9 +1199,10 @@ logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = 
   
    }
   #Converges very fast, even when dispersions are re-estimated. For the library sizes there is a big difference, for the abundances less so
- 
     muMarg = exp(outer(logLibSizesMLE, logAbundsMLE, "+")) #The marginals to be used as expectation. These are augmented with the previously estimated dimensions every time
-  } else if(marginEst=="marginSums"){
+  
+ 
+    } else if(marginEst=="marginSums"){
     muMarg = outer(libSizes, abunds)
   } else{
     stop("No valid margin estimation paradigm provided! \n")
@@ -1261,7 +1267,7 @@ rMat = apply(rMat, 2, function(rowS){
   })
   lambdaRow =  rep.int(0,nLambda)
   lambdaCol =  rep.int(0,nLambda )
-  } # END if-else: no previous fot provided
+  } # END if-else: no previous fit provided
   
   if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
   
@@ -1365,7 +1371,7 @@ alpha = t(t(alpha)-colMeans(alpha))
 alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
 if(!is.null(NBRCM)){
  newK = (Kprev+1):k
- cMat = rbind(cMat, t(CCA$eig[,newK, drop=FALSE]))
+ cMat = rbind(cMat, t(CCA$v[,newK, drop=FALSE]))
  psis = c(psis, CCA$eig[newK])
 } else {
   cMat = t(CCA$v)[1:k,,drop=FALSE]
@@ -1381,22 +1387,23 @@ NB_params_noLab = matrix(0.1,v,k) #Initiate parameters of the response function,
    alpha[,1:Kprev] = NBRCM$alpha
    alphaRec[,1:Kprev,] = NBRCM$alphaRec
    NB_params[,,1:Kprev] = NBRCM$NB_params
-   NB_params_noLab[,,1:Kprev] = NBRCM$NB_params_noLab
+   NB_params_noLab[,1:Kprev] = NBRCM$NB_params_noLab
  }
 
 #Number of lambda parameters for centering
 nLambda1s = NROW(centMat)
 
-
   minK = ifelse(is.null(NBRCM),1,Kprev+1) #Next dimension to fit
   for (KK in minK:k){
-    
+
  lambdasAlpha = rep(0,nLambda1s +KK)
     
   cat("Dimension" ,KK, "is being esimated \n")
   
   #Modify offset if needed
-  if(KK>1){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
+  if(KK>1){modMat = exp(getRowMatConstr(v = v, NB_params = NB_params[,,KK-1], covariates = covariates, alpha = alpha[, KK-1]))
+  muMarg = muMarg * if(KK==2) {modMat} else {apply(modMat, 3, prod)}
+  }
 
   idK = seq_k(KK)
   ## 2) Propagation
@@ -1417,7 +1424,7 @@ nLambda1s = NROW(centMat)
   cMatOld = cMat[KK,]
   
   #The matrix of row scores
-  rowMat = getRowMatConstr(v = v, NB_params = NB_params[,,KK], covariates = covariates, alpha = alpha)
+  rowMat = getRowMatConstr(v = v, NB_params = NB_params[,,KK], covariates = covariates, alpha = alpha[, KK])
 
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
   if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
@@ -1428,13 +1435,31 @@ nLambda1s = NROW(centMat)
 
 #Psis
     if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
-regPsis = t(t(rowMat) *cMat[KK,])
+regPsis = rowMultiply(rowMat,cMat[KK,])
 
 psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta =  thetasMat , X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method = jacMethod)$x)
 #Column scores
 if (verbose) cat("\n Estimating column scores \n")
 regCol = rowMat*psis[KK]
 tmpCol = nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+#This one has some difficulties converging, try some alternatives
+
+if(tmpCol$termcd!=1){
+  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "hook", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+}
+
+if(tmpCol$termcd!=1){
+  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "gline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+}
+
+if(tmpCol$termcd!=1){
+  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "cline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+}
+
+if(tmpCol$termcd!=1){
+  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "qline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+}
+
 
 cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
 cMat[KK,] = tmpCol$x[1:p]
@@ -1447,7 +1472,7 @@ cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 #Row scores
   if (verbose) cat("\n Estimating environmental gradient \n")
 regAlpha = cMat[KK,,drop=TRUE]*psis[KK]
-tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas =  thetasMat , cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[,KK], psi = psis[KK], cMat = cMat[KK,,drop=TRUE], nLambda1s = nLambda1s, nLambda = KK + nLambda1s, analytic = analytic, lambdasAlpha = lambdasAlpha) #Provide previous parameters of the response function since they might provide good initial estimates
+tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas =  thetasMat , cReg = regAlpha, alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK , centMat = centMat, n=n, NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[,KK], psi = psis[KK], cMat = cMat[KK,,drop=TRUE], nLambda1s = nLambda1s, nLambda = KK + nLambda1s, analytic = analytic, lambdasAlpha = lambdasAlpha, nleqslv.control = nleqslv.control) #Provide previous parameters of the response function since they might provide good initial estimates
 
 if(verbose)  cat(ifelse(tmpAlpha$converged, "Row scores converged \n", "Row scores DID NOT converge \n"))
   alpha[,KK] = tmpAlpha$Alpha
@@ -1471,7 +1496,7 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
   ##Check convergence  (any numbered norm for row and column scores)
   convergence[KK] = ((iterOut[KK] <= maxItOut) && 
                    (all(abs(1-psis[KK]/psisOld) < Psitol)) && #Infinity norm for the psis
-                   (all(abs(1-alpha[,KK]/alphaOld) < tol)) && 
+                   ((sum(abs(1-alpha[,KK]/alphaOld)^convNorm)/p)^(1/convNorm) < tol) && 
                    ((sum(abs(1-cMat[KK,]/cMatOld)^convNorm)/p)^(1/convNorm) < tol) )
 } # END while-loop until convergence
   
@@ -1550,7 +1575,7 @@ rMat = rMat/sqrt(sum(rowWeights * rMat^2))
   
   ## Column scores
   cat("Estimating column scores mean \n")
-  regCol = t(t(rMat)*psis)
+  regCol = rowMultiply(rMat,psis)
   cMatSol = try(nleqslv(fn = dZipMeanCmat, x = c(t(cMat), lambdaCol), X=X, reg=regCol, muMarg=muMarg, p=p, k=k, global=global, control = nleqslv.control, jac=ZipJacobianCmat, Z=Z, nLambda=nLambda, colWeights=colWeights, cMatK = cMatK)$x, silent=TRUE)
     if(class(cMatSol)!="try-error"){
   cMat = matrix(cMatSol[1:p], byrow=TRUE, nrow=1, ncol=p)
@@ -3263,40 +3288,47 @@ return(invisible())
 PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="black", plotArrows =TRUE) {
     #Retrieve dots (will be passed on to aes())
     dotList=list(...)
-    
+    constrained = !is.null(RCMfit$covariates)
+    if(constrained){
+      dataSam <- data.frame(RCMfit$covariates %*% RCMfit$alpha[,Dim]) 
     #Construct datafame for samples
+    
+    } else {
     dataSam <- data.frame(RCMfit$rMat[, Dim] %*% diag(RCMfit$psis[Dim]))
+    }
     names(dataSam)=paste0("Dim", Dim)
+    
     #Get the colours
     if(!is.null(colour) && !is.factor(colour)){
-      colourPlot = get_variable(RCMfit$physeq, colour)
+      dataSam$colourPlot = get_variable(RCMfit$physeq, colour)
     } else if(is.factor(colour)){
-      colourPlot = colour} else {dataSam$colourPlot=1}
+      dataSam$colourPlot = colour} else {dataSam$colourPlot=1}
     
     #     #Set colour palette
     if(is.null(Palette)){
-Palette=rainbow(length(unique(colourPlot)))
+Palette=rainbow(length(unique(dataSam$colourPlot)))
     }  
 
     #Construct dataframe for taxa
-    dataTax = data.frame(t(RCMfit$cMat[Dim,]))
-    arrowLengths = apply(RCMfit$cMat[Dim,],2,function(x){sqrt(sum(x^2))})
+    dataTax = data.frame(
+      if(constrained) {t(RCMfit$cMat[Dim,]*RCMfit$psis[Dim])}  else {t(RCMfit$cMat[Dim,])})
+    arrowLengths = apply(dataTax,2,function(x){sqrt(sum(x^2))})
     id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
     if(is.null(scalingFactor)){
-    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(RCMfit$cMat[Dim,id]))*0.99
+    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(dataTax[id,]))*0.99
     }
     #Filter out small arrows
     dataTax = dataTax[id,] * scalingFactor
     names(dataTax)=paste0("Dim", Dim)
 
-    plot = ggplot(dataSam, aes(x=Dim1, y=Dim2, col = colourPlot, ...)) + 
+    plot = ggplot(dataSam, aes_string(x=Dim1, y=Dim2, col = colourPlot, dotList)) + 
       geom_point(size=size) +
       if(is.null(colour)) {guides(color=FALSE)}
     
     #add legend names
-    if(!is.null(colLegend) & is.factor(colourPlot) ){
+    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
       plot = plot + scale_colour_manual(name=colLegend, values =Palette)
-    }    else if(!is.null(colLegend) & !is.factor(colourPlot) ){
+    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
       plot = plot + scale_colour_continuous(name=colLegend)
     } 
     if(!is.null(shapeLegend)){
@@ -3308,7 +3340,15 @@ Palette=rainbow(length(unique(colourPlot)))
      arrowCol = Palette[c(arrowCol[id])] 
     }
     if(plotArrows){
-    plot <- plot + geom_segment(data=dataTax, aes(x=0, y=0, xend=Dim1, yend=Dim2, shape=NULL), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)}
+    plot <- plot + geom_segment(data=dataTax, aes_string(x=0, y=0, xend=Dim1, yend=Dim2), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)}
+    
+    if(constrained){
+      #Add variable labels
+      varData = data.frame(RCMfit$alpha)
+      varData$label = rownames(RCMfit$alpha)
+      plot = plot + geom_text(data = varData, mapping = aes_string(x=Dim1, y = Dim2, label = label))
+    }
+    
     plot
 }
 ```
@@ -3388,7 +3428,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   mu0 = muMarg * exp(outer(c(design %*% NB_params_noLab), cMat*psi))
 
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
-               "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[,2]) - crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) %*% (cMat*NB_params_noLab[2])) +
+               "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[2,]) - crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) %*% (cMat*NB_params_noLab[2])) +
                  c(lambda1s %*% centMat)  +
                  lambda2 * 2 * alpha + 
                  alphaK %*% lambda3,
@@ -3397,7 +3437,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   centerFactors = centMat %*% alpha #Includes overal centering
   size = sum(alpha^2)-1
   if(k==1) { return(c(lag, centerFactors, size))}
-  ortho = tcrossprod(alphaK ,alpha)
+  ortho = crossprod(alphaK ,alpha)
   c(lag, centerFactors, size, ortho)
 }
 #--------------------------------------#
@@ -3446,11 +3486,11 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
 estNBparams = function(design, thetas, muMarg, cReg, X, nleqslv.control, ncols, initParam,v){
   
 vapply(seq_len(ncols), FUN.VALUE = vector("numeric",v), function(i){
-     nleq = try(nleqslv(initParam[,i] , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control, jac = JacCol_constr)$x, silent=TRUE)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
+     nleq = nleqslv(initParam[,i] , reg = design,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control, jac = JacCol_constr)$x#try(, silent=TRUE)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
      # if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){
      # nleq = try(nleqslv(initParam[,i] , fn = dNBllcol_constr, reg = design, theta = thetas[i], muMarg = muMarg[,i], cReg = cReg[i], X = X[,i], control = nleqslv.control)$x,silent=TRUE) # If fails try with numeric jacobian
      # }
-     if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){nleq = rep.int(0,v)}
+     #if(class(nleq)=="try-error" |anyNA(nleq) | any(is.infinite(nleq))){nleq = rep.int(0,v)}
      return(nleq)
 })
   
@@ -3561,7 +3601,7 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, cReg, n ,v) {
   # @return The jacobian (a v-by-v matrix)
 
   mu = exp(outer(c(reg %*% betas), cReg)) * muMarg
-  tmp = t(t((1+(X/thetas))*mu/(1+(mu/thetas))^2) * cReg^2) #Don't forget to square cReg!
+  tmp = rowMultiply((1+(X/thetas))*mu/(1+(mu/thetas))^2, cReg^2) #Don't forget to square cReg!
   -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric", n), function(x){rowSums(reg[,x]*tmp)}))
   }
 
@@ -3605,7 +3645,7 @@ NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = mu
   
  if(analytic){
    
-  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg)$x
+  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control)$x
   Alpha = AlphaTmp[seq_len(d)]
   lambdasAlpha = AlphaTmp[d+(1:nLambda)]
 } else {
@@ -3774,8 +3814,12 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     
     if(any(sapply(datFrame, is.logical))){
       datFrame[,sapply(datFrame, is.logical)] = sapply(datFrame[,sapply(datFrame, is.logical)], as.factor) #Convert logicals to factors
-    warning("Logicals converted to factors! \n", immediate. = TRUE)
+    #warning("Logicals converted to factors! \n", immediate. = TRUE). No warning needed
     }
+   if(any(sapply(datFrame, is.integer))){
+      datFrame[,sapply(datFrame, is.integer)] = sapply(datFrame[,sapply(datFrame, is.integer)], as.numeric) #Convert integers to numeric
+    warning("Integer values treated as numeric! \n", immediate. = TRUE)
+      }
     if(any(sapply(datFrame, is.character))){
       warning("Character vectors treated as factors! \n", immediate. = TRUE)
     }
@@ -3794,6 +3838,9 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
         }
         warning(paste("Some covariates contain missing values. We removed samples \n", paste(which(NArows), collapse = ", "), "\n prior to analysis." ),immediate. = TRUE)
       }
+    
+    # Center and scale the continuous covariates
+    datFrame[sapply(datFrame, is.numeric)] = scale(datFrame[sapply(datFrame, is.numeric)])
       
       covModelMat = model.matrix(
         object = formula(paste("~", paste(covariatesNames, collapse="+"),"-1")), 
@@ -3808,7 +3855,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     })) 
 
     centMat = centMat[rowSums(centMat)>0,] #Remove zero rows, corresponding to the non-factors
-    centMat = rbind(1, centMat) # Add a row of ones for the overal sum
+    #centMat = rbind(1, centMat) # Add a row of ones for the overal sum. This turned out to be a bad idea!
   } else {
     covModelMat = centMat = NULL
   }
@@ -3824,7 +3871,7 @@ tic = proc.time() #Time the calculation
                ZINB=RCM_ZINB(X,  rowWeights = rowWeights, colWeights = colWeights, k = k, 
                               confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
                              covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZINBRCM = prevFit, ...))
-  if(classDat=="phyloseq"){tmp$physeq = dat} 
+  if(classDat=="phyloseq"){tmp$physeq = prune_samples(rownames(X),prune_taxa(colnames(X),dat)) } 
   within(tmp, {
     runtimeInMins = if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} + (proc.time()-tic)[1]/60 # Sum the runtimes
     k = k #Store number of dimensions
@@ -3939,7 +3986,7 @@ Some preliminary test to make sure everything runs without errors
 ```{r tests, purl = FALSE}
 n=50;p=200
 counts = matrix(rnbinom(n*p, mu = 5, size = 3), n, p)
-covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6))
+covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6), status = sample(c("Treatment","Control"),n, replace=TRUE), siblings = rpois(n, lambda = 0.9))
 physeq = phyloseq(otu_table(counts, taxa_are_rows = FALSE), sample_data(covars))
 confounderVec = get_variable(physeq, "country")
 
@@ -3976,6 +4023,8 @@ un3DmatConfPhy = RCM(dat = counts, prevFit = un1DmatConf, k=3)
 con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq), analytic = TRUE)
 # Add two dimensions
 con3Dmat = RCM(dat = physeq, prevFit = con1Dmat, k=3, covariates =  sample_variables(physeq))
+
+# The zeller data?
 ```
 
 ## Toy data
@@ -5209,6 +5258,16 @@ For the 16S data we see signals for Country and Cancer diagnosis. For the metage
 ```{r plotZellerSphy, purl = FALSE}
 PCbiplot(zellerMphyRCM, colour = "Age")
 PCbiplot(zellerMphyRCM, colour = "BMI")
+```
+
+Constrained analysis
+
+```{r zellerConstrained, purl =FALSE}
+if(!file.exists("zellerSphyRCMconstr.RData")){
+zellerSphyRCMconstr = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis")) # Use smallest possible cndtol!
+save(zellerSphyRCMconstr, file="zellerSphyRCMconstr.RData")
+} else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
+# Cancer clearly dominates the separation, the second dimension splits normal and small adenoma!
 ```
 
 ### Zero-inflated poisson
