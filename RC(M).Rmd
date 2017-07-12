@@ -587,29 +587,47 @@ Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm will 
 
 $$ LR(\boldsymbol{\alpha}| \boldsymbol{\beta}_{j}, \boldsymbol{\beta}) = \sum_{i=1}^n \sum_{j=1}^p \psi s_{j}x_{ij} \Big(\mathbf{C}_i \boldsymbol{\alpha} (\beta_{1j} - \beta_{1}) + (\beta_{0j} - \beta_{0}) \Big)$$
 
-Taking into account the restrictions mentioned above, the associated Lagrangian becomes
 
-$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \psi_k \Big(\sum_{i=1}^n  \sum_{j=1}^p s_{j}x_{ij} \big(\mathbf{C}_i \boldsymbol{\alpha} (\beta_{1j} - \beta_{1}) + (\beta_{0j} - \beta_{0}) \big) \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{1} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k}$$
-
-with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first to the (k-1)th column.
 --->
 
-The first order derivatives become
+Taking into account the restrictions mentioned above, the associated Lagrangian becomes
+
+$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \sum_{i=1}^n  \sum_{j=1}^p \Big(log \big(\frac{f_{NB}(x_{ij}|s_{kj}, \psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_j)}{f_{NB}(x_{ij}|s_{kj}, \psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_0)} \big) \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{M} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) + \boldsymbol{\lambda}_{orth,k} \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k}$$
+
+with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first to the (k-1)th column, and $f_{NB}$ the density function of the negative binomial distribution.
+
+##### Linear response function
+
+The first order derivatives becomes (in case of a linear response function)
 
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i \beta_{1j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i \beta_{1} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k}^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
 
-with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wsie response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
+with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wise response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
+
+For a quadratic response function ($f_j(z_i = \mathbf{C}_i\boldsymbol{\alpha}|\boldsymbol{\beta}) = \beta_0 + \beta_1 z_i + \beta_2 z_i^2$) this derivative becomes
+
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i (\beta_{1j}+\beta_{2j}\boldsymbol{\alpha}_k) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i (\beta_{1}+\beta_{2}\boldsymbol{\alpha}_k) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k}^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
+
+For a non-parametric density function this derivative is not available, which which greatly increase the optimization time.
+
+The other derivatives are (independent of the shape of the response function):
 
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\lambda_{1k}}} = \boldsymbol{\alpha}_k^t \mathbf{M} = 0$$
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{2k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1 = 0$$
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{3k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} = 0$$
 
-The second order derivatives are
+The second order derivatives are for the linear response function
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i \beta_{1j})^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i \beta_{1})^2 \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1j})^2 c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1})^2 c_{iy} c_{iy'} \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
 
+and for the quadratic response function it gets complicated: FIX!
+
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i (\beta_{1j}+ \beta_{2j}\boldsymbol{\alpha}_k))^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i \beta_{1})^2 \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1j})^2 c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1})^2 c_{iy} c_{iy'} \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
+
+The other derivatives are again independent of the response function:
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k \partial \boldsymbol{\lambda_{1k}}} =  \mathbf{M}$$
 
@@ -3299,7 +3317,7 @@ return(invisible())
   # par(tmp)
 }
 # A ggplot2-version
-PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="black", plotArrows =TRUE) {
+PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="black", plotArrows =TRUE, plotLabels = FALSE) {
     #Retrieve dots (will be passed on to aes())
     dotList=list(...)
     constrained = !is.null(RCMfit$covariates)
@@ -3316,7 +3334,7 @@ PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, 
     if(!is.null(colour) && !is.factor(colour)){
       dataSam$colourPlot = get_variable(RCMfit$physeq, colour)
     } else if(is.factor(colour)){
-      dataSam$colourPlot = colour} else {dataSam$colourPlot=1}
+      dataSam$colourPlot = colour} else {dataSam$colourPlot=rep(1, nrow(dataSam))}
     
     #     #Set colour palette
     if(is.null(Palette)){
@@ -3326,7 +3344,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     #Construct dataframe for taxa
     dataTax = data.frame(
       if(constrained) {t(RCMfit$cMat[Dim,]*RCMfit$psis[Dim])}  else {t(RCMfit$cMat[Dim,])})
-    arrowLengths = apply(dataTax,2,function(x){sqrt(sum(x^2))})
+    arrowLengths = apply(dataTax,1,function(x){sqrt(sum(x^2))})
     id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
     if(is.null(scalingFactor)){
     scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(dataTax[id,]))*0.99
@@ -3334,11 +3352,12 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     #Filter out small arrows
     dataTax = dataTax[id,] * scalingFactor
     names(dataTax)=paste0("Dim", Dim)
+    if(plotLabels) dataTax$labels = rownames(dataTax)
 
-    plot = ggplot(dataSam, aes_string(x=Dim1, y=Dim2, col = colourPlot, dotList)) + 
-      geom_point(size=size) +
-      if(is.null(colour)) {guides(color=FALSE)}
-    
+    plot = ggplot(dataSam, aes_string(x="Dim1", y="Dim2", col = "colourPlot", dotList)) + 
+      geom_point(size=size) + 
+      theme(aspect.ratio=1) +
+      if(is.null(colour)) {guides(color=FALSE)} 
     #add legend names
     if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
       plot = plot + scale_colour_manual(name=colLegend, values =Palette)
@@ -3349,20 +3368,22 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
       plot = plot + scale_shape_discrete(name=shapeLegend)
     }
   
-    #Add arrows
+    #Add arrows or labels
     if(length(arrowCol)>1){
      arrowCol = Palette[c(arrowCol[id])] 
     }
     if(plotArrows){
-    plot <- plot + geom_segment(data=dataTax, aes_string(x=0, y=0, xend=Dim1, yend=Dim2), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)}
+    plot <- plot + geom_segment(data=dataTax, aes_string(x=0, y=0, xend="Dim1", yend = "Dim2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
+    } else if(plotLabels){
+      plot <- plot + geom_text(data=dataTax, aes_string(x="Dim1", y = "Dim2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE)
+    } else {}
     
     if(constrained){
       #Add variable labels
       varData = data.frame(RCMfit$alpha)
       varData$label = rownames(RCMfit$alpha)
-      plot = plot + geom_text(data = varData, mapping = aes_string(x=Dim1, y = Dim2, label = label))
+      plot = plot + geom_text(data = varData, mapping = aes_string(x = "Dim1", y = "Dim2", label = "label"), inherit.aes = FALSE)
     }
-    
     plot
 }
 ```
@@ -5246,24 +5267,32 @@ sapply(zellerRCM,function(x){x$converged}) # All converged
 sapply(zellerRCM,function(x){x$runtime})
 sapply(zellerRCM,function(x){x$iter})
 
-# zellerRCM[[1]]$physeq = zellerMphy 
-# zellerRCM[[2]]$physeq = zellerSphy 
-
 cols = c("darkblue","orange","darkgreen", "brown","black", "blue","magenta","cadetblue","cyan", "yellow", "grey80","grey70","pink") 
 palette(cols)
+```
 
+```{r zellerOldPlots, purl = FALSE, eval = FALSE, echo = FALSE}
 par(mfcol = c(2,3))
 sapply(c("Country","Diagnosis","Gender"), function(y){
 sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samColour = y, main=paste(x,y, collapse="_"))})
 })
 ```
 
-For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups.
+For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups. 
 
 ```{r plotZellerSphy, purl = FALSE}
-PCbiplot(zellerMphyRCM, colour = "Age")
-PCbiplot(zellerMphyRCM, colour = "BMI")
+lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
+  PCbiplot(zellerSphyRCM, colour = x)
+})
 ```
+
+Are country and diagnosis related?
+
+```{r zeller country vs diagnosis, purl = FALSE}
+with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
+```
+
+Yes, only cancer patients from Germany!
 
 Constrained analysis
 
@@ -5274,6 +5303,14 @@ save(zellerSphyRCMconstr, file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 # Cancer clearly dominates the separation, the second dimension splits normal and small adenoma!
 ```
+
+```{r ZellerConstrainedBiplot, purl=FALSE}
+PCbiplot(zellerSphyRCMconstr)
+PCbiplot(zellerSphyRCMconstr, colour = "Diagnosis")
+PCbiplot(zellerSphyRCMconstr, colour = "Gender")
+```
+
+Cancer turns out to be the main driver of explained variability
 
 <!---### Zero-inflated poisson
 
@@ -5877,21 +5914,20 @@ save(datList0,  file = "RCMsim/datList0.RData")
 } else {load(file = "RCMsim/datList0.RData")}
 
 # Results
-if(!file.exists(file = "RCMsim/resList1.RData")){
-RCMresList1 = mclapply(mc.cores=4, datList1, function(y){
+if(!file.exists(file = "RCMsim/resList0.RData")){
+RCMresList0 = mclapply(mc.cores=4, datList0, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
 })
-datList1mat = lapply(RCMresList1, function(x){x$X})
-CAresList1 = lapply(datList1mat, caSVD)
-CodaResList1 = lapply(datList1mat, CoDa)
-CodaScaledResList1 = lapply(datList1mat, CoDa, scale = TRUE)
-BCresList1 = lapply(datList1mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList1 = lapply(datList1mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
+datList0mat = lapply(RCMresList0, function(x){x$X})
+CAresList0 = lapply(datList0mat, caSVD)
+CodaResList0 = lapply(datList0mat, CoDa)
+CodaScaledResList0 = lapply(datList0mat, CoDa, scale = TRUE)
+BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
 #With relative abundances
-BCresList1Rel = lapply(datList1mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList1Rel = lapply(datList1mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCresList1, JSDresList1,
-                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel, JSDrel){
+BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+JSDresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
+resList0 = mapply(RCMresList0, CAresList0, CodaResList0, CodaScaledResList0, BCresList0, JSDresList0, BCresList0Rel, JSDresList0Rel, FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel, JSDrel){
                     list(RCM = RCM, CA = CA, 
                          CoDa = CoDa, CoDaScale = CoDaScale, 
                          BC = BC, JSD = JSD, 
@@ -5899,8 +5935,8 @@ resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCr
                   }, 
                   SIMPLIFY = FALSE
 )
-save(resList1, file = "RCMsim/resList1.RData")
-} else {load(file = "RCMsim/resList1.RData")}
+save(resList0, file = "RCMsim/resList0.RData")
+} else {load(file = "RCMsim/resList0.RData")}
 ```
 
 ###### Simulate from different distributions
@@ -5929,7 +5965,7 @@ libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
 if(!file.exists(file = "RCMsim/datList1.RData")){
 datList1 = mclapply(mc.cores=4, 1:reps, function(i){
 ## Sample parameters
-rhosSampled = sapply(1:nPop, function(x){sample(rhoEst, p)})[,groupInd]
+rhosSampled = sapply(1:nPop, function(x){tmp=sample(rhoEst, p); tmp/sum(tmp)})[,groupInd]
 thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
 libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 
@@ -5970,7 +6006,9 @@ extractRows = function(x){
     CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
     CoDaScale = CoDaScale$rotation %*% diag(CoDaScale$sdev^2),
     BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
-    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))])
+    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
+    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
+    JSDrel = JSDrel$vectors %*% diag(JSDrel$values$Eigenvalues[seq_len(ncol(JSDrel$vectors))])
     ))
 }
 ```
@@ -5978,10 +6016,10 @@ extractRows = function(x){
 ```{r resList1 sampleBiplot, eval = FALSE, purl = FALSE}
 #A sample biplot
 resList1Rows = lapply(resList1, extractRows)
-par(mfrow = c(2,3), mar = c(3,3,3,3))
+par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2")})
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
 # plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
 # plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
 # plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
@@ -5989,12 +6027,12 @@ lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "
 # plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
 rm(ID, obj)
 par(mfrow = c(1,1))
-# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. 
+# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
 
-par(mfrow = c(2,3), mar = c(3,3,3,3))
+par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3")})
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
 # plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
 # plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
 # plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
@@ -6039,7 +6077,7 @@ cor1df = lapply(cor1, melt, value.name = "Correl", varnames = c("Method"))
 par(mfrow = c(1,3))
 for (i in 1:3){
 data = cor1df[[i]]
-boxplot(Correl ~ Method, main = paste("Correlations fo row scores \n with library sizes for dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
+boxplot(Correl ~ Method, main = paste("Correlations for row scores \n with library sizes for dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
 meansCor = tapply(data$Correl, data$Method, mean)
 points(meansCor, col="red", pch=18, cex = 1.6)
 abline(h=0, lty = "dashed")
@@ -6072,12 +6110,17 @@ if(!file.exists(file = "RCMsim/datList2.RData")){
 datList2 = mclapply(mc.cores=4, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
-#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species)
-rhosSampled = sapply(1:nPop, function(x, rhos){
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
   id = sample(seq_len(p), round(TPR*p))
-  rhos[id] = rhos[id]*10
-  rhos/sum(rhos) #renormalize
-}, rhos = rhosSampled0)[,groupInd]
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
 
 thetasSampled = sample(thetaEst, p) 
 libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
@@ -6086,7 +6129,7 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
 })
 save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
 } else {load(file = "RCMsim/datList2.RData")}
@@ -6118,7 +6161,7 @@ resList2Rows = lapply(resList2, extractRows)
 par(mfrow = c(2,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList2))
 obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2")})
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", type = "s")})
 rm(ID, obj)
 par(mfrow = c(1,1))
 # In this setting, the RCM really appears to outperform the other methods
@@ -6126,7 +6169,7 @@ par(mfrow = c(1,1))
 par(mfrow = c(2,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3")})
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", type = "s")})
 # plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
 # plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
 # plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
