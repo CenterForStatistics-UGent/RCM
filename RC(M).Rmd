@@ -3466,8 +3466,10 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
                "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[2,]) - crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) %*% (cMat*NB_params_noLab[2])) ,
                "quadratic" = psi * (
-                 colSums((crossprod(rowMultiply((X-mu)/(1+mu/thetaMat) ,cMat),  CC)) * (NB_params[2,] + 2*outer(NB_params[3,], alpha) ))
-                - colSums(rowMultiply((crossprod(rowMultiply((X-mu0)/(1+mu0/thetaMat) ,cMat),  CC)), (NB_params_noLab[2] + 2*NB_params_noLab[3] * alpha)))),
+                 # (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[2,])) + 
+                 #   (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[3,])) * alpha - 
+                   rowSums((tcrossprod(crossprod(CC, (X-mu)/(1+mu/thetaMat)),(rowMultiply(NB_params[c(2,3),],cMat)))) * cbind(1,2*alpha)) - 
+                   rowSums((crossprod(CC, (X-mu0)/(1+mu0/thetaMat))%*%(outer(cMat, NB_params_noLab[c(2,3)]))) * cbind(1,2*alpha))),
                stop("Unknown response function provided! \n")) + #Restrictions do not depend on response function
                  c(lambda1s %*% centMat)  +
                  lambda2 * 2 * alpha + 
@@ -3479,6 +3481,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   ortho = crossprod(alphaK ,alpha)
   c(lag, centerFactors, size, ortho)
 }
+#In the quadratic case the fit is really dependent on starting values
 #--------------------------------------#
 # A function that returns the Jacobian of the likelihood ratio
 LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, ...){
@@ -3516,13 +3519,15 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
  
   Jac[did,d+nLambda1s+1] = 2 * alpha
 
-  tmp = switch(responseFun,
-               linear = {rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,(cMat * NB_params[2,])^2)},
-               quadratic = {(1+X/thetaMat)*mu/(1+mu/thetaMat)^2 %*% (NB_params[2,] + 2*outer(NB_params[3,], alpha))})
-  tmp0 = switch(responseFun,
-               linear = {rowMultiply((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2,(cMat * NB_params_noLab[2])^2)},
-               quadratic = {(1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2}) 
-  
+  if(responsFun=="linear"){
+    tmp = rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,(cMat * NB_params[2,])^2)
+    tmp0 = rowMultiply((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2,(cMat * NB_params_noLab[2])^2)
+  } else if (responseFun=="quadratic"){
+    tmp = tcrossprod((1+X/thetaMat)*mu/(1+mu/thetaMat)^2 , rowMultiply(NB_params[c(2,3),],cMat)^2) 
+    tmp0 = ((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2) %*% outer(cMat, NB_params_noLab[c(2,3)])^2
+    alphaArray = array(1, dim = c(v,d,d))
+    alphaArray[2,,] = outer(alpha)
+  }
   #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
     Jac[(d+nLambda1s+2):(d+nLambda), did] = alphaK
@@ -3532,8 +3537,8 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
    Jac = Jac + t(Jac)
   Jac[did,did] = switch(responseFun,
                            "linear" = #-psi^2 *(crossprod(CC*c(rowMultiply(tmp,(cMat*NB_params[2,])^2),CC) - crossprod(CC*c(tmp0 %*% (cMat*NB_params[2])^2),CC))
-                           -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC,1,1))) ,
-                          "quadratic" = -psi^2 *(crossprod(vapply(did, FUN.VALUE = vector("numeric", n), function(x){rowSums(CC[,x]*tmp)}), CC) - crossprod(vapply(did, FUN.VALUE = vector("numeric", n), function(x){rowSums(CC[,x]*tmp0)}), rowMultiply(CC, (NB_params_noLab[2] + 2*NB_params_noLab[3] * alpha))))
+                           -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)*alphaArray) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1) )) ,
+                          "quadratic" = -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1)*alphaArray)) 
                                               
   ) 
   diag(Jac)[did] = diag(Jac)[did] + 2*lambda2
@@ -5883,6 +5888,24 @@ The between distance between groups m and m' is then defined as $d_{mm'} = d_{eu
 
 For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid.
 
+## Auxiliary functions
+
+```{r extract row vectors}
+#A function to extract the row vectors multiplied by importance elements
+extractRows = function(x){
+  with(x, list(
+    RCM = RCM$rMat %*% diag(RCM$psis),
+    CA = CA$u %*% diag(CA$d),
+    CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
+    CoDaScale = CoDaScale$rotation %*% diag(CoDaScale$sdev^2),
+    BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
+    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
+    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
+    JSDrel = JSDrel$vectors %*% diag(JSDrel$values$Eigenvalues[seq_len(ncol(JSDrel$vectors))])
+    ))
+}
+```
+
 # Simulations
 
 ## Unconstrained RC(M)
@@ -5965,6 +5988,79 @@ save(resList0, file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
 ```
 
+
+```{r resList0 sampleBiplot, eval = FALSE, purl = FALSE}
+#A sample biplot
+resList0Rows = lapply(RCMresList0, extractRows)
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList0))
+obj = resList0Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
+# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
+# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
+# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
+# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
+rm(ID, obj)
+par(mfrow = c(1,1))
+# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
+
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList0))
+obj = resList0Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
+# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
+# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
+# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
+# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
+rm(ID, obj)
+par(mfrow = c(1,1))
+
+#PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
+```
+  
+```{r resList0Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+sil0  = lapply(resList0Rows, function(x){
+  sapply(x, silhouette, clusters = groupFactor)
+})
+meanSil0 = sapply(sil0, function(x){
+  colMeans(x)
+})
+meanSil0df = melt(meanSil1, value.name = "Silhouette", varnames = c("Method"))
+boxplot(Silhouette~Method, main = "Mean silhouettes by method", data = meanSil0df)
+meansSil0 = tapply(meanSil0df$Silhouette, meanSil0df$Method, mean)
+points(meansSil0, col="red", pch=18, cex = 1.6)
+```
+
+```{r resList1Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
+dist1  = sapply(resList1Rows, function(x){
+  sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
+})
+meanDist1df = melt(dist1, value.name = "DistanceRatio", varnames = c("Method"))
+boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist1df)
+meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
+points(meansDist, col="red", pch=18, cex = 1.6)
+```
+
+```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
+par(mar = c(4,4,4,4))
+cor1 = lapply(1:3, function(Dim){mapply(resList0Rows, datList1, FUN = function(x,z){
+  libSizes = rowSums(z)
+  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)})
+}, SIMPLIFY = TRUE)})
+cor1df = lapply(cor1, melt, value.name = "Correl", varnames = c("Method"))
+par(mfrow = c(1,3))
+for (i in 1:3){
+data = cor1df[[i]]
+boxplot(Correl ~ Method, main = paste("Correlations for row scores \n with library sizes for dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
+meansCor = tapply(data$Correl, data$Method, mean)
+points(meansCor, col="red", pch=18, cex = 1.6)
+abline(h=0, lty = "dashed")
+rm(data, meansCor)
+}
+```
+
 ###### Simulate from different distributions
 
 In this setting we will simulate data from 4 unrelated negative binomial distributions. Because of this clustering should be very good.
@@ -6021,22 +6117,6 @@ resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCr
 )
 save(resList1, file = "RCMsim/resList1.RData")
 } else {load(file = "RCMsim/resList1.RData")}
-```
-
-```{r extract row vectors}
-#A function to extract the row vectors multiplied by importance elements
-extractRows = function(x){
-  with(x, list(
-    RCM = RCM$rMat %*% diag(RCM$psis),
-    CA = CA$u %*% diag(CA$d),
-    CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
-    CoDaScale = CoDaScale$rotation %*% diag(CoDaScale$sdev^2),
-    BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
-    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
-    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
-    JSDrel = JSDrel$vectors %*% diag(JSDrel$values$Eigenvalues[seq_len(ncol(JSDrel$vectors))])
-    ))
-}
 ```
 
 ```{r resList1 sampleBiplot, eval = FALSE, purl = FALSE}
