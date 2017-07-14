@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -3466,11 +3466,9 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
                "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[2,]) - crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) %*% (cMat*NB_params_noLab[2])) ,
                "quadratic" = psi * (
-                 crossprod((X-mu)/(1+mu/thetaMat) ,CC) * (NB_params[2,] + 2*outer(NB_params[3,], alpha) %*% cMat
-                - crossprod(
-                   CC,(NB_params_noLab[2]+2*alpha*NB_params_noLab[3])),
-                   (X-mu0)/(1+mu0/thetaMat) %*% cMat)),
-               stop("Unknown response function provided! \n")) + #Restrictions do not depend on resonse function
+                 colSums((crossprod(rowMultiply((X-mu)/(1+mu/thetaMat) ,cMat),  CC)) * (NB_params[2,] + 2*outer(NB_params[3,], alpha) ))
+                - colSums(rowMultiply((crossprod(rowMultiply((X-mu0)/(1+mu0/thetaMat) ,cMat),  CC)), (NB_params_noLab[2] + 2*NB_params_noLab[3] * alpha)))),
+               stop("Unknown response function provided! \n")) + #Restrictions do not depend on response function
                  c(lambda1s %*% centMat)  +
                  lambda2 * 2 * alpha + 
                  alphaK %*% lambda3
@@ -3483,7 +3481,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
 }
 #--------------------------------------#
 # A function that returns the Jacobian of the likelihood ratio
-LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n,...){
+LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, ...){
   # @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
   # @param X: the n-by-p count matrix
   # @param CC: a n-by-d covariate vector
@@ -3515,15 +3513,15 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
   Jac = matrix(0, nrow= d + nLambda, ncol = d + nLambda)
   #dLag²/dalpha_{yk}dlambda_{1k}
   Jac[(d+seq_len(nLambda1s)), did] = centMat
-  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
-  Jac[did,d+nLambda1s+1] = 2 *alpha
+ 
+  Jac[did,d+nLambda1s+1] = 2 * alpha
 
   tmp = switch(responseFun,
-               linear = {rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,cMat * NB_params[2,])},
+               linear = {rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,(cMat * NB_params[2,])^2)},
                quadratic = {(1+X/thetaMat)*mu/(1+mu/thetaMat)^2 %*% (NB_params[2,] + 2*outer(NB_params[3,], alpha))})
   tmp0 = switch(responseFun,
-               linear = rowMultiply((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2,cMat * NB_params_noLab[2]),
-               quadratic = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2) 
+               linear = {rowMultiply((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2,(cMat * NB_params_noLab[2])^2)},
+               quadratic = {(1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2}) 
   
   #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
@@ -3534,14 +3532,14 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
    Jac = Jac + t(Jac)
   Jac[did,did] = switch(responseFun,
                            "linear" = #-psi^2 *(crossprod(CC*c(rowMultiply(tmp,(cMat*NB_params[2,])^2),CC) - crossprod(CC*c(tmp0 %*% (cMat*NB_params[2])^2),CC))
-                           -psi^2 *(crossprod(vapply(did, FUN.VALUE = vector("numeric", n), function(x){rowSums(CC[,x]*tmp)}), CC) - crossprod(vapply(did, FUN.VALUE = vector("numeric", n), function(x){rowSums(CC[,x]*tmp0)}), CC)),
+                           -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC,1,1))) ,
                           "quadratic" = -psi^2 *(crossprod(vapply(did, FUN.VALUE = vector("numeric", n), function(x){rowSums(CC[,x]*tmp)}), CC) - crossprod(vapply(did, FUN.VALUE = vector("numeric", n), function(x){rowSums(CC[,x]*tmp0)}), rowMultiply(CC, (NB_params_noLab[2] + 2*NB_params_noLab[3] * alpha))))
                                               
-  )
+  ) 
+  diag(Jac)[did] = diag(Jac)[did] + 2*lambda2
 
   Jac
 }
-
 #--------------------------------------#
 # A function to estimate the taxon-wise NB-params
 estNBparams = function(design, thetas, muMarg, cReg, X, nleqslv.control, ncols, initParam,v){
@@ -3710,14 +3708,16 @@ NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = mu
   Alpha = AlphaTmp[seq_len(d)]
   lambdasAlpha = AlphaTmp[d+seq_len(nLambda)]
 } else {
-   Alpha = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, NB_params = NB_params, NB_params_noLab = NB_params_noLab, v = v, thetaMat = thetas)$par #
+   AlphaTmp = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, cReg = cReg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, NB_params = NB_params, NB_params_noLab = NB_params_noLab, v = v, thetaMat = thetas) #
+  Alpha = AlphaTmp$par
+  lambdasAlpha = AlphaTmp$lambda
 }
   
   iterA = iterA + 1
   convergenceA = sum((AlphaOld - Alpha)^convNorm)^(1/convNorm) < tol
   } 
   
-  return(list(Alpha = Alpha, NB_params = NB_params, NB_params_noLab = NB_params_noLab, convergence = convergenceA, lambdasAlpha = if(analytic) lambdasAlpha  else NULL))
+  return(list(Alpha = Alpha, NB_params = NB_params, NB_params_noLab = NB_params_noLab, convergence = convergenceA, lambdasAlpha = lambdasAlpha ))
 }
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
