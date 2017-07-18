@@ -81,6 +81,8 @@ For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \math
 
 Note that the use of correspondence analysis implies unimodal response curves (see later). Hence it is not appropriate to represent species as arrows. Representing them as points is more appropriate.
 
+Correspondence analysis has been criticised for putting undue emphasis on rare species (Legendre and Gallagher, 2001).
+
 #### Skewness
 
 Because of the skewness of the distribution, the residuals are also very skewed. If we have an expectation of around 1, it is very likely to observe a zero, but much less likely to observe a 2. Still both deviations are weighted equally. I think a residual-based approach is ill suited to asymmetric, skewed data. Also the library size correction will never be appropriate, so that part of the biplot will reflect differences in library sizes. We considered decomposing
@@ -336,7 +338,7 @@ $$Lag(s_{jk}, \mathbf{\lambda}) = L_{NB}(s_{jk}) + \sum_{k=1}^M \big( \lambda_{1
 
 #### Biplot
 
-8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This makes sure the distnaces between the samples are represented correctly.
+8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ as sample points and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($s_{1j}$, $s_{2j}$) on ($\psi_1r_{1i}$, $\psi_2r_{2i}$) equals $(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i}) = cos (\eta) (\sqrt{(\psi_1r_{1i})^2 + (\psi_2r_{2i})^2})$ with $\eta$ the angle between the two vectors. This projection represents the departure from independence in the first two dimensions combined. The larger the entries of the species and sample scores and the smaller the angle, the larger the departure of this taxon in this sample. The choice of $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ assures the distances between samples are well represented, since more weight is added to differences in scores in important dimensions.
 
 In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)xn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
 
@@ -460,10 +462,18 @@ whereby
  - $m_{jk}$ is the tolerance, it determines how fast the expected value decreases as $\mathbf{c}_{i.}$ moves away from its optimal values $\boldsymbol{\alpha}_k^{-t}h_{ik}$
  
  The scales of $h_{ik}$, $q_{jk}$ and $m_{jk}$ are undefined, so we need an additional restriction to render the model identifiable. Zhu _et al._, 2005 propose setting $\sum_{j=1}^p m_{jk}^2/p=1$. Note that $a_{jk}$, $q_{jk}$ and $m_{jk}$ are species specific parameters whereas $\boldsymbol{\alpha}_k$ is specific for the dimension but common to all species.
+ 
+#### Triplot
+
+- $q_{jk}$ is plotted as points as optimum per species
+- The components of $\boldsymbol{alpha}$ are plotted as arrows for the environmental variables.
+- The samples are plotted as their site scores $\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$
+ 
+#### Estimation
 
 The estimation iterates between estimating $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_{jk} = \big(a_{jk}, q_{jk}, m_{jk})$.
 
-This model was designed with the ecological context in mind, whereby (continuous) environmental variables such as pH, temperature, sunlight intensity, ion concentrations, distance to landscape elements etc. were measured. However for microbiome data, we usually do not have direct measurements of variables in the ecosystem, but rather characterstics of the patient, which are very often categorical variables. Even for a continuous variable like age the Gaussian assumption seems weird to me. Keeping the other covariates fixed, this would mean there is an optimal age for bacteria to grow and their expected abundance would decrease for older or younger people. This may or may not be a realistic model.
+This model was designed with the ecological context in mind, whereby (continuous) environmental variables such as pH, temperature, sunlight intensity, ion concentrations, distance to landscape elements etc. were measured. However for microbiome data, we usually do not have direct measurements of variables in the ecosystem, but rather characterstics of the patient, which are very often categorical variables.
 
 Let's take a look at the nature of the covariate data.
 
@@ -493,13 +503,13 @@ If we want to stay in the RC(M) framework we can also model the mean as:
 
 $$log(E(X_{ij})) =  u + u_i + u_j  + \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
 
-This approach differs from the one proposed in Zhu _et al._, 2005 in the intercepts $u_i$ and $u_j$. These intercepts will still be estimated by maximum likelihood in the first step, just as in the unconstrained case. We do not continue on this track.
+This approach differs from the one proposed in Zhu _et al._, 2005 in the intercepts $u_i$ and $u_j$. These intercepts will still be estimated by maximum likelihood in the first step, just as in the unconstrained case. This is a special case of the fourth method.
 
 3) Constrained RC(M), overparametrized version
 
 A third option would be to drop the whole Gaussian assumption and build a model as follows:
 
-$$log(E(X_{ij})) = u + u_i + u_j  + \sum_{k=1}^K \psi_k s_{jk} f_j(\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}) $$
+$$log(E(X_{ij})) = u + u_i + u_j  + \sum_{k=1}^K \psi_k s_{jk} f_{jk}(\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}) $$
 
 with $f_j$ the species-specific response function, which can be linear, quadratic (Gaussian on count scale), non-parametric, ... . The usual restrictions apply to the column scores $\mathbf{s}$:
 
@@ -510,22 +520,23 @@ with $u_{tax}$ the vector of $exp(u_j)$'s and  $\mathbf{U}$ a diagonal p-by-p ma
 
 For $\alpha$ (a d-by-k matrix) we enforce the following restrictions:
 
-- Centering is desirable for the triplot (if $k \geq 2$)
-
-$$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
-- Normalization restricts the size, only $\psi_k$ can grow in magnitude, and dimensions are orthogonal (if $k \geq 3$)
+- Normalization restricts the size, and dimensions are orthogonal (if $k \geq 3$)
 
 $$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbb{1}_k$$
 
 with $\mathbf{1}$ a vector of ones of length $d$ and $\mathbb{1}_k$ the identity matrix of dimension $k$.
 
+However, this model is overparametrized: $s_{jk}$ and $f_{jk}$ both model the response of a taxon $j$ in the $k$-th dimension. Also, if $\psi_k$ is to be determined unambiguously, restrictions on the size of $f_{jk}()$ are needed. Therefore, we will set all $s_{jk} = 1$ and if $f_{jk}$ is non-parametric also $psi_k=1$.
+
 ### Response function
 
 For the response function previously a quadratic function (Gaussian on count scale) has been proposed but this may not be realistic. Also the setting is different: we are looking for response function that maximize the __departure from independence__, no longer the abundances themselves! In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). For any response function with $q$ parameters $\boldsymbol{\beta}_j$ for every taxon $j$ the mean equals:
 
-$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \Big(\psi_k s_{jk} f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) \Big).$$
+$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) .$$
 
-Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters $q$ estimated per response function $f_j$ is much smaller than the number of samples $n$. In practice in R we will work with a row score matrix.
+Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters $q$ estimated per response function $f_j$ is much smaller than the number of samples $n$.
+
+A linear response function may be most appropriate for problems with __short gradients__ i.e. whereby the difference in observed environmental variables is too short to devine more than an increase or decrease in departure from independence. For problems with __long gradients__, i.e. whereby species' departures of independence rise and drop (or drop and rise) within the score of the observed environmental scores, quadratic response functions may be more appropriate. This corresponds e.g. with the scenario whereby a species' abundance departs a lot from independence (e.g. by being very low) for extreme values of the environmental score, and behaves approximately like the independence model for a regular value of the environmental score. If the user is unsure and has enough data, he may use non-parametric response funcion. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret.
 
 #### Score equations
 
@@ -549,13 +560,9 @@ $$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \bet
 
 $$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j0}^2 } = \sum_{i=1}^n - \frac{(\psi s_j )^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}$$
 
-Except for the linear case, we will just calculate these numerically in practice, which is necessary anyway when $f$ is non-parametric.
-
 ### Restricitions
 
 The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
-
-
 
 $$\boldsymbol{\alpha}_k^t\boldsymbol{\alpha}_k = \mathbf{1}$$
 
@@ -587,14 +594,13 @@ We again have $g$ degrees of freedom. It is this $\boldsymbol{\alpha}_k'$ that w
 
 ### Scaling
 
-To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be
-centered and scaled prior to model fitting, as in PCA. We might have to do the same for the categorical variables, for complete comparability? There are a lot of possible solutions (see e.g. SOCIOECONOMIC STATUS MEASUREMENT WITH DISCRETE PROXY VARIABLES: IS PRINCIPAL COMPONENT ANALYSIS A RELIABLE ANSWER? by Kolenikov and Angeles, 2009) for the PCA case. For now we do not normalize the categorical variables, but this means we may not be able to compare components of $\boldsymbol{\alpha}$ from continuous and categorical variables.
+To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. We might have to do the same for the categorical variables, for complete comparability? There are a lot of possible solutions (see e.g. SOCIOECONOMIC STATUS MEASUREMENT WITH DISCRETE PROXY VARIABLES: IS PRINCIPAL COMPONENT ANALYSIS A RELIABLE ANSWER? by Kolenikov and Angeles, 2009) for the PCA case. For now we do not normalize the categorical variables, but this means we may not be able to compare components of $\boldsymbol{\alpha}$ from continuous and categorical variables.
 
 ### Environmental gradient
 
 #### Naive approach
 
-The naive approach to optimize $LR(\alpha)$ would be to use constrained optimization (constraining the $\alpha$'s to be zero-centered etc.) and estimate $p_j^{(\alpha)}$ and $p^{(\alpha)}$ in every evaluation of this function. This implies a analytical jacobian cannot be estimated and requires a huge amount of re-estimation of the response functions. This naive approach is computationally unfeasible
+The naive approach to optimize $LR(\alpha)$ would be to use constrained optimization (constraining the $\alpha$'s to have variance one etc.) and estimate $p_j^{(\alpha)}$ and $p^{(\alpha)}$ in every evaluation of this function. This implies a analytical jacobian cannot be estimated and requires a huge amount of re-estimation of the response functions. This naive approach is computationally unfeasible
 
 #### Iterative approach
 
@@ -625,11 +631,13 @@ with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first 
 
 ##### Linear response function
 
-The first order derivatives becomes (in case of a linear response function)
+The first order derivatives becomes (in case of a linear response function, and remember we set $s_{jk} = 1$)
 
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i \beta_{1j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i \beta_{1} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k}^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
 
 with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wise response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
+
+#### Quadratic response function
 
 For a quadratic response function ($f_j(z_i = \mathbf{C}_i\boldsymbol{\alpha}|\boldsymbol{\beta}) = \beta_0 + \beta_1 z_i + \beta_2 z_i^2$) this derivative becomes
 
@@ -670,22 +678,27 @@ The whole estimation of the constrained RC(M)-model would then proceed as follow
 
  1. Estimate the independence model ($u_i$'s, and $u_j$'s)
  2. (Optional): Filter out confounders by modifying offset
- 3. Find starting values for $\alpha$, $\psi_k$ and $s_{jk}$  based on CCA
+ 3. Find starting values for $\alpha$, based on CCA
  4. Iterate between
   - Estimate $f_j$'s and $f_0$ given $\boldsymbol{\alpha}$
   - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
- 5. Estimate $\psi_k$ and $s_{jk}$ using ML and overdispersions using empirical Bayes
+ 5. Estimate overdispersions using empirical Bayes
  6. Repeat steps for every dimension $k$ 4-5 until convergence
 
-Filtering of rare taxa is not needed in this case, as all covariates are summarized in one "continuous" row score. to check for convergencen, for $\psi_k$  we apply an infinity norm, for $\mathbf{s}_k$ and $\boldsymbol{\alpha}_k$ the default is an L2-norm.
+Filtering of rare taxa is not needed in this case, as all covariates are summarized in one "continuous" row score. to check for convergencen, for $\psi_k$  we apply an infinity norm, for $\boldsymbol{\alpha}_k$ the default is an L2-norm.
 
 ### Triplot
 
 The interpretation of the triplot is different from the one from Zhu _et al._ (2005), and also different from that of the unconstrained RC(M).
 
- - The components of $\alpha_k$ represent the extent to which the covariates contribute to the departure from independence in dimension $k$. Categorical variables are centered, all their levels are shown. For a scale-free solution, the continuous variables should be centered and scaled. Should the dummy variables not also be normalized then? QUESTION!
- - The samples represent the values of the product of the environmental gradient with their covariates. Samples close together in one dimension come from similar environments, considering that environmental gradient.
- - The taxa still represent the departure from independence of the taxa. They will be multiplied by the importance parameters $\psi$ in this case. A large score in a dimension means that the taxon departs from uniformity because of changes in the environmental conditions in this dimension. Taxa close together respond in a similar way to changes in environmental conditions. The sample-taxon distances and projections are meaningless in this case.
+ - The components of $\alpha_k$ are plotted as arrows and represent the extent to which the covariates contribute to the departure from independence in dimension $k$. Categorical variables are centered, all their levels are shown. For a scale-free solution, the continuous variables should be centered and scaled. Should the dummy variables not also be normalized then? QUESTION!
+ - For the samples, the environmental scores are plotted as points and represent the values of the product of the environmental gradient with their covariates. Samples close together in one dimension come from similar environments, considering that environmental gradient.
+ - The plot for the taxa depends on the response function used. 
+  * In case of a linear response functionwe can plot the $\beta_1$ parameters as arrows. The projection of $\boldsymbol{beta}_{1}$ onto $\boldsymbol{alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model.
+  * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point. If this is a minimum, this represents the value of the environmental score with the smallest departure from indepence, in case of a maximum the largest departure. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation).
+  * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples.
+  
+It is clear that the triplot is not trivial to interpret, but then again: neither is a triplot based on CCA.
 
 \newpage
 
