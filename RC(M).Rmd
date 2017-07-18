@@ -10,7 +10,8 @@ output:
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
+setwd(WD)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor")
 # Load all required packages and show version
@@ -77,6 +78,8 @@ $$X = E_{independence} + R^{1/2}U\Sigma VC^{1/2}$$
 with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}C^{1/2}V=\mathbf{0}$ (weighted means equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'C^{1/2}V=\mathbf{1}$ (weighted variances equal one) (see VanDerHeijden et al., 1985).
 
 For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \mathbf{v_{2}}$ to correctly represent the distances between the samples. $\mathbf{w_{1}}$ and $\mathbf{w_{2}}$ can then be added to construct a biplot. The orthogonal projection of $\omega_1 v_{ki}$ on $w_{jk}$ then represents the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$.
+
+Note that the use of correspondence analysis implies unimodal response curves (see later). Hence it is not appropriate to represent species as arrows. Representing them as points is more appropriate.
 
 #### Skewness
 
@@ -353,9 +356,17 @@ with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1)
 
 Initially all dimension were estimated jointly, but for reasons of speed we moved to a one-by-one approach estimating first the first dimension, then the second given the first, then the third given the first two and so on. By splitting the estimation procedures into smaller parts like this the estimation speeds up considerably, presumably because the systems are easier to solve.
 
-### Confounders
+### Confounders (Conditioning)
 
-Sometimes some covariates are known to affect the abundances but one is not interested in their effect. We think first and foremost of technical parameters such as sequencing center or technology. Thanks to our log-linear approach we can filter out the effect of these parameters by including interaction terms between the taxa and the confounding covariate to be filtered out. This willl occcur after fitting the independence model but before fitting the RC(M) component. We thus fit the following model in case of $c$ confounding variables:
+Sometimes some covariates are known to affect the abundances but one is not interested in their effect. We think first and foremost of technical parameters such as sequencing center or technology. We would like to condition on these parameters and visualize remainign variability.
+
+#### Conditioning in correspondence analysis
+
+Conditioning in correspondence analysis occurs by performing CCA with a confounder matrix Z as covariates, and then perform regular CA on the matrix of residuals.
+
+#### Conditioning in the RCM approach
+
+Thanks to our log-linear approach we can filter out the effect of these parameters by including interaction terms between the taxa and the confounding covariate to be filtered out. This willl occcur after fitting the independence model but before fitting the RC(M) component. We thus fit the following model in case of $c$ confounding variables:
 
  $$log(E(X_{ij})) = \lambda + \lambda_i + \lambda_j + \textcolor{red}{\sum_{l=1}^c \zeta_{jl}e_{il}} + \sum_{k=1}^M \psi_k r_{ik} s_{jk}$$
  
@@ -411,6 +422,22 @@ So far we have been doing unconstrained or unsupervised explorative visualizatio
 A logical next step is to develop a __constrained__ method in the same framework, i.e. with the same error distribution. We argued that PCoA with Bray-Curtis distance or regular correspondence analysis did not perform well, and we expect the same for canonical correspondence analysis since it relies on the same distributional assumptions. We will visualize those departures from the independence model that can be explained by the sample covariates. Each dimension will thus consist of a linear combination of sample covariates, the weight of each of these covariates in the dimensions reflecting how much they contribute to explaining the variation. For background information see also Zhu _et al._ , 2005, and Zhang and Thas, 2012.
 
 We call our n-by-d covariate matrix $C$, for every sample $i$, $d$ baseline covariates are measured. These covariates can be either discrete or continuous. $c_{iy}$ is the observed value of covariate $y$ in sample $i$, $\mathbf{c_{i.}}$ the whole covariate vector of length $d$ of sample $i$, and $\mathbf{c_{.y}}$ all recorded values of variable $y$.
+
+### Constrained correspondence analysis (CCA)
+
+In contrast to canoncical correlation analysis, constrained correspondence analysis (CCA) assumes bell-shaped response curves with respect to environmental variables. A __response curve__ describes the expeceted abundance of a species in function of an environmental score, which is a fucntion fo environmental variables. Canonical correlation analysis asssumes linear responses to the environmental variables, which is less useful in the ecological context. Classical ecological theory assumes species have an optimal combination of values of the environmental variables, and their expected abundances decrease as the environment departs from these optimal values.
+
+Of course one could perform regular correspondence analysis, and then relate the obtained gradients to known envrionmental variables in a two-step approach. This is again an instance of _indirect_ gradient analysis (see Whittaker 1967).
+
+Ter Braak (1987) proposes a method of direct gradient analysis based on CA: canonical correspondence analysis (CCA). It basically assumes that species have a Gaussian response curve in function of an environmental score which is a _linear_ conbination of environmental variables. The linear projection vector $\alpha$ is called the __environmental gradient__. The axes of the ordination are chosen in the light of the environmental variables. Prior to the analysis the environmental variables are centered and scaled to avoid arbitrariness in the choice of the units and render the elements of the envrionmental gradient comparable. The rows of the chi-square transformed matrix $R^{-1/2}(X-E)C^{-1/2}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting. Then singular value decomposition is applied to the matrix of fitted values $F = U'\Sigma'V'$ of this regression. Using the fitted values assures that only the systematic part explained by the covariates plays a role. CCA can also be considered as weighted Redundancy analysis (RDA) of the Chi-squared distances, just like regular CA is a PCoA of Chi-squared distances.
+
+#### CCA triplots
+
+In a triplot of a CCA ordination, the samples and species are plotted as points, and the elements of the environmental gradient as arrows. The species scores are the right singular vectors, the sample scores can be calculated as linear combinations of environmental variables (environmental scoressu), or as the weighted average of their species scores (weighted by species abundances). In the latter case, the closer the species points lie to to the sample point, the higher the expected abundance. The orthogonal projection of the species point onto the environmental arrow represents how much the expected abundance increases (decreases) with changes in this environmental variable.
+
+#### Conditioning in CCA
+
+Conditioning occurs in the same fashion as with regular CA: the residuals of the CCA on the conditioning matrix Z are the input for the CCA on the environmental variables of interest.
 
 ### Constrained RC(M) model
 
@@ -468,7 +495,7 @@ $$log(E(X_{ij})) =  u + u_i + u_j  + \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - 
 
 This approach differs from the one proposed in Zhu _et al._, 2005 in the intercepts $u_i$ and $u_j$. These intercepts will still be estimated by maximum likelihood in the first step, just as in the unconstrained case. We do not continue on this track.
 
-3) Constrained RC(M)
+3) Constrained RC(M), overparametrized version
 
 A third option would be to drop the whole Gaussian assumption and build a model as follows:
 
@@ -669,23 +696,179 @@ The interpretation of the triplot is different from the one from Zhu _et al._ (2
 ```{r Auxfuns Correspondence analysis, purl=TRUE}
 ## A function to perform correspondence analysis
 
-caSVD = function(X){
+caSVD = function(X, Y = NULL, Z = NULL){
 # @param X: the nxp count matrix
+# @param Y(optional): a nxd matrix of covariates, or a vector of variable names if X is a phyloseq object. If null regular CA is performed
+# @param Z(optional): a nxz matrix of variables to condition on, or a vector of variable names if X is a phyloseq object.
   
 # @return: the singular value decomposition of the matrix of pearson residuals
   if(class(X)=="phyloseq"){
+  if(!is.null(Y)){Y = model.matrix(get_variables(physeq = X, Y), ~.)}
+  if(!is.null(Z)){Z = model.matrix(get_variables(physeq = X, Z), ~.)} 
   X = if (taxa_are_rows(X)) t(otu_table(X)@.Data) else otu_table(X)@.Data
   }
   C = colSums(X)
   R = rowSums(X)
   onesn =rep.int(1, nrow(X))
   onesp = rep.int(1, ncol(X))
-  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
+  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C) #Expected counts under independence
+  if(is.null(Y)){ #Unconstrained analysis
   Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
+  } else { #Constrained analysis
+  Y = weight.centre(Y, R) #Weighted centering   
+  Goal = Y %*% solve(a =  t(Y) %*% diag(R) %*% Y,
+        b = t(Y) %*% diag(R) %*% diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
+  ) #The goal matrix consists of fitted values of weighted regression of the chi-square transformed data matrix on the covariates with row sums as weights
+  
+  
+  }
   dimnames(Goal) = dimnames(X)
   svd(Goal)
 }
 #-------------------------------------------------#
+cca2 = function (X, Y, Z, ...) 
+{
+  ZERO <- 1e-04
+  CCA <- NULL
+  pCCA <- NULL
+  CA <- NULL
+  weight.centre <- function(x, w) {
+    w.c <- apply(x, 2, weighted.mean, w = w)
+    x <- sweep(x, 2, w.c, "-")
+    x <- sweep(x, 1, sqrt(w), "*")
+    attr(x, "centre") <- w.c
+    x
+  }
+  if (inherits(X, "dist") || NCOL(X) == NROW(X) && isTRUE(all.equal(X, 
+    t(X)))) 
+    stop("function cannot be used with (dis)similarities")
+  X <- as.matrix(X)
+  if (any(rowSums(X) <= 0)) 
+    stop("All row sums must be >0 in the community data matrix")
+  if (any(tmp <- colSums(X) <= 0)) {
+    exclude.spec <- seq(along = tmp)[tmp]
+    names(exclude.spec) <- colnames(X)[tmp]
+    class(exclude.spec) <- "exclude"
+    X <- X[, !tmp, drop = FALSE]
+  }
+  gran.tot <- sum(X)
+  X <- X/gran.tot
+  rowsum <- apply(X, 1, sum)
+  colsum <- apply(X, 2, sum)
+  rc <- outer(rowsum, colsum)
+  Xbar <- (X - rc)/sqrt(rc)
+  tot.chi <- sum(svd(Xbar, nu = 0, nv = 0)$d^2)
+  if (!missing(Z) && !is.null(Z)) {
+    Z <- as.matrix(Z)
+    Z.r <- weight.centre(Z, rowsum)
+    Q <- qr(Z.r)
+    Z <- qr.fitted(Q, Xbar)
+    tmp <- sum(svd(Z, nu = 0, nv = 0)$d^2)
+    if (Q$rank) {
+      pCCA <- list(rank = Q$rank, tot.chi = tmp, QR = Q, 
+        Fit = Z, envcentre = attr(Z.r, "centre"))
+      Xbar <- qr.resid(Q, Xbar)
+    }
+    if (tmp < ZERO) 
+      pCCA$tot.chi <- 0
+  }
+  else Z.r <- NULL
+  if (!missing(Y) && !is.null(Y)) {
+    Y <- as.matrix(Y)
+    Y.r <- weight.centre(Y, rowsum)
+    Q <- qr(cbind(Z.r, Y.r), tol = ZERO)
+    if (is.null(pCCA)) 
+      rank <- Q$rank
+    else rank <- Q$rank - pCCA$rank
+    qrank <- rank
+    Y <- qr.fitted(Q, Xbar)
+    sol <- svd(Y)
+    rank <- min(rank, sum(sol$d > ZERO))
+    ax.names <- paste("CCA", seq_along(sol$d), sep = "")
+    colnames(sol$u) <- ax.names
+    colnames(sol$v) <- ax.names
+    names(sol$d) <- ax.names
+    rownames(sol$u) <- rownames(X)
+    rownames(sol$v) <- colnames(X)
+    if (rank) {
+      CCA <- list(eig = sol$d[1:rank]^2)
+      CCA$u <- sweep(as.matrix(sol$u[, 1:rank, drop = FALSE]), 
+        1, 1/sqrt(rowsum), "*")
+      CCA$v <- sweep(as.matrix(sol$v[, 1:rank, drop = FALSE]), 
+        1, 1/sqrt(colsum), "*")
+      wa.eig <- sweep(Xbar %*% sol$v[, 1:rank, drop = FALSE], 
+        1, 1/sqrt(rowsum), "*")
+      CCA$wa <- sweep(wa.eig, 2, 1/sol$d[1:rank], "*")
+      oo <- Q$pivot
+      if (!is.null(pCCA$rank)) 
+        oo <- oo[-(1:pCCA$rank)] - ncol(Z.r)
+      oo <- oo[1:qrank]
+      if (length(oo) < ncol(Y.r)) 
+        CCA$alias <- colnames(Y.r)[-oo]
+      xx <- Y.r[, oo, drop = FALSE]
+      CCA$biplot <- (1/sqrt(colSums(xx^2))) * crossprod(xx, 
+        sol$u[, seq_len(rank), drop = FALSE])
+      CCA$rank <- rank
+      CCA$qrank <- qrank
+      CCA$tot.chi <- sum(CCA$eig)
+      CCA$QR <- Q
+      CCA$envcentre <- attr(Y.r, "centre")
+      CCA$Xbar <- Xbar
+    }
+    else {
+      CCA <- list(eig = 0, rank = rank, qrank = qrank, 
+        tot.chi = 0, QR = Q, Xbar = Xbar)
+      u <- matrix(0, nrow = nrow(sol$u), ncol = 0)
+      v <- matrix(0, nrow = nrow(sol$v), ncol = 0)
+      CCA$u <- CCA$wa <- u
+      CCA$v <- v
+      CCA$biplot <- matrix(0, 0, 0)
+      CCA$alias <- colnames(Y.r)
+    }
+    Xbar <- qr.resid(Q, Xbar)
+    if (exists("exclude.spec")) {
+      attr(CCA$v, "na.action") <- exclude.spec
+    }
+  }
+  Q <- qr(Xbar)
+  sol <- svd(Xbar)
+  ax.names <- paste("CA", seq_along(sol$d), sep = "")
+  colnames(sol$u) <- ax.names
+  colnames(sol$v) <- ax.names
+  names(sol$d) <- ax.names
+  rownames(sol$u) <- rownames(X)
+  rownames(sol$v) <- colnames(X)
+  rank <- min(Q$rank, sum(sol$d > ZERO))
+  if (rank) {
+    CA <- list(eig = sol$d[seq_len(rank)]^2)
+    CA$u <- sweep(as.matrix(sol$u[, seq_len(rank), drop = FALSE]), 
+      1, 1/sqrt(rowsum), "*")
+    CA$v <- sweep(as.matrix(sol$v[, seq_len(rank), drop = FALSE]), 
+      1, 1/sqrt(colsum), "*")
+    CA$rank <- rank
+    CA$tot.chi <- sum(CA$eig)
+    CA$Xbar <- Xbar
+  }
+  else {
+    CA <- list(eig = 0, rank = rank, tot.chi = 0, Xbar = Xbar)
+    CA$u <- matrix(0, nrow(sol$u), 0)
+    CA$v <- matrix(0, nrow(sol$v), 0)
+  }
+  if (exists("exclude.spec")) {
+    attr(CA$v, "na.action") <- exclude.spec
+  }
+  call <- match.call()
+  call[[1]] <- as.name("cca")
+  if (!is.null(pCCA) && pCCA$tot.chi == 0) 
+    pCCA$rank <- 0
+  sol <- list(call = call, grand.total = gran.tot, rowsum = rowsum, 
+    colsum = colsum, tot.chi = tot.chi, pCCA = pCCA, CCA = CCA, 
+    CA = CA)
+  sol$method <- "cca"
+  sol$inertia <- "mean squared contingency coefficient"
+  class(sol) <- "cca"
+  sol
+}
 ```
 
 ## Negative binomial
@@ -5991,11 +6174,11 @@ save(resList0, file = "RCMsim/resList0.RData")
 
 ```{r resList0 sampleBiplot, eval = FALSE, purl = FALSE}
 #A sample biplot
-resList0Rows = lapply(RCMresList0, extractRows)
+resList0Rows = lapply(resList0, extractRows)
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList0))
 obj = resList0Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+lapply(names(obj),function(x){plot(obj[[x]], main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
 # plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
 # plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
 # plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
@@ -6003,12 +6186,12 @@ lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "
 # plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
 rm(ID, obj)
 par(mfrow = c(1,1))
-# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
 
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList0))
 obj = resList0Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
 # plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
 # plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
 # plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
@@ -6020,39 +6203,21 @@ par(mfrow = c(1,1))
 #PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
 ```
   
-```{r resList0Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
-sil0  = lapply(resList0Rows, function(x){
-  sapply(x, silhouette, clusters = groupFactor)
-})
-meanSil0 = sapply(sil0, function(x){
-  colMeans(x)
-})
-meanSil0df = melt(meanSil1, value.name = "Silhouette", varnames = c("Method"))
-boxplot(Silhouette~Method, main = "Mean silhouettes by method", data = meanSil0df)
-meansSil0 = tapply(meanSil0df$Silhouette, meanSil0df$Method, mean)
-points(meansSil0, col="red", pch=18, cex = 1.6)
-```
 
-```{r resList1Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
-dist1  = sapply(resList1Rows, function(x){
-  sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
-})
-meanDist1df = melt(dist1, value.name = "DistanceRatio", varnames = c("Method"))
-boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist1df)
-meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
-points(meansDist, col="red", pch=18, cex = 1.6)
-```
-
-```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
+```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
 par(mar = c(4,4,4,4))
-cor1 = lapply(1:3, function(Dim){mapply(resList0Rows, datList1, FUN = function(x,z){
-  libSizes = rowSums(z)
-  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)})
-}, SIMPLIFY = TRUE)})
-cor1df = lapply(cor1, melt, value.name = "Correl", varnames = c("Method"))
+cor0 = lapply(1:3, function(Dim){
+  rbind(
+  mapply(resList0Rows, datList0, FUN = function(x,z){
+  libSizes = rowSums(z$dataMat)
+  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)}) 
+ }, SIMPLIFY = TRUE),
+ "Control" = replicate(length(datList0),cor(rnorm(length(libSizes)), libSizes)))}) #Include a control
+
+cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
 par(mfrow = c(1,3))
 for (i in 1:3){
-data = cor1df[[i]]
+data = cor0df[[i]]
 boxplot(Correl ~ Method, main = paste("Correlations for row scores \n with library sizes for dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
 meansCor = tapply(data$Correl, data$Method, mean)
 points(meansCor, col="red", pch=18, cex = 1.6)
@@ -6109,9 +6274,12 @@ CodaResList1 = lapply(datList1, CoDa)
 CodaScaledResList1 = lapply(datList1, CoDa, scale = TRUE)
 BCresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
 JSDresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCresList1, JSDresList1,
-                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD){
-                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD)
+#With relative abundances
+BCresList1Rel = lapply(datList1mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+JSDresList1Rel = lapply(datList1mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
+resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCresList1, JSDresList1, BCresList1Rel, JSDresList1Rel,
+                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel, JSDrel){
+                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD, BCrel = BCrel, JSDrel  =JSDrel)
                   }, 
                   SIMPLIFY = FALSE
 )
@@ -6245,15 +6413,19 @@ if(!file.exists(file = "RCMsim/resList2.RData")){
 RCMresList2 = mclapply(mc.cores=4, datList1, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
 })
-datList2mat = lapply(RCMresList2, function(x){x$X})
+datList2mat = lapply(datList2, function(x){x$dataMat})
 CAresList2 = lapply(datList2mat, caSVD)
 CodaResList2 = mclapply(mc.cores=1,datList2mat, CoDa)
 CodaScaledResList2 = lapply(datList2mat, CoDa, scale = TRUE)
 BCresList2 = lapply(datList2mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
 JSDresList2 = lapply(datList2mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-resList2 = mapply(RCMresList2, CAresList2, CodaResList2, CodaScaledResList2, BCresList2, JSDresList2,
-                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD){
-                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD)
+#With relative abundances
+BCresList2Rel = lapply(datList2mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+#For JSD the relative abundances do not make any difference, it works on relative abundances anyway!
+resList2 = mapply(RCMresList2, CAresList2, CodaResList2, CodaScaledResList2, BCresList2, JSDresList2, 
+                  BCresList2Rel, 
+                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel){
+                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD, BCrel = BCrel)
                   }, 
                   SIMPLIFY = FALSE
 )
@@ -6264,18 +6436,18 @@ save(resList2, file = "RCMsim/resList2.RData")
 ```{r resList2 sampleBiplot, eval = FALSE, purl = FALSE}
 #A sample biplot
 resList2Rows = lapply(resList2, extractRows)
-par(mfrow = c(2,3), mar = c(3,3,3,3))
+par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList2))
 obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", type = "s")})
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
 rm(ID, obj)
 par(mfrow = c(1,1))
 # In this setting, the RCM really appears to outperform the other methods
 
-par(mfrow = c(2,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList1))
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList2))
 obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", type = "s")})
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
 # plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
 # plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
 # plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
@@ -6311,12 +6483,14 @@ meansDist = tapply(meanDist2df$DistanceRatio, meanDist2df$Method, mean)
 points(meansDist, col="red", pch=18, cex = 1.6)
 ```
 
+RCM comes out as best, CA as worst
+
 ```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
 par(mar = c(4,4,4,4))
-cor2 = lapply(1:3, function(Dim){mapply(resList2Rows, datList2mat, FUN = function(x,z){
+cor2 = lapply(1:3, function(Dim){rbind(mapply(resList2Rows, datList2mat, FUN = function(x,z){
   libSizes = rowSums(z)
   sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)})
-}, SIMPLIFY = TRUE)})
+}, SIMPLIFY = TRUE), "Control" = replicate(length(datList0),cor(rnorm(length(libSizes)), libSizes)))}) #Include a control
 cor2df = lapply(cor2, melt, value.name = "Correl", varnames = c("Method"))
 par(mfrow = c(1,3))
 for (i in 1:3){
@@ -6327,9 +6501,10 @@ points(meansCor, col="red", pch=18, cex = 1.6)
 abline(h=0, lty = "dashed")
 rm(data, meansCor)
 }
+#Write standard functions for these things!
 ```
 
-The CoDa method is clearly affected by the library sizes
+The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances, but not PCoA.
 
 ## Constrained RC(M)
 
