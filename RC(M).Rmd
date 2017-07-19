@@ -532,7 +532,7 @@ However, this model is overparametrized: $s_{jk}$ and $f_{jk}$ both model the re
 
 For the response function previously a quadratic function (Gaussian on count scale) has been proposed but this may not be realistic. Also the setting is different: we are looking for response function that maximize the __departure from independence__, no longer the abundances themselves! In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). For any response function with $q$ parameters $\boldsymbol{\beta}_j$ for every taxon $j$ the mean equals:
 
-$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) .$$
+$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i}|\boldsymbol{\beta}_j \big) .$$
 
 Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters $q$ estimated per response function $f_j$ is much smaller than the number of samples $n$.
 
@@ -562,6 +562,8 @@ $$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \bet
 
 ### Restricitions
 
+#### Envrionmental gradient
+
 The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
 
 $$\boldsymbol{\alpha}_k^t\boldsymbol{\alpha}_k = \mathbf{1}$$
@@ -571,7 +573,20 @@ One restriction I intended to include but which turns out to be a very bad idea 
 
 $$\boldsymbol{\alpha}_k^t\mathbf{1} = \mathbf{0}$$
 
-This would force the parameter of a single continuous covariate to be 0, the parameters of two continuous variables to be each other's opposite. In short it is not very desirable.
+This would force the parameter of a single continuous covariate to be 0, the parameters of two continuous variables to be each other's opposite. In short it is not very desirable and is not implemented.
+
+#### Response function
+
+The parameters of the response functions are restricted as follows (for linear and quadratic response functions):
+
+$$\boldsymbol{\beta}_1^t\boldsymbol{\beta}_1 = \boldsymbol{\beta}_0^t\boldsymbol{\beta}_0 = 1$$
+and for quadratic response functions:
+
+$$\boldsymbol{\beta}_2^t\boldsymbol{\beta}_2 = 1$$
+
+Again, only the $\psi$ parameters can grow in size to reflect the importance of the dimension.
+
+Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the response functions without offsets (all $\beta_{0j} = 0$)? This means that if the environmental scores equals zero, there is no departure from independence. However, this does not give species fully the chance to react in a different way to the environmental gradient. For a certain value, some species might depart from independence while others might not. Therefore we leave $\beta_{0j}$ to eb freely estimated, under the variance 1 restriction.
 
 #### Restricitons: Categorical variables
 
@@ -694,7 +709,7 @@ The interpretation of the triplot is different from the one from Zhu _et al._ (2
  - The components of $\alpha_k$ are plotted as arrows and represent the extent to which the covariates contribute to the departure from independence in dimension $k$. Categorical variables are centered, all their levels are shown. For a scale-free solution, the continuous variables should be centered and scaled. Should the dummy variables not also be normalized then? QUESTION!
  - For the samples, the environmental scores are plotted as points and represent the values of the product of the environmental gradient with their covariates. Samples close together in one dimension come from similar environments, considering that environmental gradient.
  - The plot for the taxa depends on the response function used. 
-  * In case of a linear response functionwe can plot the $\beta_1$ parameters as arrows. The projection of $\boldsymbol{beta}_{1}$ onto $\boldsymbol{alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model.
+  * In case of a linear response functionwe can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence. The direction and size of the arrow then depends purely on $\beta_{1j}$. The projection of this vector onto $\boldsymbol{alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model.
   * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point. If this is a minimum, this represents the value of the environmental score with the smallest departure from indepence, in case of a maximum the largest departure. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation).
   * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples.
   
@@ -1603,13 +1618,14 @@ if(!is.null(NBRCM)){
  cMat = rbind(cMat, t(CCA$v[,newK, drop=FALSE]))
  psis = c(psis, CCA$eig[newK])
 } else {
-  cMat = t(CCA$v)[1:k,,drop=FALSE]
+  cMat = matrix(1,k,p)#t(CCA$v)[1:k,,drop=FALSE]
   psis = CCA$eig[1:k]
 }
 
-alphaRec = array(0, dim=c(d,k, maxItOut))
+alphaRec = array(0, dim=c(d, k, maxItOut))
 v = switch(responseFun, linear = 2, quadratic = 3, 1) #Number of parameters per taxon
 NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
+NB_params = if(responseFun=="linear") {vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))})}
 NB_params_noLab = matrix(0.1,v,k) #Initiate parameters of the response function, ignoring taxon-labels
   
  if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
@@ -1630,7 +1646,7 @@ nLambda1s = NROW(centMat)
   cat("Dimension" ,KK, "is being esimated \n")
   
   #Modify offset if needed
-  if(KK>1){modMat = exp(getRowMatConstr(v = v, NB_params = NB_params[,,KK-1], covariates = covariates, alpha = alpha[, KK-1]))
+  if(KK>1){modMat = exp(getRowMatConstr(responseFun = responseFun, NB_params = NB_params[,,KK-1], covariates = covariates, alpha = alpha[, KK-1]))
   muMarg = muMarg * if(KK==2) {modMat} else {apply(modMat, 3, prod)}
   }
 
@@ -1653,7 +1669,7 @@ nLambda1s = NROW(centMat)
   cMatOld = cMat[KK,]
   
   #The matrix of row scores
-  rowMat = getRowMatConstr(v = v, NB_params = NB_params[,,KK], covariates = covariates, alpha = alpha[, KK])
+  rowMat = getRowMatConstr(responseFun = responseFun, NB_params = NB_params[,,KK], covariates = covariates, alpha = alpha[, KK])
 
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
   if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
@@ -1668,35 +1684,35 @@ regPsis = rowMultiply(rowMat,cMat[KK,])
 
 psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta =  thetasMat , X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method = jacMethod)$x)
 #Column scores
-if (verbose) cat("\n Estimating column scores \n")
-regCol = rowMat*psis[KK]
-tmpCol = nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
-#This one has some difficulties converging, try some alternatives
-
-if(tmpCol$termcd!=1){
-  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "hook", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
-}
-
-if(tmpCol$termcd!=1){
-  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "gline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
-}
-
-if(tmpCol$termcd!=1){
-  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "cline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
-}
-
-if(tmpCol$termcd!=1){
-  tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "qline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
-}
-
-
-cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
-cMat[KK,] = tmpCol$x[1:p]
-lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
-#Normalize (speeds up algorithm if previous step had not converged)
-
-cMat[KK,] = cMat[KK,] - sum(cMat[KK,] * colWeights)/sum(colWeights) 
-cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
+# if (verbose) cat("\n Estimating column scores \n")
+# regCol = rowMat*psis[KK]
+# tmpCol = nleqslv(fn = dNBllcol, x = c(t(cMat[KK,]), lambdaCol[idK]), thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+# #This one has some difficulties converging, try some alternatives
+# 
+# if(tmpCol$termcd!=1){
+#   tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "hook", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+# }
+# 
+# if(tmpCol$termcd!=1){
+#   tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "gline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+# }
+# 
+# if(tmpCol$termcd!=1){
+#   tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "cline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+# }
+# 
+# if(tmpCol$termcd!=1){
+#   tmpCol = nleqslv(fn = dNBllcol, x = tmpCol$x, thetas =  thetasMat , X = X, reg = regCol, muMarg = muMarg, k = KK,  global = "qline", control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], constrained = TRUE)
+# }
+# 
+# 
+# cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
+# cMat[KK,] = tmpCol$x[1:p]
+# lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
+# #Normalize (speeds up algorithm if previous step had not converged)
+# 
+# cMat[KK,] = cMat[KK,] - sum(cMat[KK,] * colWeights)/sum(colWeights) 
+# cMat[KK,] = cMat[KK,]/sqrt(sum(colWeights * cMat[KK,]^2))
 
 #Row scores
   if (verbose) cat("\n Estimating environmental gradient \n")
@@ -1710,7 +1726,6 @@ if(verbose)  cat(ifelse(tmpAlpha$converged, "Row scores converged \n", "Row scor
   if(analytic) lambdasAlpha = tmpAlpha$lambdasAlpha
 
 #Normalize (speeds up algorithm if previous step had not converged)
-alpha[,KK] = alpha[,KK] - mean(alpha[,KK]) 
 alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
 
 #Store intermediate estimates
@@ -1740,7 +1755,7 @@ alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
    returnList = list(converged = convergence, cMat=cMat, psis = psis, thetas = thetas, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,  
        alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab,
        libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), 
-       confounders = confounders, confParams = confParams)
+       confounders = confounders, confParams = confParams, responseFun = responseFun)
   }
     if(!all(convergence)){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
@@ -3514,17 +3529,15 @@ return(invisible())
   # par(tmp)
 }
 # A ggplot2-version
-PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="black", plotArrows =TRUE, plotLabels = FALSE) {
+PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="blue", plotTaxa = FALSE) {
     #Retrieve dots (will be passed on to aes())
     dotList=list(...)
     constrained = !is.null(RCMfit$covariates)
     if(constrained){
-      dataSam <- data.frame(RCMfit$covariates %*% RCMfit$alpha[,Dim]) 
-    #Construct datafame for samples
-    
+      dataSam <- data.frame(RCMfit$covariates %*% RCMfit$alpha[,Dim] %*% diag(RCMfit$psis[Dim]))
     } else {
-    dataSam <- data.frame(RCMfit$rMat[, Dim] %*% diag(RCMfit$psis[Dim]))
-    }
+        dataSam <- data.frame(RCMfit$rMat[, Dim] %*% diag(RCMfit$psis[Dim]))
+      }
     names(dataSam)=paste0("Dim", Dim)
     
     #Get the colours
@@ -3539,17 +3552,42 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     }  
 
     #Construct dataframe for taxa
-    dataTax = data.frame(
-      if(constrained) {t(RCMfit$cMat[Dim,]*RCMfit$psis[Dim])}  else {t(RCMfit$cMat[Dim,])})
-    arrowLengths = apply(dataTax,1,function(x){sqrt(sum(x^2))})
+    
+      if(constrained) {
+        if(RCMfit$responseFun=="linear"){
+          dataTax = data.frame(
+            origin1 = -RCMfit$NB_params[1,,Dim[1]]/RCMfit$NB_params[2,,Dim[1]],
+            origin2 = -RCMfit$NB_params[1,,Dim[2]]/RCMfit$NB_params[2,,Dim[2]],
+            slope1 = RCMfit$NB_params[2,,Dim[1]], #The gradient
+            slope2 = RCMfit$NB_params[2,,Dim[2]]
+            ) 
+          dataTax = within(dataTax, {
+            end1 = origin1 + slope1 
+            end2 = origin2 + slope2
+          })
+        } else if (RCMfit$responseFun=="quadratic"){
+          dataTax =data.frame(
+            apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
+              -x[1]/(2*x[2])
+            })) #The extremum
+          names(dataTax) = c("end1","end2")
+        }
+      } else {
+          dataTax = data.frame(t(RCMfit$cMat[Dim,]))
+          names(dataTax) = c("end1","end2")
+          }
+    arrowLengths = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
     id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
-    if(is.null(scalingFactor)){
-    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(dataTax[id,]))*0.99
-    }
     #Filter out small arrows
-    dataTax = dataTax[id,] * scalingFactor
-    names(dataTax)=paste0("Dim", Dim)
-    if(plotLabels) dataTax$labels = rownames(dataTax)
+    dataTax = dataTax[id,] 
+    if(is.null(scalingFactor)){
+    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("slope1","slope2")]))*0.925
+    }
+    dataTax = within(dataTax, { #Scale the arrows
+            end1 = origin1 + slope1 * scalingFactor
+            end2 = origin2 + slope2 * scalingFactor
+          })
+    if(plotTaxa) dataTax$labels = sub(" ", "\n",colnames(RCMfit$X)[id])
 
     plot = ggplot(dataSam, aes_string(x="Dim1", y="Dim2", col = "colourPlot", dotList)) + 
       geom_point(size=size) + 
@@ -3569,19 +3607,27 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     if(length(arrowCol)>1){
      arrowCol = Palette[c(arrowCol[id])] 
     }
-    if(plotArrows){
-    plot <- plot + geom_segment(data=dataTax, aes_string(x=0, y=0, xend="Dim1", yend = "Dim2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
-    } else if(plotLabels){
-      plot <- plot + geom_text(data=dataTax, aes_string(x="Dim1", y = "Dim2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE)
+    if(plotTaxa && (!constrained || RCMfit$responseFun=="linear")){
+    plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
+    } else{}
+    if(plotTaxa){
+      plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE)
     } else {}
     
     if(constrained){
       #Add variable labels
       varData = data.frame(RCMfit$alpha)
       varData$label = rownames(RCMfit$alpha)
+      scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
+      varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
       plot = plot + geom_text(data = varData, mapping = aes_string(x = "Dim1", y = "Dim2", label = "label"), inherit.aes = FALSE)
     }
-    plot
+    squarePlot(plot)
+}
+squarePlot <- function(plt){
+    return(plt+coord_equal()+
+            expand_limits(x=ggplot_build(plt)$panel$ranges[[1]]$y.range,
+                          y=ggplot_build(plt)$panel$ranges[[1]]$x.range))
 }
 ```
 
@@ -3612,8 +3658,8 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
     sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
     #cat(sampleScore, "\n \n")
     design = switch(responseFun,
-                     linear = model.matrix(~sampleScore),#With intercept
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2)),
+                     linear = model.matrix(~  sampleScore),#Without intercept
+                     quadratic = model.matrix(~ sampleScore + I(sampleScore^2)),
                     stop("Non-parametric model not yet implemented")
                     ) 
 
@@ -3651,8 +3697,8 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   
   sampleScore = CC %*% alpha #A linear combination of the environmental variables yields the sampleScore 
   design = switch(responseFun,
-                     linear = model.matrix(~sampleScore),#With intercept
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2)),
+                     linear = model.matrix(~ sampleScore),#With intercept
+                     quadratic = model.matrix(~ sampleScore + I(sampleScore^2)),
                     stop("Non-parametric model not yet implemented")
                     ) 
   
@@ -3662,8 +3708,6 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
                "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[2,]) - crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) %*% (cMat*NB_params_noLab[2])) ,
                "quadratic" = psi * (
-                 # (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[2,])) + 
-                 #   (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (cMat*NB_params[3,])) * alpha - 
                    rowSums((tcrossprod(crossprod(CC, (X-mu)/(1+mu/thetaMat)),(rowMultiply(NB_params[c(2,3),],cMat)))) * cbind(1,2*alpha)) - 
                    rowSums((crossprod(CC, (X-mu0)/(1+mu0/thetaMat))%*%(outer(cMat, NB_params_noLab[c(2,3)]))) * cbind(1,2*alpha))),
                stop("Unknown response function provided! \n")) + #Restrictions do not depend on response function
@@ -3680,7 +3724,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
 #In the quadratic case the fit is really dependent on starting values
 #--------------------------------------#
 # A function that returns the Jacobian of the likelihood ratio
-LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, ...){
+LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, v, ...){
   # @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
   # @param X: the n-by-p count matrix
   # @param CC: a n-by-d covariate vector
@@ -3701,8 +3745,8 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
   
   sampleScore = CC %*% alpha #A linear combination of the environmental variables yields the sampleScore 
   design = switch(responseFun,
-                     linear = model.matrix(~sampleScore),#With intercept
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2)),
+                     linear = model.matrix(~ sampleScore),#With intercept
+                     quadratic = model.matrix(~ sampleScore + I(sampleScore^2)),
                     stop("Non-parametric model not yet implemented")
                     ) 
   
@@ -3715,14 +3759,14 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
  
   Jac[did,d+nLambda1s+1] = 2 * alpha
 
-  if(responsFun=="linear"){
+  if(responseFun=="linear"){
     tmp = rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,(cMat * NB_params[2,])^2)
     tmp0 = rowMultiply((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2,(cMat * NB_params_noLab[2])^2)
   } else if (responseFun=="quadratic"){
     tmp = tcrossprod((1+X/thetaMat)*mu/(1+mu/thetaMat)^2 , rowMultiply(NB_params[c(2,3),],cMat)^2) 
     tmp0 = ((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2) %*% outer(cMat, NB_params_noLab[c(2,3)])^2
     alphaArray = array(1, dim = c(v,d,d))
-    alphaArray[2,,] = outer(alpha)
+    alphaArray[2,,] = outer(alpha, alpha)
   }
   #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
@@ -3733,7 +3777,7 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
    Jac = Jac + t(Jac)
   Jac[did,did] = switch(responseFun,
                            "linear" = #-psi^2 *(crossprod(CC*c(rowMultiply(tmp,(cMat*NB_params[2,])^2),CC) - crossprod(CC*c(tmp0 %*% (cMat*NB_params[2])^2),CC))
-                           -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)*alphaArray) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1) )) ,
+                           -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1))) ,
                           "quadratic" = -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1)*alphaArray)) 
                                               
   ) 
@@ -3897,15 +3941,17 @@ estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v, nLambda1s, nLambda
   sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the sampleScore (the rMat vector)
   design = switch(responseFun,
                      linear = model.matrix(~sampleScore),
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2))) #With intercept
+                     quadratic = model.matrix(~sampleScore + I(sampleScore^2) )) #With intercept
   
 NB_params = estNBparams(design = design, thetas = thetas[1,], muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, ncols =ncols, initParam = NB_params, v = v)
+
+NB_params = NB_params/sqrt(rowSums(NB_params^2)) #Normalize the parameters
 
 NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, cReg = cReg, X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab, n = n, v = v)
   
  if(analytic){
    
-  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n)$x
+  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v)$x
   Alpha = AlphaTmp[seq_len(d)]
   lambdasAlpha = AlphaTmp[d+seq_len(nLambda)]
 } else {
@@ -3937,7 +3983,7 @@ heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){
 }
 #-------------------------------------------#
 # A function to obtained the matrix of row scores for the constrained case
-getRowMatConstr = function(v, NB_params, alpha, covariates, ...){
+getRowMatConstr = function(v, NB_params, alpha, covariates, responseFun, ...){
   # @param v: an integer, the number of parameters per taxon: the degree of the polynomial + 1
   # @param NB_params: a v-by-p matrix with parameters of the taxon-wise response functions 
   # @param alpha: a d-by-k vector of environmental gradients
@@ -3946,9 +3992,9 @@ getRowMatConstr = function(v, NB_params, alpha, covariates, ...){
   # @return: a n-by-p offset matrix
   
   envir = covariates %*% alpha
-  desMat = model.matrix( switch(as.character(v), 
-                               "2"=as.formula(~envir),
-                               "3" = as.formula(~envir + I(envir^2)), 
+  desMat = model.matrix( switch(responseFun, 
+                               "linear"=as.formula(~envir),
+                               "quadratic" = as.formula(~envir + I(envir^2) ), 
                                stop("Only linear and quadratic response functions supported so far! \n")))
   desMat %*% NB_params
 }
@@ -5528,16 +5574,18 @@ if(!file.exists("zellerSphyRCMconstr.RData")){
 zellerSphyRCMconstr = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis")) # Use smallest possible cndtol!
 save(zellerSphyRCMconstr, file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
-# Cancer clearly dominates the separation, the second dimension splits normal and small adenoma!
 ```
 
 ```{r ZellerConstrainedBiplot, purl=FALSE}
 PCbiplot(zellerSphyRCMconstr)
 PCbiplot(zellerSphyRCMconstr, colour = "Diagnosis")
 PCbiplot(zellerSphyRCMconstr, colour = "Gender")
+PCbiplot(zellerSphyRCMconstr, colour = "Country")
+PCbiplot(zellerSphyRCMconstr, colour = "Age")
+#apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
 ```
 
-Cancer turns out to be the main driver of explained variability
+Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
 
 <!---### Zero-inflated poisson
 
