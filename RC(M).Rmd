@@ -588,7 +588,7 @@ $$\boldsymbol{\beta}_2^t\boldsymbol{\beta}_2 = 1$$
 
 Again, only the $\psi$ parameters can grow in size to reflect the importance of the dimension.
 
-Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the response functions without offsets (all $\beta_{0j} = 0$)? This means that if the environmental scores equals zero, there is no departure from independence. However, this does not give species fully the chance to react in a different way to the environmental gradient. For a certain value, some species might depart from independence while others might not. Therefore we leave $\beta_{0j}$ to eb freely estimated, under the variance 1 restriction.
+Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the response functions without offsets (all $\beta_{0j} = 0$)? This means that if the environmental scores equals zero, there is no departure from independence. However, this does not give species fully the chance to react in a different way to the environmental gradient. For a certain value, some species might depart from independence while others might not. Therefore we leave $\beta_{0j}$ to be freely estimated, under the variance 1 restriction.
 
 #### Restricitons: Categorical variables
 
@@ -654,11 +654,11 @@ $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k
 
 with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wise response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
 
-#### Quadratic response function
+##### Quadratic response function
 
 For a quadratic response function ($f_j(z_i = \mathbf{C}_i\boldsymbol{\alpha}|\boldsymbol{\beta}) = \beta_0 + \beta_1 z_i + \beta_2 z_i^2$) this derivative becomes
 
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i (\beta_{1j}+2 \beta_{2j}\boldsymbol{\alpha}_k) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i (\beta_{1}+2 \beta_{2}\boldsymbol{\alpha}_k) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k}^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i (\beta_{1j}+2 \beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i (\beta_{1}+2 \beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k}^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
 
 For a non-parametric density function this derivative is not available, which which greatly increase the optimization time.
 
@@ -676,9 +676,9 @@ $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alph
 
 and for the quadratic response function these second order derivatives are:
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1j}+ 2\beta_{2j}\boldsymbol{\alpha}_k))^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} + 2\beta_{2j}s_{jk} \mathbf{C}_i \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}\Big) \\- \sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1}+ 2\beta_{2}\boldsymbol{\alpha}_k))^2 \frac{\mu_{ij0}(1+ \frac{x_{ij0}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} + 2\beta_{2}s_{jk} \mathbf{C}_i \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\Big) + 2\lambda_{2k} $$
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk}^2 (\beta_{1j} + 2\beta_{2j}\alpha_{yk})(\beta_{1j} + 2\beta_{2j}\alpha_{y'k}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} \\ 
-- \sum_{i=1}^n  \sum_{j=1}^p s_{jk}^2 (\beta_{1} + 2\beta_{2}\alpha_{yk})(\beta_{1} + 2\beta_{2}\alpha_{y'k}) c_{iy} c_{iy'}\frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1j}+ 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} + 2\beta_{2j}s_{jk} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}\Big) \\- \sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1}+ 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij0}(1+ \frac{x_{ij0}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} + 2\beta_{2}s_{jk} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\Big) + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( s_{jk}^2 (\beta_{1j} + 2\beta_{2j}\alpha_{yk}c_{iy})(\beta_{1j} + 2\beta_{2j}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} + \\ 2\beta_{2j} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} \Big) \\ 
+- \sum_{i=1}^n  \sum_{j=1}^p \Big( s_{jk}^2 (\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} + \\ 2\beta_{2} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} \Big) \Big) + 2\lambda_{2k} $$
 
 The other derivatives are again independent of the response function:
 
@@ -3673,10 +3673,13 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
                "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (NB_params[2,]) - rowSums(crossprod(CC, (X-mu0)/(1+mu0/thetaMat)*NB_params_noLab[2]))) ,
                "quadratic" = psi * ( #ANALYTIC SCORE FUNCTION IS WRONG!!
-                   rowSums(crossprod(CC, (X-mu)/(1+mu/thetaMat)) *(cbind(1,2*alpha) %*% NB_params[c(2,3),])) - 
-                   rowSums(crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) *(cbind(1,2*alpha) %*% matrix(NB_params_noLab[c(2,3)],2,ncols)))),
+                   #rowSums(crossprod(CC, (X-mu)/(1+mu/thetaMat)) *(cbind(1,2*alpha) %*% NB_params[c(2,3),])) - 
+                  crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (NB_params[2,]) +
+                  crossprod(CC * c(sampleScore), (X-mu)/(1+mu/thetaMat)) %*% (NB_params[3,]) * 2  -  
+                  rowSums(crossprod(CC, (X-mu0)/(1+mu0/thetaMat)) *NB_params_noLab[2]) - 
+                  rowSums(crossprod(CC * c(sampleScore), (X-mu0)/(1+mu0/thetaMat)) * NB_params_noLab[3])*2),
                stop("Unknown response function provided! \n")) + #Restrictions do not depend on response function
-                 c(lambda1s %*% centMat)  +
+                 c(lambda1s %*% centMat) +
                  lambda2 * 2 * alpha + 
                  alphaK %*% lambda3
   
