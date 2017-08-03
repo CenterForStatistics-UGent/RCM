@@ -11,7 +11,7 @@ output:
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
 setwd(WD)
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor")
 # Load all required packages and show version
@@ -3731,10 +3731,8 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
     tmp = rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,NB_params[2,]^2)
     tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2 * NB_params_noLab[2]^2
   } else if (responseFun=="quadratic"){
-    tmp = tcrossprod((1+X/thetaMat)*mu/(1+mu/thetaMat)^2 , NB_params[c(2,3),]^2) 
-    tmp0 = ((1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2) %*% matrix(NB_params_noLab[c(2,3)],ncols,2, byrow=TRUE)^2
-    alphaArray = array(1, dim = c(v,d,d))
-    alphaArray[2,,] = outer(alpha, alpha)
+    tmp = (1+X/thetaMat)*mu/(1+mu/thetaMat)^2
+    tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2 
   }
   #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
@@ -3745,10 +3743,17 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
    Jac = Jac + t(Jac)
   Jac[did,did] = switch(responseFun,
                            "linear" = 
-                           -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1))) ,
-                          "quadratic" = -psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1)*alphaArray)) 
-                                              
-  ) 
+                           - psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) 
+                            - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1))) ,
+                          "quadratic" = psi^2 * (
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params[2,]^2) + colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC,1,1)*NB_params[2,]*NB_params[3,]*2) + 
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC*c(sampleScore),1,1)*NB_params[3,]^2*4) +
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params_noLab[2]^2) + colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC,1,1)*NB_params_noLab[2]*NB_params_noLab[3]*2) + 
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC*c(sampleScore),1,1)*NB_params_noLab[3]^2*4)
+) + psi*(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu)/(1+mu/thetaMat)}),CC,1,1)*2*NB_params[3,])-
+colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu0)/(1+mu0/thetaMat)}),CC,1,1)*2*NB_params_noLab[3])
+           ))
+    
   diag(Jac)[did] = diag(Jac)[did] + 2*lambda2
 
   Jac
@@ -3774,6 +3779,13 @@ estNBparamsNoLab = function(design, thetas, muMarg, psi, X, nleqslv.control, ini
      #Without taxon Labels
 nleqslv(x = initParam , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, psi = psi, X = X, control = nleqslv.control, jac = JacCol_constr_noLab, n=n, v=v)$x
 }
+#--------------------------------------#
+# A function to estimate the taxon-wise response functions non-parametrically
+estNPresp = function(sampleScore, muMarg, X, ncols,...){
+  vapply(seq_len(ncols), FUN.VALUE = vector("numeric",v), function(i){
+  locfit.raw(x = sampleScore, y = X[,i], base = muMarg[,i],...)
+})
+  }
 
 #--------------------------------------#
 # A function to evaluate the score function for 1 taxon at the time
@@ -4773,7 +4785,7 @@ The first abbreviation refers to the weighting scheme for the rows(samples), the
 
 \newpage
 
-```{r abSignalPlots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
+```{r abSignalPlots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE, eval=FALSE}
 cols = c("grey", "red","blue","purple","green","brown","cyan","orange","black",  "magenta","yellow","pink", "darkblue","grey75","cadetblue") 
 palette(cols)
 par(mfrow=c(1,1), mar = c(4,4,4,4), mai=c(0,0,0,0))
