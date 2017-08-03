@@ -3530,17 +3530,6 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
             end1 = origin1 + slope1 
             end2 = origin2 + slope2
           })
-        } else if (RCMfit$responseFun=="quadratic"){
-          dataTax =data.frame(
-            apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
-              -x[1]/(2*x[2])
-            })) #The extremum
-          names(dataTax) = c("end1","end2")
-        }
-      } else {
-          dataTax = data.frame(t(RCMfit$cMat[Dim,]))
-          names(dataTax) = c("end1","end2")
-          }
     arrowLengths = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
     id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
     #Filter out small arrows
@@ -3552,6 +3541,40 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
             end1 = origin1 + slope1 * scalingFactor
             end2 = origin2 + slope2 * scalingFactor
           })
+        } else if (RCMfit$responseFun=="quadratic"){
+          dataTax =data.frame(
+            apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
+              -x[1]/(2*x[2])
+            })) #The extremum
+          names(dataTax) = c("end1","end2")
+          dataTax$colour = apply(RCMfit$NB_params[3,,Dim],1, function(x){
+              if(all(x>0)) {
+                return("green")
+              } else if (all(x<0)){
+                return("red")
+              } else {
+                return("brown")
+              }
+            })
+      } else {
+          dataTax = data.frame(t(RCMfit$cMat[Dim,]))
+          names(dataTax) = c("end1","end2")
+      }
+    if(!constrained || RCMfit$responseFun == "quadratic"){
+    arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
+    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+    #Filter out small arrows
+    dataTax = dataTax[id,] 
+    if(is.null(scalingFactor)){
+    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("end1","end2")]))*0.925
+    }
+    dataTax = within(dataTax, { #Scale the arrows
+            end1 = end1 * scalingFactor
+            end2 = end2 * scalingFactor
+          })
+        }
+    }
+
     if(plotTaxa) dataTax$labels = sub(" ", "\n",colnames(RCMfit$X)[id])
 
     plot = ggplot(dataSam, aes_string(x="Dim1", y="Dim2", col = "colourPlot", dotList)) + 
@@ -3574,7 +3597,10 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     }
     if(plotTaxa && (!constrained || RCMfit$responseFun=="linear")){
     plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
-    } else{}
+    } else{
+
+    plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
+    }
     if(plotTaxa){
       plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE)
     } else {}
