@@ -646,7 +646,9 @@ $$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{
 
 with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first to the (k-1)th column, and $f_{NB}$ the density function of the negative binomial distribution.
 
-##### Linear response function
+##### Score equations
+
+###### Linear response function
 
 The first order derivatives becomes (in case of a linear response function, and remember we set $s_{jk} = 1$)
 
@@ -654,7 +656,7 @@ $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k
 
 with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wise response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
 
-##### Quadratic response function
+###### Quadratic response function
 
 For a quadratic response function ($f_j(z_i = \mathbf{C}_i\boldsymbol{\alpha}|\boldsymbol{\beta}) = \beta_0 + \beta_1 z_i + \beta_2 z_i^2$) this derivative becomes
 
@@ -668,13 +670,19 @@ $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\lambda_{
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{2k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1 = 0$$
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{3k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} = 0$$
 
+##### Jacobians
+
+###### Linear response function
+
 The second order derivatives are for the linear response function
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i \beta_{1j})^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i \beta_{1})^2 \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1j})^2 c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1})^2 c_{iy} c_{iy'} \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
 
-and for the quadratic response function these second order derivatives are:
+###### Quadratic response function
+
+For the quadratic response function these second order derivatives are:
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k} \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1j}+ 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}\psi_k + 2\beta_{2j}s_{jk} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}\Big) \\- \psi_k\sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1}+ 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij0}(1+ \frac{x_{ij0}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2}\psi_k + 2\beta_{2}s_{jk} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\Big) + 2\lambda_{2k} $$
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( s_{jk}^2 (\beta_{1j} + 2\beta_{2j}\alpha_{yk}c_{iy})(\beta_{1j} + 2\beta_{2j}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} + \\ 2\beta_{2j} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} \Big) \\ 
@@ -688,6 +696,10 @@ $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_{k} \partial \boldsymbol{\lambda}_{orth,k}} =  \boldsymbol{\alpha}_{-k}$$
 All other second order derivatives equal zero. 
+
+##### Non-parametric response function
+
+The response function $f(\boldsymbol{\alpha}^t\mathbf{C})$ need not have a parametric form. We can also estimate it non-parametrically as in Zhu and Hastie (2005). Like these authross, we use the locfit library. We regress $\frac{X}{exp(\lambda_i+\lambda_j)}$ on $\boldsymbol{\alpha}^t\mathbf{C}$ with a log-link. We limit the surface between this curve and the x-axis to sum to one as a means of normalization, only the importance parameter $\psi$ can differ in size between the different dimensions.
 
 ### Algorithm
 
@@ -713,7 +725,7 @@ The interpretation of the triplot is different from the one from Zhu _et al._ (2
  - The plot for the taxa depends on the response function used. 
   * In case of a linear response functionwe can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence. The direction and size of the arrow then depends purely on $\beta_{1j}$. The projection of this vector onto $\boldsymbol{alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
   * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point. If this is a minimum, this represents the value of the environmental score with the smallest departure from indepence, in case of a maximum the largest departure. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation).
-  * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples.
+  * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
   
 It is clear that the triplot is not trivial to interpret, but then again: neither is a triplot based on CCA.
 
