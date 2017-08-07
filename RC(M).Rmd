@@ -4240,10 +4240,12 @@ tic = proc.time() #Time the calculation
                               confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim), 
                              covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZINBRCM = prevFit, ...))
   if(classDat=="phyloseq"){tmp$physeq = prune_samples(rownames(X),prune_taxa(colnames(X),dat)) } 
-  within(tmp, {
+  tmp = within(tmp, {
     runtimeInMins = if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} + (proc.time()-tic)[1]/60 # Sum the runtimes
     k = k #Store number of dimensions
   })
+  class(tmp) = "RCM"
+  tmp
 }
 
 #Likelihoods-------------------------------------
@@ -5286,9 +5288,12 @@ save(datList0,  file = "RCMsim/datList0.RData")
 
 # Results
 if(!file.exists(file = "RCMsim/resList0.RData")){
+  if(!file.exists("RCMsim/resList0RCM.RData")){
 RCMresList0 = mclapply(mc.cores=4, datList0, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
-})
+  })
+save(RCMresList0, file = "RCMsim/resList0RCM.RData")
+} else { load("RCMsim/resList0RCM.RData")}
 resList0 = otherAnalyses(RCMresList0)
 save(resList0, file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
@@ -5378,7 +5383,6 @@ lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "
 rm(ID, obj)
 par(mfrow = c(1,1))
 # It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
-
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
@@ -5472,11 +5476,6 @@ par(mfrow = c(2,4), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList2))
 obj = resList2Rows[[ID]]
 lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
-# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
-# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
-# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
-# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
-# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
 rm(ID, obj)
 par(mfrow = c(1,1))
 
@@ -5499,6 +5498,56 @@ plotRowCor(resList2Rows, datList2)
 ```
 
 The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
+
+##### Other distributions
+
+We also simulate datasets from other distributions than the negative binomial to see how the method behaves when its distributional assumptions are violated
+
+###### Zero-inflated negative binomial distribution
+
+The zero-inflated negative binomial (ZINB) distribution was used by Zhang _et al._ (2016) for differential abundance testing. Our own goodness-of-fit tests indicate that for 14\% of the taxa, the ZINB provides a better fit than the regular NB
+
+```{r simZINB}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 10
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactorZINB = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+if(!file.exists(file = "RCMsim/datListZINB.RData")){
+datListZINB = mclapply(mc.cores=4, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+})
+save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
+} else {load(file = "RCMsim/datList2.RData")}
+```
 
 ## Constrained RC(M)
 
