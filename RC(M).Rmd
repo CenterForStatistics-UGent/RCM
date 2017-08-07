@@ -10,7 +10,6 @@ output:
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
-setwd(WD)
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit")
@@ -5271,7 +5270,7 @@ load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
 
 if(!file.exists(file = "RCMsim/datList0.RData")){
-datList0 = mclapply(mc.cores=4, 1:reps, function(i){
+datList0 = mclapply(mc.cores=1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled = sample(rhoEst, p)
 thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
@@ -5279,7 +5278,7 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
 list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
 })
@@ -5298,7 +5297,6 @@ resList0 = otherAnalyses(RCMresList0)
 save(resList0, file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
 ```
-
 
 ```{r resList0 sampleBiplot, purl = FALSE}
 #A sample biplot
@@ -5349,7 +5347,7 @@ load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
 
 if(!file.exists(file = "RCMsim/datList1.RData")){
-datList1 = mclapply(mc.cores=4, 1:reps, function(i){
+datList1 = mclapply(mc.cores=1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled = sapply(1:nPop, function(x){tmp=sample(rhoEst, p); tmp/sum(tmp)})[,groupInd]
 thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
@@ -5357,7 +5355,7 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE)),n,p)
 list(dataMat = dataMat, group = groupFactor, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
 })
 save(datList1,groupFactor,  file = "RCMsim/datList1.RData")
@@ -5365,9 +5363,12 @@ save(datList1,groupFactor,  file = "RCMsim/datList1.RData")
 
 # Results
 if(!file.exists(file = "RCMsim/resList1.RData")){
+  if(!file.exists("RCMsim/resList1RCM.RData")){
 RCMresList1 = mclapply(mc.cores=4, datList1, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
-})
+  })
+save(RCMresList1, file = "RCMsim/resList1RCM.RData")
+} else {load("RCMsim/resList1RCM.RData")}
 resList1 = otherAnalyses(RCMresList1)
 save(resList1, file = "RCMsim/resList1.RData")
 } else {load(file = "RCMsim/resList1.RData")}
@@ -5424,7 +5425,7 @@ groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactor2 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
 
 if(!file.exists(file = "RCMsim/datList2.RData")){
-datList2 = mclapply(mc.cores=4, 1:reps, function(i){
+datList2 = mclapply(mc.cores = 1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
@@ -5444,7 +5445,7 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
 list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
 })
@@ -5453,9 +5454,12 @@ save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
 
 # Results
 if(!file.exists(file = "RCMsim/resList2.RData")){
+  if(!file.exists("RCMsim/resList2RCM.RData")){
 RCMresList2 = mclapply(mc.cores=4, datList2, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
-})
+  })
+save(RCMresList2, file = "RCMsim/resList2RCM.RData")
+} else {load("RCMsim/resList2RCM.RData")}
 resList2 = otherAnalyses(RCMresList2)
 save(resList2, file = "RCMsim/resList2.RData")
 } else {load(file = "RCMsim/resList2.RData")}
@@ -5507,7 +5511,7 @@ We also simulate datasets from other distributions than the negative binomial to
 
 The zero-inflated negative binomial (ZINB) distribution was used by Zhang _et al._ (2016) for differential abundance testing. Our own goodness-of-fit tests indicate that for 14\% of the taxa, the ZINB provides a better fit than the regular NB
 
-```{r simZINB}
+```{r simZINB, eval=FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -5519,9 +5523,10 @@ FC = 10
 
 groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactorZINB = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+load(file="/home/stijn/PhD/Biplots/Zicoef.RData")
 
 if(!file.exists(file = "RCMsim/datListZINB.RData")){
-datListZINB = mclapply(mc.cores=4, 1:reps, function(i){
+datListZINB = mclapply(mc.cores=1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
@@ -5537,16 +5542,63 @@ rhosSampled = rhosSampled00[,groupInd]
 IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
 
 thetasSampled = sample(thetaEst, p) 
+propSampled = expit(sample(ZIcoef, p))
 libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+dataMat = matrix(rzinegbin(prod(dim(meanMat)), munb = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE), pstr0 = matrix(propSampled,n,p,byrow = TRUE)),n,p)
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, propSampled = propSampled)
 })
 save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
-} else {load(file = "RCMsim/datList2.RData")}
+} else {load(file = "RCMsim/datListZINB.RData")}
+```
+
+###### Dirichelt-multinomial
+
+The use of the Dirichlet multinomial for microbiome data was proposed by La Rosa _et al._ (2012). Although it is very restrictive in terms of variance and covariance structures, we include it here because of its relative popularity.
+
+```{r simDM, eval = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 10
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactorDM = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+load("/home/stijn/PhD/American Gut/AGdm.RData")
+
+if(!file.exists(file = "RCMsim/datListZINB.RData")){
+datListZINB = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetaDM = AGdm$theta
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+dataMat = t(sapply(libSizesSampled, Dirichlet.multinomial, shape = rhosSampled*(1-theta)/theta))
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, propSampled = propSampled)
+})
+save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
+} else {load(file = "RCMsim/datListZINB.RData")}
 ```
 
 ## Constrained RC(M)
@@ -5815,7 +5867,7 @@ Plot the influence vs. observed abundances
 par(mfrow=c(2,4))
 lapply(names(infl1), function(x){
   id = sample(1:prod(dim(solListNS[[x]]$X)), size=10000)
-plot(log10(solListNS[[x]]$X+1)[id], infl1[[x]]$infl[id], ylab= "Influence", xlab = "log10(Counts +1)", main=x)
+plot(log10(solListNS[[x]]$X+1)[id]setwd(WD), infl1[[x]]$infl[id], ylab= "Influence", xlab = "log10(Counts +1)", main=x)
 abline(v=0, col="red")
 })
 ```
