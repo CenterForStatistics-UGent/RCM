@@ -611,7 +611,7 @@ We again have $g$ degrees of freedom. It is this $\boldsymbol{\alpha}_k'$ that w
 
 ### Scaling
 
-To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. We might have to do the same for the categorical variables, for complete comparability? There are a lot of possible solutions (see e.g. SOCIOECONOMIC STATUS MEASUREMENT WITH DISCRETE PROXY VARIABLES: IS PRINCIPAL COMPONENT ANALYSIS A RELIABLE ANSWER? by Kolenikov and Angeles, 2009) for the PCA case. For now we do not normalize the categorical variables, but this means we may not be able to compare components of $\boldsymbol{\alpha}$ from continuous and categorical variables.
+To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. this means that their corresponding elements of $\boldsymbol{\alpha}$ represent the contribution to the environmental score of one standard deviation away from the mean of this variable (in case of linear response functions). A perfect quantitative comparison to the magnitude of the values of the paramaters of the dummies of the categorical variables will never be possible. In our case, with 0-1 dummy coding, equal parameters for a dummy and a continuous variable imply that this level of the categorical variable contributes as much to the environmental score as one standard deviation away from the overall mean of the continuous variable (again in case of linear response functions).
 
 ### Environmental gradient
 
@@ -3730,7 +3730,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
 
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
                "linear" = psi * (crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (NB_params[2,]) - rowSums(crossprod(CC, (X-mu0)/(1+mu0/thetaMat)*NB_params_noLab[2]))) ,
-               "quadratic" = psi * ( #ANALYTIC SCORE FUNCTION IS WRONG!!
+               "quadratic" = psi * ( #ANALYTIC SCORE FUNCTION IS WRONG!! Presumably only when alpha !=0
                    #rowSums(crossprod(CC, (X-mu)/(1+mu/thetaMat)) *(cbind(1,2*alpha) %*% NB_params[c(2,3),])) - 
                   crossprod(CC, (X-mu)/(1+mu/thetaMat)) %*% (NB_params[2,]) +
                   crossprod(CC * c(sampleScore), (X-mu)/(1+mu/thetaMat)) %*% (NB_params[3,]) * 2  -  
@@ -4406,6 +4406,1125 @@ con2DmatLin$alpha
 con2DmatQuad$alpha
 con2DmatNon$alpha
 ```
+
+#### Real data examples
+
+Finally we also apply the method to real datasets
+
+```{r RC(M)_NB real datasets, purl = FALSE, eval = FALSE}
+realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease" )
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+load("/home/stijn/PhD/Simulations/data/AGphylo.RData")
+fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
+resListRCM = lapply(fileNames, function(x){
+  load(x)
+  RCMres
+})
+
+names(resListRCM) = realNames
+
+sapply(resListRCM,function(x){x$converged}) # All converged
+sapply(resListRCM,function(x){x$runtime})
+sapply(resListRCM,function(x){x$iter})
+```
+
+The HMP dataset
+
+```{r HMP plot, purl = FALSE, eval = FALSE}
+SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
+  levels(get_variable("RUNCENTER",physeq=x))
+}))))
+#Give similar colours for the same sequencing center
+cols = c("cadetblue","cyan", "darkblue","blue","magenta","orange","yellow","brown","black",  "grey80","grey70","pink") 
+palette(cols)
+physeqListV13_SC = lapply(physeqListV13, function(x){
+  sample_data(x)[["RUNCENTER"]] = factor(sample_data(x)[["RUNCENTER"]], levels = SClevels, labels = SClevels)
+  x
+})
+
+phyList = c(AGP = AGphylo, physeqListV13_SC)
+
+resListRCM2 = lapply(realNames, function(x){
+  tmp = resListRCM[[x]]
+  tmp$physeq = prune_samples(rownames(tmp$X),prune_taxa(colnames(tmp$X), phyList[[x]]))
+  tmp
+}) 
+
+names(resListRCM2) = realNames
+
+par(mfrow = c(2,4))
+lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "sex", main=x)})
+par(mfrow = c(2,4))
+lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-0.9,-0.1))})
+```
+
+We've discovered a clear impact of the runcenter!
+Now let's filter out the impact of this variable
+
+```{r HMP filter out variable effect, purl=FALSE, eval = FALSE}
+K=2
+nleqslv.control = list()
+#Group the runcenters together
+
+RCMhmpFilt = lapply(physeqListV13, function(x){
+  runcenters = data.frame(sample_data(x))[ "RUNCENTER"]
+runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("BCM","BI,BCM","BCM,BI","BCM,WUGC", "BCM,JCVI")] = "BCM"
+runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("JCVI","JCVI,BI","JCVI,WUGC")] = "JCVI"
+runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("WUGC,JCVI","WUGC","WUGC,BCM")] = "WUGC"
+sample_data(x) = data.frame(sample_data(x) ,RUNCENTER2 = runcenters[[1]])
+x})
+
+physeq = RCMhmpFilt[["Buccal.mucosa"]]
+conf = get_variable(physeq, "RUNCENTER2")
+confDrop = droplevels(conf)[[1]]
+
+# antNarJob = mcparallel(  RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2"))
+# antNar = mccollect(antNarJob, wait=FALSE)[[1]]
+# save(antNar, file="antNarConfounders.RData")
+
+if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
+filtResJob = mcparallel(lapply(RCMhmpFilt, function(x){
+  RCM(x, distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2")
+  }))
+filtRes = mccollect(filtResJob, wait=FALSE)[[1]]
+save(filtRes, file="/home/stijn/PhD/Biplots/filtResHMP.RData")
+} else {load(file="/home/stijn/PhD/Biplots/filtResHMP.RData")}
+par(mfrow = c(3,3))
+lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
+lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
+par(mfrow = c(1,1))
+```
+
+
+```{r filterTwoConfounders, purl = FALSE, eval = FALSE}
+#With two confounders
+confTestJob = mcparallel(RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = c("sex","RUNCENTER2")))
+confTest = mccollect(confTestJob, wait=FALSE)[[1]]
+save(confTest, file="/home/stijn/PhD/Biplots/confTestHMP.RData")
+```
+
+The AGP dataset
+
+```{r AGPplots, purl = FALSE, eval = FALSE}
+par(mfrow = c(3,3))
+AGPvars = c("IBD","AGE","SEX","PREGNANT","LACTOSE","ASTHMA","DIABETES", "DIET_TYPE","COUNTRY")
+sapply(AGPvars, function(x){
+plotRCM(resListRCM[["AGP"]], biplot=FALSE, samColour = x, main=x, libInset = c(-2.9,-0.1), libLeg=TRUE)
+})
+```
+
+The AGP dataset is presumably too noisy to find much of a signal
+
+```{r fitting process, purl = FALSE, eval = FALSE}
+lapply(names(resListRCM), function(x){with(resListRCM[[x]],{ plot(main=x, rowRec[2,1,1:iter[1]])})})
+```
+
+AGP is known to be very noisy and does not yield anything.
+
+The Zeller data
+
+```{r load zeller RC(M) NB results, purl = FALSE}
+load("/home/stijn/PhD/Simulations/data/zellerData.RData")
+
+zellers = c("zellerMeta","zeller16S")
+# zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
+#   load(x)
+#   RCMres
+# })
+if(!file.exists("zellerSphyRCM.RData")){
+zellerSphyRCM = RCM(zellerSphy, k=2, round = TRUE) # Less than one minute!
+save(zellerSphyRCM, file="zellerSphyRCM.RData")
+} else {load("zellerSphyRCM.RData")}
+
+if(!file.exists("zellerMphyRCM.RData")){
+zellerMphyRCM = RCM(zellerMphy, k=2, round = TRUE, prevCutOff = 0.05, minFraction = 0.15) # Less than one minute! More trimming needed here
+save(zellerMphyRCM, file="zellerMphyRCM.RData")
+} else {load("zellerMphyRCM.RData")}
+
+zellerRCM  =list(zellerMphyRCM, zellerSphyRCM)
+names(zellerRCM) = zellers
+
+sapply(zellerRCM,function(x){x$converged}) # All converged
+sapply(zellerRCM,function(x){x$runtime})
+sapply(zellerRCM,function(x){x$iter})
+
+cols = c("darkblue","orange","darkgreen", "brown","black", "blue","magenta","cadetblue","cyan", "yellow", "grey80","grey70","pink") 
+palette(cols)
+```
+
+```{r zellerOldPlots, purl = FALSE, eval = FALSE, echo = FALSE}
+par(mfcol = c(2,3))
+sapply(c("Country","Diagnosis","Gender"), function(y){
+sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samColour = y, main=paste(x,y, collapse="_"))})
+})
+```
+
+For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups. 
+
+```{r plotZellerSphy, purl = FALSE}
+lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
+  PCbiplot(zellerSphyRCM, colour = x)
+})
+```
+
+Are country and diagnosis related?
+
+```{r zeller country vs diagnosis, purl = FALSE}
+with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
+```
+
+Yes, only cancer patients from Germany!
+
+Constrained analysis
+
+```{r zellerConstrained, purl =FALSE}
+if(!file.exists("zellerSphyRCMconstr.RData")){
+zellerSphyRCMconstr = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis")) # Use smallest possible cndtol!
+save(zellerSphyRCMconstr, file="zellerSphyRCMconstr.RData")
+} else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
+```
+
+```{r ZellerConstrainedBiplot, purl=FALSE}
+PCbiplot(zellerSphyRCMconstr)
+PCbiplot(zellerSphyRCMconstr, colour = "Diagnosis")
+PCbiplot(zellerSphyRCMconstr, colour = "Gender")
+PCbiplot(zellerSphyRCMconstr, colour = "Country")
+PCbiplot(zellerSphyRCMconstr, colour = "Age")
+#apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
+```
+
+Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
+
+<!---### Zero-inflated poisson
+
+#### ZIP without signal
+
+##### Generate data
+
+```{r ZIP without signal, eval=FALSE, purl = FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+#First estimate the ZIP parameters
+
+if(!file.exists("AGzipParams.RData")){
+  otuTab = otu_table(AGphylo)@.Data
+  logLibs = log(sample_sums(AGphylo))
+  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
+    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
+  })
+  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
+  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
+  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
+} else {load(file="AGzipParams.RData")}
+#ZeroProbs are very high
+
+#Define parameters
+zeroProbs = zeroProbs[zeroProbs<0.9]
+NsamplesZIPnoSig= 200
+NtaxaZIPnoSig = 800
+idSampleZIP = sample(size=NtaxaZIPnoSig, 1:length(ZIPmeans))
+lambdasZIPnoSig = ZIPmeans[idSampleZIP]
+lambdasZIPnoSig= lambdasZIPnoSig/sum(lambdasZIPnoSig)
+zeroesZIPnoSig = sample(zeroProbs, NtaxaZIPnoSig)
+libSizesZIPnoSig =c(rep(1e5, floor(NsamplesZIPnoSig/2)), rep(1e6, floor(NsamplesZIPnoSig/2)))
+
+#Mean and zero matrices
+meanMatZIPnoSig = outer(libSizesZIPnoSig, lambdasZIPnoSig)
+zeroMatZIPnoSig = matrix(zeroesZIPnoSig, nrow=NsamplesZIPnoSig, ncol=NtaxaZIPnoSig, byrow = TRUE)
+
+#Data generation
+dataMatZIPnoSig = matrix(rzipois(n=prod(dim(meanMatZIPnoSig)),lambda = meanMatZIPnoSig, pstr0 = zeroMatZIPnoSig), ncol=NtaxaZIPnoSig, nrow=NsamplesZIPnoSig)
+save(dataMatZIPnoSig, file = "zipNSData.RData")
+```
+
+##### Fit RC(M)
+
+```{r RC(M) fit, eval=FALSE, purl = FALSE}
+nleqslv.controlZIP = list(trace=TRUE, maxit=250, cndtol = .Machine$double.eps, allowSingular=TRUE)
+if(!file.exists("syntZIPnoSig.RData")){
+  syntZIPnoSigUnifUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP", k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "uniform", maxItOut=5e0))
+  syntZIPnoSigUnifUnif =  mccollect(syntZIPnoSigUnifUnifJob, FALSE)[[1]] 
+  
+  syntZIPnoSigUnifMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "uniform", maxItOut=5e2))
+  syntZIPnoSigUnifMarg =  mccollect(syntZIPnoSigUnifMargJob, FALSE)[[1]]
+  
+  syntZIPnoSigMargUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "marginal", maxItOut=5e2))
+  syntZIPnoSigMargUnif =  mccollect(syntZIPnoSigMargUnifJob, FALSE)[[1]]
+  
+   syntZIPnoSigMargMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "marginal", maxItOut=5e1))
+  syntZIPnoSigMargMarg =  mccollect(syntZIPnoSigMargMargJob, FALSE)[[1]]
+  
+  save(syntZIPnoSigUnifMarg, syntZIPnoSigUnifUnif, syntZIPnoSigMargMarg, syntZIPnoSigMargUnif, dataMatZIPnoSig, file="syntZIPnoSig.RData")
+} else {load("syntZIPnoSig.RData")}
+#No convergence, mean cannot be fitted
+```
+
+##### Plot the results
+
+```{r RC(M) zip, eval=FALSE, purl = FALSE}
+load(file="toyDataNoSigZIPserver.RData")
+solListWSZIP = noSigListZIP[sapply(noSigListZIP, class)=="list"]
+#Runtimes and convergence
+sapply(solListWSZIP,function(x){x$converged})
+sapply(solListWSZIP,function(x){x$runtime})
+sapply(solListWSZIP,function(x){x$iter})
+
+par(mfrow=c(2,2))
+sapply(solListWSZIP,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
+```
+
+#### ZIP with signal
+
+```{r ZIP with signal, eval=FALSE, purl = FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+#First estimate/load the ZIP parameters
+
+if(!file.exists("AGzipParams.RData")){
+  otuTab = otu_table(AGphylo)@.Data
+  logLibs = log(sample_sums(AGphylo))
+  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
+    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
+  })
+  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
+  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
+  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
+} else {load(file="AGzipParams.RData")}
+#ZeroPorbs are very low
+
+#Defina parameters
+NsamplesZIPsig= 150
+NtaxaZIPsig = 500
+lambdasZIPref = lambdasZIPsig1 =lambdasZIPsig2 = lambdasZIPsig12 =  sample(ZIPmeans, NtaxaZIPsig)
+zeroesZIPref = zeroesZIPsig1 = zeroesZIPsig2 = zeroesZIPsig12 =sample(zeroProbs, NtaxaZIPsig)
+libSizesZIPsig =c(rep(1e4, floor(NsamplesZIPsig/2)), rep(1e5, floor(NsamplesZIPsig/2)))
+
+#Define the signal
+NtaxaSignal1ZIP = 20
+NtaxaSignal2ZIP = 20
+
+NtaxaSignal1zeroZIP = 20
+NtaxaSignal2zeroZIP = 20
+
+Signal1taxZIP = 4
+Signal2taxZIP = 3
+
+Signal1zeroTaxZIP = 5
+Signal2zeroTaxZIP = 3
+
+NsamplesSignal1ZIP = 20
+NsamplesSignal2ZIP = 20
+NsamplesSignal12ZIP = 20
+
+NsamplesSignal1zeroZIP = 20
+NsamplesSignal2zeroZIP = 20
+NsamplesSignal12zeroZIP = 20
+
+idSig1TaxZIP = 1:NtaxaSignal1ZIP
+idSig2TaxZIP = sample(1:NtaxaZIPsig,NtaxaSignal2ZIP)
+
+lambdasZIPsig1[idSig1TaxZIP] = lambdasZIPsig1[idSig1TaxZIP] * Signal1taxZIP
+lambdasZIPsig2[idSig2TaxZIP] = lambdasZIPsig2[idSig2TaxZIP] * Signal2taxZIP
+lambdasZIPsig12[c(idSig1TaxZIP, idSig2TaxZIP)] = c(lambdasZIPsig1[1:NtaxaSignal1ZIP],lambdasZIPsig2[idSig2TaxZIP])
+
+idSig1TaxZIPzeroes = 1:NtaxaSignal1zeroZIP + NtaxaSignal1ZIP/2
+idSig2TaxZIPzeroes = idSig1TaxZIPzeroes + NtaxaSignal1zeroZIP/2 + NtaxaSignal2zeroZIP/2
+
+zeroesZIPsig1[idSig1TaxZIPzeroes] = expit(logit(zeroesZIPsig1[idSig1TaxZIPzeroes]) * Signal1zeroTaxZIP)
+zeroesZIPsig2[idSig2TaxZIPzeroes] = expit(logit(zeroesZIPsig2[idSig2TaxZIPzeroes]) * Signal1zeroTaxZIP)
+zeroesZIPsig12[c(idSig1TaxZIPzeroes, idSig2TaxZIPzeroes)] = c(zeroesZIPsig1[idSig1TaxZIPzeroes],zeroesZIPsig2[idSig2TaxZIPzeroes])
+
+NsamplesZIPsigRef =  NsamplesZIPsig - NsamplesSignal1ZIP - NsamplesSignal2ZIP-  NsamplesSignal12ZIP
+
+#Define mean and zero matrices
+meanMatrefZIP = outer(sample(libSizesZIPsig, NsamplesZIPsigRef), lambdasZIPref)
+meanMatSig1ZIP = outer(sample(libSizesZIPsig, NsamplesSignal1ZIP), lambdasZIPsig1)
+meanMatSig2ZIP = outer(sample(libSizesZIPsig, NsamplesSignal2ZIP), lambdasZIPsig2)
+meanMatSig12ZIP = outer(sample(libSizesZIPsig, NsamplesSignal12ZIP), lambdasZIPsig12)
+
+zeroMatrefZIP = matrix(zeroesZIPref, nrow=nrow(meanMatrefZIP),ncol=ncol(meanMatrefZIP), byrow = TRUE)
+zeroMatSig1ZIP = matrix(zeroesZIPsig1, nrow=nrow(meanMatSig1ZIP),ncol=ncol(meanMatSig1ZIP), byrow = TRUE)
+zeroMatSig2ZIP = matrix(zeroesZIPsig2, nrow=nrow(meanMatSig2ZIP),ncol=ncol(meanMatSig2ZIP), byrow = TRUE)
+zeroMatSig12ZIP = matrix(zeroesZIPsig12, nrow=nrow(meanMatSig12ZIP),ncol=ncol(meanMatSig12ZIP), byrow = TRUE)
+
+#Generate the data
+dataMatZIPref = matrix(rzipois(n=prod(dim(meanMatrefZIP)),lambda = meanMatrefZIP, pstr0 = zeroMatrefZIP), ncol=ncol(meanMatrefZIP), nrow=nrow(meanMatrefZIP))
+dataMatZIPsig1 = matrix(rzipois(n=prod(dim(meanMatSig1ZIP)),lambda = meanMatSig1ZIP, pstr0 = zeroMatSig1ZIP), ncol=ncol(meanMatSig1ZIP), nrow=nrow(meanMatSig1ZIP))
+dataMatZIPsig2 = matrix(rzipois(n=prod(dim(meanMatSig2ZIP)),lambda = meanMatSig2ZIP, pstr0 = zeroMatSig2ZIP), ncol=ncol(meanMatSig2ZIP), nrow=nrow(meanMatSig2ZIP))
+dataMatZIPsig12 = matrix(rzipois(n=prod(dim(meanMatSig12ZIP)),lambda = meanMatSig12ZIP, pstr0 = zeroMatSig12ZIP), ncol=ncol(meanMatSig12ZIP), nrow=nrow(meanMatSig12ZIP))
+
+#Bind the data
+dataMatZIPSig = rbind(dataMatZIPref, dataMatZIPsig1, dataMatZIPsig2, dataMatZIPsig12)
+#mean(dataMatZIPsig==0) #Correct zero fraction
+
+#Save signals
+sampleSigZIP = factor(c(rep("Reference",NsamplesZIPsigRef), rep("Signal1", NsamplesSignal1ZIP), rep("Signal2", NsamplesSignal2ZIP), rep("Signal 1 and 2", NsamplesSignal12ZIP)))
+taxaSigZIPtmp = rep("Reference",ncol(dataMatSigNB))
+taxaSigZIPtmp[idSig1TaxZIP] = "Signal 1"
+taxaSigZIPtmp[idSig2TaxZIP] = "Signal 2"
+taxaSigZIP =factor(taxaSigZIPtmp) 
+names(taxaSigZIP) = colnames(dataMatZIPSig) = names(rhosNBSigref)
+names(sampleSigZIP) = rownames(dataMatZIPSig) = 1:NsamplesZIPsig
+```
+
+#### Apply the RC(M) algorithm
+
+```{r ZIP signal fit, eval=FALSE, purl=FALSE}
+if(!file.exists("syntZIPSig.RData")){
+    syntZIPSigUnifJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "uniform"))
+  syntZIPSigUnif =  mccollect(syntZIPSigUnifJob, FALSE)[[1]] 
+  
+  syntZIPSigMargJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "marginal"))
+  syntZIPSigMarg =  mccollect(syntZIPSigMargJob, FALSE)[[1]] 
+  
+  save(syntZIPSigUnif, syntZIPSigMarg, sampleSigZIP, taxaSigNB, file="syntZIPSig.RData")
+} else {load("syntZIPSig.RData")}
+```
+
+##### Plot the results
+
+### Zero-inflated negative binomial
+
+#### Without signal
+
+##### Generate data
+
+```{r ZINB without signal, eval=FALSE, purl=FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+#First estimate the ZIP parameters
+expit=function(x){
+  tmp = exp(x)/(1+exp(x))
+  tmp[is.na(tmp)]=1 #Adjust for overflow
+  tmp}
+
+if(!file.exists("AGzinbParams.RData")){
+  otuTab = otu_table(AGphylo)@.Data
+ # otuTab = otuTab[, colMeans(otuTab==0)<0.95]
+  logLibs = log(sample_sums(AGphylo))
+  ZINBfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
+    try(zeroinfl(otuTab[,i]~offset(logLibs)| 1, dist="negbin"), silent=TRUE)
+  })
+  zeroProbsNB = sapply(ZINBfits, function(x){if(is.list(x)) expit(x$coef$zero) else NA})
+  ZINBmeans = sapply(ZINBfits, function(x){if(is.list(x)) exp(x$coef$count) else NA})
+  thetasZINB = sapply(ZINBfits, function(x){if(is.list(x)) x$theta else NA})
+  naID=is.na(zeroProbsNB)
+  zeroProbsNB= zeroProbsNB[!naID]
+  ZINBmeans= ZINBmeans[!is.na(ZINBmeans)]
+  thetasZINB= thetasZINB[!is.na(thetasZINB)]
+  save(thetasZINB, zeroProbsNB, ZINBmeans, file="AGzinbParams.RData")
+} else {load(file="AGzinbParams.RData")}
+#ZeroProbs are lower than for the ZIP
+
+#Define parameters
+zeroProbsNB = zeroProbsNB[zeroProbsNB<0.9]
+NsamplesZINBnoSig= 200
+NtaxaZINBnoSig = 800
+idSampleZINB = sample(size=NtaxaZINBnoSig, 1:length(ZINBmeans))
+MeansZINB = ZINBmeans[idSampleZINB]
+ThetasZINB = thetasZINB[idSampleZINB]
+zeroesZINBnoSig = sample(zeroProbsNB, NtaxaZINBnoSig)
+libSizesZINBnoSig =c(rep(1e5, floor(NsamplesZINBnoSig/2)), rep(1e6, floor(NsamplesZINBnoSig/2)))
+
+#Mean, OD and zero matrices
+meanMatZINBnoSig = outer(libSizesZINBnoSig, MeansZINB)
+ODmatZINB = outer(rep(1,NsamplesZINBnoSig) ,ThetasZINB )
+zeroMatZINBnoSig = matrix(zeroesZINBnoSig, nrow=NsamplesZINBnoSig, ncol=NtaxaZINBnoSig, byrow = TRUE)
+
+#Data generation
+dataMatZINBnoSig = matrix(rzinegbin(n=prod(dim(meanMatZINBnoSig)),munb = meanMatZINBnoSig, size = ODmatZINB, pstr0 = zeroMatZINBnoSig), ncol=NtaxaZINBnoSig, nrow=NsamplesZINBnoSig)
+save(dataMatZINBnoSig, file = "zinbNoSigData.RData")
+```
+
+##### Apply the RC(M) algorithm with the ZINB distribution
+
+```{r ZINB signal fit, eval=FALSE, purl=FALSE}
+nleqslv.control.zinb = list(trace = TRUE, maxit = 250, cndtol = .Machine$double.eps, allowSingular=TRUE)
+if(!file.exists("syntZINBnoSig.RData")){
+    syntZINBSigunifunifJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "uniform", rowWeights = "uniform", twoCores=FALSE, maxItOut = 5e0))
+  syntZINBSigunifunif =  mccollect(syntZINBSigunifunifJob, FALSE)[[1]] 
+  
+  syntZINBSigunifmargJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "marginal", rowWeights = "uniform", twoCores=FALSE))
+  syntZINBSigunifmarg =  mccollect(syntZINBSigunifmargJob, FALSE)[[1]]
+  
+  save(syntZINBSigunifunif, syntZINBSigunifmarg, file="syntZINBnoSig.RData")
+} else {load("syntZINBnoSig.RData")}
+```
+
+##### Plot the ZINB results
+
+```{r RC(M) ZINB, eval=FALSE, purl=FALSE}
+load(file="toyDataNoSigZINBserver.RData")
+solListWSZINB = noSigListZINB[sapply(noSigListZINB, class)=="list"]
+#Runtimes and convergence
+sapply(solListWSZINB,function(x){x$converged})
+sapply(solListWSZINB,function(x){x$runtime})
+sapply(solListWSZINB,function(x){x$iter})
+par(mfrow=c(2,2))
+sapply(solListWSZINB,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
+```
+
+#### Restore defaults
+
+```{r restore defaults, eval=FALSE, purl = FALSE}
+palette(palStore)
+```
+
+--->
+
+
+```{r LRnbcheck, purl=FALSE, eval = FALSE}
+### Constrained RC(M): tests
+
+# Test this method in one dimension, linear response function. Default should probably be: linear for the dummy's of the categorical variables, quadratic or non-parametric for continuous ones.
+#Some synthetic data
+n = 40
+p = 200
+d = 3
+var1 = rnorm(n) # an unrelated variable
+var2 = rnorm(n) # A meaningful variable
+var3 = rnorm(n, sd=2) # An even more meaningful variable
+psi = 1
+cVec = rnorm(p)*psi
+libSizes = 10^runif(n, 3, 5)
+abunds = 10^runif(p, -5, -3)
+abunds = abunds/sum(abunds)
+muMarg = outer(libSizes, abunds)
+alphaK = c(0.2,1,1.5)
+alphaK = alphaK-mean(alphaK)
+alphaK = alphaK/sqrt(sum(alphaK^2))
+regMat = rbind(var1, var2,var3)
+mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
+thetasCon = thetas[1:p]
+prevCut = 0.1
+
+X0 = matrix(rnbinom(n*p, size=thetasCon, mu = t(mu)), ncol = p, byrow = TRUE)
+idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
+X = X0[rowSums(X0)>0,idCol ]
+cVec2 = cVec[idCol]
+muMargObs = outer(rowSums(X), colSums(X)/sum(X))
+
+testLR = LR_nb(alphaK, X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetaMat = matrix(thetasCon[idCol], byrow = TRUE, nrow = nrow(X), ncol = ncol(X)), cReg = cVec2, d= nrow(regMat), ncols=ncol(X),v=2)
+centMat = rbind(1, matrix(0,3,3))
+
+testAlpha = estAlpha(c(0.01,0.01,0.01), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = matrix(thetasCon[idCol],nrow(X),ncol(X), byrow=TRUE), cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, n=nrow(X), k=1)
+
+#Works really well, only a trifle slow!
+testRCMconstrJob = mcparallel(RCM_NB(X = X, k = 1, covariates = t(regMat)))
+testRCMconstr = mccollect(testRCMconstrJob, wait=FALSE)[[1]]
+
+save(testRCMconstr,X, regMat, cVec2, alphaK, file="testRCMconstr.RData")
+plot(c(testRCMconstr$cMat), cVec2)
+plot(testRCMconstr$alpha, alphaK) #Not bad!!
+plot(alphaK %*% regMat, c(testRCMconstr$alpha) %*% regMat)
+```
+
+```{r LRnbchack2, purl=FALSE, eval = FALSE}
+# Now a bit more complicated: two dimensions, dummy's and quadratice relationship
+#Some synthetic data
+n = 40
+p = 200
+d = 5
+var1 = rnorm(n) # an unrelated variable
+var2 = rnorm(n) # A meaningful variable
+var3 = rnorm(n, sd=2) # An even more meaningful variable
+var4 = factor(sample(c(1,1:3), n, replace=TRUE)) # A categorical variable
+var5 = factor(sample(c(1,1,1:3), n, replace=TRUE)) # Another categorical variable
+psi = 2
+cVec = rnorm(p)*psi
+libSizes = 10^runif(n, 3, 5)
+abunds = 10^runif(p, -5, -3)
+abunds = abunds/sum(abunds)
+muMarg = outer(libSizes, abunds)
+alphaK = c(0.2,
+           1,
+           1.5,
+           1.2,0.9,-3.1,
+           1.1,-2.5,1.4) #The categorical variables with zero-sum coding (they center around zero by default. Remember to estimate with treatment coding but normalize based on zero-sum coding.)
+alphaK = alphaK-mean(alphaK)
+alphaK = alphaK/sqrt(sum(alphaK^2))
+regMat = t(
+  cbind(model.matrix(~var1+var2+var3+var4+var5-1, contrasts.arg = lapply(list(var4 = var4,var5 = var5), contrasts, contrasts=FALSE))
+                  ))
+
+mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
+thetasCon = thetas[1:p]
+prevCut = 0.1
+
+X0 = matrix(rnbinom(n*p, size=thetasCon, mu = t(mu)), ncol = p, byrow = TRUE)
+idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
+X = X0[rowSums(X0)>0,idCol ]
+cVec2 = cVec[idCol]
+muMargObs = outer(rowSums(X), colSums(X)/sum(X))
+#centMat
+
+testAlpha2 = estAlpha(rep(0.01,9), X, t(regMat), responseFun ="gaussian", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, k=1)
+
+testRCMconstr2Job = mcparallel(
+  RCM(dat = X, k = 2, covariates = data.frame(var1 = var1, var2 = var2, var3 = var3, var4 = var4, var5 = var5), responseFun = "quadratic")
+  )
+testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
+```
+
+### Triplots
+
+# Competing methods
+
+## Unconstrained RC(M)
+
+ - PCoA
+   * Bray-Curtis dissimilarity (Forest ecology)
+   * UniFrac distance (Microbial ecology, uses phylogenetic information) => This will be difficult since it does not rely on counts, or only partially in case of weighted unifrac
+   * Jenssen-Shannon divergence because of the enterotypes publication
+   * See Warton _et al._ (2012): Distance-based multivariate analyses confound
+location and dispersion effects
+   * See technical report bio BioRankings: "Dealing with High-Dimensional Data". Pairwise distances all become similar in high dimensions.
+   * PCoA also has the drawback of not yielding any species scores, it is an eigenvalue rather than a singular value method. The information on the individual species is lost in the distance calculation 
+ - Corresponence analysis (CA) (Statistics)
+ - CoDa: PCoA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
+  * Dependence on pseudocounts?
+ - Bayesian Nonparametric Ordination (Ren _et al._ (2016))
+ 
+```{r CoDA}
+# The compositional approach:
+ # Zeroes are fixed somehow
+ # log-ratio transform of relative abundances
+ # PCA on transformed values
+# Main concern is that this approach ignores the fact that we have count data that are heteroscedastic
+
+# This function is build after the supplementary files of Gloor and Reid, 2016. Only the abundance filtering is made less severe
+CoDa = function(dat, abCutOff = 1e-6, scale = FALSE){
+  require(zCompositions)
+  classDat = class(dat) #The class provided
+  
+  ##The count data##
+  if (classDat=="matrix"){
+  X = dat
+  }else  if(classDat=="phyloseq"){
+  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
+  } else {stop("Please provide a matrix or a phyloseq object! \n")}
+  
+Xzero <- as.matrix(cmultRepl(X=X, method="CZM", output="counts")) #Correct zeroes in a Bayesian way
+
+# convert to proportions 
+Xnorm = Xzero/rowSums(Xzero)
+
+#Trim on abundance in any sample
+Xtrim = Xnorm[,apply(Xnorm,2,min)>abCutOff]
+
+# make our compositional dataset
+Xcrl <- apply(Xtrim, 1, function(x){log(x) - mean(log(x))})
+
+# Apply PCA
+prcomp(Xcrl, scale = scale) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
+}
+```
+
+```{r nonparametricBayesian}
+# A bayesian approach, gets a bit complicated
+#data(JRphylo) # A vaginal dataset
+nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3, a2 = 4, m = 10, alpha = 10, beta = 0 )){
+  require(DirFactor)
+  classDat = class(dat) #The class provided
+  
+  ##The count data##
+  if (classDat=="matrix"){
+  X = dat
+  }else  if(classDat=="phyloseq"){
+  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
+  } else {stop("Please provide a matrix or a phyloseq object! \n")}
+  DirFactor(t(dat), hyper, step = 100)
+}
+```
+   
+## Constrained
+
+  - Constrained PCoA?
+  - Constrained correspondence analysis (CCA)
+    * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
+
+# Method evaluation
+
+After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way. For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
+
+## Within vs. overall distance
+
+A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
+
+We could perhaps look for the distance based method that minimizes $\frac{d_{m, within}}{d_{m, overall}}$?
+
+This approach can be applied to the row scores (samples) as well as the column scores (taxa).
+
+```{r within vs. between distances}
+# A function to calculate these within and overall distances
+distanceFun = function(coord, clusters, Dim = c(1,2)){
+  # @param coord: an nxk matrix of coordinates
+  # @param clusters: a factor of length n with cluster memberships
+  # @param Dim: The dimensions to look at, defaults to the first two
+  
+  # @return: a list with
+    # -withinDist: within distances
+    # -overalDist: the n overal distances
+  
+  coord = coord[,Dim, drop=FALSE]
+  
+  withinDist = tapply(seq_len(nrow(coord)), clusters, function(x){
+    coordsX = coord[x,]
+    centerX = colMeans(coordsX)
+    dists = apply(coordsX, 1, function(y){
+      dist(rbind(y, centerX))
+    })
+    return(dists)
+  })
+  
+  overalCenter = colMeans(coord)
+  overalDist = apply(coord, 1, function(y){
+    dist(rbind(y, overalCenter))
+  })
+  
+  ratio = mean(sapply(withinDist, function(x){x/overalDist}))
+  list(withinDist = withinDist, overalDist =  overalDist, ratio = ratio)
+  
+}
+```
+
+## Silhouette
+
+See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
+
+$$s(i) = \frac{a(i) - b(i)}{max\big(a(i), b(i)\big)}$$
+
+The silhouette can take values between +1 for optimal separation and -1 for wrong classification. If a poin i close to the centroid of its own cluster but very far from all the others the methods has performed well and is rewarded with a high silhouette. We can average the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
+
+```{r silhouette}
+silhouette = function(coord, clusters, Dim = c(1,2)){
+  # @param coord: an nxk matrix of coordinates
+  # @param clusters: a factor of length n with cluster memberships
+  # @param Dim: The dimensions to look at, defaults to the first two
+ 
+  # @return a vector of n silhouettes
+  
+  coord = coord[,Dim, drop=FALSE]
+  
+  distMat = as.matrix(dist(coord)) # all distances
+  avDists = apply(distMat, 1 , function(x){
+    tapply(x[x!=0], clusters[x!=0], mean) #Exclude observation itself
+  }) # Average distances with clusters
+  ais = sapply(seq_along(clusters), function(i){
+    avDists[clusters[i], i]
+  }) #Average distance to own cluster
+  bis = sapply(seq_along(clusters), function(i){
+    min(avDists[clusters[i]!=levels(clusters), i])
+  }) #Average distance to nearest cluster
+  
+  silhouette = mapply(ais, bis, FUN = function(a,b){(b-a)/max(a,b)}) #The silhouette
+  
+  return(silhouette)
+}
+```
+
+## Correlation with library sizes
+
+The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
+
+Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot.
+
+```{r libSizeCorrelation}
+libCor = function(coord, libSizes, Dim = c(1,2)){
+  apply(coord[, Dim, drop=FALSE], 2, cor, libSizes)
+}
+```
+
+<!---
+The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance.
+--->
+
+## Contribution of taxa to the separation of the clusters
+
+For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid.
+
+## Auxiliary functions
+
+```{r extract row vectors}
+# A function to perform all analyses except for RC(M)
+otherAnalyses = function(RCMlist){
+datList0mat = lapply(RCMlist, function(x){x$X})
+CAresList0 = lapply(datList0mat, caSVD)
+CodaResList0 = lapply(datList0mat, CoDa)
+CodaScaledResList0 = lapply(datList0mat, CoDa, scale = TRUE)
+BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
+#With relative abundances
+BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
+mapply(RCMlist, CAresList0, CodaResList0, CodaScaledResList0, BCresList0, JSDresList0, BCresList0Rel, FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel){
+                    list(RCM = RCM, CA = CA, 
+                         CoDa = CoDa, CoDaScale = CoDaScale, 
+                         BC = BC, JSD = JSD, 
+                         BCrel = BCrel)
+                  }, 
+                  SIMPLIFY = FALSE
+)
+} #JSD works on relative abundances by default
+#---------------------------------------#
+#A function to extract the row vectors multiplied by importance elements
+extractRows = function(x){
+  with(x, list(
+    RCM = RCM$rMat %*% diag(RCM$psis),
+    CA = CA$u %*% diag(CA$d),
+    CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
+    CoDaScale = CoDaScale$rotation %*% diag(CoDaScale$sdev^2),
+    BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
+    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
+    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))])
+    ))
+}
+#-----------------------------------------#
+# A functions to plot the correlations with the library sizes of the row scores
+plotRowCor = function(resListRows, datList, Dims = 1:3, dataMat = FALSE){
+par(mar = c(4,4,4,4))
+if(!dataMat){
+  datList = lapply(datList, function(x){x$dataMat})
+}
+  libSizes = rowSums(datList[[1]])
+cor0 = lapply(Dims, function(Dim){
+  rbind(
+  mapply(resListRows, datList, FUN = function(x,z){
+  libSizes = rowSums(z)
+  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)}) 
+ }, SIMPLIFY = TRUE),
+ "Control" = replicate(length(datList),cor(rnorm(length(libSizes)), libSizes)))}) #Include a control
+
+cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
+par(mfrow = c(1,max(Dims)))
+for (i in Dims){
+data = cor0df[[i]]
+boxplot(Correl ~ Method, main = paste("Correlations of library sizes \n with row scores of dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
+meansCor = tapply(data$Correl, data$Method, mean)
+points(meansCor, col="red", pch=18, cex = 1.6)
+abline(h=0, lty = "dashed")
+}
+par(mfrow = c(1,1))
+}
+#----------------------------------#
+# A function to plot the silhouettes
+plotSil = function(resListRows){
+sil1  = lapply(resListRows, function(x){
+  sapply(x, silhouette, clusters = groupFactor)
+})
+meanSil1 = sapply(sil1, function(x){
+  colMeans(x)
+})
+meanSil1df = melt(meanSil1, value.name = "Silhouette", varnames = c("Method"))
+boxplot(Silhouette~Method, main = "Mean silhouettes per Monte Carlo simulation by method", data = meanSil1df)
+meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
+points(meansSil, col="red", pch=18, cex = 1.6)
+}
+#---------------------------------#
+distRatioPlot = function(resListRows) {
+dist = sapply(resListRows, function(x){
+  sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
+})
+meanDist1df = melt(dist, value.name = "DistanceRatio", varnames = c("Method"))
+boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist1df)
+meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
+points(meansDist, col="red", pch=18, cex = 1.6)
+}
+```
+
+# Simulations
+
+## Unconstrained RC(M)
+
+### Generating datasets
+
+As ways of generating test datasets we see three different options
+
+  1) Parametric simulation with the negative binomial with known abundances. 
+  2) Non-parametric simulation with SimSeq
+  3) Real datasets with biological signal allegedly known
+  
+  Parametric simulation is needed as a first check but evidently favours our method (if we use the negative binomial distribution). SimSeq is a reasonably neutral tool, we will only use WMW to obtain the lfdr. Real datasets will need to complement our analysis but it may not be possible to evaluate them in a high-throughput way, this will need to happen empirically.
+  
+#### Parametric simulations
+
+##### Negative binomial
+
+The negative binomial is the assumed distribution of our method. As a result we should outperform all other methods in this setting.
+
+###### Null setting
+
+In this setting we simulate all distributions from the same template, thus there is no signal in this dataset
+
+```{r NBnull, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+
+load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
+rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
+thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
+
+#Library sizes
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
+
+if(!file.exists(file = "RCMsim/datList0.RData")){
+datList0 = mclapply(mc.cores=4, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList0,  file = "RCMsim/datList0.RData")
+} else {load(file = "RCMsim/datList0.RData")}
+
+# Results
+if(!file.exists(file = "RCMsim/resList0.RData")){
+RCMresList0 = mclapply(mc.cores=4, datList0, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+})
+resList0 = otherAnalyses(RCMresList0)
+save(resList0, file = "RCMsim/resList0.RData")
+} else {load(file = "RCMsim/resList0.RData")}
+```
+
+
+```{r resList0 sampleBiplot, purl = FALSE}
+#A sample biplot
+resList0Rows = lapply(resList0, extractRows)
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList0))
+obj = resList0Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]], main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+rm(ID, obj)
+par(mfrow = c(1,1))
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
+
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList0))
+obj = resList0Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+rm(ID, obj)
+par(mfrow = c(1,1))
+#PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
+```
+  
+
+```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+plotRowCor(resList0Rows, datList0)
+```
+
+###### Simulate from different distributions
+
+In this setting we will simulate data from 4 unrelated negative binomial distributions. Because of this clustering should be very good.
+
+```{r NBunrelatedDistr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+
+load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
+rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
+thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+#Library sizes
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
+
+if(!file.exists(file = "RCMsim/datList1.RData")){
+datList1 = mclapply(mc.cores=4, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sapply(1:nPop, function(x){tmp=sample(rhoEst, p); tmp/sum(tmp)})[,groupInd]
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+list(dataMat = dataMat, group = groupFactor, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList1,groupFactor,  file = "RCMsim/datList1.RData")
+} else {load(file = "RCMsim/datList1.RData")}
+
+# Results
+if(!file.exists(file = "RCMsim/resList1.RData")){
+RCMresList1 = mclapply(mc.cores=4, datList1, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+})
+resList1 = otherAnalyses(RCMresList1)
+save(resList1, file = "RCMsim/resList1.RData")
+} else {load(file = "RCMsim/resList1.RData")}
+```
+
+```{r resList1 sampleBiplotE, purl = FALSE}
+#A sample biplot
+resList1Rows = lapply(resList1, extractRows)
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList1))
+obj = resList1Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+rm(ID, obj)
+par(mfrow = c(1,1))
+# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
+
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList1))
+obj = resList1Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+rm(ID, obj)
+par(mfrow = c(1,1))
+#PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
+```
+  
+```{r resList1Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+plotSil(resList1Rows)
+```
+
+```{r resList1Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:dist1}"}
+distRatioPlot(resList1Rows)
+```
+
+```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:libCor1}"}
+plotRowCor(resList1Rows, datList1, dataMat = TRUE)
+```
+
+The library sizes of the CoDa approach do negatively correlate with the row scores, confirming our concern about the heteroscedasticity
+
+###### Simulate from related distributions
+
+In this setting we will simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances
+
+```{r NBrelatedDistr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 10
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor2 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+if(!file.exists(file = "RCMsim/datList2.RData")){
+datList2 = mclapply(mc.cores=4, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+})
+save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
+} else {load(file = "RCMsim/datList2.RData")}
+
+# Results
+if(!file.exists(file = "RCMsim/resList2.RData")){
+RCMresList2 = mclapply(mc.cores=4, datList2, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+})
+resList2 = otherAnalyses(RCMresList2)
+save(resList2, file = "RCMsim/resList2.RData")
+} else {load(file = "RCMsim/resList2.RData")}
+```
+
+```{r resList2 sampleBiplot, purl = FALSE}
+#A sample biplot
+resList2Rows = lapply(resList2, extractRows)
+par(mfrow = c(2,4), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList2))
+obj = resList2Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+rm(ID, obj)
+par(mfrow = c(1,1))
+# In this setting, the RCM really appears to outperform the other methods
+
+par(mfrow = c(2,4), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resList2))
+obj = resList2Rows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
+# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
+# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
+# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
+# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
+rm(ID, obj)
+par(mfrow = c(1,1))
+
+```
+
+```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+plotSil(resList2Rows)
+```
+
+The RC(M) method has the highest silhouettes, PCoA is second best but far below.
+
+```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
+distRatioPlot(resList2Rows)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
+plotRowCor(resList2Rows, datList2)
+```
+
+The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
+
+## Constrained RC(M)
+
+\newpage
+
+#### Some comments on analysing microbiome count data
+
+##### Do not log-transform count data
+
+- log-transforms come with arbitrary pseudocounts for the many zeroes
+- models based on transformed data are hard to interpret in funcion of the untransformed data
+- log-transformation does not stabilize the variance
+- Accept non-normality and heteroscedasticity instead of trying to transform them away!
+- Log-transformation is more robust though and provides better type I error control (see papers O'Hara 2010, Ives 2015, Warton 2016 and this [post](http://stats.stackexchange.com/questions/114848/negative-binomial-glm-vs-log-transforming-for-count-data-increased-type-i-erro?rq=1) )
+
+##### Do not rely on residuals-based approaches
+
+- Most residual based approaches rely on normally behaved residuals
+- Microbiome residuals are skewed to the right 
+- The expectations should be larger than or equal to 5 for this approximation to hold, which is not the case for the majority of microbiome entries
+
+##### Use a GLM
+
+- Normalizing to relative or rarefied abundances throws away information on the variance and valuable counts
+- Leave the data untransformed and use a proper GLM for counts! This will properly model mean and variance and allows incorporation of covariate information
+
 <!---
 ## Toy data
 
@@ -5468,1196 +6587,3 @@ lapply(tolAchPsi, function(x){plot(x, log="y");LUline(h=0.01, col="red"); abline
 with(syntNBSigmargmarg_LU,plot(psiRec[3,1:iter[3]])) #Weird jumps, don't stop too early!
 ```
 --->
-
-#### Real data examples
-
-Finally we also apply the method to real datasets
-
-```{r RC(M)_NB real datasets, purl = FALSE, eval = FALSE}
-realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease" )
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
-load("/home/stijn/PhD/Simulations/data/AGphylo.RData")
-fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
-resListRCM = lapply(fileNames, function(x){
-  load(x)
-  RCMres
-})
-
-names(resListRCM) = realNames
-
-sapply(resListRCM,function(x){x$converged}) # All converged
-sapply(resListRCM,function(x){x$runtime})
-sapply(resListRCM,function(x){x$iter})
-```
-
-The HMP dataset
-
-```{r HMP plot, purl = FALSE, eval = FALSE}
-SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
-  levels(get_variable("RUNCENTER",physeq=x))
-}))))
-#Give similar colours for the same sequencing center
-cols = c("cadetblue","cyan", "darkblue","blue","magenta","orange","yellow","brown","black",  "grey80","grey70","pink") 
-palette(cols)
-physeqListV13_SC = lapply(physeqListV13, function(x){
-  sample_data(x)[["RUNCENTER"]] = factor(sample_data(x)[["RUNCENTER"]], levels = SClevels, labels = SClevels)
-  x
-})
-
-phyList = c(AGP = AGphylo, physeqListV13_SC)
-
-resListRCM2 = lapply(realNames, function(x){
-  tmp = resListRCM[[x]]
-  tmp$physeq = prune_samples(rownames(tmp$X),prune_taxa(colnames(tmp$X), phyList[[x]]))
-  tmp
-}) 
-
-names(resListRCM2) = realNames
-
-par(mfrow = c(2,4))
-lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "sex", main=x)})
-par(mfrow = c(2,4))
-lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-0.9,-0.1))})
-```
-
-We've discovered a clear impact of the runcenter!
-Now let's filter out the impact of this variable
-
-```{r HMP filter out variable effect, purl=FALSE, eval = FALSE}
-K=2
-nleqslv.control = list()
-#Group the runcenters together
-
-RCMhmpFilt = lapply(physeqListV13, function(x){
-  runcenters = data.frame(sample_data(x))[ "RUNCENTER"]
-runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("BCM","BI,BCM","BCM,BI","BCM,WUGC", "BCM,JCVI")] = "BCM"
-runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("JCVI","JCVI,BI","JCVI,WUGC")] = "JCVI"
-runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("WUGC,JCVI","WUGC","WUGC,BCM")] = "WUGC"
-sample_data(x) = data.frame(sample_data(x) ,RUNCENTER2 = runcenters[[1]])
-x})
-
-physeq = RCMhmpFilt[["Buccal.mucosa"]]
-conf = get_variable(physeq, "RUNCENTER2")
-confDrop = droplevels(conf)[[1]]
-
-# antNarJob = mcparallel(  RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2"))
-# antNar = mccollect(antNarJob, wait=FALSE)[[1]]
-# save(antNar, file="antNarConfounders.RData")
-
-if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
-filtResJob = mcparallel(lapply(RCMhmpFilt, function(x){
-  RCM(x, distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2")
-  }))
-filtRes = mccollect(filtResJob, wait=FALSE)[[1]]
-save(filtRes, file="/home/stijn/PhD/Biplots/filtResHMP.RData")
-} else {load(file="/home/stijn/PhD/Biplots/filtResHMP.RData")}
-par(mfrow = c(3,3))
-lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
-lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
-par(mfrow = c(1,1))
-```
-
-
-```{r filterTwoConfounders, purl = FALSE, eval = FALSE}
-#With two confounders
-confTestJob = mcparallel(RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = c("sex","RUNCENTER2")))
-confTest = mccollect(confTestJob, wait=FALSE)[[1]]
-save(confTest, file="/home/stijn/PhD/Biplots/confTestHMP.RData")
-```
-
-The AGP dataset
-
-```{r AGPplots, purl = FALSE, eval = FALSE}
-par(mfrow = c(3,3))
-AGPvars = c("IBD","AGE","SEX","PREGNANT","LACTOSE","ASTHMA","DIABETES", "DIET_TYPE","COUNTRY")
-sapply(AGPvars, function(x){
-plotRCM(resListRCM[["AGP"]], biplot=FALSE, samColour = x, main=x, libInset = c(-2.9,-0.1), libLeg=TRUE)
-})
-```
-
-The AGP dataset is presumably too noisy to find much of a signal
-
-```{r fitting process, purl = FALSE, eval = FALSE}
-lapply(names(resListRCM), function(x){with(resListRCM[[x]],{ plot(main=x, rowRec[2,1,1:iter[1]])})})
-```
-
-AGP is known to be very noisy and does not yield anything.
-
-The Zeller data
-
-```{r load zeller RC(M) NB results, purl = FALSE}
-load("/home/stijn/PhD/Simulations/data/zellerData.RData")
-
-zellers = c("zellerMeta","zeller16S")
-# zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
-#   load(x)
-#   RCMres
-# })
-if(!file.exists("zellerSphyRCM.RData")){
-zellerSphyRCM = RCM(zellerSphy, k=2, round = TRUE) # Less than one minute!
-save(zellerSphyRCM, file="zellerSphyRCM.RData")
-} else {load("zellerSphyRCM.RData")}
-
-if(!file.exists("zellerMphyRCM.RData")){
-zellerMphyRCM = RCM(zellerMphy, k=2, round = TRUE, prevCutOff = 0.05, minFraction = 0.15) # Less than one minute! More trimming needed here
-save(zellerMphyRCM, file="zellerMphyRCM.RData")
-} else {load("zellerMphyRCM.RData")}
-
-zellerRCM  =list(zellerMphyRCM, zellerSphyRCM)
-names(zellerRCM) = zellers
-
-sapply(zellerRCM,function(x){x$converged}) # All converged
-sapply(zellerRCM,function(x){x$runtime})
-sapply(zellerRCM,function(x){x$iter})
-
-cols = c("darkblue","orange","darkgreen", "brown","black", "blue","magenta","cadetblue","cyan", "yellow", "grey80","grey70","pink") 
-palette(cols)
-```
-
-```{r zellerOldPlots, purl = FALSE, eval = FALSE, echo = FALSE}
-par(mfcol = c(2,3))
-sapply(c("Country","Diagnosis","Gender"), function(y){
-sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samColour = y, main=paste(x,y, collapse="_"))})
-})
-```
-
-For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups. 
-
-```{r plotZellerSphy, purl = FALSE}
-lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
-  PCbiplot(zellerSphyRCM, colour = x)
-})
-```
-
-Are country and diagnosis related?
-
-```{r zeller country vs diagnosis, purl = FALSE}
-with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
-```
-
-Yes, only cancer patients from Germany!
-
-Constrained analysis
-
-```{r zellerConstrained, purl =FALSE}
-if(!file.exists("zellerSphyRCMconstr.RData")){
-zellerSphyRCMconstr = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis")) # Use smallest possible cndtol!
-save(zellerSphyRCMconstr, file="zellerSphyRCMconstr.RData")
-} else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
-```
-
-```{r ZellerConstrainedBiplot, purl=FALSE}
-PCbiplot(zellerSphyRCMconstr)
-PCbiplot(zellerSphyRCMconstr, colour = "Diagnosis")
-PCbiplot(zellerSphyRCMconstr, colour = "Gender")
-PCbiplot(zellerSphyRCMconstr, colour = "Country")
-PCbiplot(zellerSphyRCMconstr, colour = "Age")
-#apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
-```
-
-Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
-
-<!---### Zero-inflated poisson
-
-#### ZIP without signal
-
-##### Generate data
-
-```{r ZIP without signal, eval=FALSE, purl = FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate the ZIP parameters
-
-if(!file.exists("AGzipParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
-  logLibs = log(sample_sums(AGphylo))
-  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
-  })
-  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
-  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
-  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
-} else {load(file="AGzipParams.RData")}
-#ZeroProbs are very high
-
-#Define parameters
-zeroProbs = zeroProbs[zeroProbs<0.9]
-NsamplesZIPnoSig= 200
-NtaxaZIPnoSig = 800
-idSampleZIP = sample(size=NtaxaZIPnoSig, 1:length(ZIPmeans))
-lambdasZIPnoSig = ZIPmeans[idSampleZIP]
-lambdasZIPnoSig= lambdasZIPnoSig/sum(lambdasZIPnoSig)
-zeroesZIPnoSig = sample(zeroProbs, NtaxaZIPnoSig)
-libSizesZIPnoSig =c(rep(1e5, floor(NsamplesZIPnoSig/2)), rep(1e6, floor(NsamplesZIPnoSig/2)))
-
-#Mean and zero matrices
-meanMatZIPnoSig = outer(libSizesZIPnoSig, lambdasZIPnoSig)
-zeroMatZIPnoSig = matrix(zeroesZIPnoSig, nrow=NsamplesZIPnoSig, ncol=NtaxaZIPnoSig, byrow = TRUE)
-
-#Data generation
-dataMatZIPnoSig = matrix(rzipois(n=prod(dim(meanMatZIPnoSig)),lambda = meanMatZIPnoSig, pstr0 = zeroMatZIPnoSig), ncol=NtaxaZIPnoSig, nrow=NsamplesZIPnoSig)
-save(dataMatZIPnoSig, file = "zipNSData.RData")
-```
-
-##### Fit RC(M)
-
-```{r RC(M) fit, eval=FALSE, purl = FALSE}
-nleqslv.controlZIP = list(trace=TRUE, maxit=250, cndtol = .Machine$double.eps, allowSingular=TRUE)
-if(!file.exists("syntZIPnoSig.RData")){
-  syntZIPnoSigUnifUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP", k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "uniform", maxItOut=5e0))
-  syntZIPnoSigUnifUnif =  mccollect(syntZIPnoSigUnifUnifJob, FALSE)[[1]] 
-  
-  syntZIPnoSigUnifMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "uniform", maxItOut=5e2))
-  syntZIPnoSigUnifMarg =  mccollect(syntZIPnoSigUnifMargJob, FALSE)[[1]]
-  
-  syntZIPnoSigMargUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "marginal", maxItOut=5e2))
-  syntZIPnoSigMargUnif =  mccollect(syntZIPnoSigMargUnifJob, FALSE)[[1]]
-  
-   syntZIPnoSigMargMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "marginal", maxItOut=5e1))
-  syntZIPnoSigMargMarg =  mccollect(syntZIPnoSigMargMargJob, FALSE)[[1]]
-  
-  save(syntZIPnoSigUnifMarg, syntZIPnoSigUnifUnif, syntZIPnoSigMargMarg, syntZIPnoSigMargUnif, dataMatZIPnoSig, file="syntZIPnoSig.RData")
-} else {load("syntZIPnoSig.RData")}
-#No convergence, mean cannot be fitted
-```
-
-##### Plot the results
-
-```{r RC(M) zip, eval=FALSE, purl = FALSE}
-load(file="toyDataNoSigZIPserver.RData")
-solListWSZIP = noSigListZIP[sapply(noSigListZIP, class)=="list"]
-#Runtimes and convergence
-sapply(solListWSZIP,function(x){x$converged})
-sapply(solListWSZIP,function(x){x$runtime})
-sapply(solListWSZIP,function(x){x$iter})
-
-par(mfrow=c(2,2))
-sapply(solListWSZIP,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
-```
-
-#### ZIP with signal
-
-```{r ZIP with signal, eval=FALSE, purl = FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate/load the ZIP parameters
-
-if(!file.exists("AGzipParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
-  logLibs = log(sample_sums(AGphylo))
-  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
-  })
-  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
-  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
-  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
-} else {load(file="AGzipParams.RData")}
-#ZeroPorbs are very low
-
-#Defina parameters
-NsamplesZIPsig= 150
-NtaxaZIPsig = 500
-lambdasZIPref = lambdasZIPsig1 =lambdasZIPsig2 = lambdasZIPsig12 =  sample(ZIPmeans, NtaxaZIPsig)
-zeroesZIPref = zeroesZIPsig1 = zeroesZIPsig2 = zeroesZIPsig12 =sample(zeroProbs, NtaxaZIPsig)
-libSizesZIPsig =c(rep(1e4, floor(NsamplesZIPsig/2)), rep(1e5, floor(NsamplesZIPsig/2)))
-
-#Define the signal
-NtaxaSignal1ZIP = 20
-NtaxaSignal2ZIP = 20
-
-NtaxaSignal1zeroZIP = 20
-NtaxaSignal2zeroZIP = 20
-
-Signal1taxZIP = 4
-Signal2taxZIP = 3
-
-Signal1zeroTaxZIP = 5
-Signal2zeroTaxZIP = 3
-
-NsamplesSignal1ZIP = 20
-NsamplesSignal2ZIP = 20
-NsamplesSignal12ZIP = 20
-
-NsamplesSignal1zeroZIP = 20
-NsamplesSignal2zeroZIP = 20
-NsamplesSignal12zeroZIP = 20
-
-idSig1TaxZIP = 1:NtaxaSignal1ZIP
-idSig2TaxZIP = sample(1:NtaxaZIPsig,NtaxaSignal2ZIP)
-
-lambdasZIPsig1[idSig1TaxZIP] = lambdasZIPsig1[idSig1TaxZIP] * Signal1taxZIP
-lambdasZIPsig2[idSig2TaxZIP] = lambdasZIPsig2[idSig2TaxZIP] * Signal2taxZIP
-lambdasZIPsig12[c(idSig1TaxZIP, idSig2TaxZIP)] = c(lambdasZIPsig1[1:NtaxaSignal1ZIP],lambdasZIPsig2[idSig2TaxZIP])
-
-idSig1TaxZIPzeroes = 1:NtaxaSignal1zeroZIP + NtaxaSignal1ZIP/2
-idSig2TaxZIPzeroes = idSig1TaxZIPzeroes + NtaxaSignal1zeroZIP/2 + NtaxaSignal2zeroZIP/2
-
-zeroesZIPsig1[idSig1TaxZIPzeroes] = expit(logit(zeroesZIPsig1[idSig1TaxZIPzeroes]) * Signal1zeroTaxZIP)
-zeroesZIPsig2[idSig2TaxZIPzeroes] = expit(logit(zeroesZIPsig2[idSig2TaxZIPzeroes]) * Signal1zeroTaxZIP)
-zeroesZIPsig12[c(idSig1TaxZIPzeroes, idSig2TaxZIPzeroes)] = c(zeroesZIPsig1[idSig1TaxZIPzeroes],zeroesZIPsig2[idSig2TaxZIPzeroes])
-
-NsamplesZIPsigRef =  NsamplesZIPsig - NsamplesSignal1ZIP - NsamplesSignal2ZIP-  NsamplesSignal12ZIP
-
-#Define mean and zero matrices
-meanMatrefZIP = outer(sample(libSizesZIPsig, NsamplesZIPsigRef), lambdasZIPref)
-meanMatSig1ZIP = outer(sample(libSizesZIPsig, NsamplesSignal1ZIP), lambdasZIPsig1)
-meanMatSig2ZIP = outer(sample(libSizesZIPsig, NsamplesSignal2ZIP), lambdasZIPsig2)
-meanMatSig12ZIP = outer(sample(libSizesZIPsig, NsamplesSignal12ZIP), lambdasZIPsig12)
-
-zeroMatrefZIP = matrix(zeroesZIPref, nrow=nrow(meanMatrefZIP),ncol=ncol(meanMatrefZIP), byrow = TRUE)
-zeroMatSig1ZIP = matrix(zeroesZIPsig1, nrow=nrow(meanMatSig1ZIP),ncol=ncol(meanMatSig1ZIP), byrow = TRUE)
-zeroMatSig2ZIP = matrix(zeroesZIPsig2, nrow=nrow(meanMatSig2ZIP),ncol=ncol(meanMatSig2ZIP), byrow = TRUE)
-zeroMatSig12ZIP = matrix(zeroesZIPsig12, nrow=nrow(meanMatSig12ZIP),ncol=ncol(meanMatSig12ZIP), byrow = TRUE)
-
-#Generate the data
-dataMatZIPref = matrix(rzipois(n=prod(dim(meanMatrefZIP)),lambda = meanMatrefZIP, pstr0 = zeroMatrefZIP), ncol=ncol(meanMatrefZIP), nrow=nrow(meanMatrefZIP))
-dataMatZIPsig1 = matrix(rzipois(n=prod(dim(meanMatSig1ZIP)),lambda = meanMatSig1ZIP, pstr0 = zeroMatSig1ZIP), ncol=ncol(meanMatSig1ZIP), nrow=nrow(meanMatSig1ZIP))
-dataMatZIPsig2 = matrix(rzipois(n=prod(dim(meanMatSig2ZIP)),lambda = meanMatSig2ZIP, pstr0 = zeroMatSig2ZIP), ncol=ncol(meanMatSig2ZIP), nrow=nrow(meanMatSig2ZIP))
-dataMatZIPsig12 = matrix(rzipois(n=prod(dim(meanMatSig12ZIP)),lambda = meanMatSig12ZIP, pstr0 = zeroMatSig12ZIP), ncol=ncol(meanMatSig12ZIP), nrow=nrow(meanMatSig12ZIP))
-
-#Bind the data
-dataMatZIPSig = rbind(dataMatZIPref, dataMatZIPsig1, dataMatZIPsig2, dataMatZIPsig12)
-#mean(dataMatZIPsig==0) #Correct zero fraction
-
-#Save signals
-sampleSigZIP = factor(c(rep("Reference",NsamplesZIPsigRef), rep("Signal1", NsamplesSignal1ZIP), rep("Signal2", NsamplesSignal2ZIP), rep("Signal 1 and 2", NsamplesSignal12ZIP)))
-taxaSigZIPtmp = rep("Reference",ncol(dataMatSigNB))
-taxaSigZIPtmp[idSig1TaxZIP] = "Signal 1"
-taxaSigZIPtmp[idSig2TaxZIP] = "Signal 2"
-taxaSigZIP =factor(taxaSigZIPtmp) 
-names(taxaSigZIP) = colnames(dataMatZIPSig) = names(rhosNBSigref)
-names(sampleSigZIP) = rownames(dataMatZIPSig) = 1:NsamplesZIPsig
-```
-
-#### Apply the RC(M) algorithm
-
-```{r ZIP signal fit, eval=FALSE, purl=FALSE}
-if(!file.exists("syntZIPSig.RData")){
-    syntZIPSigUnifJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "uniform"))
-  syntZIPSigUnif =  mccollect(syntZIPSigUnifJob, FALSE)[[1]] 
-  
-  syntZIPSigMargJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "marginal"))
-  syntZIPSigMarg =  mccollect(syntZIPSigMargJob, FALSE)[[1]] 
-  
-  save(syntZIPSigUnif, syntZIPSigMarg, sampleSigZIP, taxaSigNB, file="syntZIPSig.RData")
-} else {load("syntZIPSig.RData")}
-```
-
-##### Plot the results
-
-### Zero-inflated negative binomial
-
-#### Without signal
-
-##### Generate data
-
-```{r ZINB without signal, eval=FALSE, purl=FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate the ZIP parameters
-expit=function(x){
-  tmp = exp(x)/(1+exp(x))
-  tmp[is.na(tmp)]=1 #Adjust for overflow
-  tmp}
-
-if(!file.exists("AGzinbParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
- # otuTab = otuTab[, colMeans(otuTab==0)<0.95]
-  logLibs = log(sample_sums(AGphylo))
-  ZINBfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    try(zeroinfl(otuTab[,i]~offset(logLibs)| 1, dist="negbin"), silent=TRUE)
-  })
-  zeroProbsNB = sapply(ZINBfits, function(x){if(is.list(x)) expit(x$coef$zero) else NA})
-  ZINBmeans = sapply(ZINBfits, function(x){if(is.list(x)) exp(x$coef$count) else NA})
-  thetasZINB = sapply(ZINBfits, function(x){if(is.list(x)) x$theta else NA})
-  naID=is.na(zeroProbsNB)
-  zeroProbsNB= zeroProbsNB[!naID]
-  ZINBmeans= ZINBmeans[!is.na(ZINBmeans)]
-  thetasZINB= thetasZINB[!is.na(thetasZINB)]
-  save(thetasZINB, zeroProbsNB, ZINBmeans, file="AGzinbParams.RData")
-} else {load(file="AGzinbParams.RData")}
-#ZeroProbs are lower than for the ZIP
-
-#Define parameters
-zeroProbsNB = zeroProbsNB[zeroProbsNB<0.9]
-NsamplesZINBnoSig= 200
-NtaxaZINBnoSig = 800
-idSampleZINB = sample(size=NtaxaZINBnoSig, 1:length(ZINBmeans))
-MeansZINB = ZINBmeans[idSampleZINB]
-ThetasZINB = thetasZINB[idSampleZINB]
-zeroesZINBnoSig = sample(zeroProbsNB, NtaxaZINBnoSig)
-libSizesZINBnoSig =c(rep(1e5, floor(NsamplesZINBnoSig/2)), rep(1e6, floor(NsamplesZINBnoSig/2)))
-
-#Mean, OD and zero matrices
-meanMatZINBnoSig = outer(libSizesZINBnoSig, MeansZINB)
-ODmatZINB = outer(rep(1,NsamplesZINBnoSig) ,ThetasZINB )
-zeroMatZINBnoSig = matrix(zeroesZINBnoSig, nrow=NsamplesZINBnoSig, ncol=NtaxaZINBnoSig, byrow = TRUE)
-
-#Data generation
-dataMatZINBnoSig = matrix(rzinegbin(n=prod(dim(meanMatZINBnoSig)),munb = meanMatZINBnoSig, size = ODmatZINB, pstr0 = zeroMatZINBnoSig), ncol=NtaxaZINBnoSig, nrow=NsamplesZINBnoSig)
-save(dataMatZINBnoSig, file = "zinbNoSigData.RData")
-```
-
-##### Apply the RC(M) algorithm with the ZINB distribution
-
-```{r ZINB signal fit, eval=FALSE, purl=FALSE}
-nleqslv.control.zinb = list(trace = TRUE, maxit = 250, cndtol = .Machine$double.eps, allowSingular=TRUE)
-if(!file.exists("syntZINBnoSig.RData")){
-    syntZINBSigunifunifJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "uniform", rowWeights = "uniform", twoCores=FALSE, maxItOut = 5e0))
-  syntZINBSigunifunif =  mccollect(syntZINBSigunifunifJob, FALSE)[[1]] 
-  
-  syntZINBSigunifmargJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "marginal", rowWeights = "uniform", twoCores=FALSE))
-  syntZINBSigunifmarg =  mccollect(syntZINBSigunifmargJob, FALSE)[[1]]
-  
-  save(syntZINBSigunifunif, syntZINBSigunifmarg, file="syntZINBnoSig.RData")
-} else {load("syntZINBnoSig.RData")}
-```
-
-##### Plot the ZINB results
-
-```{r RC(M) ZINB, eval=FALSE, purl=FALSE}
-load(file="toyDataNoSigZINBserver.RData")
-solListWSZINB = noSigListZINB[sapply(noSigListZINB, class)=="list"]
-#Runtimes and convergence
-sapply(solListWSZINB,function(x){x$converged})
-sapply(solListWSZINB,function(x){x$runtime})
-sapply(solListWSZINB,function(x){x$iter})
-par(mfrow=c(2,2))
-sapply(solListWSZINB,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
-```
-
-#### Restore defaults
-
-```{r restore defaults, eval=FALSE, purl = FALSE}
-palette(palStore)
-```
-
---->
-
-
-```{r LRnbcheck, purl=FALSE, eval = FALSE}
-### Constrained RC(M): tests
-
-# Test this method in one dimension, linear response function. Default should probably be: linear for the dummy's of the categorical variables, quadratic or non-parametric for continuous ones.
-#Some synthetic data
-n = 40
-p = 200
-d = 3
-var1 = rnorm(n) # an unrelated variable
-var2 = rnorm(n) # A meaningful variable
-var3 = rnorm(n, sd=2) # An even more meaningful variable
-psi = 1
-cVec = rnorm(p)*psi
-libSizes = 10^runif(n, 3, 5)
-abunds = 10^runif(p, -5, -3)
-abunds = abunds/sum(abunds)
-muMarg = outer(libSizes, abunds)
-alphaK = c(0.2,1,1.5)
-alphaK = alphaK-mean(alphaK)
-alphaK = alphaK/sqrt(sum(alphaK^2))
-regMat = rbind(var1, var2,var3)
-mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
-thetasCon = thetas[1:p]
-prevCut = 0.1
-
-X0 = matrix(rnbinom(n*p, size=thetasCon, mu = t(mu)), ncol = p, byrow = TRUE)
-idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
-X = X0[rowSums(X0)>0,idCol ]
-cVec2 = cVec[idCol]
-muMargObs = outer(rowSums(X), colSums(X)/sum(X))
-
-testLR = LR_nb(alphaK, X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetaMat = matrix(thetasCon[idCol], byrow = TRUE, nrow = nrow(X), ncol = ncol(X)), cReg = cVec2, d= nrow(regMat), ncols=ncol(X),v=2)
-centMat = rbind(1, matrix(0,3,3))
-
-testAlpha = estAlpha(c(0.01,0.01,0.01), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = matrix(thetasCon[idCol],nrow(X),ncol(X), byrow=TRUE), cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, n=nrow(X), k=1)
-
-#Works really well, only a trifle slow!
-testRCMconstrJob = mcparallel(RCM_NB(X = X, k = 1, covariates = t(regMat)))
-testRCMconstr = mccollect(testRCMconstrJob, wait=FALSE)[[1]]
-
-save(testRCMconstr,X, regMat, cVec2, alphaK, file="testRCMconstr.RData")
-plot(c(testRCMconstr$cMat), cVec2)
-plot(testRCMconstr$alpha, alphaK) #Not bad!!
-plot(alphaK %*% regMat, c(testRCMconstr$alpha) %*% regMat)
-```
-
-```{r LRnbchack2, purl=FALSE, eval = FALSE}
-# Now a bit more complicated: two dimensions, dummy's and quadratice relationship
-#Some synthetic data
-n = 40
-p = 200
-d = 5
-var1 = rnorm(n) # an unrelated variable
-var2 = rnorm(n) # A meaningful variable
-var3 = rnorm(n, sd=2) # An even more meaningful variable
-var4 = factor(sample(c(1,1:3), n, replace=TRUE)) # A categorical variable
-var5 = factor(sample(c(1,1,1:3), n, replace=TRUE)) # Another categorical variable
-psi = 2
-cVec = rnorm(p)*psi
-libSizes = 10^runif(n, 3, 5)
-abunds = 10^runif(p, -5, -3)
-abunds = abunds/sum(abunds)
-muMarg = outer(libSizes, abunds)
-alphaK = c(0.2,
-           1,
-           1.5,
-           1.2,0.9,-3.1,
-           1.1,-2.5,1.4) #The categorical variables with zero-sum coding (they center around zero by default. Remember to estimate with treatment coding but normalize based on zero-sum coding.)
-alphaK = alphaK-mean(alphaK)
-alphaK = alphaK/sqrt(sum(alphaK^2))
-regMat = t(
-  cbind(model.matrix(~var1+var2+var3+var4+var5-1, contrasts.arg = lapply(list(var4 = var4,var5 = var5), contrasts, contrasts=FALSE))
-                  ))
-
-mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
-thetasCon = thetas[1:p]
-prevCut = 0.1
-
-X0 = matrix(rnbinom(n*p, size=thetasCon, mu = t(mu)), ncol = p, byrow = TRUE)
-idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
-X = X0[rowSums(X0)>0,idCol ]
-cVec2 = cVec[idCol]
-muMargObs = outer(rowSums(X), colSums(X)/sum(X))
-#centMat
-
-testAlpha2 = estAlpha(rep(0.01,9), X, t(regMat), responseFun ="gaussian", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, k=1)
-
-testRCMconstr2Job = mcparallel(
-  RCM(dat = X, k = 2, covariates = data.frame(var1 = var1, var2 = var2, var3 = var3, var4 = var4, var5 = var5), responseFun = "quadratic")
-  )
-testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
-```
-
-### Triplots
-
-# Competing methods
-
-## Unconstrained RC(M)
-
- - PCoA
-   * Bray-Curtis dissimilarity (Forest ecology)
-   * UniFrac distance (Microbial ecology, uses phylogenetic information) => This will be difficult since it does not rely on counts, or only partially in case of weighted unifrac
-   * Jenssen-Shannon divergence because of the enterotypes publication
-   * See Warton _et al._ (2012): Distance-based multivariate analyses confound
-location and dispersion effects
-   * See technical report bio BioRankings: "Dealing with High-Dimensional Data". Pairwise distances all become similar in high dimensions.
-   * PCoA also has the drawback of not yielding any species scores, it is an eigenvalue rather than a singular value method. The information on the individual species is lost in the distance calculation 
- - Corresponence analysis (CA) (Statistics)
- - CoDa: PCoA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
-  * Dependence on pseudocounts?
- - Bayesian Nonparametric Ordination (Ren _et al._ (2016))
- 
-```{r CoDA}
-# The compositional approach:
- # Zeroes are fixed somehow
- # log-ratio transform of relative abundances
- # PCA on transformed values
-# Main concern is that this approach ignores the fact that we have count data that are heteroscedastic
-
-# This function is build after the supplementary files of Gloor and Reid, 2016. Only the abundance filtering is made less severe
-CoDa = function(dat, abCutOff = 1e-6, scale = FALSE){
-  require(zCompositions)
-  classDat = class(dat) #The class provided
-  
-  ##The count data##
-  if (classDat=="matrix"){
-  X = dat
-  }else  if(classDat=="phyloseq"){
-  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
-  } else {stop("Please provide a matrix or a phyloseq object! \n")}
-  
-Xzero <- as.matrix(cmultRepl(X=X, method="CZM", output="counts")) #Correct zeroes in a Bayesian way
-
-# convert to proportions 
-Xnorm = Xzero/rowSums(Xzero)
-
-#Trim on abundance in any sample
-Xtrim = Xnorm[,apply(Xnorm,2,min)>abCutOff]
-
-# make our compositional dataset
-Xcrl <- apply(Xtrim, 1, function(x){log(x) - mean(log(x))})
-
-# Apply PCA
-prcomp(Xcrl, scale = scale) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
-}
-```
-
-```{r nonparametricBayesian}
-# A bayesian approach, gets a bit complicated
-#data(JRphylo) # A vaginal dataset
-nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3, a2 = 4, m = 10, alpha = 10, beta = 0 )){
-  require(DirFactor)
-  classDat = class(dat) #The class provided
-  
-  ##The count data##
-  if (classDat=="matrix"){
-  X = dat
-  }else  if(classDat=="phyloseq"){
-  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
-  } else {stop("Please provide a matrix or a phyloseq object! \n")}
-  DirFactor(t(dat), hyper, step = 100)
-}
-```
-   
-## Constrained
-
-  - Constrained PCoA?
-  - Constrained correspondence analysis (CCA)
-    * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
-
-# Method evaluation
-
-After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way. For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
-
-## Within vs. overall distance
-
-A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
-
-We could perhaps look for the distance based method that minimizes $\frac{d_{m, within}}{d_{m, overall}}$?
-
-This approach can be applied to the row scores (samples) as well as the column scores (taxa).
-
-```{r within vs. between distances}
-# A function to calculate these within and overall distances
-distanceFun = function(coord, clusters, Dim = c(1,2)){
-  # @param coord: an nxk matrix of coordinates
-  # @param clusters: a factor of length n with cluster memberships
-  # @param Dim: The dimensions to look at, defaults to the first two
-  
-  # @return: a list with
-    # -withinDist: within distances
-    # -overalDist: the n overal distances
-  
-  coord = coord[,Dim, drop=FALSE]
-  
-  withinDist = tapply(seq_len(nrow(coord)), clusters, function(x){
-    coordsX = coord[x,]
-    centerX = colMeans(coordsX)
-    dists = apply(coordsX, 1, function(y){
-      dist(rbind(y, centerX))
-    })
-    return(dists)
-  })
-  
-  overalCenter = colMeans(coord)
-  overalDist = apply(coord, 1, function(y){
-    dist(rbind(y, overalCenter))
-  })
-  
-  ratio = mean(sapply(withinDist, function(x){x/overalDist}))
-  list(withinDist = withinDist, overalDist =  overalDist, ratio = ratio)
-  
-}
-```
-
-## Silhouette
-
-See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
-
-$$s(i) = \frac{a(i) - b(i)}{max\big(a(i), b(i)\big)}$$
-
-The silhouette can take values between +1 for optimal separation and -1 for wrong classification. If a poin i close to the centroid of its own cluster but very far from all the others the methods has performed well and is rewarded with a high silhouette. We can average the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
-
-```{r silhouette}
-silhouette = function(coord, clusters, Dim = c(1,2)){
-  # @param coord: an nxk matrix of coordinates
-  # @param clusters: a factor of length n with cluster memberships
-  # @param Dim: The dimensions to look at, defaults to the first two
- 
-  # @return a vector of n silhouettes
-  
-  coord = coord[,Dim, drop=FALSE]
-  
-  distMat = as.matrix(dist(coord)) # all distances
-  avDists = apply(distMat, 1 , function(x){
-    tapply(x[x!=0], clusters[x!=0], mean) #Exclude observation itself
-  }) # Average distances with clusters
-  ais = sapply(seq_along(clusters), function(i){
-    avDists[clusters[i], i]
-  }) #Average distance to own cluster
-  bis = sapply(seq_along(clusters), function(i){
-    min(avDists[clusters[i]!=levels(clusters), i])
-  }) #Average distance to nearest cluster
-  
-  silhouette = mapply(ais, bis, FUN = function(a,b){(b-a)/max(a,b)}) #The silhouette
-  
-  return(silhouette)
-}
-```
-
-## Correlation with library sizes
-
-The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
-
-Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot.
-
-```{r libSizeCorrelation}
-libCor = function(coord, libSizes, Dim = c(1,2)){
-  apply(coord[, Dim, drop=FALSE], 2, cor, libSizes)
-}
-```
-
-<!---
-The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance.
---->
-
-## Contribution of taxa to the separation of the clusters
-
-For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid.
-
-## Auxiliary functions
-
-```{r extract row vectors}
-#A function to extract the row vectors multiplied by importance elements
-extractRows = function(x){
-  with(x, list(
-    RCM = RCM$rMat %*% diag(RCM$psis),
-    CA = CA$u %*% diag(CA$d),
-    CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
-    CoDaScale = CoDaScale$rotation %*% diag(CoDaScale$sdev^2),
-    BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
-    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
-    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
-    JSDrel = JSDrel$vectors %*% diag(JSDrel$values$Eigenvalues[seq_len(ncol(JSDrel$vectors))])
-    ))
-}
-```
-
-# Simulations
-
-## Unconstrained RC(M)
-
-### Generating datasets
-
-As ways of generating test datasets we see three different options
-
-  1) Parametric simulation with the negative binomial with known abundances. 
-  2) Non-parametric simulation with SimSeq
-  3) Real datasets with biological signal allegedly known
-  
-  Parametric simulation is needed as a first check but evidently favours our method (if we use the negative binomial distribution). SimSeq is a reasonably neutral tool, we will only use WMW to obtain the lfdr. Real datasets will need to complement our analysis but it may not be possible to evaluate them in a high-throughput way, this will need to happen empirically.
-  
-#### Parametric simulations
-
-##### Negative binomial
-
-The negative binomial is the assumed distribution of our method. As a result we should outperform all other methods in this setting.
-
-###### Null setting
-
-In this setting we simulate all distributions from the same template, thus there is no signal in this dataset
-
-```{r NBnull, purl = FALSE}
-p = 1000 #Number of taxa
-n = 60 #Number of samples
-nPop = 4 #Number of underlying populations
-nPerPop = n/nPop #Number of samples per population
-reps = 100 #replicates
-nDim  = 3 #Number of dimensions
-
-load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
-rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
-thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
-
-#Library sizes
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
-libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
-
-if(!file.exists(file = "RCMsim/datList0.RData")){
-datList0 = mclapply(mc.cores=4, 1:reps, function(i){
-## Sample parameters
-rhosSampled = sample(rhoEst, p)
-thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
-libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
-
-## Create dataset
-meanMat = outer(libSizesSampled, rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
-})
-save(datList0,  file = "RCMsim/datList0.RData")
-} else {load(file = "RCMsim/datList0.RData")}
-
-# Results
-if(!file.exists(file = "RCMsim/resList0.RData")){
-RCMresList0 = mclapply(mc.cores=4, datList0, function(y){
-  RCM(y$dataMat, k = nDim, distribution = "NB")
-})
-datList0mat = lapply(RCMresList0, function(x){x$X})
-CAresList0 = lapply(datList0mat, caSVD)
-CodaResList0 = lapply(datList0mat, CoDa)
-CodaScaledResList0 = lapply(datList0mat, CoDa, scale = TRUE)
-BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-#With relative abundances
-BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-resList0 = mapply(RCMresList0, CAresList0, CodaResList0, CodaScaledResList0, BCresList0, JSDresList0, BCresList0Rel, JSDresList0Rel, FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel, JSDrel){
-                    list(RCM = RCM, CA = CA, 
-                         CoDa = CoDa, CoDaScale = CoDaScale, 
-                         BC = BC, JSD = JSD, 
-                         BCrel = BCrel, JSDrel = JSDrel)
-                  }, 
-                  SIMPLIFY = FALSE
-)
-save(resList0, file = "RCMsim/resList0.RData")
-} else {load(file = "RCMsim/resList0.RData")}
-```
-
-
-```{r resList0 sampleBiplot, eval = FALSE, purl = FALSE}
-#A sample biplot
-resList0Rows = lapply(resList0, extractRows)
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList0))
-obj = resList0Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
-# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
-# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
-# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
-# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
-# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
-rm(ID, obj)
-par(mfrow = c(1,1))
-# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
-
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList0))
-obj = resList0Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
-# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
-# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
-# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
-# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
-# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
-rm(ID, obj)
-par(mfrow = c(1,1))
-
-#PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
-```
-  
-
-```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
-par(mar = c(4,4,4,4))
-cor0 = lapply(1:3, function(Dim){
-  rbind(
-  mapply(resList0Rows, datList0, FUN = function(x,z){
-  libSizes = rowSums(z$dataMat)
-  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)}) 
- }, SIMPLIFY = TRUE),
- "Control" = replicate(length(datList0),cor(rnorm(length(libSizes)), libSizes)))}) #Include a control
-
-cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
-par(mfrow = c(1,3))
-for (i in 1:3){
-data = cor0df[[i]]
-boxplot(Correl ~ Method, main = paste("Correlations for row scores \n with library sizes for dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
-meansCor = tapply(data$Correl, data$Method, mean)
-points(meansCor, col="red", pch=18, cex = 1.6)
-abline(h=0, lty = "dashed")
-rm(data, meansCor)
-}
-```
-
-###### Simulate from different distributions
-
-In this setting we will simulate data from 4 unrelated negative binomial distributions. Because of this clustering should be very good.
-
-```{r NBunrelatedDistr, purl = FALSE}
-p = 1000 #Number of taxa
-n = 60 #Number of samples
-nPop = 4 #Number of underlying populations
-nPerPop = n/nPop #Number of samples per population
-reps = 100 #replicates
-nDim  = 3 #Number of dimensions
-
-load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
-rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
-thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
-
-groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
-groupFactor = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
-
-#Library sizes
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
-libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
-
-if(!file.exists(file = "RCMsim/datList1.RData")){
-datList1 = mclapply(mc.cores=4, 1:reps, function(i){
-## Sample parameters
-rhosSampled = sapply(1:nPop, function(x){tmp=sample(rhoEst, p); tmp/sum(tmp)})[,groupInd]
-thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
-libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
-
-## Create dataset
-meanMat = libSizesSampled * t(rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
-list(dataMat = dataMat, group = groupFactor, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
-})
-save(datList1,groupFactor,  file = "RCMsim/datList1.RData")
-} else {load(file = "RCMsim/datList1.RData")}
-
-# Results
-if(!file.exists(file = "RCMsim/resList1.RData")){
-RCMresList1 = mclapply(mc.cores=4, datList1, function(y){
-  RCM(y$dataMat, k = nDim, distribution = "NB")
-})
-CAresList1 = lapply(datList1, caSVD)
-CodaResList1 = lapply(datList1, CoDa)
-CodaScaledResList1 = lapply(datList1, CoDa, scale = TRUE)
-BCresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList1 = lapply(datList1, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-#With relative abundances
-BCresList1Rel = lapply(datList1mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList1Rel = lapply(datList1mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-resList1 = mapply(RCMresList1, CAresList1, CodaResList1, CodaScaledResList1, BCresList1, JSDresList1, BCresList1Rel, JSDresList1Rel,
-                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel, JSDrel){
-                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD, BCrel = BCrel, JSDrel  =JSDrel)
-                  }, 
-                  SIMPLIFY = FALSE
-)
-save(resList1, file = "RCMsim/resList1.RData")
-} else {load(file = "RCMsim/resList1.RData")}
-```
-
-```{r resList1 sampleBiplot, eval = FALSE, purl = FALSE}
-#A sample biplot
-resList1Rows = lapply(resList1, extractRows)
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList1))
-obj = resList1Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
-# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
-# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
-# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
-# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
-# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
-rm(ID, obj)
-par(mfrow = c(1,1))
-# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
-
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList1))
-obj = resList1Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
-# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
-# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
-# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
-# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
-# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
-rm(ID, obj)
-par(mfrow = c(1,1))
-
-#PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
-```
-  
-```{r resList1Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
-sil1  = lapply(resList1Rows, function(x){
-  sapply(x, silhouette, clusters = groupFactor)
-})
-meanSil1 = sapply(sil1, function(x){
-  colMeans(x)
-})
-meanSil1df = melt(meanSil1, value.name = "Silhouette", varnames = c("Method"))
-boxplot(Silhouette~Method, main = "Mean silhouettes by method", data = meanSil1df)
-meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
-points(meansSil, col="red", pch=18, cex = 1.6)
-```
-
-```{r resList1Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
-dist1  = sapply(resList1Rows, function(x){
-  sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
-})
-meanDist1df = melt(dist1, value.name = "DistanceRatio", varnames = c("Method"))
-boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist1df)
-meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
-points(meansDist, col="red", pch=18, cex = 1.6)
-```
-
-```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
-par(mar = c(4,4,4,4))
-cor1 = lapply(1:3, function(Dim){mapply(resList1Rows, datList1, FUN = function(x,z){
-  libSizes = rowSums(z)
-  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)})
-}, SIMPLIFY = TRUE)})
-cor1df = lapply(cor1, melt, value.name = "Correl", varnames = c("Method"))
-par(mfrow = c(1,3))
-for (i in 1:3){
-data = cor1df[[i]]
-boxplot(Correl ~ Method, main = paste("Correlations for row scores \n with library sizes for dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
-meansCor = tapply(data$Correl, data$Method, mean)
-points(meansCor, col="red", pch=18, cex = 1.6)
-abline(h=0, lty = "dashed")
-rm(data, meansCor)
-}
-```
-
-
-The library sizes of the CoDa approach do negatively correlate with the row scores, confirming our concern about the heteroscedasticity
-
-###### Simulate from related distributions
-
-In this setting we will simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances
-
-```{r NBrelatedDistr, purl = FALSE}
-p = 1000 #Number of taxa
-n = 60 #Number of samples
-nPop = 4 #Number of underlying populations
-nPerPop = n/nPop #Number of samples per population
-reps = 100 #replicates
-nDim  = 3 #Number of dimensions
-TPR = 0.1
-FC = 10
-
-groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
-groupFactor2 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
-
-
-if(!file.exists(file = "RCMsim/datList2.RData")){
-datList2 = mclapply(mc.cores=4, 1:reps, function(i){
-## Sample parameters
-rhosSampled0 = sample(rhoEst, p)
-rhosSampled0 = rhosSampled0/sum(rhosSampled0)
-#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
-rhosIDSampled = lapply(1:nPop, function(x, rhos){
-  id = sample(seq_len(p), round(TPR*p))
-  rhos[id] = rhos[id]*FC
-  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
-}, rhos = rhosSampled0)
-
-rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
-rhosSampled = rhosSampled00[,groupInd]
-IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
-
-thetasSampled = sample(thetaEst, p) 
-libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
-
-## Create dataset
-meanMat = libSizesSampled * t(rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p)),n,p)
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
-})
-save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
-} else {load(file = "RCMsim/datList2.RData")}
-
-# Results
-if(!file.exists(file = "RCMsim/resList2.RData")){
-RCMresList2 = mclapply(mc.cores=4, datList1, function(y){
-  RCM(y$dataMat, k = nDim, distribution = "NB")
-})
-datList2mat = lapply(datList2, function(x){x$dataMat})
-CAresList2 = lapply(datList2mat, caSVD)
-CodaResList2 = mclapply(mc.cores=1,datList2mat, CoDa)
-CodaScaledResList2 = lapply(datList2mat, CoDa, scale = TRUE)
-BCresList2 = lapply(datList2mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList2 = lapply(datList2mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
-#With relative abundances
-BCresList2Rel = lapply(datList2mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-#For JSD the relative abundances do not make any difference, it works on relative abundances anyway!
-resList2 = mapply(RCMresList2, CAresList2, CodaResList2, CodaScaledResList2, BCresList2, JSDresList2, 
-                  BCresList2Rel, 
-                  FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel){
-                    list(RCM = RCM, CA = CA, CoDa = CoDa, CoDaScale = CoDaScale, BC = BC, JSD = JSD, BCrel = BCrel)
-                  }, 
-                  SIMPLIFY = FALSE
-)
-save(resList2, file = "RCMsim/resList2.RData")
-} else {load(file = "RCMsim/resList2.RData")}
-```
-
-```{r resList2 sampleBiplot, eval = FALSE, purl = FALSE}
-#A sample biplot
-resList2Rows = lapply(resList2, extractRows)
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList2))
-obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
-rm(ID, obj)
-par(mfrow = c(1,1))
-# In this setting, the RCM really appears to outperform the other methods
-
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList2))
-obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
-# plot(resList1$RCM[[id]]$rMat[,1:2], col = groupFactor, main = "RC(M)")
-# plot(resList1$CA[[id]]$u[,1:2], col = groupFactor, main = "CA", xlab = "Dim 1", ylab ="Dim2")
-# plot(resList1$CoDA[[id]]$rotation[,1:2], col = groupFactor, main = "CoDA")
-# plot(resList1$BC[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Bray-Curtis")
-# plot(resList1$JSD[[id]]$vectors[,1:2], col = groupFactor, main = "PCoA: Jensen-Shannon divergence")
-rm(ID, obj)
-par(mfrow = c(1,1))
-
-```
-
-```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
-sil2  = lapply(resList2Rows, function(x){
-  sapply(x, silhouette, clusters = groupFactor2)
-})
-meanSil2 = sapply(sil2, function(x){
-  colMeans(x)
-})
-meanSil2df = melt(meanSil2, value.name = "Silhouette", varnames = c("Method"))
-boxplot(Silhouette~Method, main = "Mean silhouettes by method", data = meanSil2df)
-meansSil2 = tapply(meanSil2df$Silhouette, meanSil2df$Method, mean)
-points(meansSil2, col="red", pch=18, cex = 1.6)
-```
-
-The RC(M) method has the highest silhouettes, PCoA is second best but far below.
-
-```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
-dist2  = sapply(resList2Rows, function(x){
-  sapply(x, function(y){distanceFun(y, clusters = groupFactor2)$ratio})
-})
-meanDist2df = melt(dist2, value.name = "DistanceRatio", varnames = c("Method"))
-boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist2df)
-meansDist = tapply(meanDist2df$DistanceRatio, meanDist2df$Method, mean)
-points(meansDist, col="red", pch=18, cex = 1.6)
-```
-
-RCM comes out as best, CA as worst
-
-```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
-par(mar = c(4,4,4,4))
-cor2 = lapply(1:3, function(Dim){rbind(mapply(resList2Rows, datList2mat, FUN = function(x,z){
-  libSizes = rowSums(z)
-  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)})
-}, SIMPLIFY = TRUE), "Control" = replicate(length(datList0),cor(rnorm(length(libSizes)), libSizes)))}) #Include a control
-cor2df = lapply(cor2, melt, value.name = "Correl", varnames = c("Method"))
-par(mfrow = c(1,3))
-for (i in 1:3){
-data = cor2df[[i]]
-boxplot(Correl ~ Method, main = paste("Correlations fo row scores \n with library sizes for dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
-meansCor = tapply(data$Correl, data$Method, mean)
-points(meansCor, col="red", pch=18, cex = 1.6)
-abline(h=0, lty = "dashed")
-rm(data, meansCor)
-}
-#Write standard functions for these things!
-```
-
-The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances, but not PCoA.
-
-## Constrained RC(M)
-
-\newpage
-
-#### Some comments on analysing microbiome count data
-
-##### Do not log-transform count data
-
-- log-transforms come with arbitrary pseudocounts for the many zeroes
-- models based on transformed data are hard to interpret in funcion of the untransformed data
-- log-transformation does not stabilize the variance
-- Accept non-normality and heteroscedasticity instead of trying to transform them away!
-- Log-transformation is more robust though and provides better type I error control (see papers O'Hara 2010, Ives 2015, Warton 2016 and this [post](http://stats.stackexchange.com/questions/114848/negative-binomial-glm-vs-log-transforming-for-count-data-increased-type-i-erro?rq=1) )
-
-##### Do not rely on residuals-based approaches
-
-- Most residual based approaches rely on normally behaved residuals
-- Microbiome residuals are skewed to the right 
-- The expectations should be larger than or equal to 5 for this approximation to hold, which is not the case for the majority of microbiome entries
-
-##### Use a GLM
-
-- Normalizing to relative or rarefied abundances throws away information on the variance and valuable counts
-- Leave the data untransformed and use a proper GLM for counts! This will properly model mean and variance and allows incorporation of covariate information
