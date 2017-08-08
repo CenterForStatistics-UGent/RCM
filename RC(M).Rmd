@@ -20,6 +20,7 @@ for(i in reqpkg)
 #   print(packageVersion(i))
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
+if(detectCores()==4)setwd(WD)
 if(file.exists("/home/stijn/PhD/American Gut/AGpars.RData")) {load("/home/stijn/PhD/American Gut/AGpars.RData")}
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
@@ -76,7 +77,7 @@ $$X = E_{independence} + R^{1/2}U\Sigma VC^{1/2}$$
 
 with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}C^{1/2}V=\mathbf{0}$ (weighted means equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'C^{1/2}V=\mathbf{1}$ (weighted variances equal one) (see VanDerHeijden et al., 1985).
 
-For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \mathbf{v_{2}}$ to correctly represent the distances between the samples. $\mathbf{w_{1}}$ and $\mathbf{w_{2}}$ can then be added to construct a biplot. The orthogonal projection of $\omega_1 v_{ki}$ on $w_{jk}$ then represents the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$.
+For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \mathbf{v_{2}}$ to correctly represent the distances between the samples. $\mathbf{w_{1}}$ and $\mathbf{w_{2}}$ can then be added to construct a biplot. The orthogonal projection of $(\omega_1 v_{ki}, \omega_2 v_{ki})$ on $(w_{j1},w_{j2})$ then equals $\frac{(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2})}{||(w_{j1},w_{j2})||}$. This value is proportional to the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$ ($(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2}) = \omega_1 v_{ki} w_{j1} + \omega_2 v_{ki} w_{j2}$), with the norm of the species vector as proportionality constant.
 
 Note that the use of correspondence analysis implies unimodal response curves (see later). Hence it is not appropriate to represent species as arrows. Representing them as points is more appropriate.
 
@@ -3952,7 +3953,7 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, psi, n ,v) {
 
 #--------------------------------------#
 # A function to estimate alpha based on the LR-criterion
-estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v, nLambda1s, nLambda, muMarg, thetas, psi, alphaK, maxItAlpha = 50, responseFun = c("linear", "quadratic", "nonparametric"),  control.outer = list(trace=FALSE), control.optim = list(trace=FALSE), nleqslv.control = list(), convNorm = 2, tol = 1e-3, NB_params = NULL, NB_params_noLab = NULL, analytic = FALSE, lambdasAlpha = NULL, verbose = TRUE){
+estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v, nLambda1s, nLambda, muMarg, thetas, psi, alphaK, maxItAlpha = 200, responseFun = c("linear", "quadratic", "nonparametric"),  control.outer = list(trace=FALSE), control.optim = list(trace=FALSE), nleqslv.control = list(), convNorm = 2, tol = 1e-3, NB_params = NULL, NB_params_noLab = NULL, analytic = FALSE, lambdasAlpha = NULL, verbose = TRUE){
   # @param alpha: a vector of length d, the environmental gradient
   # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
   # @param ncols: a scalar, the number of columns of X
@@ -4197,6 +4198,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
       }
       if(anyNA(datFrame)){
         NArows = apply(datFrame, 1, anyNA)
+        if(all(NArows)){ stop("All samples have missing covariates")}
         X = X[!NArows,]
         datFrame = datFrame[!NArows,]
        if(!is.null(confModelMat)){
@@ -4413,17 +4415,15 @@ con2DmatNon$alpha
 Finally we also apply the method to real datasets
 
 ```{r RC(M)_NB real datasets, purl = FALSE, eval = FALSE}
-realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease" )
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
-load("/home/stijn/PhD/Simulations/data/AGphylo.RData")
+realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate" )
 fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
-resListRCM = lapply(fileNames, function(x){
+resListRCM = mapply(fileNames, c(AGphylo, physeqListV13[realNames[-1]]),  SIMPLIFY = FALSE, FUN=function(x,y){
   load(x)
+  RCMres$physeq=y
   RCMres
 })
 
 names(resListRCM) = realNames
-
 sapply(resListRCM,function(x){x$converged}) # All converged
 sapply(resListRCM,function(x){x$runtime})
 sapply(resListRCM,function(x){x$iter})
@@ -4453,10 +4453,10 @@ resListRCM2 = lapply(realNames, function(x){
 
 names(resListRCM2) = realNames
 
-par(mfrow = c(2,4))
+par(mfrow = c(3,4))
 lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "sex", main=x)})
-par(mfrow = c(2,4))
-lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-0.9,-0.1))})
+par(mfrow = c(3,4))
+lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(1.1,-0.1))})
 ```
 
 We've discovered a clear impact of the runcenter!
@@ -4508,9 +4508,9 @@ The AGP dataset
 
 ```{r AGPplots, purl = FALSE, eval = FALSE}
 par(mfrow = c(3,3))
-AGPvars = c("IBD","AGE","SEX","PREGNANT","LACTOSE","ASTHMA","DIABETES", "DIET_TYPE","COUNTRY")
+AGPvars = c("IBD","SEX","PREGNANT","LACTOSE","ASTHMA","DIABETES", "DIET_TYPE","COUNTRY")
 sapply(AGPvars, function(x){
-plotRCM(resListRCM[["AGP"]], biplot=FALSE, samColour = x, main=x, libInset = c(-2.9,-0.1), libLeg=TRUE)
+plotRCM(resListRCM[["AGP"]], biplot=FALSE, samColour = x, main=x, libInset = c(-3.9,-0.1), libLeg=TRUE)
 })
 ```
 
@@ -4525,7 +4525,6 @@ AGP is known to be very noisy and does not yield anything.
 The Zeller data
 
 ```{r load zeller RC(M) NB results, purl = FALSE}
-load("/home/stijn/PhD/Simulations/data/zellerData.RData")
 
 zellers = c("zellerMeta","zeller16S")
 # zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
@@ -4580,21 +4579,61 @@ Constrained analysis
 
 ```{r zellerConstrained, purl =FALSE}
 if(!file.exists("zellerSphyRCMconstr.RData")){
-zellerSphyRCMconstr = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis")) # Use smallest possible cndtol!
+zellerSphyRCMconstrLin = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear") # Use smallest possible cndtol!
+zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
+zellerSphyRCMconstrNonP = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
 save(zellerSphyRCMconstr, file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 ```
 
 ```{r ZellerConstrainedBiplot, purl=FALSE}
-PCbiplot(zellerSphyRCMconstr)
-PCbiplot(zellerSphyRCMconstr, colour = "Diagnosis")
-PCbiplot(zellerSphyRCMconstr, colour = "Gender")
-PCbiplot(zellerSphyRCMconstr, colour = "Country")
-PCbiplot(zellerSphyRCMconstr, colour = "Age")
+PCbiplot(zellerSphyRCMconstrLin)
+PCbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis")
+PCbiplot(zellerSphyRCMconstrLin, colour = "Gender")
+PCbiplot(zellerSphyRCMconstrLin, colour = "Country")
+PCbiplot(zellerSphyRCMconstrLin, colour = "Age")
 #apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
 ```
 
 Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
+
+Constrained analysis of the AGP data
+
+```{r AGPconstr}
+AGPconstr = RCM(AGphylo, k=2, round = TRUE, covariates = "all")
+```
+
+##### Turnbaugh et al. (2008)
+
+Also try the Turnbaugh (2008) dataset: lean and obese twins
+
+```{r turnTwins}
+if(!file.exists("turntwinsRCm.RData")){
+  load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
+turntwinsRCm = RCM(TurnTwins, k=3)
+#turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
+save(turntwinsRCm, file = "turntwinsRCm.RData")
+} else {load("turntwinsRCm.RData")}
+PCbiplot(turntwinsRCm, colour = "Family_p")
+PCbiplot(turntwinsRCm, colour = "twin")
+PCbiplot(turntwinsRCm, colour = "Status_p")
+```
+
+##### Turnbaugh et al. (2009)
+
+Humanized mice
+
+```{r turnmice}
+if(!file.exists("turntMiceRCM.RData")){
+  load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
+HumMiceRCM = RCM(HumMicePhy, k=3)
+#turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
+save(turntwinsRCm, file = "turntwinsRCm.RData")
+} else {load("turntwinsRCm.RData")}
+PCbiplot(turntwinsRCm, colour = "Family_p")
+PCbiplot(turntwinsRCm, colour = "twin")
+PCbiplot(turntwinsRCm, colour = "Status_p")
+```
 
 <!---### Zero-inflated poisson
 
@@ -4970,16 +5009,42 @@ testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
 
 ## Unconstrained RC(M)
 
- - PCoA
-   * Bray-Curtis dissimilarity (Forest ecology)
+### PCoA/MDS
+
+Principal coordinates analysis (PCoA) or multidimensional scaling (MDS) are dimension reduction techniques specifically for samples. The consist in calculating dissimilarity matrices with dissimilarities between samples based on some chosen dissimilarity measure. These dissimilarity matrices are than decomposed through eigenvalue decomposition, and the first two dimensions are plotted. More formally, for a n-by-p data matrix $\mathbf{X}$, all pairwise distances between samples $i$ and $i'$ $D_{ii'} = d(\mathbf{X_{i.}}, \mathbf{X_{i'.}})$ are calculated and summarized in a n-by-n dissimilarity matrix $\mathbf{D}$. If the dissimilarity measure is a true distance, then $d_{ii'} = d_{i'i}$ and $\mathbf{D}$ is symmetric. Next $\mathbf{D}$ undergoes eigendecomposition into
+
+$$ \mathbf{D} = \mathbf{V}^t\boldsymbol{\Lambda}\mathbf{V} $$
+  with the eigenvectors of $\mathbf{D}$ in the columns of $\mathbf{V}$ and $\boldsymbol{\Lambda}$ a diagonal matrix with eigenvalues of $\mathbf{D}$ on the diagonal. $\mathbf{v}_1\lambda_1$ can then be plotted _vs_ $\mathbf{v}_2\lambda_2$ in a 2D scatterplot to represent distances between the samples optimally in 2D. In the calculation of $\mathbf{D}$, the information on the individual taxa is lost. Taxa scores can be calculated by weighted averaging of the sample scores for each taxon, weighted by the taxon abundances in these samples. The taxon score of taxon _j_ in dimension 1 then becomes
+   
+   $$t_{j1} = \sum_{i=1}^n v_{i1}*\frac{x_{ij}}{x_{.j}}$$
+   
+  This is a two step approach: the taxon scores are only calculated post-hoc and not as part of the eigendecomposition.
+   
+  In the following paragraphs we discuss a number of popular distance measures for microbiome data that are commonly used for PCoA.
+   
+#### Bray-Curtis dissimilarity
+
+This distance measure was invented in 1957 in the context of forest ecology. It is calculated as
+
+$$BC_{12} = 1-\frac{2*S_{12}}{S_1 + S_2}$$
+
+with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017.
+
+#### Unifrac distance
+
+##### Weighted Unifrac
+
+##### Other improved versions
+   
    * UniFrac distance (Microbial ecology, uses phylogenetic information) => This will be difficult since it does not rely on counts, or only partially in case of weighted unifrac
    * Jenssen-Shannon divergence because of the enterotypes publication
+   * Hellinger distance. Hellinger distance may be a robust alternative to correspondence analysis, although it is designed for distances between distributions rather than between real data ratios. It has been used in publications on microbiome, e.g. Kreisinger _et al._, 2015, Hollister _et al._ 2015, Vital _et al._, 2015.
    * See Warton _et al._ (2012): Distance-based multivariate analyses confound
 location and dispersion effects
    * See technical report bio BioRankings: "Dealing with High-Dimensional Data". Pairwise distances all become similar in high dimensions.
    * PCoA also has the drawback of not yielding any species scores, it is an eigenvalue rather than a singular value method. The information on the individual species is lost in the distance calculation 
  - Corresponence analysis (CA) (Statistics)
- - CoDa: PCoA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
+ - CoDa: PCA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
   * Dependence on pseudocounts?
  - Bayesian Nonparametric Ordination (Ren _et al._ (2016))
  
@@ -5019,7 +5084,7 @@ prcomp(Xcrl, scale = scale) #Shouldn't this be scaled? It is not the default, an
 ```
 
 ```{r nonparametricBayesian}
-# A bayesian approach, gets a bit complicated
+# A bayesian approach, this is quite slow
 #data(JRphylo) # A vaginal dataset
 nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3, a2 = 4, m = 10, alpha = 10, beta = 0 )){
   require(DirFactor)
@@ -5031,7 +5096,7 @@ nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3
   }else  if(classDat=="phyloseq"){
   X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
   } else {stop("Please provide a matrix or a phyloseq object! \n")}
-  DirFactor(t(dat), hyper, step = 100)
+  DirFactor(t(X), hyper, step = 100)
 }
 ```
    
@@ -5128,8 +5193,8 @@ The motivating problem to develop the whole method was to find an approach that 
 Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot.
 
 ```{r libSizeCorrelation}
-libCor = function(coord, libSizes, Dim = c(1,2)){
-  apply(coord[, Dim, drop=FALSE], 2, cor, libSizes)
+libCor = function(coord, margins, Dim = c(1,2)){
+  apply(coord[, Dim, drop=FALSE], 2, cor, margins)
 }
 ```
 
@@ -5149,16 +5214,21 @@ otherAnalyses = function(RCMlist){
 datList0mat = lapply(RCMlist, function(x){x$X})
 CAresList0 = lapply(datList0mat, caSVD)
 CodaResList0 = lapply(datList0mat, CoDa)
-CodaScaledResList0 = lapply(datList0mat, CoDa, scale = TRUE)
 BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
 JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
 #With relative abundances
 BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-mapply(RCMlist, CAresList0, CodaResList0, CodaScaledResList0, BCresList0, JSDresList0, BCresList0Rel, FUN = function(RCM, CA, CoDa, CoDaScale, BC, JSD, BCrel){
+#Hellinger distance
+HelDistresList = lapply(datList0mat, function(x){
+  R = rowSums(X)
+  E = outer(R, colSums(x)/sum(x))
+  svd(diag(1/sqrt(R)) %*% (sqrt(X)-sqrt(E))) 
+})
+mapply(RCMlist, CAresList0, CodaResList0, CodaScaledResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell){
                     list(RCM = RCM, CA = CA, 
-                         CoDa = CoDa, CoDaScale = CoDaScale, 
+                         CoDa = CoDa,
                          BC = BC, JSD = JSD, 
-                         BCrel = BCrel)
+                         BCrel = BCrel, Hellinger = Hell)
                   }, 
                   SIMPLIFY = FALSE
 )
@@ -5170,33 +5240,54 @@ extractRows = function(x){
     RCM = RCM$rMat %*% diag(RCM$psis),
     CA = CA$u %*% diag(CA$d),
     CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
-    CoDaScale = CoDaScale$rotation %*% diag(CoDaScale$sdev^2),
     BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
     JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
-    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))])
+    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
+    Hellinger = Hellinger$u %*% diag(Hellinger$d)
     ))
 }
+#---------------------------------------#
+#A function to extract the column vectors. For PCoA and CoDa this uses weighted averaging
+extractCols = function(x, rows){
+  with(x, list(
+    RCM = RCM$cMat,
+    CA = CA$v,
+    CoDa = weightedTaxonScores(RCM$X, row$CoDa),
+    BC = weightedTaxonScores(RCM$X, row$BC),
+    JSD = weightedTaxonScores(RCM$X, row$JSD),
+    BCrel = weightedTaxonScores(RCM$X, row$BCrel),
+    Hellinger = weightedTaxonScores(RCM$X, row$Hellinger)
+    ))
+}
+#---------------------------------------#
+# An auxiliary function to get weighted taxon scores
+weightedTaxonScores = function(X, rowScores){
+  crossprod(rowScores, X %*% diag(1/colSums(X)))
+}
 #-----------------------------------------#
-# A functions to plot the correlations with the library sizes of the row scores
-plotRowCor = function(resListRows, datList, Dims = 1:3, dataMat = FALSE){
+# A functions to plot the correlations of the library sizes with the row scores, or of the abundances with the column scores
+plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = FALSE){
 par(mar = c(4,4,4,4))
 if(!dataMat){
   datList = lapply(datList, function(x){x$dataMat})
 }
-  libSizes = rowSums(datList[[1]])
+  margins = switch(scoreDim, "rows"=rowSums(datList[[1]]), "columns" = colSums(datList[[1]]))
 cor0 = lapply(Dims, function(Dim){
   rbind(
-  mapply(resListRows, datList, FUN = function(x,z){
-  libSizes = rowSums(z)
-  sapply(x, function(y){libCor(y, libSizes = libSizes, Dim = Dim)}) 
+  mapply(scores, datList, FUN = function(x,z){
+  margins = switch(scoreDim, "rows" = rowSums(z), "columns" = colSums(z))
+  sapply(x, function(y){libCor(y, margins = margins, Dim = Dim)}) 
  }, SIMPLIFY = TRUE),
- "Control" = replicate(length(datList),cor(rnorm(length(libSizes)), libSizes)))}) #Include a control
+ "Control" = replicate(length(datList),cor(rnorm(length(margins)), margins)))}) #Include a control
 
 cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
 par(mfrow = c(1,max(Dims)))
 for (i in Dims){
 data = cor0df[[i]]
-boxplot(Correl ~ Method, main = paste("Correlations of library sizes \n with row scores of dimension",i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
+boxplot(Correl ~ Method, main = paste(
+  switch(scoreDim, "rows" = "Correlations of library sizes \n with row scores of dimension",
+         "columns" = "Correlations of species abundances \n with column scores of dimension"
+           ),i), data = data, ylim = c(-1,1), ylab = "Pearson correlation")
 meansCor = tapply(data$Correl, data$Method, mean)
 points(meansCor, col="red", pch=18, cex = 1.6)
 abline(h=0, lty = "dashed")
@@ -5317,10 +5408,9 @@ rm(ID, obj)
 par(mfrow = c(1,1))
 #PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
 ```
-  
 
 ```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
-plotRowCor(resList0Rows, datList0)
+plotCor(resList0Rows, datList0)
 ```
 
 ###### Simulate from different distributions
@@ -5402,7 +5492,7 @@ distRatioPlot(resList1Rows)
 ```
 
 ```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:libCor1}"}
-plotRowCor(resList1Rows, datList1, dataMat = TRUE)
+plotCor(resList1Rows, datList1, dataMat = TRUE)
 ```
 
 The library sizes of the CoDa approach do negatively correlate with the row scores, confirming our concern about the heteroscedasticity
@@ -5498,7 +5588,7 @@ distRatioPlot(resList2Rows)
 RCM comes out as best, CA as worst
 
 ```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
-plotRowCor(resList2Rows, datList2)
+plotCor(resList2Rows, datList2)
 ```
 
 The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
@@ -5557,7 +5647,7 @@ save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
 
 ###### Dirichelt-multinomial
 
-The use of the Dirichlet multinomial for microbiome data was proposed by La Rosa _et al._ (2012). Although it is very restrictive in terms of variance and covariance structures, we include it here because of its relative popularity.
+The use of the Dirichlet multinomial for microbiome data was proposed by La Rosa _et al._ (2012). Although it is very restrictive in terms of variance and covariance structures, we include it here because of its relative popularity. Also Chen _et al._ (2012) use it to simulate data for a visualization.
 
 ```{r simDM, eval = FALSE}
 p = 1000 #Number of taxa
@@ -5573,8 +5663,8 @@ groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactorDM = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
 load("/home/stijn/PhD/American Gut/AGdm.RData")
 
-if(!file.exists(file = "RCMsim/datListZINB.RData")){
-datListZINB = mclapply(mc.cores=1, 1:reps, function(i){
+if(!file.exists(file = "RCMsim/datListDM.RData")){
+datListDM = mclapply(mc.cores = 1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
@@ -5593,13 +5683,17 @@ thetaDM = AGdm$theta
 libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 
 ## Create dataset
-dataMat = t(sapply(libSizesSampled, Dirichlet.multinomial, shape = rhosSampled*(1-theta)/theta))
+dataMat = t(sapply(seq_along(libSizesSampled),function(i){Dirichlet.multinomial(libSizesSampled[i], shape = rhosSampled[,i]*(1-thetaDM)/thetaDM)}))
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, propSampled = propSampled)
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
 })
-save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
-} else {load(file = "RCMsim/datListZINB.RData")}
+save(datListDM,groupFactorDM, file = "RCMsim/datListDM.RData")
+} else {load(file = "RCMsim/datListDM.RData")}
 ```
+
+##### Nonparametric simulation
+
+An objective simulation approach would be to use non-parametric resampling from a true dataset, as in _SimSeq_
 
 ## Constrained RC(M)
 
