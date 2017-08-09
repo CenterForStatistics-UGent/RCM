@@ -4599,7 +4599,7 @@ Cancer turns out to be the main driver of explained variability in the first dim
 
 Constrained analysis of the AGP data
 
-```{r AGPconstr}
+```{r AGPconstr, eval=FALSE}
 AGPconstr = RCM(AGphylo, k=2, round = TRUE, covariates = "all")
 ```
 
@@ -4607,7 +4607,7 @@ AGPconstr = RCM(AGphylo, k=2, round = TRUE, covariates = "all")
 
 Also try the Turnbaugh (2008) dataset: lean and obese twins
 
-```{r turnTwins}
+```{r turnTwins, eval = FALSE}
 if(!file.exists("turntwinsRCm.RData")){
   load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
 turntwinsRCm = RCM(TurnTwins, k=3)
@@ -4623,16 +4623,13 @@ PCbiplot(turntwinsRCm, colour = "Status_p")
 
 Humanized mice
 
-```{r turnmice}
-if(!file.exists("turntMiceRCM.RData")){
+```{r turnmice, eval = FALSE}
+if(!file.exists("turnMiceRCM.RData")){
   load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 HumMiceRCM = RCM(HumMicePhy, k=3)
-#turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
-save(turntwinsRCm, file = "turntwinsRCm.RData")
-} else {load("turntwinsRCm.RData")}
-PCbiplot(turntwinsRCm, colour = "Family_p")
-PCbiplot(turntwinsRCm, colour = "twin")
-PCbiplot(turntwinsRCm, colour = "Status_p")
+HumMiceRCM = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DTS"))
+save(HumMiceRCM, file = "turnMiceRCM.RData")
+} else {load("turnMiceRCM.RData")}
 ```
 
 <!---### Zero-inflated poisson
@@ -5028,25 +5025,52 @@ This distance measure was invented in 1957 in the context of forest ecology. It 
 
 $$BC_{12} = 1-\frac{2*S_{12}}{S_1 + S_2}$$
 
-with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017.
+with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017 and many others.
 
 #### Unifrac distance
 
+The UniFrac distance was developed specifically for the microbiome by Lozupone and coworkers (2005), and includes phylogenetic information in the distance calculation. It is defined as the fraction of the phylogenetic tree lenght that leads to species found in only one of the two samples. As opposed to Bray-Curtis dissimilarity, it is a true distance metric.
+
 ##### Weighted Unifrac
 
-##### Other improved versions
+To account for differences in sequencing depth, in 2007 weighted UniFrac was proposed. This weights every branch by the absolute difference in relative abundances the species of both samples as follows:
+
+$$d_{UniFrac}(1,2) = \sum_{i=1}^b l_i |\frac{x_{1b}}{x_{1.}} - \frac{x_{2b}}{x_{2.}}|$$
+with $x_{zb}$ the total abundance of species in sample _z_ pertaining to branch _b_. This means that also branches with species from both samples can contribute to the distance between the samples, if their compositions are uneven.
+
+#### Jenssen-Shannon distance
    
-   * UniFrac distance (Microbial ecology, uses phylogenetic information) => This will be difficult since it does not rely on counts, or only partially in case of weighted unifrac
-   * Jenssen-Shannon divergence because of the enterotypes publication
-   * Hellinger distance. Hellinger distance may be a robust alternative to correspondence analysis, although it is designed for distances between distributions rather than between real data ratios. It has been used in publications on microbiome, e.g. Kreisinger _et al._, 2015, Hollister _et al._ 2015, Vital _et al._, 2015.
+We include the Jenssen-Shannon distance because of its role in the enterotypes publication (Arumugam _et al._, 2011). It is the square root of the Jenssen-Shannon _divergence_, a symmetrized version of the Kullback-Leibler divergence.
+
+$$d_{Jenssen-Shannon}(a,b) = \sqrt{0.5 \sum_{j=1}^p x_{aj} log \frac{x_{aj}}{\frac{x_{aj}+x_{bj}}{2}} + 0.5 \sum_{j=1}^p x_{bj} log \frac{x_{bj}}{\frac{x_{aj}+x_{bj}}{2}}}$$
+
+It is a true distance.
+
+#### Hellinger distance
+
+This came up during our own researhc into a version of correspondence analysis that would accurately model the variance of our count data. Still it is designed for distances between distributions rather than between real data ratios. It is defined as 
+
+$$d_{hellinger}(a,b) = \sum_{j=1}^p (\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_{bj}}{x_{b.}}})^2 $$
+
+. It does works on the relative abundances. It has been used in publications on microbiome, e.g. Kreisinger _et al._, 2015, Hollister _et al._ 2015, Vital _et al._, 2015.
+
+#### Related material
+
    * See Warton _et al._ (2012): Distance-based multivariate analyses confound
 location and dispersion effects
    * See technical report bio BioRankings: "Dealing with High-Dimensional Data". Pairwise distances all become similar in high dimensions.
-   * PCoA also has the drawback of not yielding any species scores, it is an eigenvalue rather than a singular value method. The information on the individual species is lost in the distance calculation 
- - Corresponence analysis (CA) (Statistics)
- - CoDa: PCA of log-ratio transformed data (Gloor _et al._ (2016), Gloor and Reid(2016)
-  * Dependence on pseudocounts?
- - Bayesian Nonparametric Ordination (Ren _et al._ (2016))
+
+### Correspondence analysis
+
+This is the classical, statistical way of analysing contingency tables of count data. For discussion see the beginning of this document.
+
+### CoDa
+
+In recent years there have been many publications on analysing microbiome data as compositional. Gloor and Reid (2016) and Gloor _et al._ propose a method to extend this philosophy to biplots. In a frist step, zero counts are replaced by a non-zero pseudocount, either 0.5 or through a Bayesian method. Next the data are normalized to realtive abundances, divided by the geometric mean and log-transformed. This is called the central logratio transform (clr). PCA is applied to these transformed data (through eigendecomposition of the variance-covariance matrix) and sample scores mutliplied by eigenvalues are plotted. Row scores can be added as weighted sample means.
+
+### Bayesian Nonparametric Ordination 
+
+(Ren _et al._ (2016))
  
 ```{r CoDA}
 # The compositional approach:
