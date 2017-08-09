@@ -4632,280 +4632,6 @@ save(HumMiceRCM, file = "turnMiceRCM.RData")
 } else {load("turnMiceRCM.RData")}
 ```
 
-<!---### Zero-inflated poisson
-
-#### ZIP without signal
-
-##### Generate data
-
-```{r ZIP without signal, eval=FALSE, purl = FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate the ZIP parameters
-
-if(!file.exists("AGzipParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
-  logLibs = log(sample_sums(AGphylo))
-  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
-  })
-  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
-  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
-  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
-} else {load(file="AGzipParams.RData")}
-#ZeroProbs are very high
-
-#Define parameters
-zeroProbs = zeroProbs[zeroProbs<0.9]
-NsamplesZIPnoSig= 200
-NtaxaZIPnoSig = 800
-idSampleZIP = sample(size=NtaxaZIPnoSig, 1:length(ZIPmeans))
-lambdasZIPnoSig = ZIPmeans[idSampleZIP]
-lambdasZIPnoSig= lambdasZIPnoSig/sum(lambdasZIPnoSig)
-zeroesZIPnoSig = sample(zeroProbs, NtaxaZIPnoSig)
-libSizesZIPnoSig =c(rep(1e5, floor(NsamplesZIPnoSig/2)), rep(1e6, floor(NsamplesZIPnoSig/2)))
-
-#Mean and zero matrices
-meanMatZIPnoSig = outer(libSizesZIPnoSig, lambdasZIPnoSig)
-zeroMatZIPnoSig = matrix(zeroesZIPnoSig, nrow=NsamplesZIPnoSig, ncol=NtaxaZIPnoSig, byrow = TRUE)
-
-#Data generation
-dataMatZIPnoSig = matrix(rzipois(n=prod(dim(meanMatZIPnoSig)),lambda = meanMatZIPnoSig, pstr0 = zeroMatZIPnoSig), ncol=NtaxaZIPnoSig, nrow=NsamplesZIPnoSig)
-save(dataMatZIPnoSig, file = "zipNSData.RData")
-```
-
-##### Fit RC(M)
-
-```{r RC(M) fit, eval=FALSE, purl = FALSE}
-nleqslv.controlZIP = list(trace=TRUE, maxit=250, cndtol = .Machine$double.eps, allowSingular=TRUE)
-if(!file.exists("syntZIPnoSig.RData")){
-  syntZIPnoSigUnifUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP", k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "uniform", maxItOut=5e0))
-  syntZIPnoSigUnifUnif =  mccollect(syntZIPnoSigUnifUnifJob, FALSE)[[1]] 
-  
-  syntZIPnoSigUnifMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "uniform", maxItOut=5e2))
-  syntZIPnoSigUnifMarg =  mccollect(syntZIPnoSigUnifMargJob, FALSE)[[1]]
-  
-  syntZIPnoSigMargUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "marginal", maxItOut=5e2))
-  syntZIPnoSigMargUnif =  mccollect(syntZIPnoSigMargUnifJob, FALSE)[[1]]
-  
-   syntZIPnoSigMargMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "marginal", maxItOut=5e1))
-  syntZIPnoSigMargMarg =  mccollect(syntZIPnoSigMargMargJob, FALSE)[[1]]
-  
-  save(syntZIPnoSigUnifMarg, syntZIPnoSigUnifUnif, syntZIPnoSigMargMarg, syntZIPnoSigMargUnif, dataMatZIPnoSig, file="syntZIPnoSig.RData")
-} else {load("syntZIPnoSig.RData")}
-#No convergence, mean cannot be fitted
-```
-
-##### Plot the results
-
-```{r RC(M) zip, eval=FALSE, purl = FALSE}
-load(file="toyDataNoSigZIPserver.RData")
-solListWSZIP = noSigListZIP[sapply(noSigListZIP, class)=="list"]
-#Runtimes and convergence
-sapply(solListWSZIP,function(x){x$converged})
-sapply(solListWSZIP,function(x){x$runtime})
-sapply(solListWSZIP,function(x){x$iter})
-
-par(mfrow=c(2,2))
-sapply(solListWSZIP,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
-```
-
-#### ZIP with signal
-
-```{r ZIP with signal, eval=FALSE, purl = FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate/load the ZIP parameters
-
-if(!file.exists("AGzipParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
-  logLibs = log(sample_sums(AGphylo))
-  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
-  })
-  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
-  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
-  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
-} else {load(file="AGzipParams.RData")}
-#ZeroPorbs are very low
-
-#Defina parameters
-NsamplesZIPsig= 150
-NtaxaZIPsig = 500
-lambdasZIPref = lambdasZIPsig1 =lambdasZIPsig2 = lambdasZIPsig12 =  sample(ZIPmeans, NtaxaZIPsig)
-zeroesZIPref = zeroesZIPsig1 = zeroesZIPsig2 = zeroesZIPsig12 =sample(zeroProbs, NtaxaZIPsig)
-libSizesZIPsig =c(rep(1e4, floor(NsamplesZIPsig/2)), rep(1e5, floor(NsamplesZIPsig/2)))
-
-#Define the signal
-NtaxaSignal1ZIP = 20
-NtaxaSignal2ZIP = 20
-
-NtaxaSignal1zeroZIP = 20
-NtaxaSignal2zeroZIP = 20
-
-Signal1taxZIP = 4
-Signal2taxZIP = 3
-
-Signal1zeroTaxZIP = 5
-Signal2zeroTaxZIP = 3
-
-NsamplesSignal1ZIP = 20
-NsamplesSignal2ZIP = 20
-NsamplesSignal12ZIP = 20
-
-NsamplesSignal1zeroZIP = 20
-NsamplesSignal2zeroZIP = 20
-NsamplesSignal12zeroZIP = 20
-
-idSig1TaxZIP = 1:NtaxaSignal1ZIP
-idSig2TaxZIP = sample(1:NtaxaZIPsig,NtaxaSignal2ZIP)
-
-lambdasZIPsig1[idSig1TaxZIP] = lambdasZIPsig1[idSig1TaxZIP] * Signal1taxZIP
-lambdasZIPsig2[idSig2TaxZIP] = lambdasZIPsig2[idSig2TaxZIP] * Signal2taxZIP
-lambdasZIPsig12[c(idSig1TaxZIP, idSig2TaxZIP)] = c(lambdasZIPsig1[1:NtaxaSignal1ZIP],lambdasZIPsig2[idSig2TaxZIP])
-
-idSig1TaxZIPzeroes = 1:NtaxaSignal1zeroZIP + NtaxaSignal1ZIP/2
-idSig2TaxZIPzeroes = idSig1TaxZIPzeroes + NtaxaSignal1zeroZIP/2 + NtaxaSignal2zeroZIP/2
-
-zeroesZIPsig1[idSig1TaxZIPzeroes] = expit(logit(zeroesZIPsig1[idSig1TaxZIPzeroes]) * Signal1zeroTaxZIP)
-zeroesZIPsig2[idSig2TaxZIPzeroes] = expit(logit(zeroesZIPsig2[idSig2TaxZIPzeroes]) * Signal1zeroTaxZIP)
-zeroesZIPsig12[c(idSig1TaxZIPzeroes, idSig2TaxZIPzeroes)] = c(zeroesZIPsig1[idSig1TaxZIPzeroes],zeroesZIPsig2[idSig2TaxZIPzeroes])
-
-NsamplesZIPsigRef =  NsamplesZIPsig - NsamplesSignal1ZIP - NsamplesSignal2ZIP-  NsamplesSignal12ZIP
-
-#Define mean and zero matrices
-meanMatrefZIP = outer(sample(libSizesZIPsig, NsamplesZIPsigRef), lambdasZIPref)
-meanMatSig1ZIP = outer(sample(libSizesZIPsig, NsamplesSignal1ZIP), lambdasZIPsig1)
-meanMatSig2ZIP = outer(sample(libSizesZIPsig, NsamplesSignal2ZIP), lambdasZIPsig2)
-meanMatSig12ZIP = outer(sample(libSizesZIPsig, NsamplesSignal12ZIP), lambdasZIPsig12)
-
-zeroMatrefZIP = matrix(zeroesZIPref, nrow=nrow(meanMatrefZIP),ncol=ncol(meanMatrefZIP), byrow = TRUE)
-zeroMatSig1ZIP = matrix(zeroesZIPsig1, nrow=nrow(meanMatSig1ZIP),ncol=ncol(meanMatSig1ZIP), byrow = TRUE)
-zeroMatSig2ZIP = matrix(zeroesZIPsig2, nrow=nrow(meanMatSig2ZIP),ncol=ncol(meanMatSig2ZIP), byrow = TRUE)
-zeroMatSig12ZIP = matrix(zeroesZIPsig12, nrow=nrow(meanMatSig12ZIP),ncol=ncol(meanMatSig12ZIP), byrow = TRUE)
-
-#Generate the data
-dataMatZIPref = matrix(rzipois(n=prod(dim(meanMatrefZIP)),lambda = meanMatrefZIP, pstr0 = zeroMatrefZIP), ncol=ncol(meanMatrefZIP), nrow=nrow(meanMatrefZIP))
-dataMatZIPsig1 = matrix(rzipois(n=prod(dim(meanMatSig1ZIP)),lambda = meanMatSig1ZIP, pstr0 = zeroMatSig1ZIP), ncol=ncol(meanMatSig1ZIP), nrow=nrow(meanMatSig1ZIP))
-dataMatZIPsig2 = matrix(rzipois(n=prod(dim(meanMatSig2ZIP)),lambda = meanMatSig2ZIP, pstr0 = zeroMatSig2ZIP), ncol=ncol(meanMatSig2ZIP), nrow=nrow(meanMatSig2ZIP))
-dataMatZIPsig12 = matrix(rzipois(n=prod(dim(meanMatSig12ZIP)),lambda = meanMatSig12ZIP, pstr0 = zeroMatSig12ZIP), ncol=ncol(meanMatSig12ZIP), nrow=nrow(meanMatSig12ZIP))
-
-#Bind the data
-dataMatZIPSig = rbind(dataMatZIPref, dataMatZIPsig1, dataMatZIPsig2, dataMatZIPsig12)
-#mean(dataMatZIPsig==0) #Correct zero fraction
-
-#Save signals
-sampleSigZIP = factor(c(rep("Reference",NsamplesZIPsigRef), rep("Signal1", NsamplesSignal1ZIP), rep("Signal2", NsamplesSignal2ZIP), rep("Signal 1 and 2", NsamplesSignal12ZIP)))
-taxaSigZIPtmp = rep("Reference",ncol(dataMatSigNB))
-taxaSigZIPtmp[idSig1TaxZIP] = "Signal 1"
-taxaSigZIPtmp[idSig2TaxZIP] = "Signal 2"
-taxaSigZIP =factor(taxaSigZIPtmp) 
-names(taxaSigZIP) = colnames(dataMatZIPSig) = names(rhosNBSigref)
-names(sampleSigZIP) = rownames(dataMatZIPSig) = 1:NsamplesZIPsig
-```
-
-#### Apply the RC(M) algorithm
-
-```{r ZIP signal fit, eval=FALSE, purl=FALSE}
-if(!file.exists("syntZIPSig.RData")){
-    syntZIPSigUnifJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "uniform"))
-  syntZIPSigUnif =  mccollect(syntZIPSigUnifJob, FALSE)[[1]] 
-  
-  syntZIPSigMargJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "marginal"))
-  syntZIPSigMarg =  mccollect(syntZIPSigMargJob, FALSE)[[1]] 
-  
-  save(syntZIPSigUnif, syntZIPSigMarg, sampleSigZIP, taxaSigNB, file="syntZIPSig.RData")
-} else {load("syntZIPSig.RData")}
-```
-
-##### Plot the results
-
-### Zero-inflated negative binomial
-
-#### Without signal
-
-##### Generate data
-
-```{r ZINB without signal, eval=FALSE, purl=FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate the ZIP parameters
-expit=function(x){
-  tmp = exp(x)/(1+exp(x))
-  tmp[is.na(tmp)]=1 #Adjust for overflow
-  tmp}
-
-if(!file.exists("AGzinbParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
- # otuTab = otuTab[, colMeans(otuTab==0)<0.95]
-  logLibs = log(sample_sums(AGphylo))
-  ZINBfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    try(zeroinfl(otuTab[,i]~offset(logLibs)| 1, dist="negbin"), silent=TRUE)
-  })
-  zeroProbsNB = sapply(ZINBfits, function(x){if(is.list(x)) expit(x$coef$zero) else NA})
-  ZINBmeans = sapply(ZINBfits, function(x){if(is.list(x)) exp(x$coef$count) else NA})
-  thetasZINB = sapply(ZINBfits, function(x){if(is.list(x)) x$theta else NA})
-  naID=is.na(zeroProbsNB)
-  zeroProbsNB= zeroProbsNB[!naID]
-  ZINBmeans= ZINBmeans[!is.na(ZINBmeans)]
-  thetasZINB= thetasZINB[!is.na(thetasZINB)]
-  save(thetasZINB, zeroProbsNB, ZINBmeans, file="AGzinbParams.RData")
-} else {load(file="AGzinbParams.RData")}
-#ZeroProbs are lower than for the ZIP
-
-#Define parameters
-zeroProbsNB = zeroProbsNB[zeroProbsNB<0.9]
-NsamplesZINBnoSig= 200
-NtaxaZINBnoSig = 800
-idSampleZINB = sample(size=NtaxaZINBnoSig, 1:length(ZINBmeans))
-MeansZINB = ZINBmeans[idSampleZINB]
-ThetasZINB = thetasZINB[idSampleZINB]
-zeroesZINBnoSig = sample(zeroProbsNB, NtaxaZINBnoSig)
-libSizesZINBnoSig =c(rep(1e5, floor(NsamplesZINBnoSig/2)), rep(1e6, floor(NsamplesZINBnoSig/2)))
-
-#Mean, OD and zero matrices
-meanMatZINBnoSig = outer(libSizesZINBnoSig, MeansZINB)
-ODmatZINB = outer(rep(1,NsamplesZINBnoSig) ,ThetasZINB )
-zeroMatZINBnoSig = matrix(zeroesZINBnoSig, nrow=NsamplesZINBnoSig, ncol=NtaxaZINBnoSig, byrow = TRUE)
-
-#Data generation
-dataMatZINBnoSig = matrix(rzinegbin(n=prod(dim(meanMatZINBnoSig)),munb = meanMatZINBnoSig, size = ODmatZINB, pstr0 = zeroMatZINBnoSig), ncol=NtaxaZINBnoSig, nrow=NsamplesZINBnoSig)
-save(dataMatZINBnoSig, file = "zinbNoSigData.RData")
-```
-
-##### Apply the RC(M) algorithm with the ZINB distribution
-
-```{r ZINB signal fit, eval=FALSE, purl=FALSE}
-nleqslv.control.zinb = list(trace = TRUE, maxit = 250, cndtol = .Machine$double.eps, allowSingular=TRUE)
-if(!file.exists("syntZINBnoSig.RData")){
-    syntZINBSigunifunifJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "uniform", rowWeights = "uniform", twoCores=FALSE, maxItOut = 5e0))
-  syntZINBSigunifunif =  mccollect(syntZINBSigunifunifJob, FALSE)[[1]] 
-  
-  syntZINBSigunifmargJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "marginal", rowWeights = "uniform", twoCores=FALSE))
-  syntZINBSigunifmarg =  mccollect(syntZINBSigunifmargJob, FALSE)[[1]]
-  
-  save(syntZINBSigunifunif, syntZINBSigunifmarg, file="syntZINBnoSig.RData")
-} else {load("syntZINBnoSig.RData")}
-```
-
-##### Plot the ZINB results
-
-```{r RC(M) ZINB, eval=FALSE, purl=FALSE}
-load(file="toyDataNoSigZINBserver.RData")
-solListWSZINB = noSigListZINB[sapply(noSigListZINB, class)=="list"]
-#Runtimes and convergence
-sapply(solListWSZINB,function(x){x$converged})
-sapply(solListWSZINB,function(x){x$runtime})
-sapply(solListWSZINB,function(x){x$iter})
-par(mfrow=c(2,2))
-sapply(solListWSZINB,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
-```
-
-#### Restore defaults
-
-```{r restore defaults, eval=FALSE, purl = FALSE}
-palette(palStore)
-```
-
---->
-
 
 ```{r LRnbcheck, purl=FALSE, eval = FALSE}
 ### Constrained RC(M): tests
@@ -5244,11 +4970,11 @@ JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_row
 BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
 #Hellinger distance
 HelDistresList = lapply(datList0mat, function(x){
-  R = rowSums(X)
+  R = rowSums(x)
   E = outer(R, colSums(x)/sum(x))
-  svd(diag(1/sqrt(R)) %*% (sqrt(X)-sqrt(E))) 
+  svd(diag(1/sqrt(R)) %*% (sqrt(x)-sqrt(E))) 
 })
-mapply(RCMlist, CAresList0, CodaResList0, CodaScaledResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell){
+mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell){
                     list(RCM = RCM, CA = CA, 
                          CoDa = CoDa,
                          BC = BC, JSD = JSD, 
@@ -5272,9 +4998,9 @@ extractRows = function(x){
 }
 #---------------------------------------#
 #A function to extract the column vectors. For PCoA and CoDa this uses weighted averaging
-extractCols = function(x, rows){
+extractCols = function(x, row){
   with(x, list(
-    RCM = RCM$cMat,
+    RCM = t(RCM$cMat),
     CA = CA$v,
     CoDa = weightedTaxonScores(RCM$X, row$CoDa),
     BC = weightedTaxonScores(RCM$X, row$BC),
@@ -5286,11 +5012,11 @@ extractCols = function(x, rows){
 #---------------------------------------#
 # An auxiliary function to get weighted taxon scores
 weightedTaxonScores = function(X, rowScores){
-  crossprod(rowScores, X %*% diag(1/colSums(X)))
+  t(crossprod(rowScores, X %*% diag(1/colSums(X))))
 }
 #-----------------------------------------#
 # A functions to plot the correlations of the library sizes with the row scores, or of the abundances with the column scores
-plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = FALSE){
+plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE){
 par(mar = c(4,4,4,4))
 if(!dataMat){
   datList = lapply(datList, function(x){x$dataMat})
@@ -5320,7 +5046,7 @@ par(mfrow = c(1,1))
 }
 #----------------------------------#
 # A function to plot the silhouettes
-plotSil = function(resListRows){
+plotSil = function(resListRows, groupFactor){
 sil1  = lapply(resListRows, function(x){
   sapply(x, silhouette, clusters = groupFactor)
 })
@@ -5333,7 +5059,7 @@ meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
 points(meansSil, col="red", pch=18, cex = 1.6)
 }
 #---------------------------------#
-distRatioPlot = function(resListRows) {
+distRatioPlot = function(resListRows, groupFactor) {
 dist = sapply(resListRows, function(x){
   sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
 })
@@ -5341,6 +5067,16 @@ meanDist1df = melt(dist, value.name = "DistanceRatio", varnames = c("Method"))
 boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist1df)
 meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
 points(meansDist, col="red", pch=18, cex = 1.6)
+abline(h=1, lty = "dashed")
+}
+#---------------------------#
+#A function to make a scatterplot of a randomly selected MC isntance
+randomScatter = function(list, Dim = c(1,2)){
+par(mfrow = c(3,3), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(list))
+obj = resList0Cols[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]][,Dim], main=x, xlab = paste("Dim", Dim[1]),ylab = paste("Dim", Dim[2]), pty = "s")})
+par(mfrow = c(1,1))
 }
 ```
 
@@ -5416,26 +5152,33 @@ save(resList0, file = "RCMsim/resList0.RData")
 ```{r resList0 sampleBiplot, purl = FALSE}
 #A sample biplot
 resList0Rows = lapply(resList0, extractRows)
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList0))
-obj = resList0Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
-rm(ID, obj)
-par(mfrow = c(1,1))
+randomScatter(resList0Rows)
 # Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
-
-par(mfrow = c(3,3), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList0))
-obj = resList0Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
-rm(ID, obj)
-par(mfrow = c(1,1))
-#PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
+randomScatter(resList0Rows, Dim = c(1,3))
 ```
 
 ```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
-plotCor(resList0Rows, datList0)
+plotCor(resList0Rows, datList0, scoreDim = "rows")
 ```
+
+Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations with library sizes.
+
+The taxa
+
+```{r resList0cols sampleBiplot, purl = FALSE}
+#A sample biplot
+resList0Cols = mapply(resList0, resList0Rows, FUN=extractCols, SIMPLIFY=FALSE)
+randomScatter(resList0Cols)
+# CA has outliers, CoDa and Hellinger reveal weird patterns
+randomScatter(resList0Cols, Dim = c(1,3))
+```
+
+```{r AbsCorr0, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+datList0 = lapply(resList0, function(x){x$RCM$X})
+plotCor(resList0Cols, scoreDim = "columns", dataMat = TRUE)
+```
+
+Only our RC(M) method has correlations at the level of random noise.
 
 ###### Simulate from different distributions
 
@@ -5713,11 +5456,80 @@ list(dataMat = dataMat, libSizesSampled = libSizesSampled, rhosSampled = rhosSam
 })
 save(datListDM,groupFactorDM, file = "RCMsim/datListDM.RData")
 } else {load(file = "RCMsim/datListDM.RData")}
+
+# Results
+if(!file.exists(file = "RCMsim/resListDM.RData")){
+  if(!file.exists("RCMsim/resListDMRCM.RData")){
+RCMresListDM = mclapply(mc.cores=4, datListDM, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresListDM, file = "RCMsim/resListDMRCM.RData")
+} else {load("RCMsim/resListDMRCM.RData")}
+resListDM = otherAnalyses(RCMresListDM)
+save(resListDM, groupFactorDM, file = "RCMsim/resListDM.RData")
+} else {load(file = "RCMsim/resListDM.RData")}
 ```
+
+```{r resListDM sampleBiplot, purl = FALSE}
+#A sample biplot
+resListDMRows = lapply(resListDM, extractRows)
+randomScatter(resListDMRows)
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
+randomScatter(resListDMRows, Dim = c(1,3))
+```
+
+```{r libSizeCorrDM, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 1DMDM simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+datListDM = lapply(resListDM, function(x){x$RCM$X})
+plotCor(resListDMRows, datListDM, scoreDim = "rows")
+```
+
+Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations with library sizes.
+
+The taxa
+
+```{r resListDMcols sampleBiplot, purl = FALSE}
+#A sample biplot
+resListDMCols = mapply(resListDM, resListDMRows, FUN=extractCols, SIMPLIFY=FALSE)
+randomScatter(resListDMCols)
+# CA has outliers, CoDa and Hellinger reveal weird patterns
+randomScatter(resListDMCols, Dim = c(1,3))
+```
+
+```{r libSizeCorrDM, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:libCor1}"}
+plotCor(resListDMRows, datListDM)
+```
+
+CoDa and Hellinger distances have unacceptable correlatios with the library sizes
+
+```{r AbsCorrDM, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1DMDM simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+plotCor(resListDMCols, lapply(resListDM, function(x){x$RCM$X}), scoreDim = "columns", dataMat = TRUE)
+```
+
+```{r resListDMEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+plotSil(resListDMRows, groupFactorDM)
+```
+
+JSD and Bray-Curtis have the best performance in this setting in terms of silhouette
+
+```{r resListDMEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.  \\label{fig:dist1}"}
+distRatioPlot(resListDMRows, groupFactorDM)
+```
+
+RCM comes out as best, together with JSD and Bray-Curtis
 
 ##### Nonparametric simulation
 
-An objective simulation approach would be to use non-parametric resampling from a true dataset, as in _SimSeq_
+An objective simulation approach would be to use non-parametric resampling from a true dataset, as in _SimSeq_. For this we need microbiome datasets with covariates known to be related to bacterial abundance, preferably with more than two groups. The Zeller data is one such dataset, with the cancer variable expected to be related to relative abundance and having three levels (Normal, small adenoma and cancer). For the American Gut data we can use IBD. For the Turnbaugh lean and obese twins dataset we can use health status (lean, overweight or obese), even though we have only 18 samples. For the Turnbaugh humanized mouse dataset we could use "Diet", with levels "BK" and "Western".
+
+```{r simSeqFunctions}
+# A wrapper function for phyloseq objects for the testing, yields the lfdr's of the taxa. We extend the original code to allow for Kruskal-Wallis test
+wrapSimSeq = function(physeq, variable){
+  countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
+  treatment = get_variable(physeq, variable)
+  pvals = apply(countMat, 2, function(x){kruskal.test(x, g=treatment)$p.value})
+  fdrtool(pvals, statistic = "pvalue", plot=FALSE, verbose=FALSE)$lfdr
+  }
+```
 
 ## Constrained RC(M)
 
@@ -5743,6 +5555,280 @@ An objective simulation approach would be to use non-parametric resampling from 
 
 - Normalizing to relative or rarefied abundances throws away information on the variance and valuable counts
 - Leave the data untransformed and use a proper GLM for counts! This will properly model mean and variance and allows incorporation of covariate information
+
+<!---### Zero-inflated poisson
+
+#### ZIP without signal
+
+##### Generate data
+
+```{r ZIP without signal, eval=FALSE, purl = FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+#First estimate the ZIP parameters
+
+if(!file.exists("AGzipParams.RData")){
+  otuTab = otu_table(AGphylo)@.Data
+  logLibs = log(sample_sums(AGphylo))
+  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
+    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
+  })
+  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
+  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
+  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
+} else {load(file="AGzipParams.RData")}
+#ZeroProbs are very high
+
+#Define parameters
+zeroProbs = zeroProbs[zeroProbs<0.9]
+NsamplesZIPnoSig= 200
+NtaxaZIPnoSig = 800
+idSampleZIP = sample(size=NtaxaZIPnoSig, 1:length(ZIPmeans))
+lambdasZIPnoSig = ZIPmeans[idSampleZIP]
+lambdasZIPnoSig= lambdasZIPnoSig/sum(lambdasZIPnoSig)
+zeroesZIPnoSig = sample(zeroProbs, NtaxaZIPnoSig)
+libSizesZIPnoSig =c(rep(1e5, floor(NsamplesZIPnoSig/2)), rep(1e6, floor(NsamplesZIPnoSig/2)))
+
+#Mean and zero matrices
+meanMatZIPnoSig = outer(libSizesZIPnoSig, lambdasZIPnoSig)
+zeroMatZIPnoSig = matrix(zeroesZIPnoSig, nrow=NsamplesZIPnoSig, ncol=NtaxaZIPnoSig, byrow = TRUE)
+
+#Data generation
+dataMatZIPnoSig = matrix(rzipois(n=prod(dim(meanMatZIPnoSig)),lambda = meanMatZIPnoSig, pstr0 = zeroMatZIPnoSig), ncol=NtaxaZIPnoSig, nrow=NsamplesZIPnoSig)
+save(dataMatZIPnoSig, file = "zipNSData.RData")
+```
+
+##### Fit RC(M)
+
+```{r RC(M) fit, eval=FALSE, purl = FALSE}
+nleqslv.controlZIP = list(trace=TRUE, maxit=250, cndtol = .Machine$double.eps, allowSingular=TRUE)
+if(!file.exists("syntZIPnoSig.RData")){
+  syntZIPnoSigUnifUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP", k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "uniform", maxItOut=5e0))
+  syntZIPnoSigUnifUnif =  mccollect(syntZIPnoSigUnifUnifJob, FALSE)[[1]] 
+  
+  syntZIPnoSigUnifMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "uniform", maxItOut=5e2))
+  syntZIPnoSigUnifMarg =  mccollect(syntZIPnoSigUnifMargJob, FALSE)[[1]]
+  
+  syntZIPnoSigMargUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "marginal", maxItOut=5e2))
+  syntZIPnoSigMargUnif =  mccollect(syntZIPnoSigMargUnifJob, FALSE)[[1]]
+  
+   syntZIPnoSigMargMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "marginal", maxItOut=5e1))
+  syntZIPnoSigMargMarg =  mccollect(syntZIPnoSigMargMargJob, FALSE)[[1]]
+  
+  save(syntZIPnoSigUnifMarg, syntZIPnoSigUnifUnif, syntZIPnoSigMargMarg, syntZIPnoSigMargUnif, dataMatZIPnoSig, file="syntZIPnoSig.RData")
+} else {load("syntZIPnoSig.RData")}
+#No convergence, mean cannot be fitted
+```
+
+##### Plot the results
+
+```{r RC(M) zip, eval=FALSE, purl = FALSE}
+load(file="toyDataNoSigZIPserver.RData")
+solListWSZIP = noSigListZIP[sapply(noSigListZIP, class)=="list"]
+#Runtimes and convergence
+sapply(solListWSZIP,function(x){x$converged})
+sapply(solListWSZIP,function(x){x$runtime})
+sapply(solListWSZIP,function(x){x$iter})
+
+par(mfrow=c(2,2))
+sapply(solListWSZIP,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
+```
+
+#### ZIP with signal
+
+```{r ZIP with signal, eval=FALSE, purl = FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+#First estimate/load the ZIP parameters
+
+if(!file.exists("AGzipParams.RData")){
+  otuTab = otu_table(AGphylo)@.Data
+  logLibs = log(sample_sums(AGphylo))
+  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
+    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
+  })
+  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
+  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
+  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
+} else {load(file="AGzipParams.RData")}
+#ZeroPorbs are very low
+
+#Defina parameters
+NsamplesZIPsig= 150
+NtaxaZIPsig = 500
+lambdasZIPref = lambdasZIPsig1 =lambdasZIPsig2 = lambdasZIPsig12 =  sample(ZIPmeans, NtaxaZIPsig)
+zeroesZIPref = zeroesZIPsig1 = zeroesZIPsig2 = zeroesZIPsig12 =sample(zeroProbs, NtaxaZIPsig)
+libSizesZIPsig =c(rep(1e4, floor(NsamplesZIPsig/2)), rep(1e5, floor(NsamplesZIPsig/2)))
+
+#Define the signal
+NtaxaSignal1ZIP = 20
+NtaxaSignal2ZIP = 20
+
+NtaxaSignal1zeroZIP = 20
+NtaxaSignal2zeroZIP = 20
+
+Signal1taxZIP = 4
+Signal2taxZIP = 3
+
+Signal1zeroTaxZIP = 5
+Signal2zeroTaxZIP = 3
+
+NsamplesSignal1ZIP = 20
+NsamplesSignal2ZIP = 20
+NsamplesSignal12ZIP = 20
+
+NsamplesSignal1zeroZIP = 20
+NsamplesSignal2zeroZIP = 20
+NsamplesSignal12zeroZIP = 20
+
+idSig1TaxZIP = 1:NtaxaSignal1ZIP
+idSig2TaxZIP = sample(1:NtaxaZIPsig,NtaxaSignal2ZIP)
+
+lambdasZIPsig1[idSig1TaxZIP] = lambdasZIPsig1[idSig1TaxZIP] * Signal1taxZIP
+lambdasZIPsig2[idSig2TaxZIP] = lambdasZIPsig2[idSig2TaxZIP] * Signal2taxZIP
+lambdasZIPsig12[c(idSig1TaxZIP, idSig2TaxZIP)] = c(lambdasZIPsig1[1:NtaxaSignal1ZIP],lambdasZIPsig2[idSig2TaxZIP])
+
+idSig1TaxZIPzeroes = 1:NtaxaSignal1zeroZIP + NtaxaSignal1ZIP/2
+idSig2TaxZIPzeroes = idSig1TaxZIPzeroes + NtaxaSignal1zeroZIP/2 + NtaxaSignal2zeroZIP/2
+
+zeroesZIPsig1[idSig1TaxZIPzeroes] = expit(logit(zeroesZIPsig1[idSig1TaxZIPzeroes]) * Signal1zeroTaxZIP)
+zeroesZIPsig2[idSig2TaxZIPzeroes] = expit(logit(zeroesZIPsig2[idSig2TaxZIPzeroes]) * Signal1zeroTaxZIP)
+zeroesZIPsig12[c(idSig1TaxZIPzeroes, idSig2TaxZIPzeroes)] = c(zeroesZIPsig1[idSig1TaxZIPzeroes],zeroesZIPsig2[idSig2TaxZIPzeroes])
+
+NsamplesZIPsigRef =  NsamplesZIPsig - NsamplesSignal1ZIP - NsamplesSignal2ZIP-  NsamplesSignal12ZIP
+
+#Define mean and zero matrices
+meanMatrefZIP = outer(sample(libSizesZIPsig, NsamplesZIPsigRef), lambdasZIPref)
+meanMatSig1ZIP = outer(sample(libSizesZIPsig, NsamplesSignal1ZIP), lambdasZIPsig1)
+meanMatSig2ZIP = outer(sample(libSizesZIPsig, NsamplesSignal2ZIP), lambdasZIPsig2)
+meanMatSig12ZIP = outer(sample(libSizesZIPsig, NsamplesSignal12ZIP), lambdasZIPsig12)
+
+zeroMatrefZIP = matrix(zeroesZIPref, nrow=nrow(meanMatrefZIP),ncol=ncol(meanMatrefZIP), byrow = TRUE)
+zeroMatSig1ZIP = matrix(zeroesZIPsig1, nrow=nrow(meanMatSig1ZIP),ncol=ncol(meanMatSig1ZIP), byrow = TRUE)
+zeroMatSig2ZIP = matrix(zeroesZIPsig2, nrow=nrow(meanMatSig2ZIP),ncol=ncol(meanMatSig2ZIP), byrow = TRUE)
+zeroMatSig12ZIP = matrix(zeroesZIPsig12, nrow=nrow(meanMatSig12ZIP),ncol=ncol(meanMatSig12ZIP), byrow = TRUE)
+
+#Generate the data
+dataMatZIPref = matrix(rzipois(n=prod(dim(meanMatrefZIP)),lambda = meanMatrefZIP, pstr0 = zeroMatrefZIP), ncol=ncol(meanMatrefZIP), nrow=nrow(meanMatrefZIP))
+dataMatZIPsig1 = matrix(rzipois(n=prod(dim(meanMatSig1ZIP)),lambda = meanMatSig1ZIP, pstr0 = zeroMatSig1ZIP), ncol=ncol(meanMatSig1ZIP), nrow=nrow(meanMatSig1ZIP))
+dataMatZIPsig2 = matrix(rzipois(n=prod(dim(meanMatSig2ZIP)),lambda = meanMatSig2ZIP, pstr0 = zeroMatSig2ZIP), ncol=ncol(meanMatSig2ZIP), nrow=nrow(meanMatSig2ZIP))
+dataMatZIPsig12 = matrix(rzipois(n=prod(dim(meanMatSig12ZIP)),lambda = meanMatSig12ZIP, pstr0 = zeroMatSig12ZIP), ncol=ncol(meanMatSig12ZIP), nrow=nrow(meanMatSig12ZIP))
+
+#Bind the data
+dataMatZIPSig = rbind(dataMatZIPref, dataMatZIPsig1, dataMatZIPsig2, dataMatZIPsig12)
+#mean(dataMatZIPsig==0) #Correct zero fraction
+
+#Save signals
+sampleSigZIP = factor(c(rep("Reference",NsamplesZIPsigRef), rep("Signal1", NsamplesSignal1ZIP), rep("Signal2", NsamplesSignal2ZIP), rep("Signal 1 and 2", NsamplesSignal12ZIP)))
+taxaSigZIPtmp = rep("Reference",ncol(dataMatSigNB))
+taxaSigZIPtmp[idSig1TaxZIP] = "Signal 1"
+taxaSigZIPtmp[idSig2TaxZIP] = "Signal 2"
+taxaSigZIP =factor(taxaSigZIPtmp) 
+names(taxaSigZIP) = colnames(dataMatZIPSig) = names(rhosNBSigref)
+names(sampleSigZIP) = rownames(dataMatZIPSig) = 1:NsamplesZIPsig
+```
+
+#### Apply the RC(M) algorithm
+
+```{r ZIP signal fit, eval=FALSE, purl=FALSE}
+if(!file.exists("syntZIPSig.RData")){
+    syntZIPSigUnifJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "uniform"))
+  syntZIPSigUnif =  mccollect(syntZIPSigUnifJob, FALSE)[[1]] 
+  
+  syntZIPSigMargJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "marginal"))
+  syntZIPSigMarg =  mccollect(syntZIPSigMargJob, FALSE)[[1]] 
+  
+  save(syntZIPSigUnif, syntZIPSigMarg, sampleSigZIP, taxaSigNB, file="syntZIPSig.RData")
+} else {load("syntZIPSig.RData")}
+```
+
+##### Plot the results
+
+### Zero-inflated negative binomial
+
+#### Without signal
+
+##### Generate data
+
+```{r ZINB without signal, eval=FALSE, purl=FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+#First estimate the ZIP parameters
+expit=function(x){
+  tmp = exp(x)/(1+exp(x))
+  tmp[is.na(tmp)]=1 #Adjust for overflow
+  tmp}
+
+if(!file.exists("AGzinbParams.RData")){
+  otuTab = otu_table(AGphylo)@.Data
+ # otuTab = otuTab[, colMeans(otuTab==0)<0.95]
+  logLibs = log(sample_sums(AGphylo))
+  ZINBfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
+    try(zeroinfl(otuTab[,i]~offset(logLibs)| 1, dist="negbin"), silent=TRUE)
+  })
+  zeroProbsNB = sapply(ZINBfits, function(x){if(is.list(x)) expit(x$coef$zero) else NA})
+  ZINBmeans = sapply(ZINBfits, function(x){if(is.list(x)) exp(x$coef$count) else NA})
+  thetasZINB = sapply(ZINBfits, function(x){if(is.list(x)) x$theta else NA})
+  naID=is.na(zeroProbsNB)
+  zeroProbsNB= zeroProbsNB[!naID]
+  ZINBmeans= ZINBmeans[!is.na(ZINBmeans)]
+  thetasZINB= thetasZINB[!is.na(thetasZINB)]
+  save(thetasZINB, zeroProbsNB, ZINBmeans, file="AGzinbParams.RData")
+} else {load(file="AGzinbParams.RData")}
+#ZeroProbs are lower than for the ZIP
+
+#Define parameters
+zeroProbsNB = zeroProbsNB[zeroProbsNB<0.9]
+NsamplesZINBnoSig= 200
+NtaxaZINBnoSig = 800
+idSampleZINB = sample(size=NtaxaZINBnoSig, 1:length(ZINBmeans))
+MeansZINB = ZINBmeans[idSampleZINB]
+ThetasZINB = thetasZINB[idSampleZINB]
+zeroesZINBnoSig = sample(zeroProbsNB, NtaxaZINBnoSig)
+libSizesZINBnoSig =c(rep(1e5, floor(NsamplesZINBnoSig/2)), rep(1e6, floor(NsamplesZINBnoSig/2)))
+
+#Mean, OD and zero matrices
+meanMatZINBnoSig = outer(libSizesZINBnoSig, MeansZINB)
+ODmatZINB = outer(rep(1,NsamplesZINBnoSig) ,ThetasZINB )
+zeroMatZINBnoSig = matrix(zeroesZINBnoSig, nrow=NsamplesZINBnoSig, ncol=NtaxaZINBnoSig, byrow = TRUE)
+
+#Data generation
+dataMatZINBnoSig = matrix(rzinegbin(n=prod(dim(meanMatZINBnoSig)),munb = meanMatZINBnoSig, size = ODmatZINB, pstr0 = zeroMatZINBnoSig), ncol=NtaxaZINBnoSig, nrow=NsamplesZINBnoSig)
+save(dataMatZINBnoSig, file = "zinbNoSigData.RData")
+```
+
+##### Apply the RC(M) algorithm with the ZINB distribution
+
+```{r ZINB signal fit, eval=FALSE, purl=FALSE}
+nleqslv.control.zinb = list(trace = TRUE, maxit = 250, cndtol = .Machine$double.eps, allowSingular=TRUE)
+if(!file.exists("syntZINBnoSig.RData")){
+    syntZINBSigunifunifJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "uniform", rowWeights = "uniform", twoCores=FALSE, maxItOut = 5e0))
+  syntZINBSigunifunif =  mccollect(syntZINBSigunifunifJob, FALSE)[[1]] 
+  
+  syntZINBSigunifmargJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "marginal", rowWeights = "uniform", twoCores=FALSE))
+  syntZINBSigunifmarg =  mccollect(syntZINBSigunifmargJob, FALSE)[[1]]
+  
+  save(syntZINBSigunifunif, syntZINBSigunifmarg, file="syntZINBnoSig.RData")
+} else {load("syntZINBnoSig.RData")}
+```
+
+##### Plot the ZINB results
+
+```{r RC(M) ZINB, eval=FALSE, purl=FALSE}
+load(file="toyDataNoSigZINBserver.RData")
+solListWSZINB = noSigListZINB[sapply(noSigListZINB, class)=="list"]
+#Runtimes and convergence
+sapply(solListWSZINB,function(x){x$converged})
+sapply(solListWSZINB,function(x){x$runtime})
+sapply(solListWSZINB,function(x){x$iter})
+par(mfrow=c(2,2))
+sapply(solListWSZINB,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
+```
+
+#### Restore defaults
+
+```{r restore defaults, eval=FALSE, purl = FALSE}
+palette(palStore)
+```
+
+--->
 
 <!---
 ## Toy data
