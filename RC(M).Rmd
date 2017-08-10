@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -24,10 +24,6 @@ if(detectCores()==4)setwd(WD)
 if(file.exists("/home/stijn/PhD/American Gut/AGpars.RData")) {load("/home/stijn/PhD/American Gut/AGpars.RData")}
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
-```
-
-```{r setwd, eval=FALSE, echo=FALSE, purl = FALSE}
-setwd(WD)
 ```
 
 \setcounter{tocdepth}{2}
@@ -3604,7 +3600,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
 
     if(plotTaxa) dataTax$labels = sub(" ", "\n",colnames(RCMfit$X)[id])
 
-    plot = ggplot(dataSam, aes_string(x="Dim1", y="Dim2", col = "colourPlot", dotList)) + 
+    plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
       geom_point(size=size) + 
       theme(aspect.ratio=1) +
       if(is.null(colour)) {guides(color=FALSE)} 
@@ -3639,7 +3635,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
       varData$label = rownames(RCMfit$alpha)
       scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
       varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
-      plot = plot + geom_text(data = varData, mapping = aes_string(x = "Dim1", y = "Dim2", label = "label"), inherit.aes = FALSE)
+      plot = plot + geom_text(data = varData, mapping = aes_string(x = names(dataSam)[1], y = names(dataSam)[2], label = "label"), inherit.aes = FALSE)
     }
     squarePlot(plot)
 }
@@ -4621,15 +4617,38 @@ PCbiplot(turntwinsRCm, colour = "Status_p")
 
 ##### Turnbaugh et al. (2009)
 
-Humanized mice
+15 gnotobiotic mice were inoculated with human feces, and for one group the diet was switched to a Western diet after one month. Then a second generation of mice was inoculated with cecal samples from the previous groups, and here also diet was varied.
 
-```{r turnmice, eval = FALSE}
+- Diet: current diet
+- Generation_p: "Recipient1" if second generation, otherwise diet of cecal samples with which they were inoculated
+- Time: age of mouse at sampling
+- DGS: Diet and previous diet
+- DTG: combines sampling diet, time, and previous generation (if any) 
+
+```{r turnmice}
 if(!file.exists("turnMiceRCM.RData")){
   load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 HumMiceRCM = RCM(HumMicePhy, k=3)
 HumMiceRCM = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DTS"))
 save(HumMiceRCM, file = "turnMiceRCM.RData")
 } else {load("turnMiceRCM.RData")}
+```
+
+```{r humMicePlot}
+PCbiplot(HumMiceRCM) # Two or three distinct groups
+PCbiplot(HumMiceRCM, colour = "Diet") #Diet is a main factor
+PCbiplot(HumMiceRCM, colour = "Individual") #Individuals play less of a role
+PCbiplot(HumMiceRCM, colour = "Generation_p") #Microbiome changes quickly with feed pattern
+PCbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
+PCbiplot(HumMiceRCM, colour = "DTG")
+PCbiplot(HumMiceRCM, colour = "DGS") #Initial feed seems crucial
+
+PCbiplot(HumMiceRCM, colour = "Diet", Dim = c(1,3)) #Diet is a main factor
+PCbiplot(HumMiceRCM, colour = "Individual", Dim = c(1,3)) #Individuals play less of a role
+PCbiplot(HumMiceRCM, colour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
+PCbiplot(HumMiceRCM, colour = "Time", Dim = c(1,3)) #Later samples also form a cluster
+PCbiplot(HumMiceRCM, colour = "DTG", Dim = c(1,3))
+PCbiplot(HumMiceRCM, colour = "DGS", Dim = c(1,3))
 ```
 
 
@@ -5521,16 +5540,87 @@ RCM comes out as best, together with JSD and Bray-Curtis
 
 An objective simulation approach would be to use non-parametric resampling from a true dataset, as in _SimSeq_. For this we need microbiome datasets with covariates known to be related to bacterial abundance, preferably with more than two groups. The Zeller data is one such dataset, with the cancer variable expected to be related to relative abundance and having three levels (Normal, small adenoma and cancer). For the American Gut data we can use IBD. For the Turnbaugh lean and obese twins dataset we can use health status (lean, overweight or obese), even though we have only 18 samples. For the Turnbaugh humanized mouse dataset we could use "Diet", with levels "BK" and "Western".
 
+We generate data as follows
+
+1. Select a covariate and test for differential abundance using WMW/Kruskal-Wallis
+2. Calculate local false discovery rates (lfdr)
+3. Sample non DA taxa with equal weights from all taxa
+4. Sample DA taxa from all taxa with weights equal to 1-lfdr
+5. Sample counts from non DA taxa from samples with the most frequent covariate level
+6. Sample counts from DA taxa from the samples with other covariate levels, and correct for differences in library sizes. This maintains the same distribution of covariate levels and overal daat matrix size as the original dataset. 
+
 ```{r simSeqFunctions}
 # A wrapper function for phyloseq objects for the testing, yields the lfdr's of the taxa. We extend the original code to allow for Kruskal-Wallis test
-wrapSimSeq = function(physeq, variable){
+testSimSeq = function(physeq, variable, filterTaxa = FALSE){
   countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
   treatment = get_variable(physeq, variable)
-  pvals = apply(countMat, 2, function(x){kruskal.test(x, g=treatment)$p.value})
-  fdrtool(pvals, statistic = "pvalue", plot=FALSE, verbose=FALSE)$lfdr
+  if(filterTaxa){
+  # Filter physeq to no all-zeroes in either of the groups
+  physeq = prune_taxa(x = physeq, taxa = apply(countMat, 2, function(y){
+    !any(tapply(y, treatment, function(z){
+      all(z==0)
+    }))
+  }))
   }
+  #Filter physeq for NA's in variables
+  physeq = prune_samples(x = physeq, !is.na(treatment))
+  treatment = factor(get_variable(physeq, variable))
+  countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
+  pvals = apply(countMat, 2, function(x){kruskal.test(x, g=treatment)$p.value})
+  lfdr = fdrtool(pvals, statistic = "pvalue", plot=FALSE, verbose=FALSE)$lfdr
+  list(lfdr = lfdr, physeq = physeq, variable = variable)
+}
+genSimSeq = function(testres, Ntaxa = ntaxa(testres$physeq), fracTaxa = 0.2){
+  physeq = testres$physeq
+  weights = 1-testres$lfdr
+  weights = weights/sum(weights) #Normalize sampling weights
+  normFactors = sample_sums(physeq)
+  treatment = get_variable(physeq, testres$variable)
+  DEtaxa = sample(taxa_names(physeq), round(Ntaxa*fracTaxa), prob = weights) # The DE taxa
+  whichTrt = names(sort(table(treatment),decreasing=TRUE)[1]) # The most frequent treatment group, frow which we will sample the EE taxa
+  trtLeft = unique(treatment)[unique(treatment) != whichTrt]
+  countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
+  samIDee = sample(which(treatment == whichTrt),nrow(countMat), replace = TRUE)
+  dataSimSeq = countMat[samIDee,] #EE taxa
+  for (i in trtLeft){
+  rowInd = which(treatment==i)
+  dataSimSeq[rowInd,DEtaxa] = round(countMat[rowInd, DEtaxa] * normFactors[samIDee][rowInd]/normFactors[rowInd])
+  }
+  keepID = colSums(dataSimSeq)>0
+  list(data = dataSimSeq[, keepID], treatment = treatment, DEtaxa = DEtaxa[DEtaxa %in% colnames(dataSimSeq[, keepID])])
+}
 ```
 
+```{r SimSeqTests}
+if(!file.exists(file = "SimSeqTests.RData")){
+load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
+testHum = testSimSeq(HumMicePhy, "Diet")
+load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
+testTwins = testSimSeq(TurnTwins, "Status_p") # No significance
+testAG = testSimSeq(AGphylo, "IBD")
+testZeller = testSimSeq(zellerSphy, "Diagnosis")
+save(testHum, testTwins, testAG, testZeller, file = "SimSeqTests.RData")
+} else {load(file = "SimSeqTests.RData")}
+```
+
+No DA for the lean and obese twins. Then again it is a small dataset.
+
+
+```{r SimSeqGenerateData}
+if(!file.exists(file = "SimSeqData.RData")){
+NsimSimSeq = 100
+HumSimSeqList = mclapply(mc.cores = 4, 1:NsimSimSeq, function(i){
+  genSimSeq(testHum)
+})
+AGSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
+  genSimSeq(testAG)
+})
+ZellerSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
+  genSimSeq(ZellerHum)
+})
+save(HumSimSeqList, ZellerSimSeqList, AGSimSeqList, file = "SimSeqData")
+} else {load(file = "SimSeqData.RData")}
+```
 ## Constrained RC(M)
 
 \newpage
@@ -5556,1339 +5646,3 @@ wrapSimSeq = function(physeq, variable){
 - Normalizing to relative or rarefied abundances throws away information on the variance and valuable counts
 - Leave the data untransformed and use a proper GLM for counts! This will properly model mean and variance and allows incorporation of covariate information
 
-<!---### Zero-inflated poisson
-
-#### ZIP without signal
-
-##### Generate data
-
-```{r ZIP without signal, eval=FALSE, purl = FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate the ZIP parameters
-
-if(!file.exists("AGzipParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
-  logLibs = log(sample_sums(AGphylo))
-  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
-  })
-  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
-  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
-  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
-} else {load(file="AGzipParams.RData")}
-#ZeroProbs are very high
-
-#Define parameters
-zeroProbs = zeroProbs[zeroProbs<0.9]
-NsamplesZIPnoSig= 200
-NtaxaZIPnoSig = 800
-idSampleZIP = sample(size=NtaxaZIPnoSig, 1:length(ZIPmeans))
-lambdasZIPnoSig = ZIPmeans[idSampleZIP]
-lambdasZIPnoSig= lambdasZIPnoSig/sum(lambdasZIPnoSig)
-zeroesZIPnoSig = sample(zeroProbs, NtaxaZIPnoSig)
-libSizesZIPnoSig =c(rep(1e5, floor(NsamplesZIPnoSig/2)), rep(1e6, floor(NsamplesZIPnoSig/2)))
-
-#Mean and zero matrices
-meanMatZIPnoSig = outer(libSizesZIPnoSig, lambdasZIPnoSig)
-zeroMatZIPnoSig = matrix(zeroesZIPnoSig, nrow=NsamplesZIPnoSig, ncol=NtaxaZIPnoSig, byrow = TRUE)
-
-#Data generation
-dataMatZIPnoSig = matrix(rzipois(n=prod(dim(meanMatZIPnoSig)),lambda = meanMatZIPnoSig, pstr0 = zeroMatZIPnoSig), ncol=NtaxaZIPnoSig, nrow=NsamplesZIPnoSig)
-save(dataMatZIPnoSig, file = "zipNSData.RData")
-```
-
-##### Fit RC(M)
-
-```{r RC(M) fit, eval=FALSE, purl = FALSE}
-nleqslv.controlZIP = list(trace=TRUE, maxit=250, cndtol = .Machine$double.eps, allowSingular=TRUE)
-if(!file.exists("syntZIPnoSig.RData")){
-  syntZIPnoSigUnifUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP", k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "uniform", maxItOut=5e0))
-  syntZIPnoSigUnifUnif =  mccollect(syntZIPnoSigUnifUnifJob, FALSE)[[1]] 
-  
-  syntZIPnoSigUnifMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "uniform", maxItOut=5e2))
-  syntZIPnoSigUnifMarg =  mccollect(syntZIPnoSigUnifMargJob, FALSE)[[1]]
-  
-  syntZIPnoSigMargUnifJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "uniform", rowWeights = "marginal", maxItOut=5e2))
-  syntZIPnoSigMargUnif =  mccollect(syntZIPnoSigMargUnifJob, FALSE)[[1]]
-  
-   syntZIPnoSigMargMargJob = mcparallel(RCM(dataMatZIPnoSig, method = "ZIP",k=2, nleqslv.control = nleqslv.controlZIP, colWeights = "marginal", rowWeights = "marginal", maxItOut=5e1))
-  syntZIPnoSigMargMarg =  mccollect(syntZIPnoSigMargMargJob, FALSE)[[1]]
-  
-  save(syntZIPnoSigUnifMarg, syntZIPnoSigUnifUnif, syntZIPnoSigMargMarg, syntZIPnoSigMargUnif, dataMatZIPnoSig, file="syntZIPnoSig.RData")
-} else {load("syntZIPnoSig.RData")}
-#No convergence, mean cannot be fitted
-```
-
-##### Plot the results
-
-```{r RC(M) zip, eval=FALSE, purl = FALSE}
-load(file="toyDataNoSigZIPserver.RData")
-solListWSZIP = noSigListZIP[sapply(noSigListZIP, class)=="list"]
-#Runtimes and convergence
-sapply(solListWSZIP,function(x){x$converged})
-sapply(solListWSZIP,function(x){x$runtime})
-sapply(solListWSZIP,function(x){x$iter})
-
-par(mfrow=c(2,2))
-sapply(solListWSZIP,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
-```
-
-#### ZIP with signal
-
-```{r ZIP with signal, eval=FALSE, purl = FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate/load the ZIP parameters
-
-if(!file.exists("AGzipParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
-  logLibs = log(sample_sums(AGphylo))
-  ZIPfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    zeroinfl(otuTab[,i]~offset(logLibs)| 1)
-  })
-  zeroProbs = sapply(ZIPfits, function(x){expit(x$coef$zero)})
-  ZIPmeans = sapply(ZIPfits, function(x){exp(x$coef$count)})
-  save(zeroProbs, ZIPmeans, file="AGzipParams.RData")
-} else {load(file="AGzipParams.RData")}
-#ZeroPorbs are very low
-
-#Defina parameters
-NsamplesZIPsig= 150
-NtaxaZIPsig = 500
-lambdasZIPref = lambdasZIPsig1 =lambdasZIPsig2 = lambdasZIPsig12 =  sample(ZIPmeans, NtaxaZIPsig)
-zeroesZIPref = zeroesZIPsig1 = zeroesZIPsig2 = zeroesZIPsig12 =sample(zeroProbs, NtaxaZIPsig)
-libSizesZIPsig =c(rep(1e4, floor(NsamplesZIPsig/2)), rep(1e5, floor(NsamplesZIPsig/2)))
-
-#Define the signal
-NtaxaSignal1ZIP = 20
-NtaxaSignal2ZIP = 20
-
-NtaxaSignal1zeroZIP = 20
-NtaxaSignal2zeroZIP = 20
-
-Signal1taxZIP = 4
-Signal2taxZIP = 3
-
-Signal1zeroTaxZIP = 5
-Signal2zeroTaxZIP = 3
-
-NsamplesSignal1ZIP = 20
-NsamplesSignal2ZIP = 20
-NsamplesSignal12ZIP = 20
-
-NsamplesSignal1zeroZIP = 20
-NsamplesSignal2zeroZIP = 20
-NsamplesSignal12zeroZIP = 20
-
-idSig1TaxZIP = 1:NtaxaSignal1ZIP
-idSig2TaxZIP = sample(1:NtaxaZIPsig,NtaxaSignal2ZIP)
-
-lambdasZIPsig1[idSig1TaxZIP] = lambdasZIPsig1[idSig1TaxZIP] * Signal1taxZIP
-lambdasZIPsig2[idSig2TaxZIP] = lambdasZIPsig2[idSig2TaxZIP] * Signal2taxZIP
-lambdasZIPsig12[c(idSig1TaxZIP, idSig2TaxZIP)] = c(lambdasZIPsig1[1:NtaxaSignal1ZIP],lambdasZIPsig2[idSig2TaxZIP])
-
-idSig1TaxZIPzeroes = 1:NtaxaSignal1zeroZIP + NtaxaSignal1ZIP/2
-idSig2TaxZIPzeroes = idSig1TaxZIPzeroes + NtaxaSignal1zeroZIP/2 + NtaxaSignal2zeroZIP/2
-
-zeroesZIPsig1[idSig1TaxZIPzeroes] = expit(logit(zeroesZIPsig1[idSig1TaxZIPzeroes]) * Signal1zeroTaxZIP)
-zeroesZIPsig2[idSig2TaxZIPzeroes] = expit(logit(zeroesZIPsig2[idSig2TaxZIPzeroes]) * Signal1zeroTaxZIP)
-zeroesZIPsig12[c(idSig1TaxZIPzeroes, idSig2TaxZIPzeroes)] = c(zeroesZIPsig1[idSig1TaxZIPzeroes],zeroesZIPsig2[idSig2TaxZIPzeroes])
-
-NsamplesZIPsigRef =  NsamplesZIPsig - NsamplesSignal1ZIP - NsamplesSignal2ZIP-  NsamplesSignal12ZIP
-
-#Define mean and zero matrices
-meanMatrefZIP = outer(sample(libSizesZIPsig, NsamplesZIPsigRef), lambdasZIPref)
-meanMatSig1ZIP = outer(sample(libSizesZIPsig, NsamplesSignal1ZIP), lambdasZIPsig1)
-meanMatSig2ZIP = outer(sample(libSizesZIPsig, NsamplesSignal2ZIP), lambdasZIPsig2)
-meanMatSig12ZIP = outer(sample(libSizesZIPsig, NsamplesSignal12ZIP), lambdasZIPsig12)
-
-zeroMatrefZIP = matrix(zeroesZIPref, nrow=nrow(meanMatrefZIP),ncol=ncol(meanMatrefZIP), byrow = TRUE)
-zeroMatSig1ZIP = matrix(zeroesZIPsig1, nrow=nrow(meanMatSig1ZIP),ncol=ncol(meanMatSig1ZIP), byrow = TRUE)
-zeroMatSig2ZIP = matrix(zeroesZIPsig2, nrow=nrow(meanMatSig2ZIP),ncol=ncol(meanMatSig2ZIP), byrow = TRUE)
-zeroMatSig12ZIP = matrix(zeroesZIPsig12, nrow=nrow(meanMatSig12ZIP),ncol=ncol(meanMatSig12ZIP), byrow = TRUE)
-
-#Generate the data
-dataMatZIPref = matrix(rzipois(n=prod(dim(meanMatrefZIP)),lambda = meanMatrefZIP, pstr0 = zeroMatrefZIP), ncol=ncol(meanMatrefZIP), nrow=nrow(meanMatrefZIP))
-dataMatZIPsig1 = matrix(rzipois(n=prod(dim(meanMatSig1ZIP)),lambda = meanMatSig1ZIP, pstr0 = zeroMatSig1ZIP), ncol=ncol(meanMatSig1ZIP), nrow=nrow(meanMatSig1ZIP))
-dataMatZIPsig2 = matrix(rzipois(n=prod(dim(meanMatSig2ZIP)),lambda = meanMatSig2ZIP, pstr0 = zeroMatSig2ZIP), ncol=ncol(meanMatSig2ZIP), nrow=nrow(meanMatSig2ZIP))
-dataMatZIPsig12 = matrix(rzipois(n=prod(dim(meanMatSig12ZIP)),lambda = meanMatSig12ZIP, pstr0 = zeroMatSig12ZIP), ncol=ncol(meanMatSig12ZIP), nrow=nrow(meanMatSig12ZIP))
-
-#Bind the data
-dataMatZIPSig = rbind(dataMatZIPref, dataMatZIPsig1, dataMatZIPsig2, dataMatZIPsig12)
-#mean(dataMatZIPsig==0) #Correct zero fraction
-
-#Save signals
-sampleSigZIP = factor(c(rep("Reference",NsamplesZIPsigRef), rep("Signal1", NsamplesSignal1ZIP), rep("Signal2", NsamplesSignal2ZIP), rep("Signal 1 and 2", NsamplesSignal12ZIP)))
-taxaSigZIPtmp = rep("Reference",ncol(dataMatSigNB))
-taxaSigZIPtmp[idSig1TaxZIP] = "Signal 1"
-taxaSigZIPtmp[idSig2TaxZIP] = "Signal 2"
-taxaSigZIP =factor(taxaSigZIPtmp) 
-names(taxaSigZIP) = colnames(dataMatZIPSig) = names(rhosNBSigref)
-names(sampleSigZIP) = rownames(dataMatZIPSig) = 1:NsamplesZIPsig
-```
-
-#### Apply the RC(M) algorithm
-
-```{r ZIP signal fit, eval=FALSE, purl=FALSE}
-if(!file.exists("syntZIPSig.RData")){
-    syntZIPSigUnifJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "uniform"))
-  syntZIPSigUnif =  mccollect(syntZIPSigUnifJob, FALSE)[[1]] 
-  
-  syntZIPSigMargJob = mcparallel(RCM(dataMatZIPSig, method = "ZIP",k=2, nleqslv.control = list(trace=TRUE, maxit=250), colWeights = "marginal"))
-  syntZIPSigMarg =  mccollect(syntZIPSigMargJob, FALSE)[[1]] 
-  
-  save(syntZIPSigUnif, syntZIPSigMarg, sampleSigZIP, taxaSigNB, file="syntZIPSig.RData")
-} else {load("syntZIPSig.RData")}
-```
-
-##### Plot the results
-
-### Zero-inflated negative binomial
-
-#### Without signal
-
-##### Generate data
-
-```{r ZINB without signal, eval=FALSE, purl=FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-#First estimate the ZIP parameters
-expit=function(x){
-  tmp = exp(x)/(1+exp(x))
-  tmp[is.na(tmp)]=1 #Adjust for overflow
-  tmp}
-
-if(!file.exists("AGzinbParams.RData")){
-  otuTab = otu_table(AGphylo)@.Data
- # otuTab = otuTab[, colMeans(otuTab==0)<0.95]
-  logLibs = log(sample_sums(AGphylo))
-  ZINBfits = mclapply(mc.cores=4,1:ncol(otuTab),  function(i){
-    try(zeroinfl(otuTab[,i]~offset(logLibs)| 1, dist="negbin"), silent=TRUE)
-  })
-  zeroProbsNB = sapply(ZINBfits, function(x){if(is.list(x)) expit(x$coef$zero) else NA})
-  ZINBmeans = sapply(ZINBfits, function(x){if(is.list(x)) exp(x$coef$count) else NA})
-  thetasZINB = sapply(ZINBfits, function(x){if(is.list(x)) x$theta else NA})
-  naID=is.na(zeroProbsNB)
-  zeroProbsNB= zeroProbsNB[!naID]
-  ZINBmeans= ZINBmeans[!is.na(ZINBmeans)]
-  thetasZINB= thetasZINB[!is.na(thetasZINB)]
-  save(thetasZINB, zeroProbsNB, ZINBmeans, file="AGzinbParams.RData")
-} else {load(file="AGzinbParams.RData")}
-#ZeroProbs are lower than for the ZIP
-
-#Define parameters
-zeroProbsNB = zeroProbsNB[zeroProbsNB<0.9]
-NsamplesZINBnoSig= 200
-NtaxaZINBnoSig = 800
-idSampleZINB = sample(size=NtaxaZINBnoSig, 1:length(ZINBmeans))
-MeansZINB = ZINBmeans[idSampleZINB]
-ThetasZINB = thetasZINB[idSampleZINB]
-zeroesZINBnoSig = sample(zeroProbsNB, NtaxaZINBnoSig)
-libSizesZINBnoSig =c(rep(1e5, floor(NsamplesZINBnoSig/2)), rep(1e6, floor(NsamplesZINBnoSig/2)))
-
-#Mean, OD and zero matrices
-meanMatZINBnoSig = outer(libSizesZINBnoSig, MeansZINB)
-ODmatZINB = outer(rep(1,NsamplesZINBnoSig) ,ThetasZINB )
-zeroMatZINBnoSig = matrix(zeroesZINBnoSig, nrow=NsamplesZINBnoSig, ncol=NtaxaZINBnoSig, byrow = TRUE)
-
-#Data generation
-dataMatZINBnoSig = matrix(rzinegbin(n=prod(dim(meanMatZINBnoSig)),munb = meanMatZINBnoSig, size = ODmatZINB, pstr0 = zeroMatZINBnoSig), ncol=NtaxaZINBnoSig, nrow=NsamplesZINBnoSig)
-save(dataMatZINBnoSig, file = "zinbNoSigData.RData")
-```
-
-##### Apply the RC(M) algorithm with the ZINB distribution
-
-```{r ZINB signal fit, eval=FALSE, purl=FALSE}
-nleqslv.control.zinb = list(trace = TRUE, maxit = 250, cndtol = .Machine$double.eps, allowSingular=TRUE)
-if(!file.exists("syntZINBnoSig.RData")){
-    syntZINBSigunifunifJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "uniform", rowWeights = "uniform", twoCores=FALSE, maxItOut = 5e0))
-  syntZINBSigunifunif =  mccollect(syntZINBSigunifunifJob, FALSE)[[1]] 
-  
-  syntZINBSigunifmargJob = mcparallel(RCM(dataMatZINBnoSig, method = "ZINB", k=3, nleqslv.control = nleqslv.control.zinb, colWeights = "marginal", rowWeights = "uniform", twoCores=FALSE))
-  syntZINBSigunifmarg =  mccollect(syntZINBSigunifmargJob, FALSE)[[1]]
-  
-  save(syntZINBSigunifunif, syntZINBSigunifmarg, file="syntZINBnoSig.RData")
-} else {load("syntZINBnoSig.RData")}
-```
-
-##### Plot the ZINB results
-
-```{r RC(M) ZINB, eval=FALSE, purl=FALSE}
-load(file="toyDataNoSigZINBserver.RData")
-solListWSZINB = noSigListZINB[sapply(noSigListZINB, class)=="list"]
-#Runtimes and convergence
-sapply(solListWSZINB,function(x){x$converged})
-sapply(solListWSZINB,function(x){x$runtime})
-sapply(solListWSZINB,function(x){x$iter})
-par(mfrow=c(2,2))
-sapply(solListWSZINB,function(x){with(x, plot(psiRec[1,1:iter[1]]))})
-```
-
-#### Restore defaults
-
-```{r restore defaults, eval=FALSE, purl = FALSE}
-palette(palStore)
-```
-
---->
-
-<!---
-## Toy data
-
-### Negative binomial
-
-We generate some data as before with the NB distribution but differing library sizes, apply our algorithm and plot the results.
-
-#### NB without signal
-
-##### Create the data
-
-```{r NB no signal, purl = FALSE, eval = FALSE}
-#Negative binomial, no signal. Set parameters
-NsamplesNBNS = 300
-NtaxaNBNS = 1100
-thetasNBNS = sample(thetas,NtaxaNBNS)
-thetasNBNS = thetasNBNS[1/thetasNBNS<60]
-rhosNBNS = rhos[names(thetasNBNS)]
-rhosNBNS = rhosNBNS/sum(rhosNBNS)
-NtaxaNBNS = length(rhosNBNS)
-libSizesNBNS = c(rep(1e4, floor(NsamplesNBNS/2)), rep(1e5, floor(NsamplesNBNS/2)))
-
-#Create means and overdispersion matrices
-meanNBNS = outer(libSizesNBNS, rhosNBNS)
-thetaMatNBNS =  matrix(thetasNBNS, nrow=NsamplesNBNS, ncol=NtaxaNBNS, byrow=TRUE)
-
-#Define a function to make NB data
-makeNBdata = function(meanMat, thetaMat){apply(array(data = c(meanMat, thetaMat), dim=c(nrow(meanMat), ncol(meanMat), 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})}
-
-#Generate the data
-dataMatNBNS = makeNBdata(meanNBNS, thetaMatNBNS)
-```
-
-##### Fit the RC(M) model
-
-```{r fit RCM, purl = FALSE}
-#Set control parameters
-nleqslv.control = list(trace=FALSE, maxit = 500, cndtol=.Machine$double.eps)
-#Fit the RC(M) model
-if(!file.exists("toyDataNS.RData")){
-
-      syntNBNSmargmarg_3Job = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal",rowWeights ="marginal", prevCutOff=0.01))
-  syntNBNSmargmarg_3 = mccollect(syntNBNSmargmarg_3Job, FALSE)[[1]]
-  
-      syntNBNSunifmarg_3Job = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal",rowWeights ="uniform",prevCutOff=0.01))
-  syntNBNSunifmarg_3 = mccollect(syntNBNSunifmarg_3Job, FALSE)[[1]]
-  
-      syntNBNSunifunif_3Job = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "uniform",rowWeights ="uniform", prevCutOff=0.01))
-  syntNBNSunifunif_3 = mccollect(syntNBNSunifunif_3Job, FALSE)[[1]]
-  
-      syntNBNSmargunif_3Job = mcparallel(RCM(dataMatNBNS, distribution="NB", k=3, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "marginal",colWeights ="uniform", prevCutOff=0.01))
-  syntNBNSmargunif_3 = mccollect(syntNBNSmargunif_3Job, FALSE)[[1]]
-  
-   syntNBNSmargmarg_2JobMLE = mcparallel(RCM(dataMatNBNS, distribution="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal",rowWeights ="marginal", prevCutOff=0.01, marginEst = "MLE"))
-  syntNBNSmargmarg_2MLE = mccollect(syntNBNSmargmarg_2JobMLE, FALSE)[[1]]
-  
-      syntNBNSunifmarg_2JobMLE = mcparallel(RCM(dataMatNBNS, distribution="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "marginal",rowWeights ="uniform",prevCutOff=0.01, marginEst = "MLE"))
-  syntNBNSunifmarg_2MLE = mccollect(syntNBNSunifmarg_2JobMLE, FALSE)[[1]]
-  
-      syntNBNSunifunif_2JobMLE = mcparallel(RCM(dataMatNBNS, distribution="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=1e3, colWeights = "uniform",rowWeights ="uniform", prevCutOff=0.01, marginEst = "MLE"))
-  syntNBNSunifunif_2MLE = mccollect(syntNBNSunifunif_2JobMLE, FALSE)[[1]]
-  
-      syntNBNSmargunif_2JobMLE = mcparallel(RCM(dataMatNBNS, distribution="NB", k=2, nleqslv.control= nleqslv.control, maxItOut=1e3, rowWeights = "marginal",colWeights ="uniform", prevCutOff=0.01, marginEst = "MLE"))
-  syntNBNSmargunif_2MLE = mccollect(syntNBNSmargunif_2JobMLE, FALSE)[[1]]
-
-  #Save the results
-  save( syntNBNSunifmarg_3,syntNBNSmargunif_3,syntNBNSmargmarg_3,syntNBNSunifunif_3, dataMatNBNS,test1, test2, test3, test1unif, test2unif, test3unif, syntNBNSunifunif_2MLE, syntNBNSunifmarg_2MLE, syntNBNSmargunif_2MLE, syntNBNSmargmarg_2MLE ,file="toyDataNS.RData" ) #syntNBNSunif,syntNBNSunif, yntNBNSmarg,syntNBNSmarg,
-} else {load("toyDataNS.RData")}
-```
-
-```{r Plot results no signal, purl=FALSE, include=FALSE}
-solListNS = list("unifunif" = syntNBNSunifunif_1B1_3, "unifmarg" = syntNBNSunifmarg_1B1_3, "margunif" = syntNBNSmargunif_1B1_3, "margmarg" = syntNBNSmargmarg_1B1_3, "unifunifMLE" = syntNBNSunifunif_1B1_2MLE, "unifmargMLE" = syntNBNSunifmarg_1B1_2MLE, "margunifMLE" = syntNBNSmargunif_1B1_2MLE, "margmargMLE" = syntNBNSmargmarg_1B1_2MLE)# "unifmargunifRmarg" = test1,  "margmargunifRmarg"=test2, "margunifunifRmarg" = test3, "unifmargunifRunif" = test1unif, "margmargunifRunif"=test2unif, "margunifunifRunif" = test3unif,
-#Runtimes and convergence
-sapply(solListNS,function(x){x$converged})
-```
-
-```{r SamplePlotsNoSignal, results='hide', purl=FALSE}
-par(mfrow=c(2,4))
-#unifmarg
-lapply(names(solListNS), function(Y){with(solListNS[[Y]], {
-  rMatPsi = rMat %*% diag(psis)
-  dfCol = data.frame(Dim1=rMatPsi[,1], Dim2=rMatPsi[,2], col=rowSums(X))
-  ggplot(data=dfCol, aes(x=Dim1, y=Dim2, col=col)) +geom_point(size=2) +ggtitle(Y) + scale_colour_continuous(name="Library sizes", low="red",high = "green")
-    })
-  })
-```
-
-```{r loadings vs. library sizes dim1, results='hide', purl=FALSE}
-#Dimension 1
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,rMat[,1] *psis[1] ,rowSums(X), ylab="Library sizes",xlab="Dim1", sub = paste0("Cor = ",round(cor(rMat[,1], rowSums(X)),2)) )})})
-```
-
-```{r loadings vs. library sizes dim2, results='hide', purl = FALSE}
-#Dimension 2
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,rMat[,2] *psis[2],rowSums(X), ylab="Library sizes",xlab="Dim2", sub = paste0("Cor = ",round(cor(rMat[,2], rowSums(X)),2)) )})})
-```
-
-```{r loadings vs. library sizes dim3, results='hide', purl = FALSE}
-#Dimension 3
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){try(with(solListNS[[Y]], {plot(main=Y,rMat[,3] *psis[3],rowSums(X), ylab="Library sizes",xlab="Dim3", sub = paste0("Cor = ",round(cor(rMat[,3], rowSums(X)),2)))}))})
-```
-
-In all weighing schemes, the row scores of the first dimension increase with library size (not in absolute values but they form a gradient). This is likely a result of a discrepancy between the MLE estimates of the sequencing depths under the NB model and the library size (row sums of our count table $\sum_{j=1}^px_{ij}$, which are also just an _estimate_ of the sequencing depth, which does not account for different variances between species but treats them all equally).  The sum of NB-distributed variables is also approximately NB-distributed, although this is not mathematically guaranteed. The first dimension of the MLE row scores estimates then tries to correct for this aberration so that its effect disappears in the higher dimensions. We plot the estimates of the sequencing depths of the two different estimators
-
-```{r plotSequencingDepthEstimators, purl = FALSE}
-par(mfrow=c(1,1), pty="s")
-with(solListNS[["unifunifMLE"]], {plot(rowSums(X),libSizesMLE, xlab ="Library sizes", ylab = "MLE sequencing depth",log="xy")})
-abline(0,1);abline(h=c(1e4,1e5), col="red");abline(v=c(1e4,1e5), col="red")
-MSElibs = mean((rowSums(solListNS[["unifunifMLE"]]$X)-rep(c(1e4,1e5), each=150))^2)
-MSEmle = mean((solListNS[["unifunifMLE"]]$libSizesMLE-rep(c(1e4,1e5), each=150))^2)
-```
-
-There exist considerable differences between both estimation strategies, the MLE one seems less variable. Still the library sizes lead to the smallest MSE.
-
-###### Taxon plots
-
-Now let's take a look at the taxon plots
-
-```{r NBNS taxon plots, results='hide', purl = FALSE}
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,t(cMat), ylab="Dim2",xlab="Dim1")}) })
-```
-
-The taxon plots of the fits with uniform weights for the taxa are used ($z_j = 1/p$) suffer from outliers when the abundances are estimated as column sums. For the other weighting schemes it is hard to establish anay effect for now. Contrarily to my expectations it are the weights for the centering rather than the normalization requirement that cause the outliers. With MLE estimation of the abundances, the outliers are gone in all weighting schemes!
-
-The taxon plot of second and third dimension
-
-```{r taxonPlot2and3D, results='hide', purl = FALSE}
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){try(with(solListNS[[Y]], {plot(main=Y,t(cMat[2:3,]), xlab = "Dim2",ylab="Dim3")}))})
-```
-
-No more outliers in the higher dimensions
-
-Are the taxon scores related to the abundances in any way?
-
-```{r taxonScesvsAbunds1D, results='hide', purl = FALSE}
-#Abundances
-par(mfrow=c(2,4))
-sapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,abs(cMat[1,]), colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="abs(Dim1)", sub = paste0("Cor = ",round(cor(abs(cMat[1,]), log(colSums(X))),2)))})})
-```
-
-Marginal centering weights causes the column scores to slightly correlate with the abundances
-
-```{r taxonScesvsAbunds23D, results='hide', purl = FALSE}
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y,abs(cMat[2,]), colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="abs(Dim2)", sub = paste0("Cor = ",round(cor(abs(cMat[2,]), log(colSums(X))),2)))})})
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){try(with(solListNS[[Y]], {plot(main=Y,cMat[3,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="abs(Dim3)", sub = paste0("Cor = ",round(cor(abs(cMat[3,]), log(colSums(X))),2)))}))})
-```
-
-No more problems in higher dimensions.
-
-Do the taxon scores relate to the overdispersions?
-
-```{r taxonScesvsthetas, results='hide', purl = FALSE}
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y, abs(cMat[1,]), thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="abs(Dim1)", sub = paste0("Cor = ",round(cor(abs(cMat[1,]), log(thetas)),2)))})})
-par(mfrow=c(2,4))
-lapply(names(solListNS), function(Y){with(solListNS[[Y]], {plot(main=Y, cMat[2,], thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="abs(Dim2)", sub = paste0("Cor = ",round(cor(abs(cMat[2,]), log(thetas)),2)))})})
-```
-
-Large overdispersions get larger scores in all dimensions. This need not be a problem, and may stand in relationship to abundances. Taxa ill fit by the NB may try to compensate this by a large OD and more extreme scores?
-
-How do the MLE estimates for the mean abundances differ from the column sums?
-
-```{r MLEvsColsums, results='hide', purl = FALSE}
-par(mfrow=c(1,1))
-with(solListNS[["unifunifMLE"]], {plot(main="MLE abundances vs column sum abundances", colSums(X)/sum(X), abundsMLE, log="xy", cex=0.5, ylab="MLE abundances", xlab="Column sum abundance")})
-abline(0,1)
-```
-
-There are subtle differences but less than with the library sizes. Why is the MLE less different from the marginal sum in this case? We can think of the following mathematical explanation: when calculating library sizes or abundances by row and column sums, each observations receives the same weight. However, when we estimate the margins through ML, we solve the following score equations:
-
-$$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{i}} = \sum_{j=1}^p \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
-
-$$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{j}} = \sum_{i=1}^n \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}.$$
-
-Note that since we are estimating offsets the value of the regressor is 1. In this case the difference of $y_{ij}$ with the expected value $\mu_{ij}$ is weighted by a factor $\frac{1}{1+\frac{\mu_{ij}}{\theta_j}} = \frac{\theta_j}{\theta_j+\mu_{ij}}$. When estimating $u_j$, $\theta$ is a constant but when estimating $u_i$ it is different for every observation $y_{ij}$. Hence the weights put on every observation differ much more when estimating the sample offsets than when estimating the taxon offsets. That is the reason why the MLE differs more from the marginal sum for the library size than for the abundances.
-
-##### Influence function
-
-Take a look at the influence function values for the influence on the first psi parameters
-
-```{r NS influence measures: psis, results="hide", purl = FALSE, eval = FALSE}
-infl1 = lapply(solListNS, function(x, i){
-  infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
-  id=abs(infl) > quantile( abs(infl),0.995)
-  Xid = x$X[id]
-  abunds = colSums(x$X)/sum(x$X)
-  libsizes = rowSums(x$X)
-  list(infl = infl, id = id, Xid = Xid, abunds=abunds, libsizes=libsizes)
-},1)
-# par(mfrow=c(3,5))
-# lapply(names(infl1), function(x){
-#   with(infl1[[x]], plot(abunds, colSums(id), log="x", main=x, ylab= "Number of influential observations"))
-# })
-par(mfrow=c(2,4))
-lapply(names(infl1), function(x){
-  with(infl1[[x]], plot(log(abs(c(t(infl))))~rep(cut(log(abunds),8),nrow(infl)), main=x, ylab = "log(|Influence|)",xlab = "log Abundance")) #Very heavy!
-})
-```
-
-Larger abundances, larger influences in all weighting schemes (remember it is a log(abs())-plot).
-
-Influence vs libSizes
-
-```{r Influence vs libSizes, results="hide", purl = FALSE, eval = FALSE}
-par(mfrow=c(2,4))
-lapply(names(infl1), function(x){
-  with(infl1[[x]], plot(log(abs(c(infl)))~rep(cut(log(libsizes),8),ncol(infl)), main=x, ylab = "log(|Influence|)",xlab = "log library size")) #Very heavy!
-})
-```
-
-No clear trend of influence in function of the library sizes
-
-How are the most influential observations as compared to the bulk of the observations?
-
-```{r Influence vs non-influential observations, purl = FALSE, eval = FALSE}
-lapply(names(infl1), function(x){
-  with(infl1[[x]], {rbind(expectationsAll = quantile(outer(libsizes, abunds)),
-       expectationsInfluentialObservation =quantile(outer(libsizes, abunds)[id])) })
-})
-
-# sapply(names(infl1), function(x){
-#   rbind(zeroesAll = mean(solListNS[[x]]$X==0),
-#        zeroesInfluentialObservation = mean(solListNS[[x]]$X[infl1[[x]]$Xid]==0)) })
-```
-
-The most influential observations are zero counts (or low counts) in highly abundant species and high libsizes (i.e. high expected values)!
-
-Plot the influence vs. observed abundances
-
-```{r X vs Infl(X), results="hide", purl = FALSE, eval = FALSE}
-#Expectations
-par(mfrow=c(2,4))
-lapply(names(infl1), function(x){
-  id = sample(1:prod(dim(solListNS[[x]]$X)), size=10000)
-plot(log10(solListNS[[x]]$X+1)[id]setwd(WD), infl1[[x]]$infl[id], ylab= "Influence", xlab = "log10(Counts +1)", main=x)
-abline(v=0, col="red")
-})
-```
-
-Versus expected abundances
-
-```{r Infl vs observed abundances, results="hide", purl = FALSE, eval = FALSE}
-par(mfrow=c(2,4))
-lapply(names(infl1), function(x){
-  id = sample(1:prod(dim(solListNS[[x]]$X)), size=10000)
-plot(outer(rowSums(solListNS[[x]]$X), colSums(solListNS[[x]]$X)/sum(solListNS[[x]]$X))[id], infl1[[x]]$infl[id], ylab = "Influence", xlab = "Expected counts", main=x)
-  abline(v=0, col="red")
-})
-```
-
-Versus Raw residuals (Observed - Expected count)
-
-```{r vs Pearson residuals, results = "hide", purl = FALSE, eval = FALSE}
-par(mfrow=c(2,4))
-lapply(names(infl1), function(x){
-   id = sample(1:prod(dim(solListNS[[x]]$X)), size=10000) #Take a susbet for computability
-plot((solListNS[[x]]$X-outer(rowSums(solListNS[[x]]$X), colSums(solListNS[[x]]$X)/sum(solListNS[[x]]$X)))[id], infl1[[x]]$infl[id], ylab = "Influence", xlab = "Raw residuals", main=x)#sqrt(diag(1/rowSums(solListNS[[x]]$X)))%*%%*%sqrt(diag(1/colSums(solListNS[[x]]$X)))
-  abline(v=0, col="red")
-})
-```
-
-
-```{r psi2Infl, eval=FALSE, purl = FALSE, eval = FALSE}
-infl2 = lapply(solListNS, function(x, i){
-  infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
-  id=abs(infl) > quantile( abs(infl),0.995)
-  Xid = x$X[id]
-  abunds = colSums(x$X)/sum(x$X)
-  libsizes = rowSums(x$X)
-  list(infl = infl, id = id, Xid = Xid, abunds=abunds, libsizes=libsizes)
-},2)
-par(mfrow=c(2,2))
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(abunds, colSums(id), log="x", main=x))
-})
-#In the second dimension, larger abundance means larger influence on the psis too, and no more outliers
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(rep(abunds, nrow(infl)), c(t(infl)), log="x", main=x)) #Very heavy!
-}) #Outlier in unifmarg weigthing scheme
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(rep(libsizes, ncol(infl)), c(infl), log="x", main=x)) #Very heavy!
-})
-#Expectations
-lapply(names(infl2), function(x){
-  with(infl2[[x]], {rbind(quantile(outer(libsizes, abunds)),
-       quantile(outer(libsizes, abunds)[id])) })
-})
-lapply(names(infl2), function(x){
-  cat(x, "\n")
-  with(infl2[[x]], table(Xid))
-})
-```
-
-Under the uniform weighting scheme for the taxa, one single observation will get an enormous influence in the first dimension, this is in all likelihood the outlier. Note that we cen derive this from the influence function that does not even depend on the weights!
-
-Influence on the colScores
-
-```{r NBNS influence colscores, eval=FALSE, purl = FALSE, eval = FALSE}
-inflCol1 = lapply(solListNS, function(x){
-  try(with(x, NBcolInfl(X, psis, cMat, rMat,thetas , colWeights , k=1 , lambdaCol)))
-})
-#Only look at most extreme colscores
-#Cannot calculate influence functions for the interesting cases (with the outliers)
-
-```
-
-```{r NBNS influence rowscores, eval=FALSE, purl = FALSE, eval = FALSE}
-inflRowList1 = lapply(solListNS, function(x){
-  try(with(x, NBrowInfl(X, psis, cMat, rMat,thetas , rowWeights , k=1 , lambdaRow)))
-})
-#Only look at most extreme colscores
-#Cannot calculate influence functions for the interesting cases (with the outliers)
-inflRowList1=inflRowList1[sapply(inflRowList1, class)=="list"]
-#The influence on the first row score
-inflRow1 = lapply(inflRowList1, function(x){getInflRow(x$score, x$InvJac, 1)}) 
-par(mfrow=c(1,2))
-libSizes = rowSums(solListNS[[1]]$X)
-lapply(inflRow1, function(x){
-  plot(y=x[,1], libSizes, log="x")
-})
-```
-
-##### Conclusions from the null plots
-
- - No signal in either plot. 
- - For the uniform taxon weighting the first dimension of the plot is dominated by outliers
- - The first dimension row scores are related to the library sizes in all weighting schemes
- - The least abundant species get higher column scores in all weighting schemes
- 
-#### NB with signal
-
-The signal is introduced by sampling from different distributions in which each time the abundance of a small set of species was modified.
-
-With modified abundances (4 groups)
-
-```{r NB with signal abundance,eval=FALSE , purl = FALSE}
-rhosNBSigref = rhosNBSig1 = rhosNBSig2 = rhosNBSig3 = rhosNBSig4 = rhosNBNS
-
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-libSizesAG = sample_sums(AGphylo)
-
-NsamplesSignal1 = NsamplesSignal2 =  20
-NsamplesSignal3 = NsamplesSignal4 =  15
-
-NtaxaSignalNB = 40
-
-Signal1NB = 18
-Signal2NB = 12
-Signal3NB = 10
-Signal4NB = 7
-
-idSig1NB = 1:NtaxaNBNS %in% sample(1:NtaxaNBNS, NtaxaSignalNB) #Random sampling should ensure orthogonality
-idSig2NB = 1:NtaxaNBNS %in% sample(1:NtaxaNBNS, NtaxaSignalNB)
-idSig3NB = 1:NtaxaNBNS %in% sample(1:NtaxaNBNS, NtaxaSignalNB) #Random sampling should ensure orthogonality
-idSig4NB = 1:NtaxaNBNS %in% sample(1:NtaxaNBNS, NtaxaSignalNB)
-#Apply the signals
-
-rhosNBSig1[idSig1NB] = rhosNBSig1[idSig1NB]*Signal1NB
-rhosNBSig2[idSig2NB] = rhosNBSig2[idSig2NB]*Signal2NB
-rhosNBSig3[idSig3NB] = rhosNBSig3[idSig3NB]*Signal3NB
-rhosNBSig4[idSig4NB] = rhosNBSig4[idSig4NB]*Signal4NB
-
-#Renormalize
-renorm=function(x){x/sum(x)}
-rhosNBSig1=renorm(rhosNBSig1);rhosNBSig2=renorm(rhosNBSig2);
-rhosNBSig3=renorm(rhosNBSig3);rhosNBSig4=renorm(rhosNBSig4);
-
-#Generate data
-Nref = (NsamplesNBNS-NsamplesSignal1-NsamplesSignal2-NsamplesSignal3-NsamplesSignal4)
-meanMatRefNB = outer(libSizesAG[sample(size=Nref, 1:NsamplesNBNS)], rhosNBSigref)
-meanMatSig1NB = outer(libSizesAG[sample(size=NsamplesSignal1, 1:NsamplesNBNS)], rhosNBSig1)
-meanMatSig2NB = outer(libSizesAG[sample(size=NsamplesSignal2, 1:NsamplesNBNS)], rhosNBSig2)
-meanMatSig3NB = outer(libSizesAG[sample(size=NsamplesSignal3, 1:NsamplesNBNS)], rhosNBSig3)
-meanMatSig4NB = outer(libSizesAG[sample(size=NsamplesSignal4, 1:NsamplesNBNS)], rhosNBSig4)
-thetaMatSigNB = thetaMatNBNS
-
-dataMatRefNB = makeNBdata(meanMatRefNB, thetaMatSigNB)
-dataMatSig1NB = makeNBdata(meanMatSig1NB, thetaMatSigNB)
-dataMatSig2NB = makeNBdata(meanMatSig2NB, thetaMatSigNB)
-dataMatSig3NB = makeNBdata(meanMatSig3NB, thetaMatSigNB)
-dataMatSig4NB = makeNBdata(meanMatSig4NB, thetaMatSigNB)
-
-dataMatSigNBab = rbind(dataMatRefNB, dataMatSig1NB, dataMatSig2NB, dataMatSig3NB,dataMatSig4NB)
-
-#Save signals
-sampleSigNBab = factor(c(rep("Reference", Nref), rep("Signal1", NsamplesSignal1), rep("Signal2", NsamplesSignal2), rep("Signal 3", NsamplesSignal3), rep("Signal 4", NsamplesSignal4)))
-taxaSigNBtmp = rep("Reference",ncol(dataMatSigNBab))
-taxaSigNBtmp[idSig1NB] = "Signal 1"
-taxaSigNBtmp[idSig2NB] = "Signal 2"
-taxaSigNBtmp[idSig3NB] = "Signal 3"
-taxaSigNBtmp[idSig4NB] = "Signal 4"
-taxaSigNBtmp[idSig1NB & idSig2NB] = "Signal 1 and 2"
-taxaSigNBtmp[idSig1NB & idSig3NB] = "Signal 1 and 3"
-taxaSigNBtmp[idSig1NB & idSig4NB] = "Signal 1 and 4"
-taxaSigNBtmp[idSig2NB & idSig3NB] = "Signal 2 and 3"
-taxaSigNBtmp[idSig2NB & idSig4NB] = "Signal 2 and 4"
-taxaSigNBtmp[idSig3NB & idSig4NB] = "Signal 3 and 4"
-taxaSigNBtmp[idSig1NB & idSig2NB & idSig3NB] = "Signal 1 and 2 and 3"
-taxaSigNBtmp[idSig4NB & idSig2NB & idSig3NB] = "Signal 2 and 3 and 4"
-taxaSigNBtmp[idSig1NB & idSig2NB & idSig4NB] = "Signal 1 and 2 and 4"
-taxaSigNBtmp[idSig1NB & idSig4NB & idSig3NB] = "Signal 1 and 3 and 4"
-taxaSigNBab = factor(taxaSigNBtmp, levels = c("Reference","Signal 1","Signal 2","Signal 3","Signal 4","Signal 1 and 2","Signal 1 and 3","Signal 1 and 4","Signal 2 and 3","Signal 2 and 4","Signal 3 and 4", "Signal 1 and 2 and 3", "Signal 1 and 2 and 4", "Signal 1 and 3 and 4", "Signal 2 and 3 and 4")) 
-names(taxaSigNBab) = colnames(dataMatSigNBab) = names(rhosNBSigref)
-names(sampleSigNBab) = rownames(dataMatSigNBab) = 1:NsamplesNBNS
-
-save(dataMatSigNBab, taxaSigNBab, sampleSigNBab, file = "abData.RData")
-```
-
-#### The abundance based approach: fit
-
-```{r Fit3Dab, eval=FALSE, purl = FALSE}
-nleqslv.control.ab = list(trace=TRUE, maxit = 500, cndtol=.Machine$double.eps)
-if(!file.exists("toyDataSigab.RData")){
-
-    syntNBSigmargmarg_abJob = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "marginal"))
-  syntNBSigmargmarg_ab = mccollect(syntNBSigmargmarg_abJob, FALSE)[[1]] #Check
-  
-      syntNBSigunifmarg_abJob = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform"))
-  syntNBSigunifmarg_ab = mccollect(syntNBSigunifmarg_abJob, FALSE)[[1]] 
-  
-      syntNBSigmargunif_abJob = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, rowWeights="marginal", colWeights = "uniform"))
-  syntNBSigmargunif_ab = mccollect(syntNBSigmargunif_abJob, FALSE)[[1]] 
-  
-      syntNBSigunifunif_abJob = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="uniform", rowWeights = "uniform"))
-  syntNBSigunifunif_ab = mccollect(syntNBSigunifunif_abJob, FALSE)[[1]] #Check
-  
-        syntNBSigmargmarg_abJobMLE = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "marginal", marginEst = "MLE"))
-  syntNBSigmargmarg_abMLE = mccollect(syntNBSigmargmarg_abJobMLE, FALSE)[[1]] 
-  
-      syntNBSigunifmarg_abJobMLE = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE"))
-  syntNBSigunifmarg_abMLE = mccollect(syntNBSigunifmarg_abJobMLE, FALSE)[[1]] 
-  
-      syntNBSigmargunif_abJobMLE = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, rowWeights="marginal", colWeights = "uniform", marginEst = "MLE"))
-  syntNBSigmargunif_abMLE = mccollect(syntNBSigmargunif_abJobMLE, FALSE)[[1]] 
-  
-      syntNBSigunifunif_abJobMLE = mcparallel(RCM(dataMatSigNBab, distribution="NB", k=3, nleqslv.control= nleqslv.control.ab, maxItOut=2e3, prevCutOff=0.01, colWeights="uniform", rowWeights = "uniform", marginEst = "MLE"))
-  syntNBSigunifunif_abMLE = mccollect(syntNBSigunifunif_abJobMLE, FALSE)[[1]] 
- 
-  save(dataMatSigNBab, syntNBSigunifmarg_ab, syntNBSigunifunif_ab,syntNBSigmargmarg_ab,syntNBSigmargunif_ab,taxaSigNBab, sampleSigNBab, testAb1, testAb2, testAb3, testAb1unif, testAb2unif, testAb3unif,testAbInv,testAbLibs,dataMatSigNBabag,syntNBSigmargmarg_abMLE,syntNBSigunifunif_abMLE,syntNBSigmargunif_abMLE,syntNBSigunifmarg_abMLE, file="toyDataSigab.RData")#syntNBSigunif, syntNBSigmarg, syntNBSigmarg_3,
-} else {load("toyDataSigab.RData")}
-```
-
-```{r ab plots, include=FALSE, purl = FALSE}
-load("toyDataSigABserver.RData") 
-# solListWSab = list("unifunif" = syntNBSigunifunif_ab, "unifmarg" = syntNBSigunifmarg_ab, "margunif" = syntNBSigmargunif_ab, "margmarg" = syntNBSigmargmarg_ab, "unifmargunifRmarg" = testAb1,  "margmargunifRmarg"=testAb2, "margunifunifRmarg" = testAb3, "unifmargunifRunif" = testAb1unif, "margmargunifRunif"=testAb2unif, "margunifunifRunif" = testAb3unif, "inverse"= testAbInv, "testEqualLibs" =   testAbLibs, "unifunifMLE" = syntNBSigunifunif_abMLE, "unifmargMLE" = syntNBSigunifmarg_abMLE, "margunifMLE" = syntNBSigmargunif_abMLE, "margmargMLE" = syntNBSigmargmarg_abMLE )
-names(sigListAB) = c("unifunif","unifunifMLE","margunif","margunifMLE","unifmarg","unifmargMLE","margmarg","margmargMLE")
-solListWSab = sigListAB
-
-solListWSab = solListWSab[sapply(solListWSab, class)=="list"] 
-#Runtimes and convergence
-sapply(solListWSab,function(x){x$converged})
-sapply(solListWSab,function(x){x$runtime})
-sapply(solListWSab,function(x){x$iter})
-```
-
-The first abbreviation refers to the weighting scheme for the rows(samples), the second to the weighting scheme for the columns. E.g "margunif" means $w_i = x_{i.}$ and $z_j = 1/p$. The MLE epitheton indicates that the independence model was estimated by MLE.
-
-#### Sample plots
-
-\newpage
-
-```{r abSignalPlots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE, eval=FALSE}
-cols = c("grey", "red","blue","purple","green","brown","cyan","orange","black",  "magenta","yellow","pink", "darkblue","grey75","cadetblue") 
-palette(cols)
-par(mfrow=c(1,1), mar = c(4,4,4,4), mai=c(0,0,0,0))
-lapply(names(solListWSab), function(Y){plotRCM(solListWSab[[Y]], samColour = sampleSigNBab, main=Y, biplot=FALSE, Dim = c(1,2), libInset=c(-0.1,0))})#, libLeg = Y ==names(solListWSab)[1]
-```
-
-##### 1st and 3rd dimensions
-
-\newpage
-
-```{r abSignalPlots23D, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
-palette(cols)
-par(mfrow=c(1,1))
-lapply(names(solListWSab), function(Y){try(plotRCM(solListWSab[[Y]], samColour = sampleSigNBab, main=Y, biplot=FALSE, Dim = c(1,3), libInset=c(-0.8,0)))})
-```
-
-Only when the margins are estimated with MLE are the first two dimensions used to separate the signal well. Especially the uniform weighting for the samples and marginal for the columns (as was our first intuition) appears to perform well. Also uniform weighting for both yields good results.
-
-#### Sample scores vs. libsizes
-
-```{r abSignalPlots 13D, results='hide', fig.show="hold", purl = FALSE}
-par(mfrow=c(2,4))
-#Maybe a function of the library sizes
-lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {
-  rMatPsi = rMat %*% diag(psis)
-  dfCol = data.frame(Dim1=rMatPsi[,1], Dim2=rMatPsi[,2], col=log(rowSums(X)))
-  ggplot(data=dfCol, aes(x=Dim1, y=Dim2, col=col)) +geom_point(size=3) +ggtitle(Y) + scale_colour_continuous(name="Library sizes", low="red",high = "green")
-    })
-  })
-```
-
-Look at the scores' relationship to the library sizes more directly.
-
-```{r ab libsizes, results='hide', fig.show="hold", eval=FALSE, purl = FALSE}
-#Look at the loadings in function of the library sizes and abunds
-par(pty = "m", mfrow = c(1,1), mar = c(5,4,4,4))
-logP="x"
-#Libsizes
-lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,rMat[,1] *psis[1],x=rowSums(X), log=logP, xlab ="Dim1",ylab = "Library sizes", sub = paste0("Cor = ",round(cor(rMat[,1] ,rowSums(X)),2) ) )})})
-lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,rMat[,2] *psis[2],x=rowSums(X), log=logP, xlab ="Dim2", ylab = "Library sizes", sub = paste0("Cor = ",round(cor(rMat[,2] ,rowSums(X)),2) ) )})})
-# lapply(names(solListWSab), function(Y){try(with(solListWSab[[Y]], {plot(main=Y,rMat[,3] *psis[3],x=rowSums(X), log=logP, xlab ="Dim3", ylab = "Library sizes", sub = paste0("Cor = ",round(cor(rMat[,1] ,rowSums(X)),2) ) )}))})
-```
-
-On these plots it is clear that when the margins are estimated using the library sizes, the scores correlate with the library sizes.
-
-In the MLE framework for the offsets, dependence on the library sizes has disappeared.
-
-Compare MLE and rowSums estimators for the sequencing depth
-
-```{r plotSequencingDepthEstimatorsAb, purl = FALSE}
-par(mfrow=c(1,1), pty="s")
-with(solListWSab[["unifunifMLE"]], {plot(rowSums(X),libSizesMLE, xlab ="Library sizes", ylab = "MLE sequencing depth",log="xy")})
- abline(0,1);#abline(h=c(1e4,1e5), col="red");abline(v=c(1e4,1e5), col="red")
-# MSElibs = mean((rowSums(solListWSab[["unifunifMLE"]]$X)-rep(c(1e4,1e5), each=150))^2)
-# MSEmle = mean((solListWSab[["unifunifMLE"]]$libSizesMLE-rep(c(1e4,1e5), each=150))^2)
-```
-
-The MLE estimate is generally larger than the rowSums estimate (presumably since the former puts less weight on zero counts (large overdispersion)), this may explain the gradient of the row scores in function of the library sizes.
-
-##### Taxa plots
-
-Now let's take a look at the taxon plots
-
-```{r NBab taxon plots, results='hide', eval=FALSE, purl = FALSE}
-par(mfrow=c(1,1), pty="s")
-palette(cols)
-lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,t(cMat), ylab="Dim2",xlab="Dim1", col = taxaSigNBab)}); legend("topright",legend = levels(taxaSigNBab), col=cols,pch= 1, cex=0.7, inset = c(-0.80,0), xpd=TRUE) })
-```
-
-For the uniform weighting of the samples we see outliers for the taxa
-
-Are the taxon scores related to the abundances in any way?
-
-```{r taxonScesvsAbunds1Dab, results='hide', eval=FALSE, purl = FALSE}
-#Abundances
-par(mfrow=c(1,1), mar=c(5,4,4,4))
-sapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,cMat[1,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim1", sub = paste0("Cor = ", round(cor(cMat[1,], colSums(X)),2)))})})
-```
-
-The MLE offset estimation does reduce correlation with the mean abundances.
-
-```{r taxonScesvsAbunds23Dab, results='hide', eval=FALSE, purl = FALSE}
-# Second and third dimensions
-par(mfrow=c(1,1), mar=c(5,4,4,4))
-lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,cMat[2,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim2", sub = paste0("Cor = ", round(cor(cMat[2,], colSums(X)),2)))})})
-par(mfrow=c(1,1), mar=c(5,4,4,4))
-lapply(names(solListWSab), function(Y){try(with(solListWSab[[Y]], {plot(main=Y,cMat[3,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim3", sub = paste0("Cor = ", round(cor(cMat[3,], colSums(X)),2)))}))})
-```
-
-No more problems with correlation in higher dimensions.
-
-Do the taxon scores relate to the overdispersions?
-
-```{r taxonScesvsthetas1, results='hide', eval=FALSE, purl = FALSE}
-par(mfrow=c(1,1))
-lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,abs(cMat[1,]), thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="Dim1", sub = paste0("Cor = ", round(cor(abs(cMat[1,]), thetas),2)))})})
-par(mfrow=c(1,1))
-lapply(names(solListWSab), function(Y){with(solListWSab[[Y]], {plot(main=Y,cMat[2,], thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="Dim2", sub = paste0("Cor = ", round(cor(abs(cMat[2,]), thetas),2)))})})
-```
-
-No real relationship with overdispersions
-
-```{r lagrange multipliers, eval=FALSE, purl = FALSE}
-##### Lagrange multipliers
-par(mfrow=c(2,4))
-lapply(names(solListWSab), function(Y){cat(Y, "\n");solListWSab[[Y]]$lambdaCol})
-```
-
-##### Biplots
-
-First two dimensions
-
-```{r ab biplots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
-#par(mfrow=c(2,4), mai = c(2,2,2,4))
-par(mfrow=c(1,1))
-palette(cols)
-lapply(names(solListWSab), function(Y){plotRCM(solListWSab[[Y]], samColour = sampleSigNBab, main=Y, biplot=TRUE, Dim = c(1,2), taxColour=taxaSigNBab, taxLegPos = "bottomright", abundLeg=TRUE, taxCol  =cols, taxInset = c(-0.0,-0.0), libCex = 0.65, libInset = c(0.0,-0.0), arrowFrac = 0.05)})
-```
-
-Fisrt and third dimension
-
-```{r ab23 biplots, results='hide', fig.show="hold", fig.width = 12, fig.height = 9, purl = FALSE}
-#par(mfrow=c(2,4), mai = c(2,2,2,4))
-par(mfrow=c(1,1))
-palette(cols)
-lapply(names(solListWSab), function(Y){plotRCM(solListWSab[[Y]], samColour = sampleSigNBab, main=Y, biplot=TRUE, Dim = c(1,3), taxColour=taxaSigNBab, taxLegPos = "bottomright", abundLeg=TRUE, taxCol  =cols, taxInset = c(-0,-0), libCex = 0.65, libInset = c(-0.0,-0.0), arrowFrac = 0.05)})
-```
-
-##### Influence function
-
-Take a look at the influence function values on the psis
-
-```{r Ab influence measures: psis, eval=FALSE, purl = FALSE}
-infl1 = lapply(solListWSab, function(x, i){ 
-  infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
-  id=abs(infl) > quantile( abs(infl),0.995)
-  Xid = x$X[id]
-  abunds = colSums(x$X)/sum(x$X)
-  libsizes = rowSums(x$X)
-  list(infl = infl, id = id, Xid = Xid, abunds=abunds, libsizes=libsizes)
-},1)
-par(mfrow=c(1,2))
-lapply(names(infl1), function(x){
-  with(infl1[[x]], plot(abunds, colSums(id), log="x", main=x, ylab="Number of very influential observations"))
-}) #High abundances, larger influence
-lapply(names(infl1), function(x){
-  idTmp = sample(seq_along(infl1[[x]]$abunds), 200) #For speed
-  with(infl1[[x]], plot(rep(abunds[idTmp], nrow(infl)), c(t(infl[,idTmp])), log="x", main=x, xlab="Abundance",ylab = "Influence")) #Very heavy!
-})
-lapply(names(infl1), function(x){
-  idTmp = sample(seq_along(infl1[[x]]$libsizes), 200) #For speed
-  with(infl1[[x]], plot(rep(libsizes[idTmp], ncol(infl)), c(infl[idTmp,]), log="", main=x, xlab ="Library sizes",ylab = "Influence")) #Very heavy!
-})
-#Expectations
-lapply(names(infl1), function(x){
-  with(infl1[[x]], {rbind(quantile(outer(libsizes, abunds)),
-       quantile(outer(libsizes, abunds)[id])) })
-}) #Influential observations have high expectations
-lapply(names(infl1), function(x){
-  cat(x, "\n")
-  with(infl1[[x]], table(Xid))
-}) # ... but are very often zero!
-
-infl2 = lapply(solListWSab, function(x, i){
-  infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
-  id=abs(infl) > quantile( abs(infl),0.995)
-  Xid = x$X[id]
-  abunds = colSums(x$X)/sum(x$X)
-  libsizes = rowSums(x$X)
-  list(infl = infl, id = id, Xid = Xid, abunds=abunds, libsizes=libsizes)
-},2)
-par(mfrow=c(1,2))
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(abunds, colSums(id), log="x", main=x))
-})
-#In the second dimension, larger abundance means larger influence on the psis too, and no outliers
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(rep(abunds, nrow(infl)), c(t(infl)), log="x", main=x, xlab="Abundance",ylab = "Influence")) #Very heavy!
-}) #Outlier in unifmarg weigthing scheme
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(rep(libsizes, ncol(infl)), c(infl), log="x", main=x, xlab="Library size",ylab = "Influence")) #Very heavy! #No trend in terms of library sizes visible from here, but their distribution should be log-normal perhaps
-})
-#Expectations
-lapply(names(infl2), function(x){
-  with(infl2[[x]], {rbind(quantile(outer(libsizes, abunds)),
-       quantile(outer(libsizes, abunds)[id])) })
-})
-lapply(names(infl2), function(x){
-  cat(x, "\n")
-  with(infl2[[x]], table(Xid))
-})
-```
-
-The most influential observations are zero counts in highly abundant species and high libsizes (i.e. high expectations)! Note that we cen derive this from the influence function that does not even depend on the weights!
-
-Influence on the colScores
-
-```{r Ab influence colscores, eval=FALSE, purl = FALSE}
-inflColList1 = lapply(solListWSab, function(x){
-  try(with(x, NBcolInfl(X, psis, cMat, rMat,thetas , colWeights = if(is.matrix(colWeights)) colWeights else{ cbind(colWeights, colWeights, colWeights)} , k=1 , lambdaCol)))
-})
-#Look at the signal from the first group
-Id1 = which(taxaSigNBab=="Signal 1")[1]
-
-inflCol1 = lapply(inflColList1, function(x){getInflCol(x$score, x$InvJac, Id1)}) 
-lapply(inflCol1, function(x){
-  boxplot(x[,Id1]~sampleSigNBab, las=2, ylab="Influence")
-})
-```
-
-As expected, the samples with the signal have the highest impact on the score
-
-```{r Ab influence rowscores Ab, eval=FALSE, purl = FALSE}
-inflRowList1 = lapply(solListWSab, function(x){
-  try(with(x, NBrowInfl(X, psis, cMat, rMat,thetas , rowWeights , k=1 , lambdaRow)))
-})
-#Only look at most extreme colscores
-#Cannot calculate influence functions for the interesting cases (with the outliers)
-inflRowList1=inflRowList1[sapply(inflRowList1, class)=="list"]
-#The influence on the first row score
- 
-par(mfrow=c(1,2))
-idRow = 10
-libSizes = rowSums(solListWSab[[1]]$X)
-inflRow1 = lapply(inflRowList1, function(x){getInflRow(x$score, x$InvJac, idRow)})
-lapply(names(inflRow1), function(x){
-  plot(y=inflRow1[[x]][,idRow], libSizes, log="x", main=x, col=(libSizes ==libSizes[idRow])+1, ylab="Influence")
-})
-```
-
-Evidently, the observation from the sample itself has the largest influence. In the marginal weighting scheme for the libsizes, the larger libsizes sometimes get a larger influence, although the effect may be small.
-
-
-```{r tolerances, eval=FALSE, purl = FALSE}
-#Achieved tolerances
-tolAchPsi = with(syntNBSigmargmarg_ab, lapply(1:k, function(y){sapply( 2:iter[y], function(x){abs(1-psiRec[y,x]/psiRec[y,x-1])})}))
-par(mfrow=c(1,3))
-lapply(tolAchPsi, function(x){plot(x, log="y");abline(h=0.01, col="red");abline(h=0.001, col="blue")})
-
-with(syntNBSigmargmarg_ab,plot(psiRec[3,1:iter[3]])) #Weird jumps, don't stop too early!
-```
-
-#### A log-uniform approach
-
-We sample abundances and library sizes log-uniformly to get a better view of the scores in function of them
-
-```{r NB with signal lu, purl = FALSE, eval = FALSE}
-makeNBdata=function(meanMat, thetaMat){apply(array(data= c(meanMat, thetaMat), dim=c(nrow(meanMat), ncol(meanMat), 2)), c(1,2), function(x){rnbinom(1,mu=x[1], size=x[2])})}
-NtaxaLogUnif = 1000
-NsamplesLogUnif = 300
-rhosRefLU = rhosSig1LU = rhosSig2LU = rhosSig3LU = rhosSig4LU = 10^(-runif(NtaxaLogUnif, 2.5,6))
-
-NsamplesSignal1LU = NsamplesSignal2LU =  25
-NsamplesSignal3LU = NsamplesSignal4LU =  20
-
-NtaxaSignalNBLU = 40
-
-Signal1NBLU = 10
-Signal2NBLU = 8
-Signal3NBLU = 7.5
-Signal4NBLU = 7
-
-idSig1NBLU = 1:NtaxaLogUnif %in% sample(1:NtaxaLogUnif, NtaxaSignalNBLU) #Random sampling should ensure orthogonality
-idSig2NBLU = 1:NtaxaLogUnif %in% sample(1:NtaxaLogUnif, NtaxaSignalNBLU)
-idSig3NBLU = 1:NtaxaLogUnif %in% sample(1:NtaxaLogUnif, NtaxaSignalNBLU) #Random sampling should ensure orthogonality
-idSig4NBLU = 1:NtaxaLogUnif %in% sample(1:NtaxaLogUnif, NtaxaSignalNBLU)
-#Apply the signals
-
-rhosSig1LU[idSig1NBLU] = rhosSig1LU[idSig1NBLU]*Signal1NBLU
-rhosSig2LU[idSig2NBLU] = rhosSig2LU[idSig2NBLU]*Signal2NBLU
-rhosSig3LU[idSig3NBLU] = rhosSig3LU[idSig3NBLU]*Signal3NBLU
-rhosSig4LU[idSig4NBLU] = rhosSig4LU[idSig4NBLU]*Signal4NBLU
-
-#Renormalize
-renorm=function(x){x/sum(x)}
-rhosSig1LU=renorm(rhosSig1LU);rhosSig2LU=renorm(rhosSig2LU);
-rhosSig3LU=renorm(rhosSig3LU);rhosSig4LU=renorm(rhosSig4LU);
-
-libSizesNBLU = 10^runif(NsamplesLogUnif, 3.5,5.5)
-
-#Generate data
-Nref = (NsamplesLogUnif-NsamplesSignal1LU-NsamplesSignal2LU-NsamplesSignal3LU-NsamplesSignal4LU)
-meanMatRefNBLU = outer(libSizesNBLU[sample(size=Nref, 1:NsamplesLogUnif)], rhosRefLU)
-meanMatSig1NBLU = outer(libSizesNBLU[sample(size=NsamplesSignal1LU, 1:NsamplesLogUnif)], rhosSig1LU)
-meanMatSig2NBLU = outer(libSizesNBLU[sample(size=NsamplesSignal2LU, 1:NsamplesLogUnif)], rhosSig2LU)
-meanMatSig3NBLU = outer(libSizesNBLU[sample(size=NsamplesSignal3LU, 1:NsamplesLogUnif)], rhosSig3LU)
-meanMatSig4NBLU = outer(libSizesNBLU[sample(size=NsamplesSignal4LU, 1:NsamplesLogUnif)], rhosSig4LU)
-load("/home/stijn/PhD/American Gut/AGpars.RData")
-thetaMatSigNBLU = matrix(sample(thetas, NtaxaLogUnif), byrow=TRUE, ncol=NtaxaLogUnif, nrow=NsamplesLogUnif)
-
-dataMatRefNBLU = makeNBdata(meanMatRefNBLU, thetaMatSigNBLU)
-dataMatSig1NBLU = makeNBdata(meanMatSig1NBLU, thetaMatSigNBLU)
-dataMatSig2NBLU = makeNBdata(meanMatSig2NBLU, thetaMatSigNBLU)
-dataMatSig3NBLU = makeNBdata(meanMatSig3NBLU, thetaMatSigNBLU)
-dataMatSig4NBLU = makeNBdata(meanMatSig4NBLU, thetaMatSigNBLU)
-
-dataMatSigNBLU = rbind(dataMatRefNBLU, dataMatSig1NBLU, dataMatSig2NBLU, dataMatSig3NBLU, dataMatSig4NBLU)
-
-#Save signals
-sampleSigNBLU = factor(c(rep("Reference", Nref), rep("Signal1", NsamplesSignal1LU), rep("Signal2", NsamplesSignal2LU), rep("Signal 3", NsamplesSignal3LU), rep("Signal 4", NsamplesSignal4LU)))
-taxaSigNBLUtmp = rep("Reference",ncol(dataMatSigNBLU))
-taxaSigNBLUtmp[idSig1NBLU] = "Signal 1"
-taxaSigNBLUtmp[idSig2NBLU] = "Signal 2"
-taxaSigNBLUtmp[idSig3NBLU] = "Signal 3"
-taxaSigNBLUtmp[idSig4NBLU] = "Signal 4"
-taxaSigNBLUtmp[idSig1NBLU & idSig2NBLU] = "Signal 1 and 2"
-taxaSigNBLUtmp[idSig1NBLU & idSig3NBLU] = "Signal 1 and 3"
-taxaSigNBLUtmp[idSig1NBLU & idSig4NBLU] = "Signal 1 and 4"
-taxaSigNBLUtmp[idSig2NBLU & idSig3NBLU] = "Signal 2 and 3"
-taxaSigNBLUtmp[idSig2NBLU & idSig4NBLU] = "Signal 2 and 4"
-taxaSigNBLUtmp[idSig3NBLU & idSig4NBLU] = "Signal 3 and 4"
-taxaSigNBLUtmp[idSig1NBLU & idSig2NBLU & idSig3NBLU] = "Signal 1 and 2 and 3"
-taxaSigNBLUtmp[idSig4NBLU & idSig2NBLU & idSig3NBLU] = "Signal 2 and 3 and 4"
-taxaSigNBLUtmp[idSig1NBLU & idSig2NBLU & idSig4NBLU] = "Signal 1 and 2 and 4"
-taxaSigNBLUtmp[idSig1NBLU & idSig4NBLU & idSig3NBLU] = "Signal 1 and 3 and 4"
-taxaSigNBLUtmp[idSig1NBLU & idSig4NBLU & idSig2NBLU & idSig3NBLU] = "Signal 1,2,3 and 4"
-taxaSigNBLU = factor(taxaSigNBLUtmp) 
-names(taxaSigNBLU) = colnames(dataMatSigNBLU) = names(rhosRefLU)
-names(sampleSigNBLU) = rownames(dataMatSigNBLU) = 1:NsamplesLogUnif
-```
-
-Fit the RC(M) model to the logUnif data
-
-```{r Fit3Dlu, eval=FALSE, purl = FALSE}
-nleqslv.control.lu = list(trace=TRUE, maxit = 500, cndtol=.Machine$double.eps)
-if(!file.exists("toyDataSigLU.RData")){
-
-    syntNBSigmargmarg_LUJob = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=2, nleqslv.control= nleqslv.control.lu, maxItOut=2e4, prevCutOff=0.01, colWeights="marginal", rowWeights = "marginal", marginEst="MLE"))
-  syntNBSigmargmarg_LU = mccollect(syntNBSigmargmarg_LUJob, FALSE)[[1]] 
-  
-      syntNBSigunifmarg_LUJob = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=2, nleqslv.control= nleqslv.control.lu, maxItOut=2e4, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst="MLE"))
-  syntNBSigunifmarg_LU = mccollect(syntNBSigunifmarg_LUJob, FALSE)[[1]] 
-  
-      syntNBSigmargunif_LUJob = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=2, nleqslv.control= nleqslv.control.lu, maxItOut=2e4, prevCutOff=0.01, rowWeights="marginal", colWeights = "uniform", marginEst="MLE"))
-  syntNBSigmargunif_LU = mccollect(syntNBSigmargunif_LUJob, FALSE)[[1]] 
-  
-      syntNBSigunifunif_LUJob = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=2, nleqslv.control= nleqslv.control.lu, maxItOut=2e4, prevCutOff=0.01, colWeights="uniform", rowWeights = "uniform", marginEst="MLE"))
-  syntNBSigunifunif_LU = mccollect(syntNBSigunifunif_LUJob, FALSE)[[1]] 
-  
-#     Dim = dim(dataMatSigNBLU)
-#   unifWeightsLU = rep(1/Dim[2], Dim[2])
-#   margWeightsLU = colSums(dataMatSigNBLU)/sum(dataMatSigNBLU)
-#   colWeightsTestLU1 = cbind(unifWeightsLU, margWeightsLU, unifWeightsLU)
-#   colWeightsTestLU2 = cbind(margWeightsLU, margWeightsLU, unifWeightsLU)
-#   colWeightsTestLU3 = cbind(margWeightsLU, unifWeightsLU, unifWeightsLU)
-
-      syntNBSigmargmarg_LUJobMLE = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=3, nleqslv.control= nleqslv.control.lu, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "marginal", marginEst = "MLE"))
-  syntNBSigmargmarg_LUMLE = mccollect(syntNBSigmargmarg_LUJobMLE, FALSE)[[1]] 
-  
-      syntNBSigunifmarg_LUJobMLE = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=3, nleqslv.control= nleqslv.control.lu, maxItOut=2e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE"))
-  syntNBSigunifmarg_LUMLE = mccollect(syntNBSigunifmarg_LUJobMLE, FALSE)[[1]] 
-  
-      syntNBSigmargunif_LUJobMLE = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=3, nleqslv.control= nleqslv.control.lu, maxItOut=2e3, prevCutOff=0.01, rowWeights="marginal", colWeights = "uniform", marginEst = "MLE"))
-  syntNBSigmargunif_LUMLE = mccollect(syntNBSigmargunif_LUJobMLE, FALSE)[[1]] 
-  
-      syntNBSigunifunif_LUJobMLE = mcparallel(RCM(dataMatSigNBLU, distribution="NB", k=3, nleqslv.control= nleqslv.control.lu, maxItOut=2e3, prevCutOff=0.01, colWeights="uniform", rowWeights = "uniform", marginEst = "MLE"))
-  syntNBSigunifunif_LUMLE = mccollect(syntNBSigunifunif_LUJobMLE, FALSE)[[1]] 
- 
-  save(dataMatSigNBLU, syntNBSigunifmarg_LU, syntNBSigunifunif_LU,syntNBSigmargmarg_LU,syntNBSigmargunif_LU, sampleSigNBLU, taxaSigNBLU,  file="toyDataSigLU.RData")#syntNBSigunif, syntNBSigmarg, syntNBSigmarg_3,testLU1, testLU2, testLU3, testLU1unif, testLU2unif, testLU3unif,testLUInv,testLULibs,
-} else {load("toyDataSigLU.RData")}
-```
-
-LU plots
-
-```{r LU plots, include=FALSE, purl = FALSE}
-load("toyDataSigLUserver.RData")
-# solListWSLU = list("unifunif" = syntNBSigunifunif_LU, "unifmarg" = syntNBSigunifmarg_LU, "margunif" = syntNBSigmargunif_LU, "margmarg" = syntNBSigmargmarg_LU, "unifmargunifRmarg" = testLU1,  "margmargunifRmarg"=testLU2, "margunifunifRmarg" = testLU3, "unifmargunifRunif" = testLU1unif, "margmargunifRunif"=testLU2unif, "margunifunifRunif" = testLU3unif, "inverse"= testLUInv, "testEqualLibs" =   testLULibs, "unifunifMLE" = syntNBSigunifunif_LUMLE, "unifmargMLE" = syntNBSigunifmarg_LUMLE, "margunifMLE" = syntNBSigmargunif_LUMLE, "margmargMLE" = syntNBSigmargmarg_LUMLE )
-names(sigListLU) = c("unifunif","unifunifMLE","margunif","margunifMLE","unifmarg","unifmargMLE","margmarg","margmargMLE")
-solListWSLU = sigListLU
-
-solListWSLU = solListWSLU[sapply(solListWSLU, class)=="list"] 
-#Runtimes and convergence
-sapply(solListWSLU,function(x){x$converged})
-sapply(solListWSLU,function(x){x$runtime})
-sapply(solListWSLU,function(x){x$iter})
-```
-
-The first Abreviation refers to the weighting scheme for the rows(samples), the second to the weighting scheme for the columns. E.g "margunif" means $w_i = x_{i.}$ and $z_j = 1/p$. The MLE epitheton indicates that the independence model was estimated by MLE.
-
-##### Sample plots
-
-```{r LUSignalPlots, eval=FALSE, purl = FALSE}
-cols = c("grey", "red","blue","purple","green","brown","cyan","black", "orange", "magenta","yellow","pink", "olive","grey75","grey85") 
-palette(cols)
-par(mfrow=c(2,4))
-lapply(names(solListWSLU), function(Y){plotRCM(solListWSLU[[Y]], samColour = sampleSigNBLU, main=Y, biplot=FALSE, Dim = c(1,2), libInset=c(-0.8,0))})
-```
-
-```{r LUSignalPlots23D, eval=FALSE, purl = FALSE}
-par(mfrow=c(2,4))
-lapply(names(solListWSLU), function(Y){try(plotRCM(solListWSLU[[Y]], samColour = sampleSigNBLU, main=Y, biplot=FALSE, Dim = c(1,3), libInset=c(-0.8,0)))})
-```
-
-Only when the margins are estimated with MLE are the first two dimensions used to separate the signal well. Especially the uniform weighting for the samples and marginal for the columns (as was our first intuition) appears to perform well. Also uniform weighting for both yields good results.
-
-```{r LUSignalPlots 13D, eval=FALSE, purl = FALSE}
-par(mfrow=c(2,4))
-#Maybe a function of the library sizes
-lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {
-  rMatPsi = rMat %*% diag(psis)
-  dfCol = data.frame(Dim1=rMatPsi[,1], Dim2=rMatPsi[,2], col=log(rowSums(X)))
-  ggplot(data=dfCol, aes(x=Dim1, y=Dim2, col=col)) + geom_point(size=3) + ggtitle(Y)+ scale_colour_continuous(name = "Library sizes", low="red",high = "green")
-    })
-  })
-```
-
-On these plots it is clear that when the margins are estimated using the library sizes, the scores correlate with the library sizes.
-
-Look at the scores' relationship to the library sizes more directly.
-
-```{r LU libsizes, eval=FALSE, results = "hide", purl = FALSE}
-#Look at the loadings in function of the library sizes and abunds
-par(pty = "m", mfrow = c(2,4), mar=c(5,4,4,4))
-logP="y"
-#Libsizes
-lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,rMat[,1] *psis[1],rowSums(X), log=logP, xlab ="Dim1", ylab = "Library sizes", sub = paste0("Cor = ", round(cor(rMat[,1], rowSums(X)),2)) )})})
-lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,rMat[,2] *psis[2],rowSums(X), log=logP, xlab ="Dim2", ylab = "Library sizes" , sub = paste0("Cor = ", round(cor(rMat[,2], rowSums(X)),2)))})})
-lapply(names(solListWSLU), function(Y){try(with(solListWSLU[[Y]], {plot(main=Y,rMat[,3] *psis[3],rowSums(X), log=logP, xlab ="Dim3", ylab = "Library sizes" , sub = paste0("Cor = ", round(cor(rMat[,3], rowSums(X)),2)))}))})
-```
-
-In the MLE framework for the offsets, dependence on the library sizes has disappeared
-
-##### Taxa plots
-
-Now let's take a look at the taxon plots
-
-```{r NBLU taxon plots, results='hide', eval=FALSE, purl = FALSE}
-par(mfrow=c(2,4))
-lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,t(cMat), ylab="Dim2",xlab="Dim1", col = taxaSigNBLU)}); legend("topright",legend = levels(taxaSigNBLU), col=cols,pch= 1, cex=0.7, inset = c(-0.80,0), xpd=TRUE) })
-```
-
-For the uniform weighting of the samples we see outliers for the taxa
-
-Are the taxon scores related to the abundances in any way?
-
-```{r taxonScesvsabunds1DLU, results='hide', eval=FALSE, purl = FALSE}
-#abundances
-par(mfrow=c(2,4), mar=c(5,4,4,4))
-sapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,cMat[1,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim1", sub = paste0("Cor = ", round(cor(cMat[1,], colSums(X)),2)))})})
-```
-
-The MLE offset estimation does reduce correlation with the mean abundances.
-
-Second and third dimensions
-
-```{r taxonScesvsabunds23DLU, results='hide', eval=FALSE, purl = FALSE}
-par(mfrow=c(2,4), mar=c(5,4,4,4))
-lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,cMat[2,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim2", sub = paste0("Cor = ", round(cor(cMat[2,], colSums(X)),2)))})})
-par(mfrow=c(2,4), mar=c(5,4,4,4))
-lapply(names(solListWSLU), function(Y){try(with(solListWSLU[[Y]], {plot(main=Y,cMat[3,], colSums(X), log="y", cex=0.5, ylab="Mean  abundances",xlab="Dim3", sub = paste0("Cor = ", round(cor(cMat[3,], colSums(X)),2)))}))})
-```
-
-No more problems with correlation in higher dimensions.
-
-Do the taxon scores relate to the overdispersions?
-
-```{r taxonScesvsthetas2, results='hide', eval=FALSE, purl = FALSE}
-par(mfrow=c(2,4))
-lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,abs(cMat[1,]), thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="Dim1", sub = paste0("Cor = ", round(cor(abs(cMat[1,]), thetas),2)))})})
-par(mfrow=c(2,4))
-lapply(names(solListWSLU), function(Y){with(solListWSLU[[Y]], {plot(main=Y,cMat[2,], thetas, log="y", cex=0.5, ylab="Overdispersion", xlab="Dim2", sub = paste0("Cor = ", round(cor(abs(cMat[2,]), thetas),2)))})})
-```
-
-No real relationship with overdispersions
-
-```{r lagrange multiplierslu, eval=FALSE, purl = FALSE}
-##### Lagrange multipliers
-par(mfrow=c(2,4))
-lapply(names(solListWSLU), function(Y){cat(Y, "\n");solListWSLU[[Y]]$lambdaCol})
-```
-
-##### Biplots
-
-```{r LU biplots, results='hide', eval=FALSE, purl = FALSE}
-par(mfrow=c(2,4), mai = c(2,2,2,4))
-par(mfrow=c(1,1))
-lapply(names(solListWSLU), function(Y){plotRCM(solListWSLU[[Y]], samColour = sampleSigNBLU, main=Y, biplot=TRUE, Dim = c(1,3), taxColour=tmp, taxLegPos = "bottomright", abundLeg=TRUE, taxCol  =cols, taxInset = c(-1.45,-0.75), libCex = 0.65, libInset = c(-0.85,0), arrowFrac = 0.05)})
-```
-
-##### Influence function
-
-Take a look at the influence function values on the psis
-
-```{r LU influence measures: psis, eval=FALSE, purl = FALSE}
-infl1 = lapply(solListWSLU, function(x, i){ 
-  infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
-  id=LUs(infl) > quantile( LUs(infl),0.995)
-  Xid = x$X[id]
-  abunds = colSums(x$X)/sum(x$X)
-  libsizes = rowSums(x$X)
-  list(infl = infl, id = id, Xid = Xid, abunds=abunds, libsizes=libsizes)
-},1)
-par(mfrow=c(1,2))
-lapply(names(infl1), function(x){
-  with(infl1[[x]], plot(abunds, colSums(id), log="x", main=x, ylab="Number of very influential observations"))
-}) #High abundances, larger influence
-lapply(names(infl1), function(x){
-  idTmp = sample(seq_along(infl1[[x]]$abunds), 200) #For speed
-  with(infl1[[x]], plot(rep(abunds[idTmp], nrow(infl)), c(t(infl[,idTmp])), log="x", main=x, xlab="abundance",ylab = "Influence")) #Very heavy!
-})
-lapply(names(infl1), function(x){
-  idTmp = sample(seq_along(infl1[[x]]$libsizes), 200) #For speed
-  with(infl1[[x]], plot(rep(libsizes[idTmp], ncol(infl)), c(infl[idTmp,]), log="", main=x, xlab ="Library sizes",ylab = "Influence")) #Very heavy!
-})
-#Expectations
-lapply(names(infl1), function(x){
-  with(infl1[[x]], {rbind(quantile(outer(libsizes, abunds)),
-       quantile(outer(libsizes, abunds)[id])) })
-}) #Influential observations have high expectations
-lapply(names(infl1), function(x){
-  cat(x, "\n")
-  with(infl1[[x]], table(Xid))
-}) # ... but are very often zero!
-
-infl2 = lapply(solListWSLU, function(x, i){
-  infl=with(x, NBpsiInfl(psi = psis[i], X = X, cMat = cMat[i,,drop=FALSE], rMat = rMat[,i, drop=FALSE], muMarg = outer(rowSums(X), colSums(X)/sum(X)), theta = thetas))
-  id=LUs(infl) > quantile( LUs(infl),0.995)
-  Xid = x$X[id]
-  abunds = colSums(x$X)/sum(x$X)
-  libsizes = rowSums(x$X)
-  list(infl = infl, id = id, Xid = Xid, abunds=abunds, libsizes=libsizes)
-},2)
-par(mfrow=c(1,2))
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(abunds, colSums(id), log="x", main=x))
-})
-#In the second dimension, larger abundance means larger influence on the psis too, and no outliers
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(rep(abunds, nrow(infl)), c(t(infl)), log="x", main=x, xlab="abundance",ylab = "Influence")) #Very heavy!
-}) #Outlier in unifmarg weigthing scheme
-lapply(names(infl2), function(x){
-  with(infl2[[x]], plot(rep(libsizes, ncol(infl)), c(infl), log="x", main=x, xlab="Library size",ylab = "Influence")) #Very heavy! #No trend in terms of library sizes visible from here, but their distribution should be log-normal perhaps
-})
-#Expectations
-lapply(names(infl2), function(x){
-  with(infl2[[x]], {rbind(quantile(outer(libsizes, abunds)),
-       quantile(outer(libsizes, abunds)[id])) })
-})
-lapply(names(infl2), function(x){
-  cat(x, "\n")
-  with(infl2[[x]], tLUle(Xid))
-})
-```
-
-The most influential observations are zero counts in highly abundant species and high libsizes (i.e. high expectations)! Note that we cen derive this from the influence function that does not even depend on the weights!
-
-Influence on the colScores
-
-```{r LU influence colscores, eval=FALSE, purl = FALSE}
-inflColList1 = lapply(solListWSLU, function(x){
-  try(with(x, NBcolInfl(X, psis, cMat, rMat,thetas , colWeights = if(is.matrix(colWeights)) colWeights else{ cbind(colWeights, colWeights, colWeights)} , k=1 , lambdaCol)))
-})
-#Look at the signal from the first group
-Id1 = which(taxaSigNBLU=="Signal 1")[1]
-
-inflCol1 = lapply(inflColList1, function(x){getInflCol(x$score, x$InvJac, Id1)}) 
-lapply(inflCol1, function(x){
-  boxplot(x[,Id1]~sampleSigNBLU, las=2, ylab="Influence")
-})
-```
-
-As expected, the samples with the signal have the highest impact on the score
-
-```{r LU influence rowscores LU, eval=FALSE, purl = FALSE}
-inflRowList1 = lapply(solListWSLU, function(x){
-  try(with(x, NBrowInfl(X, psis, cMat, rMat,thetas , rowWeights , k=1 , lambdaRow)))
-})
-#Only look at most extreme colscores
-#Cannot calculate influence functions for the interesting cases (with the outliers)
-inflRowList1=inflRowList1[sapply(inflRowList1, class)=="list"]
-#The influence on the first row score
- 
-par(mfrow=c(1,2))
-idRow = 10
-libSizes = rowSums(solListWSLU[[1]]$X)
-inflRow1 = lapply(inflRowList1, function(x){getInflRow(x$score, x$InvJac, idRow)})
-lapply(names(inflRow1), function(x){
-  plot(y=inflRow1[[x]][,idRow], libSizes, log="x", main=x, col=(libSizes ==libSizes[idRow])+1, ylab="Influence")
-})
-```
-
-Evidently, the observation from the sample itself has the largest influence. In the marginal weighting scheme for the libsizes, the larger libsizes sometimes get a larger influence, although the effect may be small.
-
-Achieved tolerances
-
-```{r toleranceslu, eval=FALSE, purl = FALSE}
-tolAchPsi = with(syntNBSigmargmarg_LU, lapply(1:k, function(y){sapply( 2:iter[y], function(x){LUs(1-psiRec[y,x]/psiRec[y,x-1])})}))
-par(mfrow=c(1,3))
-lapply(tolAchPsi, function(x){plot(x, log="y");LUline(h=0.01, col="red"); abline(h=0.001, col="blue")})
-
-with(syntNBSigmargmarg_LU,plot(psiRec[3,1:iter[3]])) #Weird jumps, don't stop too early!
-```
---->
