@@ -1781,1693 +1781,6 @@ if(record){
 #-------------------------------------------#
 ```
 
-### Zero-inflated Poisson
-
-```{r Zero-inflated poisson 1B1, purl=TRUE, echo = FALSE}
-#----------------------------#
-#expit
-expit=function(x){
-  tmp = exp(x)/(1+exp(x))
-  tmp[is.na(tmp)]=1 #Adjust for overflow
-  tmp}
-#-----------------------------------#
-
-## A function to perform the M step: maximize the likelihoods. This will again be an iterative process, estimating the parameters step by step. estimation of poisson and zero-inflated part can occur independently, which opens up opportunities for parallelization.
-
-MstepZIP = function(Z, X, rMat, cMat, tMat, vMat,  k, muMarg,  zeroMarg, psis, chis, lambdaCol, lambdaRow, lambdaColZero, lambdaRowZero, nLambda, rowWeights, colWeights, rMatK, cMatK, vMatK, tMatK, twoCores=TRUE, tol=1e-3, psiTol = 1e-4, chiTol = psiTol, convNorm = 2, maxItMean=5, maxItZeroes= 20, n=n, p=p, global=global, nleqslv.control= nleqslv.control){
-  
-#Optimization of the mean and zero-inflated components are independent (see Lambert 1992), so fork here
-resList = mclapply(mc.cores=twoCores + 1, c(meanEstZIP, ZIestZIP), function(fun){
-  fun(X=X, rMat=rMat, cMat=cMat, tMat=tMat, chis=chis, vMat=vMat, zeroMarg = zeroMarg, lambdaCol=lambdaCol, lambdaRow=lambdaRow, lambdaRowZero=lambdaRowZero, lambdaColZero=lambdaColZero, psiTol=psiTol, chiTol=chiTol, tol=tol, convNorm = convNorm, nleqslv.control = nleqslv.control, global=global, nLambda=nLambda, k=k, Z=Z, muMarg=muMarg,n=n, p=p, psis=psis, maxItMean = maxItMean, maxItZeroes = maxItZeroes, rowWeights=rowWeights, colWeights=colWeights, rMatK = rMatK, cMatK = cMatK, tMatK = tMatK, vMatK = vMatK)
-})
-
-return(unlist(resList, recursive=FALSE))
-}
-#--------------------------------------#
-
-# A function to estimate the mean component of the ZIP model by 1B1
-meanEstZIP = function(X, rMat, cMat, Z, muMarg, k, global, nleqslv.control, tol, psiTol,lambdaCol, lambdaRow, convNorm,  nLambda, n, p, psis, rowWeights, colWeights, maxItMean = 10, maxItZeroes = 10, rMatK, cMatK,...){
- #Mean component
-  
-    iter = 1
-  while((iter==1 || !converged) && iter<maxItMean){
-    
-  cat("Inner iteration(mean)", iter, "\n")
-    
-  psiOld = psis
-  rMatOld = rMat
-  cMatOld = cMat
-
-    ## Row scores
-  cat("Estimating row scores mean \n")
-  regRow = cMat*psis
-  rMatSol = try(nleqslv(fn = dZipMeanRmat, x = c(rMat, lambdaRow),X=X, reg =regRow, muMarg=muMarg, n=n, k=k, global=global, control = nleqslv.control, jac=ZipJacobianRmat, Z=Z, nLambda=nLambda, rowWeights=rowWeights, rMatK = rMatK)$x, silent=TRUE)
-  
-  if(class(rMatSol)!="try-error"){
-  rMat = matrix(rMatSol[1:n], byrow=FALSE, ncol=1, nrow=n)
-  lambdaRow = rMatSol[(n+1):length(rMatSol)]
-  }
-  
-  #Normalize (speeds up algorithm if previous step had not converged)
-rMat =  rMat - sum(rMat * rowWeights)/sum(rowWeights) 
-
-rMat = rMat/sqrt(sum(rowWeights * rMat^2))
-  
-  ## Column scores
-  cat("Estimating column scores mean \n")
-  regCol = rowMultiply(rMat,psis)
-  cMatSol = try(nleqslv(fn = dZipMeanCmat, x = c(t(cMat), lambdaCol), X=X, reg=regCol, muMarg=muMarg, p=p, k=k, global=global, control = nleqslv.control, jac=ZipJacobianCmat, Z=Z, nLambda=nLambda, colWeights=colWeights, cMatK = cMatK)$x, silent=TRUE)
-    if(class(cMatSol)!="try-error"){
-  cMat = matrix(cMatSol[1:p], byrow=TRUE, nrow=1, ncol=p)
-  lambdaCol = cMatSol[(p+1):length(cMatSol)]
-    }
-  
-cMat = cMat - sum(cMat * colWeights)/sum(colWeights) 
-cMat = cMat/sqrt(sum(colWeights * cMat^2))
-
-  ## Psis
- cat("\n Estimating psis (k =",k,") \n")
-    
-  regPsi =  rMat %*% cMat
-
-  psisSol = try(sort(abs(nleqslv(fn = dZipMeanPsi, x = psis, X=X, reg=regPsi, Z=Z, muMarg=muMarg, global=global, control = nleqslv.control, jac=ZipJacobianPsi)$x), decreasing=TRUE), silent=TRUE)
-    if(class(psisSol)!="try-error") psis=psisSol
-
-    converged = all(abs(psiOld-psis) < psiTol) &&  (sum(abs(1-rMat/rMatOld)^convNorm))^(1/convNorm) < tol &&  (sum(abs(1-cMat/cMatOld)^convNorm))^(1/convNorm) < tol 
-  iter = iter +1
-  }
-  
-  return(list(cMat=cMat, rMat=rMat, iterMean = iter, psis=psis, convergedMean=converged, lambdaCol = lambdaCol, lambdaRow=lambdaRow))
-}
-#--------------------------------------#
-
-# A function to estimate the zero inflated component of the ZIP model
-
-ZIestZIP = function(X, Z, muMarg, k, global, nleqslv.control, tol, chiTol, tMat, vMat, chis, zeroMarg, lambdaColZero, lambdaRowZero, convNorm, n, p, nLambda, psis, rowWeightsZeroNum, colWeightsZeroNum, rMatK, cMatK, tMatK, vMatK, maxItMean = 10, maxItZeroes = 10, ...){
-  
-      iter = 1
-  while((iter==1 || !converged) && iter < maxItZeroes){
-   chiOld = chis
-  tMatOld = tMat
-  vMatOld = vMat
-  
-    cat("Inner iteration(zeroes)", iter, "\n")
-
-    ## Row scoers
-    cat("Estimating row scores zeroes \n")
-    regRowZero = vMat*chis
-    tMatSol = try(nleqslv(fn = dZipMeanTmat, x = c(tMat, lambdaRowZero),  n=n,k=k, reg=regRowZero, global=global, control = nleqslv.control, zeroMarg = zeroMarg, jac=ZipJacobianTmat, Z=Z, nLambda=nLambda, rowWeights = rowWeightsZeroNum, tMatK = tMatK)$x, silent=TRUE)
-  if(!inherits(tMatSol,"try-error")){
-    tMat = matrix(tMatSol[1:n], byrow=FALSE, ncol=1, nrow=n)
-    lambdaRowZero = tMatSol[(n+1):(n+nLambda)]
-      }
-    
-    ## Column scores
-    cat("Estimating column scores zeroes \n")
-    regColZero = tMat*chis
-    vMatSol = try(nleqslv(fn = dZipMeanVmat, x = c(t(vMat), lambdaColZero), reg=regColZero, p=p,k=k, global=global, control = nleqslv.control, zeroMarg = zeroMarg, jac=ZipJacobianVmat, Z=Z, nLambda=nLambda, colWeights=colWeightsZeroNum, vMatK = vMatK)$x, silent=TRUE)
-  if(!inherits(vMatSol,"try-error")){
-    vMat = matrix(vMatSol[1:p], byrow=TRUE, nrow=1, ncol=p)
-    lambdaColZero = vMatSol[(p+1):(p+nLambda)]
-  }
-    
-  # Chis
-  cat("Estimating chis (zeroes) \n")
-  regChis =  tMat %*% vMat
-
-  chisSol = try(sort(abs(nleqslv(fn = dZipMeanChi, x = chis, reg=regChis, Z=Z, global=global, control = nleqslv.control, zeroMarg = zeroMarg, jac=ZipJacobianChi)$x), decreasing=TRUE), silent=TRUE)
-  if(!inherits(chisSol,"try-error")){
-    chis=chisSol
-  }
-
-  converged = all ((chiOld-chis) < chiTol) &&  (sum(abs(1-tMat/tMatOld)^convNorm))^(1/convNorm) < tol &&  (sum(abs(1-vMat/vMatOld)^convNorm))^(1/convNorm) < tol 
-  iter = iter +1
-}
-  return(list(vMat=vMat, tMat=tMat, iterZI = iter, chis=chis, convergedZI=converged, lambdaColZero=lambdaColZero, lambdaRowZero=lambdaRowZero))
-}
-
-###Estimate the offsets
-#--------------------------------------#
-dZipMeanLibsizes = function(beta, X, Z, reg){
-  # @param beta: a vector of logged library size estimates
-  # @param y: the nxp data matrix
-  # @param reg: the current logged abundance estimates
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  mu = exp(outer(beta, reg, "+"))
-  rowSums((1 - Z)*(X - mu))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianLibsizes = function(beta, X, reg, Z){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  mu = exp(outer(beta, reg, "+"))
-  diag(rowSums(mu*(Z-1)))
-}
-#--------------------------------------#
-dZipMeanAbunds = function(beta, X, Z, reg){
-  # @param beta: a vector of logged library size estimates
-  # @param y: the nxp data matrix
-  # @param reg: the current logged abundance estimates
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  mu = exp(outer(reg,beta, "+"))
-  colSums((1 - Z)*(X - mu))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianAbunds = function(beta, X, reg, Z){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-   mu = exp(outer(reg,beta, "+"))
-  diag(colSums(mu*(Z-1)))
-}
-
-#All matrices X are considered to be nxp, i.e. samples are rows and taxa are columns
-
-#--------------------------------------#
-dZipMeanPsi = function(beta, X, muMarg, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  mu = exp(reg* beta) * muMarg
-  sum((1 - Z)*(X - mu)*reg)
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianPsi = function(beta, X, reg, muMarg,Z){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  mu = exp(reg* beta) * muMarg
-  sum(mu*reg^2*(Z-1))
-}
-
-#--------------------------------------#
-dZipMeanRmat = function(beta, X, reg, muMarg, n, k, Z, nLambda, rowWeights, rMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-  mu = exp(rMat %*% reg) * muMarg
-  
-  lambda1 = beta[n+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[n+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(n+3):length(beta)]}
-
-  score = tcrossprod(reg ,(1-Z)*(X-mu)) + c(rowWeights*(lambda1 + lambda2*2*rMat + rMatK %*% lambda3))
-
-  center = sum(rMat*rowWeights)
-  unitSum = sum(rMat^2*rowWeights)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = apply(rMatK, 2, function(x){
-    sum(rMat*x*rowWeights)
-  })
-      return(c(score,center, unitSum, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianRmat = function(beta, X, reg, muMarg, n,k, nLambda, Z, rowWeights, rMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  
-  rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-  mu = exp(rMat %*% reg) * muMarg
-
-  Jac = matrix(0, nrow= n + nLambda, ncol=n + nLambda)
-  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:n, n+1] = rowWeights
-  #dLag²/dr_{ik}dlambda_{2k}
-  Jac[1:n, n+2] = 2 *rMat*rowWeights
-  
-  if(k>1){
-    Jac[1:n,(n+3):(n+nLambda)] = apply(rMatK, 2, function(x){rowWeights*x})
-  }
-  #Symmetrize
-  Jac = Jac + t(Jac)
-    diag(Jac[1:n,1:n]) = c(tcrossprod(-mu*(1-Z), reg^2) + 2*rowWeights*beta[n+2])
-  Jac
-
-}
-#--------------------------------------#
-dZipMeanCmat = function(beta, X, muMarg, p,k, Z, nLambda, colWeights, reg, cMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param colWeights: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  mu = exp(reg %*% cMat) * muMarg
-  
-  lambda1 = beta[p+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[p+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(p+3):length(beta)]}
-  
-  score = crossprod(reg,(1-Z)*(X-mu)) + colWeights*(lambda1 + lambda2*2*cMat + lambda3 %*% cMatK)
-  
-  center = sum(colWeights*cMat)
-  unitSum = sum(colWeights*cMat^2)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = apply(cMatK,1,function(x){
-      sum(cMat*x*colWeights)
-  })
-    return(c(score,center, unitSum, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianCmat = function(beta, X, psis, rMat, colWeights, k, p, muMarg, Z, nLambda, reg, cMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param colWeights: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  
-  cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  mu = exp(reg %*% cMat) * muMarg
-
-Jac = matrix(0, nrow= p + nLambda, ncol = p + nLambda)
-  #The suXmmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:p,(p+1)] = colWeights
-  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
-  Jac[1:p,p+2] = colWeights*2 *cMat
-  
-    #dLag²/ds_{ik}dlambda_{3kk'}
-  if(k>1){
-    Jac[1:p,(p+3):(p+nLambda)] = apply(cMatK, 1,function(x){
-      colWeights*x
-    })
-  }
-  #Symmetrize
-  Jac = Jac + t(Jac)
-
-  diag(Jac[1:p,1:p]) = c(crossprod(-mu*(1-Z), reg^2)) + 2*beta[p+2]*colWeights
-  Jac
-}
-#--------------------------------------#
-#Estimate the offsets for the zeroes
-dZipZeroCol = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  expitZero = expit(outer(reg, beta, "+"))
-  colSums((Z-expitZero))
-}
-
-#--------------------------------------#
-ZipJacobianZeroCol = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  expZero = exp(outer(reg, beta, "+"))
-  tmp=expZero/(1+expZero)^2
-  -diag(colSums(tmp))
-}
-#--------------------------------------#
-#Estimate the offsets for the zeroes
-dZipZeroRow = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  expitZero = expit(outer(beta,reg, "+"))
-  rowSums((Z-expitZero))
-}
-
-#--------------------------------------#
-ZipJacobianZeroRow = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  expZero = exp(outer(beta,reg, "+"))
-  tmp=expZero/(1+expZero)^2
-  -diag(rowSums(tmp))
-}
-#--------------------------------------#
-dZipMeanChi = function(beta, Z, reg, zeroMarg, nLambda){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  GZero = expit(reg*beta + logit(zeroMarg))
-  sum((Z-GZero)*reg)
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianChi = function(beta, Z, reg, zeroMarg, nLambda){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  expZero = exp(reg* beta + logit(zeroMarg))
-  tmp=expZero/(1+expZero)^2
-  -sum(reg^2*tmp)
-}
-
-#--------------------------------------#
-dZipMeanTmat = function(beta, reg, k,n, Z, zeroMarg, nLambda, rowWeights, tMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  tMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-  muZero = expit(tMat %*% reg+logit(zeroMarg))
-  
-  lambda1 = beta[n+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[n+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(n+3):length(beta)]}
-  score = 
-    tcrossprod((Z-muZero), reg) + c(rowWeights*(lambda1 + lambda2*2*tMat + tMatK %*% lambda3))
-
-  
-  center = sum(tMat*rowWeights)
-  unitSum = sum(tMat^2*rowWeights)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = apply(tMatK, 2, function(x){
-    sum(tMat*x*rowWeights)
-  })
-    return(c(score,center, unitSum, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianTmat = function(beta, reg, k, n, Z, zeroMarg, nLambda, rowWeights, tMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param k: a scalar, dimension of the RC solution
-
-  tMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-  muZero = exp(tMat %*% reg + logit(zeroMarg))
-
-  Jac = matrix(0, nrow= n + nLambda, ncol= n + nLambda)
-  #The suymmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:n, n+1] = rowWeights
-  #dLag²/dr_{ik}dlambda_{2k}
-  Jac[1:n, n+2] = 2*tMat*rowWeights
-  tmp=muZero/(1+muZero)^2
-  #dLag²/dr_{ik}dlambda_{3kk'}
-  if(k>1){
-    Jac[1:n,(n+3):(n+nLambda)] = apply(tMatK, 2, function(x){rowWeights*x})
-  }
-  #Symmetrize
-  Jac = Jac + t(Jac)
-    diag(Jac[1:n,1:n]) = c(-tcrossprod(tmp, reg^2) + 2*beta[n+2]*rowWeights)
-    
-  Jac
-}
-#--------------------------------------#
-dZipMeanVmat = function(beta, reg, k, p, Z, zeroMarg, nLambda, colWeights, vMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param colWeights: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  vMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  muZero = exp(reg %*% vMat + logit(zeroMarg))
-
-  lambda1 = beta[p+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[p+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(p+3):length(beta)]}
-  
-  score = 
-    crossprod(reg,(Z-muZero/(1+muZero))) + colWeights*(lambda1 + lambda2*2*vMat + (lambda3 %*% vMatK))
-  
-  center = sum(colWeights*vMat)
-  unitSum = sum(colWeights*vMat^2)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = apply(vMatK, 1,function(x){
-    sum(x*vMat*colWeights)})
-  
-    return(c(score, center, unitSum, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZipJacobianVmat = function(beta, reg, k, p, Z, zeroMarg, nLambda, colWeights, vMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param k: a scalar, dimension of the RC solution
-  # @param colWeights: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  
-  vMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  muZero = exp(reg %*% vMat +logit(zeroMarg))
-
-    Jac = matrix(0, nrow= p + nLambda, ncol=p + nLambda)
-  #The suXmmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:p,(p+1)] = colWeights
-  #dLag²/dr_{ik}dlambda_{2k}
-  Jac[1:p,p+2] = colWeights*2 *vMat
-tmp=muZero/(1+muZero)^2
-  if(k>1){
-    Jac[1:p,(p+3):(p+nLambda)] = apply(vMatK, 1,function(x){
-      colWeights*x
-    })
-  }
-  #Symmetrize
-  Jac = Jac + t(Jac)
-    diag(Jac[1:p,1:p]) = c(t( -crossprod(reg^2,tmp)) + colWeights *2*beta[p+2])
-    
-  Jac
-}
-#Weighing by abs or relabunds really doesn't matter, only chis and psis get more inflated and deflated
-logit=function(x){log(x/(1-x))}
-
-RCM_ZIP = function(X, k, rowWeights, colWeights, weightsChar, tol = 1e-3, maxItOut = 500, psiTol = 1e-4, chiTol=psiTol, verbose = TRUE, global ="dbldog", nleqslv.control = list(), method="Broyden", twoCores = FALSE, convNorm = 2,  maxItMean = 20, maxItZeroes=30, ZIPRCM=NULL){
-
-    # @param X: a nxp data matrix
-  # @param k: a scalar, number of dimensions in the RC(M) model
-  # @param tol(optional): a scalar, the relative convergende tolerance for the row scores and column scores parameters, defaults to 1e-3  
-  # @param Psitol(optional): a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4
-  # @param maxItOut(optional): an integer, the maximum number of iteration in the outer loop, defaults to 50
-  # @param libSizes(optional) : a vector of length n with (known) library sizes. If not provided, rowSums of x are used
-  # @param verbose(optional): a boolean, should information on iterations be printed? Defaults to TRUE
-  # @param method(optional): Method for jacobian estimation , see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration
-  # @param global(optional): global strategy for solving non-linear systems , see nleqslv
-  # @param nleqslv.control: a list with control options, see nleqslv
-  # @param lambdaRow: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the row scores
-  # @param lambdaCol: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the column scores
-  # @param rMatInit(optional): a nxk matrix with initial row scores. If not provided values from the singular value decomposition will be used as starting values
-  # @param cMatInit(optional): a pxk matrix with initial column scores. If not provided values from the singular value decomposition will be used as starting values
-  # @param psisInit(optional): a vector of length k with inital values for the importance parameters psi. If not provided values from the singular value decomposition will be used as starting values
-  # @param dispFreq: a scalar, how many iterations the algorithm should wait before reestimationg the dispersions
-  # @param convNorm: a scalar, the norm to use to determine convergence
-
-  # @return A list with elements:
-  # @return psis: a vector of length k with estimates for the importance parameters psi
-  # @return thetas: a vector of length p with estimates for the overdispersion
-  # @return rMat: a nxk matrix with estimated row scores
-  # @return cMat: a pxk matrix with estimated column scores
-  # @return converged: a boolean indicating if the algorithm converged
-  # @return rowRec: a n x k x maxItOut array with a record of all rMat estimates through the iterations 
-  # @return colRec: a k x p x maxItOut array with a record of all cMat estimates through the iterations
-  # @return psiRec.: a k x maxItOut array with a record of all psi estimates through the iterations
-  
-  abunds = colSums(X)/sum(X)
-  libSizes = rowSums(X)
-  n=NROW(X)
-  p=NCOL(X)
-  
-  logLibSizesMLE = log(libSizes)
-  logAbundsMLE = log(abunds)
-  # logitZeroRows = logit(rep(0.25,n)) #Start with a 25 % chance on a structural zero
-  logitZeroCols = logit(rep(0.25,p))
-
-  initIter = 1
-  
-   while((initIter ==1) || ((initIter <= maxItOut) && (!convergenceInit))){
-  cat("Starting iteration ",initIter, " \n")
-     
-     libsOld = logLibSizesMLE
-     absOld = logAbundsMLE
-     # zeroRowsOld = logitZeroRows
-     zeroColsOld = logitZeroCols
-     Z = matrix(0,n,p)
-     
-    #E-step
-  expMu = exp(outer(logLibSizesMLE, logAbundsMLE, "+"))
-  regZero = matrix(logitZeroCols, n, p, byrow=TRUE)
-  Z[X==0] = (1+exp(-regZero-expMu))[X==0]^(-1)
-     
-     #M-step
-  
-  initIterMean = 1
-  while((initIterMean ==1) || ((initIterMean <= maxItMean) && (!convergenceInitMean))){
-    cat("Mean iteration ",initIterMean, "\n")
-     libsOldIn = logLibSizesMLE
-     absOldIn = logAbundsMLE
- libsTmp = try(nleqslv(fn = dZipMeanLibsizes, x = logLibSizesMLE, X = X, reg=logAbundsMLE, global=global, control = nleqslv.control, jac=ZipJacobianLibsizes, method=method, Z=Z)$x, silent=TRUE)
- if(class(libsTmp)!="try-error"){ logLibSizesMLE = libsTmp}
-  absTmp = try(nleqslv(fn = dZipMeanAbunds, x = logAbundsMLE, X = X, reg=logLibSizesMLE, global=global, control = nleqslv.control, jac=ZipJacobianAbunds, method=method, Z=Z)$x, silent=TRUE)
- if(class(absTmp)!="try-error"){ logAbundsMLE = absTmp}
-  
-  initIterMean = initIterMean + 1
-  
-   convergenceInitMean = ((initIterMean <= maxItMean) && 
-                    ((sum(abs(1-logLibSizesMLE/libsOldIn)^convNorm)/n)^(1/convNorm) < tol) && 
-                   ((sum(abs(1-logAbundsMLE/absOldIn)^convNorm)/p)^(1/convNorm) < tol))
-  }
-  
-#     initIterZero = 1
-#   while((initIterZero ==1) || ((initIterZero <= maxItZeroes) && (!convergenceInitZeroes))){
-#         cat("Zero iteration ",initIterZero, "\n")
-    # zeroRowsOldIn = logitZeroRows
-    # zeroColsOldIn = logitZeroCols
-  
-#   zeroRowsTmp = try(nleqslv(fn = dZipZeroRow, x = logitZeroRows,   reg=logitZeroCols, global=global, control = nleqslv.control, jac=ZipJacobianZeroRow, method=method, Z=Z)$x, silent=TRUE)
-#  if(class(zeroRowsTmp)!="try-error"){ logitZeroRows = zeroRowsTmp} # We don't let zero-inflation depend on the samples, there is no baseline absence rate for a sample
-
-  zeroColsTmp = try(nleqslv(fn = dZipZeroCol, x = logitZeroCols, reg=rep.int(0L,n), global=global, control = nleqslv.control, jac=ZipJacobianZeroCol, method=method, Z=Z)$x, silent=TRUE)
- if(class(zeroColsTmp)!="try-error"){ logitZeroCols = zeroColsTmp}
-  
-    # initIterZero = initIterZero + 1
-  
-#    convergenceInitZeroes = ((initIterZero <= maxItZeroes) && 
-#                    # ((sum(abs(1-logitZeroRows/zeroRowsOldIn)^convNorm)/p)^(1/convNorm) < tol) && 
-#                    ((sum(abs(1-logitZeroCols/zeroColsOldIn)^convNorm)/p)^(1/convNorm) < tol))
-#   }
- 
-  initIter = initIter + 1
-  
-  convergenceInit = ((initIter <= maxItOut) && 
-                    ((sum(abs(1-logLibSizesMLE/libsOld)^convNorm)/n)^(1/convNorm) < tol) && 
-                   ((sum(abs(1-logAbundsMLE/absOld)^convNorm)/p)^(1/convNorm) < tol) && 
-                   # ((sum(abs(1-logitZeroRows/zeroRowsOld)^convNorm)/p)^(1/convNorm) < tol) && 
-                   ((sum(abs(1-logitZeroCols/zeroColsOld)^convNorm)/p)^(1/convNorm) < tol))
-     }
-    muMarg = exp(outer(logLibSizesMLE, logAbundsMLE, "+")) 
-    zeroMarg = expit(matrix(logitZeroCols, n, p, byrow=TRUE))#The marginals to be used as expectation under independence. These are augmented with the previously estimated dimensions every time
-
-  rowRec = rowRecZeroes = array(0,dim=c(n,k, maxItOut))
-  colRec = colRecZeroes = thetaRec = array(0,dim=c(k,p, maxItOut))
-  psiRec = matrix(0, nrow=k,ncol=maxItOut)
-  convergence = rep(FALSE, k)
-  iterOut = rep(1,k)
-  
-  #If previous fit provided with higher or equal dimension, stop here
-  if((!is.null(ZIPRCM)) ){
-    if(ZIPRCM$fit != "RCM_ZIP"){
-      stop("Fit provided is not of same type as the one requested! \n")
-    } else if((k <= ZIPRCM$k)) {
-      # stop("Fit provided is already of the required dimension or higher! \n")
-    } else{
-          for(i in c("rMat","cMat","psis","lambdaCol","lambdaRow", "lambdaRowZero","lambdaColZero","tMat","vMat","chis","Z","zeroMarg")){
-      assign(i, ZIPRCM[[i]])
-    }
-    }
-  #Otherwise try to use intelligent starting values
-  } else{
-      #Depending on the weighting schemes, use other starting values
-   svdX = svd(diag(1/sqrt(libSizes)) %*% (X-muMarg)*(1-zeroMarg) %*% diag(1/sqrt(colSums(X))))#switch(weightsChar,
-#                 "marginalmarginal" = svd(diag(1/libSizes) %*% (X-muMarg) %*% diag(1/colSums(X))),
-#                 "marginaluniform" = svd(diag(1/libSizes) %*% (X-muMarg)),
-#                 "uniformmarginal" = svd((X-muMarg) %*% diag(1/colSums(X))),
-#                 "uniformuniform" = svd(X-muMarg))
-  rMat = svdX$u[,1:k,drop=FALSE]
-  cMat = t(svdX$v[,1:k,drop=FALSE])
-  psis = log(svdX$d[1:k])
- 
-#   #Redistribute some weight to fit the constraints 
-#   psis = c(psis *t(apply(cMat, 1, function(colS){
-#       sqrt(sum(colWeights * colS^2))
-#   })) * apply(rMat, 2, function(rowS){
-#       sqrt(sum(rowWeights * rowS^2))
-#   }))
-# 
-# #Normalize  
-# cMat = t(apply(cMat, 1, function(colS){
-#       colS/sqrt(sum(colWeights * colS^2))
-#   }))
-# rMat = apply(rMat, 2, function(rowS){
-#       rowS/sqrt(sum(rowWeights * rowS^2))
-#   })
-
-  #Initial estimates for zeroes is also based on an svd
-
-  Xzeroes = X==0
-  
-  svdZero = svd(diag(sqrt(1/sqrt(libSizes))) %*%(Xzeroes-zeroMarg)%*% diag(1/sqrt(colSums(X))))
-
-  tMat = svdZero$u[,1:k, drop=FALSE]
-  vMat = t(svdZero$v[,1:k, drop=FALSE])
-  chis = log(svdZero$d[1:k])
-
-#Redistribute some weight to fit the constraints 
-# chis = c(chis *t(apply(vMat, 1, function(colS){
-#       sqrt(sum(colWeights * colS^2))
-#   })) * apply(tMat, 2, function(rowS){
-#       sqrt(sum(rowWeights * rowS^2))
-#   }))
-#   
-# #Normalize  
-# vMat = t(apply(vMat, 1, function(colS){
-#       colS/sqrt(sum(colWeights * colS^2))
-#   }))
-# tMat = apply(tMat, 2, function(rowS){
-#       rowS/sqrt(sum(rowWeights * rowS^2))
-#   })
-  
-  lambdaRow = lambdaCol = lambdaColZero=lambdaRowZero = rep.int(0,2*k+k*(k-1)/2)
-    }
-  
-  rowRec = rowRecZero = array(0,dim=c(NROW(X),k, maxItOut))
-  colRec = colRecZero = array(0,dim=c(k,NCOL(X), maxItOut))
-  psiRec = chiRec = matrix(0,ncol=maxItOut, nrow=k)
-  
-   if(!is.null(ZIPRCM)){ #If fit provided, replace lower dimension starting values
-   Kprev = ZIPRCM$k
-   rMat[,1:Kprev] = ZIPRCM$rMat
-   rowRec[,1:Kprev,] = ZIPRCM$rowRec
-   cMat[1:Kprev,] = ZIPRCM$cMat
-   colRec[1:Kprev,,] = ZIPRCM$colRec
-   psis[1:Kprev] = ZIPRCM$psis
-   psiRec[1:Kprev,] = ZIPRCM$psiRec
-   lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = ZIPRCM$lambdaCol
-   lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = ZIPRCM$lambdaRow
-   tMat[,1:Kprev] = ZIPRCM$tMat
-   rowRecZero[,1:Kprev,] = ZIPRCM$rowRecZero
-   vMat[1:Kprev,] = ZIPRCM$vMat
-   colRecZero[1:Kprev,,] = ZIPRCM$colRecZero
-   chis[1:Kprev] = ZIPRCM$chis
-   chiRec[1:Kprev,] = ZIPRCM$chiRec
-   lambdaColZero[1:(Kprev*(2+(Kprev-1)/2))] = ZIPRCM$lambdaColZero
-   lambdaRowZero[1:(Kprev*(2+(Kprev-1)/2))] = ZIPRCM$lambdaRowZero
-   convergence[1:Kprev] = ZIPRCM$converged
-   iterOut[1:Kprev] = ZIPRCM$iter
-   zeroMarg = ZIPRCM$zeroMarg
- }
-
-  minK = ifelse(is.null(ZIPRCM),1,Kprev+1)
-  for (KK in minK:k){
-  
-  cat("Dimension" ,KK, "is being esimated \n")
-    
-  #Modify offsets if needed
-  if(KK>1){
-    muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))
-    zeroMarg = expit(logit(zeroMarg) + tMat[,(KK-1), drop=FALSE] %*% (vMat[(KK-1),, drop=FALSE]*chis[(KK-1)]))
-  }
-    #A lambda parameter
-    nLambda = KK + 1
-    
-    #The location of the lambda parameters
-    idK = seq_k(KK)
-    Z = matrix(0, n,p)
-
-    ## 2) Propagation
-  
-    while((iterOut[KK] ==1) || ((iterOut[KK] <= maxItOut) && (!convergence[KK])))
-    {
-    
-  if(verbose && iterOut[KK]%%1 == 0){
-  cat("\n","Outer Iteration", iterOut[KK], "\n","\n")
-    if(iterOut[KK]!=1){
-  cat("Old psi-estimate: ", psiOld, "\n")
-  cat("New psi-estimate: ", psis[KK], "\n")
-  cat("Old chi-estimates: ", chiOld, "\n")
-  cat("New chi-estimates: ", chis[KK], "\n")
-    }
-  }
-  ## 2)a. Store old parameters
-  psiOld = psis[KK]
-  rMatOld = rMat[,KK]
-  cMatOld = cMat[KK,]
-  
-  chiOld = chis[KK]
-  tMatOld = tMat[,KK]
-  vMatOld = vMat[KK,]
-
-  #Expectation
-  expMu = muMarg* exp(outer(rMat[,KK], cMat[KK,]*psis[KK]))
-  regZero = logit(zeroMarg) + outer(tMat[,KK], vMat[KK,]*chis[KK])
-  Z[X==0] = (1+exp(-regZero-expMu))[X==0]^(-1)
-  
-   #Maximization
-  Mlist = MstepZIP(Z = Z, X = X, rMat = rMat[,KK, drop=FALSE], cMat = cMat[KK,, drop=FALSE], tMat = tMat[,KK, drop=FALSE], vMat = vMat[KK,, drop=FALSE], k = KK, n=n, p=p, zeroMarg = zeroMarg, psis = psis[KK],chis = chis[KK], twoCores=twoCores, tol = tol, psiTol = psiTol, chiTol = chiTol, convNorm = convNorm, global=global, nLambda = nLambda, nleqslv.control = nleqslv.control, lambdaCol = lambdaCol[idK], lambdaRow=lambdaRow[idK], lambdaColZero = lambdaColZero[idK], lambdaRowZero = lambdaRowZero[idK], maxItMean = maxItMean, maxItZeroes = maxItZeroes, muMarg=muMarg, colWeights = colWeights, rowWeights = rowWeights, rMatK = rMat[,1:(KK-1), drop=FALSE], cMatK = cMat[1:(KK-1),, drop=FALSE], tMatK = tMat[,1:(KK-1), drop=FALSE], vMatK = vMat[1:(KK-1),, drop=FALSE])
-#   
-#   cat("Mlist:", str(Mlist), "\n")
-
-  #Assign outcomes to tracking vectors and to this environment
-   lambdaCol[idK] = Mlist$lambdaCol
-   lambdaRow[idK] = Mlist$lambdaRow
-   lambdaColZero[idK] = Mlist$lambdaColZero
-   lambdaRowZero[idK] = Mlist$lambdaRowZero
-
-  rowRec[,KK, iterOut[KK]] = rMat[,KK] = Mlist$rMat
-  colRec[KK,, iterOut[KK]] = cMat[KK,] = Mlist$cMat
-  rowRecZero[,KK, iterOut[KK]] = tMat[,KK] = Mlist$tMat
-  colRecZero[KK,, iterOut[KK]] = vMat[KK,] = Mlist$vMat
-  psiRec[KK, iterOut[KK]] = psis[KK] = Mlist$psis
-  chiRec[KK, iterOut[KK]] = chis[KK] = Mlist$chis
-  
-  ## 2)f. Change iterator
-    iterOut[KK] = iterOut[KK] + 1
-    
-  ##Check convergence  (any numbered norm for row and column scores)
-  convergence[KK] = (iterOut[KK] <= maxItOut) && 
-                    (all(abs(1-psis/psiOld) < psiTol)) &&
-                    ((sum((1-rMatOld/rMat)^convNorm)/n)^(1/convNorm) < tol) && 
-                    ((sum((1-cMatOld/cMat)^convNorm)/p)^(1/convNorm) < tol)  && 
-                    (all(abs(1-chis/chiOld) < chiTol)) &&  
-                    (sum(abs(1-tMat/tMatOld)^convNorm)/n)^(1/convNorm) < tol &&
-                    (sum(abs(1-vMat/vMatOld)^convNorm)/p)^(1/convNorm) < tol 
-} # END while-loop until convergence
-  } # END for-loop over dimensions
-  
-  ## 3) Termination
-  rownames(rMat) = rownames(X)
-  colnames(cMat) = colnames(X)
-  rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
-  
-  if(!convergence[KK] ){
-    warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
-  }
-    return(list(converged = convergence,rMat=rMat, cMat=cMat, psis = psis, X=X,
-                rowRec = rowRec, colRec = colRec, psiRec = psiRec, lambdaRow = lambdaRow, lambdaCol = lambdaCol, lambdaRowZero = lambdaRowZero, lambdaColZero = lambdaColZero, chis = chis, tMat = tMat, vMat = vMat, zeroMarg = zeroMarg, chiRec = chiRec, rowRecZero = rowRecZero, colRecZero = colRecZero, iter=iterOut-1, Z=Z, fit="RCM_ZIP", libSizesMLE = exp(logLibSizesMLE), abundsMLE = exp(logAbundsMLE), taxaZeroes = expit(logitZeroCols)))
-}
-```
-
-### Zero-inflated negative binomial
-
-```{r ZINB, purl=TRUE, echo=FALSE}
-###Estimate the offsets
-#--------------------------------------#
-dZinbMeanLibsizes = function(beta, X, Z, reg, thetas){
-  # @param beta: a vector of logged library size estimates
-  # @param y: the nxp data matrix
-  # @param reg: the current logged abundance estimates
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  mu = exp(outer(beta, reg, "+"))
-  rowSums((1-Z)*(X-mu)/(1+t(t(mu)/thetas)))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianLibsizes = function(beta, X, reg, Z, thetas){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  mu = exp(outer(beta, reg, "+"))
-  diag(rowSums(((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2)*(Z-1)))
-}
-#--------------------------------------#
-dZinbMeanAbunds = function(beta, X, Z, reg, thetas){
-  # @param beta: a vector of logged library size estimates
-  # @param y: the nxp data matrix
-  # @param reg: the current logged abundance estimates
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  mu = exp(outer(reg,beta, "+"))
-  colSums((1-Z)*(X-mu)/(1+t(t(mu)/thetas)))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianAbunds = function(beta, X, reg, Z, thetas){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-   mu = exp(outer(reg,beta, "+"))
-  diag(colSums(((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2)*(Z-1)))
-}
-
-#--------------------------------------#
-#Estimate the offsets for the zeroes
-dZinbZeroCol = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  expitZero = expit(outer(reg, beta, "+"))
-  colSums((Z-expitZero))
-}
-
-#--------------------------------------#
-ZinbJacobianZeroCol = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  expZero = exp(outer(reg, beta, "+"))
-  tmp=expZero/(1+expZero)^2
-  -diag(colSums(tmp))
-}
-
-#--------------------------------------#
-#Estimate the offsets for the zeroes
-dZinbZeroRow = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  expitZero = expit(outer(beta,reg, "+"))
-  rowSums((Z-expitZero))
-}
-
-#--------------------------------------#
-ZinbJacobianZeroRow = function(beta, Z, reg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  expZero = exp(outer(beta,reg, "+"))
-  tmp=expZero/(1+expZero)^2
-  -diag(rowSums(tmp))
-}
-
-#-----------------------------------#
-## A function to perform the E-step
-
-EstepNB  = function(X, rMat, cMat, tMat, vMat, muMarg, zeroMarg, psis, chis, thetas){
-  
-  # @return: The values of Z
-  expMu = exp(rMat %*% (cMat*psis)) * muMarg
-  pZero =  expit(tMat %*% (vMat * chis) + logit(zeroMarg))
-
-  Z = X
-  Z[X>0] = 0
-  thetaMat=matrix(thetas, ncol=ncol(X), nrow=nrow(X), byrow=TRUE)
-  d0=dnbinom(0,mu=expMu, size=thetaMat)
-  Z[X==0] = (pZero/((1-pZero)*d0 + pZero))[X==0]
-  Z
-}
-#-----------------------------------#
-
-## A function to perform the M step: maximize the likelihoods. This will again be an iterative process, estimating the parameters step by step. estimation of poisson and zero-inflated part can occur independently, which opens up opportunities for parallelization.
-
-MstepNB = function(Z, X, rMat, cMat, tMat, vMat, muMarg, k,  zeroMarg, psis, chis, lambdaCol, lambdaRow, lambdaColZero, lambdaRowZero, twoCores=TRUE, tol=1e-3, psiTol = 1e-4, chiTol = psiTol, convNorm = 2 , maxItMean=20 , maxItZeroes= 20,n, p, global=global, nleqslv.control= nleqslv.control, nLambda, thetas, dispFreq,rowWeights, colWeights, rMatK, cMatK, tMatK, vMatK){
-  
-#Optimization of the mena and zero-inflated components are independent (see Lambert 1992), so fork here
-resList = mclapply(mc.cores= 1+twoCores, c(meanEstZINB, ZIestNB), function(fun){
-  fun(X=X, rMat=rMat, cMat=cMat, tMat=tMat, chis=chis, vMat=vMat, zeroMarg = zeroMarg, lambdaCol=lambdaCol, lambdaRow=lambdaRow, lambdaRowZero=lambdaRowZero, lambdaColZero=lambdaColZero, psiTol=psiTol, chiTol=chiTol, tol=tol, convNorm = convNorm, nleqslv.control = nleqslv.control, global=global, nLambda=nLambda, k=k, Z=Z, muMarg=muMarg,n=n, p=p, psis=psis, maxItMean = maxItMean, maxItZeroes = maxItZeroes, thetas=thetas, dispFreq=dispFreq, rowWeights = rowWeights, colWeights=colWeights, rMatK = rMatK, cMatK = cMatK, tMatK = tMatK, vMatK = vMatK)
-})
-
-return(unlist(resList, recursive=FALSE))
-}
-#--------------------------------------#
-
-# A function to estimate the mean component of the ZIP model
-meanEstZINB = function(X, rMat, cMat, Z, muMarg,  k, global, nleqslv.control, tol, psiTol, thetas, lambdaCol, lambdaRow, convNorm, dispFreq, nLambda, n, p, psis, maxItMean = 10, maxItZeroes = 10, rowWeights, colWeights, rMatK, cMatK,...){
- #Mean component
-  
-    iter = 1
-  while((iter==1 || !converged) && iter<=maxItMean){
-    
-  cat("Inner iteration(mean)", iter, "\n")
-    
-  psiOld = psis
-  rMatOld = rMat
-  cMatOld = cMat
-
-  cat("Estimating overdispersions \n")
-  if(iter==1 | iter %% dispFreq ==0){ #Again too slow and unnecessary to reestimate overdispersions every time
-  thetasTry = try(estDisp(X=X, cMat=cMat, rMat=rMat, muMarg=muMarg, psis=psis, dispWeights=t(1-Z)), silent=TRUE)
-  if(class(thetasTry)!="try-error") thetas=thetasTry
-  }
-  
-  cat("Estimating psis ( k =",k,") \n")
-  regPsis = rMat %*% cMat
-  psisSol = try(abs(nleqslv(fn = dZinbMeanPsi, reg=regPsis, x = psis, X=X, Z=Z, muMarg=muMarg, global=global, control = nleqslv.control, jac=ZinbJacobianPsi, thetas=thetas)$x), silent=TRUE)
-    if(class(psisSol)!="try-error") psis=psisSol
-
-  cat("Estimating row scores mean \n")
-  regRows = cMat*psis
-  rMatSol = try(nleqslv(fn = dZinbMeanRmat, x = c(rMat, lambdaRow), X=X, reg =regRows, muMarg=muMarg, k=k, n=n, global=global, control = nleqslv.control, jac=ZinbJacobianRmat, Z=Z, nLambda=nLambda, thetas=thetas, rowWeights=rowWeights, rMatK = rMatK)$x, silent=TRUE)
-  if(class(rMatSol)!="try-error"){
-  rMat = matrix(rMatSol[1:n], byrow=FALSE, ncol=1, nrow=n)
-  lambdaRow = rMatSol[(n+1):(n+nLambda)]
-  }
-  
-  ## Column scores
-  cat("Estimating column scores mean \n")
-  regCols = rMat*psis
-  cMatSol = try(nleqslv(fn = dZinbMeanCmat, x = c(cMat, lambdaCol), reg = regCols, X = X, muMarg = muMarg, k = k, p = p, global = global, control = nleqslv.control, jac = ZinbJacobianCmat, Z = Z, nLambda = nLambda, thetas = thetas, colWeights=colWeights, cMatK = cMatK)$x, silent=TRUE)
-    if(class(cMatSol)!="try-error"){
-  cMat = matrix(cMatSol[1:p], byrow=TRUE, nrow=1, ncol=p)
-  lambdaCol = cMatSol[(p+1):(p+nLambda)]
-    }
-
-    converged = all(abs(psiOld-psis) < psiTol) &&  (sum(abs(1-rMat/rMatOld)^convNorm))^(1/convNorm) < tol &&  (sum(abs(1-cMat/cMatOld)^convNorm))^(1/convNorm) < tol 
-  iter = iter +1
-  }
-    
-  return(list(cMat=cMat, rMat=rMat, iterMean = iter, psis=psis, convergedMean=converged, lambdaCol = lambdaCol, lambdaRow=lambdaRow))
-}
-#--------------------------------------#
-
-# A function to estimate the zero inflated component of the ZIP model
-ZIestNB = function(X, Z, k, global, nleqslv.control, tol,  chiTol, tMat, vMat, chis, zeroMarg, lambdaColZero, lambdaRowZero, convNorm, n, p,  nLambda, rowWeights, colWeights, thetas, tMatK, vMatK, maxItMean = 10, maxItZeroes = 10,  ...){
-  
-      iter = 1
-  while((iter==1 || !converged) && iter<=maxItZeroes){
-   chiOld = chis
-  tMatOld = tMat
-  vMatOld = vMat
-  
-    cat("Inner iteration(zeroes)", iter, "\n")
-
-  # Zero component
-    ## Chis
-      cat("Estimating chis (zeroes) \n")
-      regChis = tMat %*% vMat
-  chisSol = try(abs(nleqslv(fn = dZinbZeroChi, reg=regChis, x = chis, Z=Z, global=global, control = nleqslv.control, zeroMarg=zeroMarg, jac=ZinbJacobianChi)$x), silent=TRUE)
-  if(!inherits(chisSol,"try-error")){
-    chis=chisSol
-  }
-  
-    ## Row scoers
-    cat("Estimating row scores zeroes \n")
-    regRows = vMat*chis
-    tMatSol = try(nleqslv(fn = dZinbZeroTmat, x = c(tMat, lambdaRowZero), k=k, n=n, global=global, control = nleqslv.control, zeroMarg=zeroMarg, reg=regRows, jac=ZinbJacobianTmat, Z=Z, nLambda=nLambda, rowWeights=rowWeights, tMatK= tMatK)$x, silent=TRUE)
-  if(!inherits(tMatSol,"try-error")){
-    tMat = matrix(tMatSol[1:n], byrow=FALSE, ncol=1, nrow=n)
-    lambdaRowZero = tMatSol[(n+1):(nLambda+n)]
-      }
-    
-    ## Column scores
-      cat("Estimating column scores zeroes \n")
-      regCols = tMat*chis
-    vMatSol = try(nleqslv(fn = dZinbZeroVmat, x = c(vMat, lambdaColZero), reg=regCols, k=k, p=p, global=global, control = nleqslv.control, zeroMarg=zeroMarg, jac=ZinbJacobianVmat, Z=Z, nLambda=nLambda, colWeights=colWeights, vMatK = vMatK)$x, silent=TRUE)
-  if(!inherits(vMatSol,"try-error")){
-    vMat = matrix(vMatSol[1:p], byrow=TRUE, nrow=1, ncol=p)
-    lambdaColZero = vMatSol[(p+1):(p+nLambda)]
-          }
-
-  converged = all ((chiOld-chis) < chiTol) &&  (sum(abs(1-tMat/tMatOld)^convNorm))^(1/convNorm) < tol &&  (sum(abs(1-vMat/vMatOld)^convNorm))^(1/convNorm) < tol 
-  iter = iter +1
-}
-  return(list(vMat=vMat, tMat=tMat, iterZI = iter, chis=chis, convergedZI=converged, lambdaColZero=lambdaColZero, lambdaRowZero=lambdaRowZero))
-}
-#--------------------------------------#
-
-dZinbMeanPsi = function(beta, X, muMarg, Z, reg, thetas){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  mu = exp(reg* beta) * muMarg
-  sum(reg*(1-Z)*((X-mu)/(1+t(t(mu)/thetas))))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianPsi = function(beta, X, reg, muMarg, Z, thetas){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  mu = exp(reg*beta) * muMarg
-  -sum(reg^2*(1-Z)*((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2))
-}
-
-#--------------------------------------#
-dZinbMeanRmat = function(beta, X, reg, muMarg, k, n, Z, nLambda, thetas, rowWeights, rMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-  mu = exp(rMat %*% reg) * muMarg
-
-  lambda1 = beta[n+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[n+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(n+3):length(beta)]}
-
-  score = tcrossprod((1-Z)*((X-mu)/(1+t(t(mu)/thetas))),reg) + c(rowWeights*(lambda1 + lambda2* 2*rMat + rMatK %*% lambda3))
-  
-  center = sum(rMat*rowWeights)
-  unitSum = sum(rMat^2*rowWeights)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = apply(rMatK, 2, function(x){
-    sum(rMat*x*rowWeights)
-  })
-    return(c(score,centers, unitSums, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianRmat = function(beta, X, reg, muMarg, k, n, Z, nLambda, thetas, rowWeights, rMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  
-  rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-  mu = exp(rMat %*% reg) * muMarg
-
-  Jac = matrix(0, nrow = n + nLambda, ncol=n + nLambda)
-  #The suymmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:n, n+1] = rowWeights
-  #dLag²/dr_{ik}dlambda_{2k}
-  Jac[1:n, n+2] = 2 *rMat*rowWeights
-  
-  if(k>1){
-    Jac[1:n,(n+3):(n+nLambda)] = apply(rMatK, 2, function(x){rowWeights*x})
-  }
-  
-  #Symmetrize
-  Jac = Jac + t(Jac)
-  tmp= ((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2)*(1-Z)
-diag(Jac[1:n,1:n]) = -tcrossprod(reg^2 ,tmp) + 2*rowWeights*beta[n+2]
-  Jac
-}
-
-#--------------------------------------#
-dZinbMeanCmat = function(beta, X, reg, muMarg, k, p, Z, nLambda, thetas, colWeights, cMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  mu = exp(reg %*% cMat) * muMarg
-
-  lambda1 = beta[p+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[p+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(p+3):length(beta)]}
-
-  score = 
-    crossprod(reg,((1-Z)*((X-mu)/(1+t(t(mu)/thetas))))) + 
-                        colWeights*(lambda1 + lambda2*2*cMat + lambda3 %*% cMatK)
-    
-  center = sum(colWeights*cMat)
-  unitSum = sum(colWeights*cMat^2)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = apply(cMatK,1,function(x){
-      sum(cMat*x*colWeights)
-  })
-    return(c(score,centers, unitSums, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianCmat = function(beta, X, reg, colWeights, k, p, Z, nLambda, thetas, muMarg, cMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param X: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param colWeights: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  
-  cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  mu = exp(reg %*% cMat) * muMarg
-
-  tmp= ((1+t(t(X)/thetas))*mu/(1+t(t(mu)/thetas))^2)*(1-Z)
-  Jac = matrix(0, nrow = p + nLambda, ncol = p + nLambda)
-  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:p,(p+1)] = colWeights
-  #dLag²/dr_{ik}dlambda_{2k}
-  Jac[1:p,p+2] = colWeights*2 *cMat
-  
-  #dLag²/ds_{ik}dlambda_{3kk'}
-  if(k>1){
-    Jac[1:p,(p+3):(p+nLambda)] = apply(cMatK, 1,function(x){
-      colWeights*x
-    })
-  }
-  #Symmetrize
-  Jac = Jac + t(Jac)
-  diag(Jac[1:p,1:p]) = -crossprod(tmp, reg^2) + 2*beta[p+2]*colWeights
-  Jac
-}
-
-#--------------------------------------#
-dZinbZeroChi = function(beta, Z, reg, zeroMarg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-  GZero = expit(arrayprod(reg, beta) + logit(zeroMarg))
-  sum((Z-GZero)*reg)
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianChi = function(beta, reg, Z, zeroMarg){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  expZero = exp(reg* beta + logit(zeroMarg))
-  tmp = (expZero/(1+expZero)^2)
-  # tmp[is.infinite(expZero)]=0
-  -sum(reg^2*tmp)
-}
-
-#--------------------------------------#
-dZinbZeroTmat = function(beta, reg,  k, n, Z, zeroMarg, nLambda, rowWeights, tMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  tMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-
-  GZero = expit(tMat %*% reg + logit(zeroMarg))
-  
-  lambda1 = beta[n+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[n+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(n+3):length(beta)]}
-
-  score = tcrossprod((Z-GZero), reg) + 
-                         (lambda1+ lambda2*2*tMat + tMatK %*% lambda3)*rowWeights
-  
-  center = sum(tMat*rowWeights)
-  unitSum = sum(tMat^2*rowWeights)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = colSums(tMatK*tMat*rowWeights)
-  return(c(score,centers, unitSums, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianTmat = function(beta, reg, k, n, Z, zeroMarg, nLambda, rowWeights, tMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param abunds: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  
-  tMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
-  Jac = matrix(0,nrow = n+nLambda, ncol = n+nLambda)
-
-  expZero = exp(tMat %*% reg + logit(zeroMarg))
-  
-  tmp = (expZero/(1+expZero)^2)
-    #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:n, n+1] = rowWeights
-  #dLag²/dr_{ik}dlambda_{2k}
-  Jac[1:n, n+2] = 2*tMat*rowWeights
-  tmp=expZero/(1+expZero)^2
-  #dLag²/dr_{ik}dlambda_{3kk'}
-  if(k>1){
-    Jac[1:n,(n+3):(n+nLambda)] = apply(tMatK, 2, function(x){rowWeights*x})
-  }
-  
-  #Symmetrize
-  Jac = Jac + t(Jac)
-    diag(Jac[1:n,1:n]) = -tcrossprod(tmp, reg^2) + 2*beta[n+2]*rowWeights
-    
-  Jac
-}
-
-#--------------------------------------#
-dZinbZeroVmat = function(beta, reg, colWeights, k, p, Z, zeroMarg, nLambda, vMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param colWeights: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-
-  # @return A vector of length r with the new psi estimates
-
-  vMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-
-  GZero = expit(reg %*% vMat + logit(zeroMarg))
-
-  lambda1 = beta[p+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[p+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(p+3):length(beta)]}
-
-  score = 
-    crossprod(reg,(Z-GZero)) + 
-                        colWeights*(lambda1 + lambda2*2*vMat + (lambda3 %*% vMatK))
-
-  
-  center = sum(colWeights*vMat)
-  unitSum = sum(colWeights*vMat^2)-1
-  if(k==1){return(c(score,center, unitSum))}
-  orthogons = colSums(t(vMatK)*vMat*colWeights)
-    return(c(score,centers, unitSums, orthogons))
-}
-
-#--------------------------------------#
-#A jacobian for the psi parameters
-ZinbJacobianVmat = function(beta, reg, colWeights, k, p, Z, zeroMarg, nLambda, vMatK){
-  # @param beta: a vector of r regression parameters to optimize: the r psi parameters
-  # @param y: the nxp data matrix
-  # @param reg: a nxpxr regressor array with r the number of regressors
-  # @param theta: a vector of length p with the dispersion parameters
-  # @param k: a scalar, dimension of the RC solution
-  # @param colWeights: a vector of length p with the abundance parameters
-  # @param libSizes (optional): a vector of length n with (known) library sizes
-  
-  vMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  expZero = exp(reg %*% vMat +logit(zeroMarg))
-  tmp = (expZero/(1+expZero)^2)
-  # tmp[is.infinite(expZero)]=0
-
-  Jac = matrix(0, nrow = p + nLambda, ncol = p + nLambda)
-  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:p,(p+1)] = colWeights
-  #dLag²/dr_{ik}dlambda_{2k}
-  Jac[1:p,p+2] = colWeights*2 *vMat
-  if(k>1){
-    Jac[1:p,(p+3):(p+nLambda)] = apply(vMatK, 1,function(x){
-      colWeights*x
-    })
-  }
-  
-  #Symmetrize
-  Jac = Jac + t(Jac)
-  diag(Jac[1:p,1:p]) = -crossprod(reg^2,tmp) + colWeights *beta[p+2]*2
-    
-  Jac
-}
-
-RCM_ZINB = function(X, k, rowWeights , colWeights, weightsChar, tol = 1e-3, maxItOut = 500, psiTol = 1e-4, chiTol = psiTol, verbose = TRUE, ZINBRCM = NULL, global = "dbldog", nleqslv.control = list(), method="Broyden", twoCores = FALSE, convNorm = 2, maxItMean = 20, maxItZeroes = 20, dispFreq = 5){
-  
-  # @param X: a nxp data matrix
-  # @param k: a scalar, number of dimensions in the RC(M) model
-  # @param tol(optional): a scalar, the relative convergende tolerance for the row scores and column scores parameters, defaults to 1e-3  
-  # @param Psitol(optional): a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4
-  # @param maxItOut(optional): an integer, the maximum number of iteration in the outer loop, defaults to 50
-  # @param libSizes(optional) : a vector of length n with (known) library sizes. If not provided, rowSums of x are used
-  # @param verbose(optional): a boolean, should information on iterations be printed? Defaults to TRUE
-  # @param method(optional): Method for jacobian estimation , see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration
-  # @param global(optional): global strategy for solving non-linear systems , see nleqslv
-  # @param nleqslv.control: a list with control options, see nleqslv
-  # @param lambdaRow: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the row scores
-  # @param lambdaCol: a vector of length 2*k+k*(k-1)/2 with inital estimates or the lagrange multipliers for the column scores
-  # @param rMatInit(optional): a nxk matrix with initial row scores. If not provided values from the singular value decomposition will be used as starting values
-  # @param cMatInit(optional): a pxk matrix with initial column scores. If not provided values from the singular value decomposition will be used as starting values
-  # @param psisInit(optional): a vector of length k with inital values for the importance parameters psi. If not provided values from the singular value decomposition will be used as starting values
-  # @param dispFreq: a scalar, how many iterations the algorithm should wait before reestimationg the dispersions
-  # @param convNorm: a scalar, the norm to use to determine convergence
-
-  # @return A list with elements:
-  # @return psis: a vector of length k with estimates for the importance parameters psi
-  # @return thetas: a vector of length p with estimates for the overdispersion
-  # @return rMat: a nxk matrix with estimated row scores
-  # @return cMat: a pxk matrix with estimated column scores
-  # @return converged: a boolean indicating if the algorithm converged
-  # @return rowRec: a n x k x maxItOut array with a record of all rMat estimates through the iterations 
-  # @return colRec: a k x p x maxItOut array with a record of all cMat estimates through the iterations
-  # @return psiRec.: a k x maxItOut array with a record of all psi estimates through the iterations
-
-  libSizes = rowSums(X)
-  abunds = (colSums(X)/sum(X))
-  n=NROW(X)
-  p=NCOL(X)
-  logLibSizesMLE = log(libSizes)
-  logAbundsMLE = log(abunds)
-  # logitZeroRows = logit(rep(0.25,n)) #Start with a 25 % chance on a structural zero
-  logitZeroCols = logit(rep(0.25,p))
-  iterOut = rep(1,k)
-
-  initIter = 1
-  
-   while((initIter ==1) || ((initIter <= maxItOut) && (!convergenceInit))){
-  cat("Starting iteration ",initIter, " \n")
-     
-     libsOld = logLibSizesMLE
-     absOld = logAbundsMLE
-     # zeroRowsOld = logitZeroRows
-     zeroColsOld = logitZeroCols
-     Z = matrix(0,n,p)
-     
-     #M-step
-  initIterMean = 1
-  while((initIterMean ==1) || ((initIterMean <= maxItMean) && (!convergenceInitMean))){
-    cat("Mean iteration ",initIterMean, "\n")
-     libsOldIn = logLibSizesMLE
-     absOldIn = logAbundsMLE
- thetas = estDisp(X = X, cMat = matrix(0,1,p), rMat = matrix(0,n,1),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, dispWeights=t(1-Z))
- libsTmp = try(nleqslv(fn = dZinbMeanLibsizes, x = logLibSizesMLE, X = X, reg=logAbundsMLE, global=global, control = nleqslv.control, jac=ZinbJacobianLibsizes, method=method, Z=Z, thetas = thetas)$x, silent=TRUE)
- if(class(libsTmp)!="try-error"){ logLibSizesMLE = libsTmp}
-  absTmp = try(nleqslv(fn = dZinbMeanAbunds, x = logAbundsMLE, X = X, reg=logLibSizesMLE, global=global, control = nleqslv.control, jac=ZinbJacobianAbunds, method=method, Z=Z, thetas = thetas)$x, silent=TRUE)
- if(class(absTmp)!="try-error"){logAbundsMLE = absTmp}
-  
-  initIterMean = initIterMean + 1
-  
-   convergenceInitMean = ((initIterMean <= maxItMean) && 
-                    ((sum(abs(1-logLibSizesMLE/libsOldIn)^convNorm)/n)^(1/convNorm) < tol) && 
-                   ((sum(abs(1-logAbundsMLE/absOldIn)^convNorm)/p)^(1/convNorm) < tol))
-  }
-#     initIterZero = 1
-#   while((initIterZero ==1) || ((initIterZero <= maxItZeroes) && (!convergenceInitZeroes))){
-#         cat("Zero iteration ",initIterZero, "\n")
-#     zeroRowsOldIn = logitZeroRows
-#     zeroColsOldIn = logitZeroCols
-  
-#   zeroRowsTmp = try(nleqslv(fn = dZinbZeroRow, x = logitZeroRows,   reg=logitZeroCols, global=global, control = nleqslv.control, jac=ZinbJacobianZeroRow, method=method, Z=Z)$x, silent=TRUE)
-#  if(class(zeroRowsTmp)!="try-error"){ logitZeroRows = zeroRowsTmp}
-  zeroColsTmp = try(nleqslv(fn = dZinbZeroCol, x = logitZeroCols, reg = rep.int(0L, n), global=global, control = nleqslv.control, jac=ZinbJacobianZeroCol, method=method, Z=Z)$x, silent=TRUE)
- if(class(zeroColsTmp)!="try-error"){ logitZeroCols = zeroColsTmp}
-  
-#     initIterZero = initIterZero + 1
-#   
-#    convergenceInitZeroes = ((initIterZero <= maxItZeroes) && 
-#                    # ((sum(abs(1-logitZeroRows/zeroRowsOldIn)^convNorm)/p)^(1/convNorm) < tol) && 
-#                    ((sum(abs(1-logitZeroCols/zeroColsOldIn)^convNorm)/p)^(1/convNorm) < tol))
-#   }
-  
-  #E-step
-  expMu = exp(outer(logLibSizesMLE, logAbundsMLE, "+"))
-  pZero = expit(outer(logitZeroRows, logitZeroCols, "+"))
-  thetaMat=matrix(thetas, ncol=ncol(X), nrow=nrow(X), byrow=TRUE)
-  d0=dnbinom(0,mu=expMu, size=thetaMat)
-  Z[X==0] = (pZero/((1-pZero)*d0 + pZero))[X==0]
- 
-  initIter = initIter + 1
-  convergenceInit = ((initIter <= maxItOut) && 
-                    ((sum(abs(1-logLibSizesMLE/libsOld)^convNorm)/n)^(1/convNorm) < tol) && 
-                   ((sum(abs(1-logAbundsMLE/absOld)^convNorm)/p)^(1/convNorm) < tol) && 
-                   # ((sum(abs(1-logitZeroRows/zeroRowsOld)^convNorm)/p)^(1/convNorm) < tol) && 
-                   ((sum(abs(1-logitZeroCols/zeroColsOld)^convNorm)/p)^(1/convNorm) < tol))
-     }
-    muMarg = exp(outer(logLibSizesMLE, logAbundsMLE, "+")) 
-    zeroMarg = expit(outer(logitZeroRows, logitZeroCols, "+"))#The marginals to be used as expectation. These are augmented with the previously estimated dimensions every time
-
-  rowRec = rowRecZeroes = array(0,dim=c(n,k, maxItOut))
-  colRec = colRecZeroes = thetaRec = array(0,dim=c(k,p, maxItOut))
-  psiRec = matrix(0, nrow=k,ncol=maxItOut)
-  convergence = rep(FALSE, k)
-  iterOut = rep(1,k)
-  
-  #If previous fit provided with higher or equal dimension, stop here
-  if((!is.null(ZINBRCM)) ){
-    if(ZINBRCM$fit != "RCM_ZINB"){
-      stop("Fit provided is not of same type as the one requested! \n")
-    } else if((k <= ZINBRCM$k)) {
-      # stop("Fit provided is already of the required dimension or higher! \n")
-    } else{
-          for(i in c("rMat","cMat","psis","lambdaCol","lambdaRow", "lambdaRowZero","lambdaColZero","tMat","vMat","chis","Z","zeroMarg","thetas")){
-      assign(i, ZINBRCM[[i]])
-    }
-    }
-  #Otherwise try to use intelligent starting values
-  } else{
-      #Use a more heavily weighted 
-   svdX = svd(diag(1/libSizes) %*% (X-muMarg)*(1-zeroMarg) %*% diag(1/colSums(X)))
-
-  rMat = svdX$u[,1:k,drop=FALSE]
-  cMat = t(svdX$v[,1:k,drop=FALSE])
-  psis = svdX$d[1:k]
-#  
-#   #Redistribute some weight to fit the constraints 
-#   psis = c(psis *t(apply(cMat, 1, function(colS){
-#       sqrt(sum(colWeights * colS^2))
-#   })) * apply(rMat, 2, function(rowS){
-#       sqrt(sum(rowWeights * rowS^2))
-#   }))
-# 
-# #Normalize  
-# cMat = t(apply(cMat, 1, function(colS){
-#       colS/sqrt(sum(colWeights * colS^2))
-#   }))
-# rMat = apply(rMat, 2, function(rowS){
-#       rowS/sqrt(sum(rowWeights * rowS^2))
-#   })
-# 
-#   #Initial estimates for zeroes is also based on an svd
-# 
-  Xzeroes = X==0
-  
-  svdZero = svd(diag(sqrt(1/libSizes)) %*%(Xzeroes-zeroMarg)%*% diag(1/sqrt(colSums(X))))
-
-  tMat = svdZero$u[,1:k, drop=FALSE]
-  vMat = t(svdZero$v[,1:k, drop=FALSE])
-  chis = svdZero$d[1:k]
-# 
-# #Redistribute some weight to fit the constraints 
-# chis = c(chis *t(apply(vMat, 1, function(colS){
-#       sqrt(sum(colWeights * colS^2))
-#   })) * apply(tMat, 2, function(rowS){
-#       sqrt(sum(rowWeights * rowS^2))
-#   }))
-#   
-# #Normalize  
-# vMat = t(apply(vMat, 1, function(colS){
-#       colS/sqrt(sum(colWeights * colS^2))
-#   }))
-# tMat = apply(tMat, 2, function(rowS){
-#       rowS/sqrt(sum(rowWeights * rowS^2))
-#   })
-    
-#     tMat = rMat = matrix(1/n, n, k)
-#     vMat = cMat = t(matrix(1/p, p, k))
-#     psis = chis = rep(1,k)
-  
-  lambdaRow = lambdaCol = lambdaColZero=lambdaRowZero = rep.int(0,2*k+k*(k-1)/2)
-    }
-  
-  rowRec = rowRecZero = array(0,dim=c(NROW(X),k, maxItOut))
-  colRec = colRecZero = array(0,dim=c(k,NCOL(X), maxItOut))
-  psiRec = chiRec = matrix(0,ncol=maxItOut, nrow=k)
-  
-   if(!is.null(ZINBRCM)){ #If fit provided, replace lower dimension starting values
-   Kprev = ZINBRCM$k
-   rMat[,1:Kprev] = ZINBRCM$rMat
-   rowRec[,1:Kprev,] = ZINBRCM$rowRec
-   cMat[1:Kprev,] = ZINBRCM$cMat
-   colRec[1:Kprev,,] = ZINBRCM$colRec
-   psis[1:Kprev] = ZINBRCM$psis
-   psiRec[1:Kprev,] = ZINBRCM$psiRec
-   lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = ZINBRCM$lambdaCol
-   lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = ZINBRCM$lambdaRow
-   tMat[,1:Kprev] = ZINBRCM$tMat
-   rowRecZero[,1:Kprev,] = ZINBRCM$rowRecZero
-   vMat[1:Kprev,] = ZINBRCM$vMat
-   colRecZero[1:Kprev,,] = ZINBRCM$colRecZero
-   chis[1:Kprev] = ZINBRCM$chis
-   chiRec[1:Kprev,] = ZINBRCM$chiRec
-   lambdaColZero[1:(Kprev*(2+(Kprev-1)/2))] = ZINBRCM$lambdaColZero
-   lambdaRowZero[1:(Kprev*(2+(Kprev-1)/2))] = ZINBRCM$lambdaRowZero
-   convergence[1:Kprev] = ZINBRCM$converged
-   iterOut[1:Kprev] = ZINBRCM$iter
-   zeroMarg = ZINBRCM$zeroMarg
- }
-
-minK = ifelse(is.null(ZINBRCM),1,Kprev+1)
-  for (KK in minK:k){
-  
-  cat("Dimension" ,KK, "is being esimated \n")
-    
-  #Modify offsets if needed
-  if(KK>1){
-    muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))
-    zeroMarg = expit(logit(zeroMarg) + tMat[,(KK-1), drop=FALSE] %*% (vMat[(KK-1),, drop=FALSE]*chis[(KK-1)]))
-  }
-    #A lambda parameter
-    nLambda = KK + 1
-    
-    #The location of the lambda parameters
-    idK = seq_k(KK)
-    Z = matrix(0, n, p)
-
-  ## 2) Propagation
-  
-  while((iterOut[KK] ==1) || ((iterOut[KK] <= maxItOut) && (!convergence[KK])))
-    {
-    
-  if(verbose && iterOut[KK]%%1 == 0){
-  cat("\n","Outer Iteration", iterOut[KK], "\n","\n")
-    if(iterOut[KK]!=1){
-  cat("Old psi-estimate: ", psiOld, "\n")
-  cat("New psi-estimate: ", psis[KK], "\n")
-    }
-  }
-  ## 2)a. Store old parameters
-  psiOld = psis[KK]
-  rMatOld = rMat[,KK]
-  cMatOld = cMat[KK,]
-  
-  chiOld = chis[KK]
-  tMatOld = tMat[,KK]
-  vMatOld = vMat[KK,]
-
-  #Expectation
-  Z = EstepNB (X = X, rMat = rMat[,KK, drop=FALSE], cMat = cMat[KK,, drop=FALSE], tMat= tMat[,KK, drop=FALSE], vMat = vMat[KK,, drop=FALSE], muMarg = muMarg, zeroMarg = zeroMarg, psis = psis[KK], chis = chis[KK], thetas =thetas)
-
-  #Maximization
-  Mlist = MstepNB(Z = Z, X = X, rMat = rMat[,KK, drop=FALSE], cMat = cMat[KK,, drop=FALSE], tMat = tMat[,KK, drop=FALSE], vMat = vMat[KK,, drop=FALSE], k = KK, n=n, p=p,muMarg = muMarg, zeroMarg = zeroMarg, psis = psis [KK],chis = chis[KK], twoCores=twoCores, tol = tol, psiTol = psiTol, chiTol = chiTol, convNorm = convNorm, global=global, nLambda = nLambda, nleqslv.control = nleqslv.control, lambdaCol = lambdaCol[idK], lambdaRow=lambdaRow[idK], lambdaColZero = lambdaColZero[idK], lambdaRowZero = lambdaRowZero[idK], maxItMean = maxItMean, maxItZeroes = maxItZeroes, dispFreq=dispFreq, thetas = thetas, rowWeights = rowWeights, colWeights = colWeights, rMatK = rMat[,1:(KK-1), drop=FALSE], cMatK = cMat[1:(KK-1),, drop=FALSE], tMatK = tMat[,1:(KK-1), drop=FALSE], vMatK = vMat[1:(KK-1),, drop=FALSE] )
-
-  #Assign outcomes to tracking vectors and to this environment
-  lambdaCol[idK] = Mlist$lambdaCol
-  lambdaRow[idK] = Mlist$lambdaRow
-  lambdaColZero[idK] = Mlist$lambdaColZero
-  lambdaRowZero[idK] = Mlist$lambdaRowZero
-
-  rowRec[,KK, iterOut[KK]] = rMat[,KK] = Mlist$rMat
-  colRec[KK,, iterOut[KK]] = cMat[KK,] = Mlist$cMat
-  rowRecZero[,KK, iterOut[KK]] = tMat[,KK] = Mlist$tMat
-  colRecZero[KK,, iterOut[KK]] = vMat[KK,] = Mlist$vMat
-  psiRec[KK, iterOut[KK]] = psis[KK] = Mlist$psis
-  chiRec[KK, iterOut[KK]] = chis[KK] = Mlist$chis
-  
-  ## 2)f. Change iterator
-    iterOut[KK] = iterOut[KK] + 1
-    
-  ##Check convergence  (any numbered norm for row and column scores)
-  convergence[KK] = (iterOut[KK] <= maxItOut) && 
-                    (all(abs(1-psis/psiOld) < psiTol)) &&
-                    ((sum((1-rMatOld/rMat)^convNorm)/n)^(1/convNorm) < tol) && 
-                    ((sum((1-cMatOld/cMat)^convNorm)/p)^(1/convNorm) < tol)  && 
-                    (all(abs(1-chis/chiOld) < chiTol)) &&  
-                    (sum(abs(1-tMat/tMatOld)^convNorm)/n)^(1/convNorm) < tol &&
-                    (sum(abs(1-vMat/vMatOld)^convNorm)/p)^(1/convNorm) < tol 
-} # END while-loop
-  } # End for-loop
-  
-  ## 3) Termination
-  rownames(rMat) = rownames(tMat) = rownames(X)
-  colnames(cMat) = colnames(vMat) = colnames(X)
-  rownames(cMat) = rownames(vMat) = colnames(tMat) = colnames(rMat) = paste0("Dim",1:k)
-  
-  if(!convergence ){
-    warning("Algorithm did not converge! Check for errors or consider changing tolerances or number of iterations")
-  }
-    return(list(converged = convergence, rMat=rMat, cMat=cMat, psis = psis, X=X,
-                 rowRec = rowRec, colRec = colRec, psiRec = psiRec, lambdaRow = lambdaRow, lambdaCol = lambdaCol, lambdaRowZero = lambdaRowZero, lambdaColZero = lambdaColZero, chis = chis, tMat = tMat, vMat = vMat, chiRec = chiRec, rowRecZero = rowRecZero, colRecZero = colRecZero, iter=iterOut-1, Z=Z, thetas=thetas, libSizesMLE = exp(logLibSizesMLE), abundsMLE = exp(logAbundsMLE), taxaZeroes = expit(logitZeroCols), rowWeights=rowWeights, colWeights=colWeights, iter=iterOut-1, fit="RCM_ZINB"))
-}
-```
-
 ## Constrained RC(M)
 
 ```{r LRnb, purl=TRUE} 
@@ -4374,11 +2687,13 @@ arrayprod <- function(x,y){
 #-------------------------------------------#
 # A function to drop the recorded parameter estimates throughout the iterations to save space
 dropArrayRec = function(RCM){
-  within(RCM, {
+  class(RCM)= "list"
+ tmp =  within(RCM, {
     rowRec = colRec = psiRec = thetaRec = NULL
   })
+ class(tmp)= "RCM"
+ tmp
 }
-  
 ```
 
 # Demonstration
@@ -4447,7 +2762,7 @@ con2DmatNon$alpha
 
 Finally we also apply the method to real datasets. First the AGP and HMP datasets
 
-```{r RC(M)_NB real datasets, purl = FALSE, eval=FALSE}
+```{r RC(M)_NB real datasets, purl = FALSE}
 realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate" )
 if(!file.exists(file = "resListRCMagphmp.RData")){
 fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
@@ -4468,7 +2783,7 @@ The runtimes in minutes are tabulate below: `r round(sapply(resListRCM,function(
 
 ##### The HMP dataset: sample plots
 
-```{r HMP plot, purl = FALSE, include = FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate gender. \\label{fig:samHMP}", eval=FALSE}
+```{r HMP plot, purl = FALSE, include = FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate gender. \\label{fig:samHMP}"}
 
 SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
   levels(get_variable("RUNCENTER",physeq=x))
@@ -4495,7 +2810,7 @@ par(mfrow = c(3,4))
 lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "sex", main=x)})
 ```
 
-```{r HMPsamRuncenter, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate sequencing center. it is clear that there is a strong effect of sequencing center \\label{fig:samHMP}", purl = FALSE, eval=FALSE}
+```{r HMPsamRuncenter, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate sequencing center. it is clear that there is a strong effect of sequencing center \\label{fig:samHMP}", purl = FALSE}
 par(mfrow = c(3,4))
 foo = lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(1.1,-0.1))})
 rm(resListRCM)
@@ -4831,7 +3146,6 @@ prcomp(Xcrl, scale = scale) #Shouldn't this be scaled? It is not the default, an
 nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3, a2 = 4, m = 10, alpha = 10, beta = 0 )){
   require(DirFactor)
   classDat = class(dat) #The class provided
-  
   ##The count data##
   if (classDat=="matrix"){
   X = dat
@@ -5109,8 +3423,8 @@ thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
 
 #Library sizes
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
-
-if(!file.exists(file = "RCMsim/datList0.RData")){
+if(!file.exists(file = "RCMsim/resList0.RData")){
+  if(!file.exists(file = "RCMsim/datList0.RData")){
 datList0 = mclapply(mc.cores=1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled = sample(rhoEst, p)
@@ -5127,7 +3441,6 @@ save(datList0,  file = "RCMsim/datList0.RData")
 } else {load(file = "RCMsim/datList0.RData")}
 
 # Results
-if(!file.exists(file = "RCMsim/resList0.RData")){
   if(!file.exists("RCMsim/resList0RCM.RData")){
 RCMresList0 = mclapply(mc.cores=4, datList0, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
@@ -5139,7 +3452,7 @@ save(resList0, file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
 ```
 
-```{r reslist0 Running times, purl = FALSE, eval = FALSE fig.cap = "Boxplot of running times of the RC(M) method in minutes for 100 Monte Carlo simulations. \\label{fig:runtimes"}
+```{r reslist0Runningtimes, purl = FALSE, eval = FALSE, fig.cap = "Boxplot of running times of the RC(M) method in minutes for 100 Monte Carlo simulations. \\label{fig:runtimes}"}
 boxplot(sapply(resList0, function(x){x$RCM$runtimeInMins}))
 ```
 
@@ -5198,8 +3511,8 @@ groupFactor1 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1
 #Library sizes
 
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
-
-if(!file.exists(file = "RCMsim/datList1.RData")){
+if(!file.exists(file = "RCMsim/resList1.RData")){
+  if(!file.exists(file = "RCMsim/datList1.RData")){
 datList1 = mclapply(mc.cores=1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled = sapply(1:nPop, function(x){tmp=sample(rhoEst, p); tmp/sum(tmp)})[,groupInd]
@@ -5215,7 +3528,7 @@ save(datList1,groupFactor1,  file = "RCMsim/datList1.RData")
 } else {load(file = "RCMsim/datList1.RData")}
 
 # Results
-if(!file.exists(file = "RCMsim/resList1.RData")){
+
   if(!file.exists("RCMsim/resList1RCM.RData")){
 RCMresList1 = mclapply(mc.cores = 4, datList1, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
@@ -5233,7 +3546,7 @@ resList1Rows = lapply(resList1, extractRows)
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
-foo = lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+foo = lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor1, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
 rm(ID, obj)
 par(mfrow = c(1,1))
 # It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
@@ -5243,7 +3556,7 @@ par(mfrow = c(1,1))
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor1, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
 rm(ID, obj)
 par(mfrow = c(1,1))
 #PCoA tends to de rather well, CoDa and CA perform poorly. CoDa ordinates the different groups all in the first dimension, the second dimension is just noise
@@ -5258,7 +3571,8 @@ distRatioPlot(resList1Rows, groupFactor1)
 ```
 
 ```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:libCor1}"}
-plotCor(resList1Rows, datList1, dataMat = FALSE)
+datList1 = lapply(resList1, function(x){x$RCM$X})
+plotCor(resList1Rows, datList1, dataMat = TRUE)
 ```
 
 The library sizes of the CoDa approach do negatively correlate with the row scores, confirming our concern about the heteroscedasticity.
@@ -5281,6 +3595,7 @@ FC = 10
 
 groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactor2 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+if(!file.exists(file = "RCMsim/resList2.RData")){
 
 if(!file.exists(file = "RCMsim/datList2.RData")){
 datList2 = mclapply(mc.cores = 1, 1:reps, function(i){
@@ -5311,7 +3626,7 @@ save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
 } else {load(file = "RCMsim/datList2.RData")}
 
 # Results
-if(!file.exists(file = "RCMsim/resList2.RData")){
+
   if(!file.exists("RCMsim/resList2RCM.RData")){
 RCMresList2 = mclapply(mc.cores=4, datList2, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
@@ -5329,7 +3644,7 @@ resList2Rows = lapply(resList2, extractRows)
 par(mfrow = c(2,4), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList2))
 obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+foo =lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
 rm(ID, obj)
 par(mfrow = c(1,1))
 # In this setting, the RCM really appears to outperform the other methods
@@ -5341,20 +3656,21 @@ par(mfrow = c(1,1))
 # par(mfrow = c(1,1))
 ```
 
-```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
 plotSil(resList2Rows, groupFactor2)
 ```
 
 The RC(M) method has the highest silhouettes, PCoA is second best but far below.
 
-```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:dist1}"}
+```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:dist1}"}
 distRatioPlot(resList2Rows, groupFactor2)
 ```
 
 RCM comes out as best, CA as worst
 
-```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. "A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification"Control" is a negative control setting of an independent standard normal variable." \\label{fig:libCor1}"}
-plotCor(resList2Rows, datList2, dataMat = FALSE)
+```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor1}"}
+datList2 = lapply(resList2, function(x){x$RCM$X})
+plotCor(resList2Rows, datList2, dataMat = TRUE)
 ```
 
 The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
@@ -5367,7 +3683,7 @@ We also simulate datasets from other distributions than the negative binomial to
 
 The zero-inflated negative binomial (ZINB) distribution was used by Zhang _et al._ (2016) for differential abundance testing. Our own goodness-of-fit tests indicate that for 14\% of the taxa, the ZINB provides a better fit than the regular NB
 
-```{r simZINB}
+```{r simZINB, purl = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -5379,6 +3695,8 @@ FC = 10
 
 groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactorZINB = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+if(!file.exists(file = "RCMsim/resListZINB.RData")){
 load(file="/home/stijn/PhD/Biplots/Zicoef.RData")
 
 if(!file.exists(file = "RCMsim/datListZINB.RData")){
@@ -5411,7 +3729,7 @@ save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
 } else {load(file = "RCMsim/datListZINB.RData")}
 
 # Results
-if(!file.exists(file = "RCMsim/resListZINB.RData")){
+
   if(!file.exists("RCMsim/resListZINBRCM.RData")){
 RCMresListZINB = mclapply(mc.cores=4, datListZINB, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
@@ -5426,10 +3744,10 @@ save(resListZINB,groupFactorZINB, file = "RCMsim/resListZINB.RData")
 ```{r resListZINB sampleBiplot, purl = FALSE}
 #A sample biplot
 resListZINBRows = lapply(resListZINB, extractRows)
-par(mfrow = c(ZINB,4), mar = c(3,3,3,3))
+par(mfrow = c(2,4), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resListZINB))
 obj = resListZINBRows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactorZINB, main=x, xlab = "Dim 1",ylab = "Dim ZINB", pty = "s")})
+foo = lapply(names(obj),function(x){plot(obj[[x]], col = groupFactorZINB, main=x, xlab = "Dim 1",ylab = "Dim ZINB", pty = "s")})
 rm(ID, obj)
 par(mfrow = c(1,1))
 # In this setting, the RCM really appears to outperform the other methods
@@ -5440,22 +3758,22 @@ par(mfrow = c(1,1))
 # lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactorZINB, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
 # rm(ID, obj)
 # par(mfrow = c(1,1))
-
 ```
 
-```{r resListZINBEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
-plotSil(resListZINBRows)
+```{r resListZINBEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+plotSil(resListZINBRows, groupFactorZINB)
 ```
 
 The RC(M) method has the highest silhouettes, PCoA is second best but far below.
 
-```{r resListZINBEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
-distRatioPlot(resListZINBRows)
+```{r resListZINBEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:dist1}"}
+distRatioPlot(resListZINBRows, groupFactorZINB)
 ```
 
 RCM comes out as best, CA as worst
 
-```{r libSizeCorrZINB, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
+```{r libSizeCorrZINB, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:libCor1}"}
+datListZINB = lapply(resListZINB, function(x){x$RCM$X})
 plotCor(resListZINBRows, datListZINB)
 ```
 
@@ -5527,7 +3845,7 @@ randomScatter(resListDMRows)
 #randomScatter(resListDMRows, Dim = c(1,3))
 ```
 
-```{r libSizeCorrDM, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 1DMDM simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+```{r libSizeCorrDM, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 1DMDM simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.\\label{fig:libCor1}"}
 datListDM = lapply(resListDM, function(x){x$RCM$X})
 plotCor(resListDMRows, datListDM, scoreDim = "rows")
 ```
@@ -5546,17 +3864,17 @@ randomScatter(resListDMCols)
 
 CoDa and Hellinger distances have unacceptable correlatios with the library sizes
 
-```{r AbsCorrDM, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1DMDM simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+```{r AbsCorrDM, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1DMDM simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.\\label{fig:libCor1}"}
 plotCor(resListDMCols, lapply(resListDM, function(x){x$RCM$X}), scoreDim = "columns", dataMat = TRUE)
 ```
 
-```{r resListDMEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+```{r resListDMEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
 plotSil(resListDMRows, groupFactorDM)
 ```
 
 JSD and Bray-Curtis have the best performance in this setting in terms of silhouette
 
-```{r resListDMEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.  \\label{fig:dist1}"}
+```{r resListDMEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.  \\label{fig:dist1}"}
 distRatioPlot(resListDMRows, groupFactorDM)
 ```
 
@@ -5632,7 +3950,6 @@ save(testHum, testTwins, testAG, testZeller, file = "SimSeqTests.RData")
 ```
 
 No DA for the lean and obese twins. Then again it is a small dataset.
-
 
 ```{r SimSeqGenerateData, eval = FALSE}
 if(!file.exists(file = "SimSeqData.RData")){
