@@ -21,9 +21,11 @@ for(i in reqpkg)
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
 if(detectCores()==4)setwd(WD)
-if(file.exists("/home/stijn/PhD/American Gut/AGpars.RData")) {load("/home/stijn/PhD/American Gut/AGpars.RData")}
+#if(file.exists("/home/stijn/PhD/American Gut/AGpars.RData")) {load("/home/stijn/PhD/American Gut/AGpars.RData")}
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 ```
 
 \setcounter{tocdepth}{2}
@@ -477,7 +479,7 @@ Note that this model is fitted without an intercept
 
 Let's take a look at the nature of the covariate data.
 
-```{r Nature of the covariates, eval=TRUE, purl=FALSE}
+#```{r Nature of the covariates, eval=TRUE, purl=FALSE}
 load("/home/stijn/PhD/American Gut/AGphylo.RData")
 load("/home/stijn/PhD/Simulations/data/physeqList4Trim.RData")
 load("/home/stijn/PhD/Simulations/data/zellerData.RData")
@@ -487,13 +489,13 @@ tableSamVar = function(x){
 }
 phyList = list("American gut"=AGphylo, "Kostic"=phyloD, "HMP" = physeqList4Trim[["Throat"]], "zeller16S" = zellerSphy, "zellerMetagenomics" = zellerMphy)
 sapply(phyList, tableSamVar)
-```
+#```
 
 Most variables are factors or booleans. Below are the names of the variables shown:
 
-```{r covariate names, purl=FALSE}
+#```{r covariate names, purl=FALSE}
 sapply(phyList, sample_variables)
-```
+#```
 
 I wonder how realistic the Gaussian response model still is with so many categorical variables and so many species. I guess we would best seek some expert advice of microbiome scientists.
 
@@ -560,17 +562,17 @@ $$\boldsymbol{\alpha}_k^t\mathbf{1} = \mathbf{0}$$
 
 This would force the parameter of a single continuous covariate to be 0, the parameters of two continuous variables to be each other's opposite. In short it is not very desirable and is not implemented.
 
-##### Restricitons on parameters of categorical variables in the environmental gradient
+##### Restrictions on parameters of categorical variables in the environmental gradient
 
 For continuous variables the previous discussion suffises, but for categorical variables special attention is required. In a regular, unrestricted setting one would use treatment coding, setting one of the levels of the variable to be the reference level and estimate no parameter for it. However, the above normalization and orthogonality constraints render the result dependent on the choice of reference level, which is of course highly undesirable. Also for quick understanding of the biplot it would be convenient to plot all the values of the categorical variable, and save the reader the trouble of looking up the reference value. Because of these two reasons we will need a coding scheme that includes all parameters.
 
 Say we have $d_{cont}$ continuous covariates and $d_{cat}$ categorical variables with $d = d_{cont} + d_{cat}$, and $m_l$ levels for every categorical variable $l$. Then $\boldsymbol{\alpha}_k$ compromises
 
 $$ q = d_{cont} + \sum_{l=1}^{d_{cat}} (m_l-1) $$
-rows, or $q$ parameters to be estimated. Note that there is no intercept needed in this case: This will be included in the $f()$ function.  We can write $\boldsymbol{\alpha}_k$ then as:
+rows, or $q$ parameters to be estimated. Note that there is no intercept needed in this case, intercepts have already be included in the $f()$ function, such that samples with $\alpha_k = \mathbf{0}$ can still have departures from independence.  We can write $\boldsymbol{\alpha}_k$ then as:
 
 $$\boldsymbol{\alpha}_k = (\beta_{cont_1}, ... , \beta_{cont_{d_{cont}}}, \beta_{cat_{11}}, \beta_{cat_{12}}, ..., \beta_{cat_{1(m_1-1)}}, ...,  \beta_{cat_{d_{cat}(m_{d_{cat}}-1)}})_k$$
-For imposing the restrictions and for plotting we want a representation whereby all covariate levels are represented. We therefore include all parameters, and impose that the parameters sum to 0 within each covariate.
+, i.e. one paramater less than the number of levels. For imposing the restrictions and for plotting we want a representation whereby all covariate levels are represented. We therefore include all parameters, and impose that the parameters sum to 0 within each covariate.
 
 $$\boldsymbol{\alpha}_k' = (\beta_{cont_1}', ... , \beta_{cont_{d_{cont}}}', \beta_{cat_{11}}', \beta_{cat_{12}}', ..., \beta_{cat_{1m_1}}', ...,  \beta_{cat_{d_{cat}m_{d_{cat}}}}')_k$$
 Whereby $q' = d_{cont} + \sum_{l=1}^{d_{cat}}(m_l)$, but under the restriction that for all categorical variables $l$
@@ -600,21 +602,21 @@ To render the values of the continuous variables in the environmental gradient c
 
 ##### Environmental gradient
 
-Naive approach
-
-The naive approach to optimize $LR(\alpha)$ would be to use constrained optimization (constraining the $\alpha$'s to have variance one etc.) and estimate $p_j^{(\alpha)}$ and $p^{(\alpha)}$ in every evaluation of this function. This implies a analytical jacobian cannot be estimated and requires a huge amount of re-estimation of the response functions. This naive approach is computationally unfeasible
-
-Iterative approach
-
-A smarter approach (also the one proposed by Zhu and Hastie, 2005) is to iterate between estimating $\alpha$ by optimizing $LR(\alpha)$ given $p_j^{(\alpha)}$ and $p^{(\alpha)}$, and estimating $p_j^{(\alpha)}$ and $p^{(\alpha)}$ given $\alpha$. This results in much fewer estimations of $p_j^{(\alpha)}$ and $p^{(\alpha)}$ and allows to optimize $LR(\alpha)$ by finding the roots of $\frac{\partial LR(\alpha)}{\partial \alpha} = 0$ (and analytically specifying the second order derivative).
-
-Convergence is assumed when every single change in $\alpha$ is below a tolerance level (infinity norm), or when the L2-norm of alpha is below a tolerance level.
-
 $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the log-likelihood ratio approach from Zhu _et al._ (2005):
 
 $$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}_j) \big)}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}) \big)}$$
 
 with $p^{(\alpha)}$ and $p^{(\alpha)}_j$ estimated probability density functions without and with taxon labels and $\boldsymbol{\beta}_l$ and $\boldsymbol{\beta}$ the parameters of the response functions. $p^{(\alpha)}$ and $p^{(\alpha)}_j$ are calculated under a certain error distribution (e.g. negative binomial).
+
+Naive approach
+
+The naive approach to optimize $LR(\boldsymbol{\alpha})$ would be to use constrained optimization (constraining the $\boldsymbol{\alpha}$'s to have variance one etc.) and estimate $p_j^{(\boldsymbol{\alpha})}$ and $p^{(\boldsymbol{\alpha})}$ in every evaluation of this function. This implies a analytical jacobian cannot be estimated and requires a huge amount of re-estimation of the response functions. This naive approach is computationally unfeasible
+
+Iterative approach
+
+A smarter approach (also the one proposed by Zhu and Hastie, 2005) is to iterate between estimating $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$ given $p_j^{(\boldsymbol{\alpha})}$ and $p^{(\boldsymbol{\alpha})}$, and estimating $p_j^{(\boldsymbol{\alpha})}$ and $p^{(\boldsymbol{\alpha})}$ given $\boldsymbol{\alpha}$. This results in much fewer estimations of $p_j^{(\alpha)}$ and $p^{(\alpha)}$ and allows to optimize $LR(\boldsymbol{\alpha})$ by finding the roots of $\frac{\partial LR(\boldsymbol{\alpha})}{\partial \boldsymbol{\alpha}} = \mathbf{0}$ (and analytically specifying the second order derivative).
+
+Convergence is assumed when every single change in $\alpha$ is below a tolerance level (infinity norm), or when the L2-norm of alpha is below a tolerance level.
 
 Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm will be computationally more demanding.
 
@@ -639,7 +641,7 @@ with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first 
 
 The first order derivatives becomes (in case of a linear response function, and remember we set $s_{jk} = 1$)
 
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i \beta_{1j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i \beta_{1} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k}^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i \beta_{1j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i \beta_{1} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k +  \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
 
 with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wise response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
 
@@ -647,7 +649,7 @@ with $\mu_{ij0}$ the mean under the null model of equal response functions and $
 
 For a quadratic response function ($f_j(z_i = \mathbf{C}_i\boldsymbol{\alpha}|\boldsymbol{\beta}) = \beta_0 + \beta_1 z_i + \beta_2 z_i^2$) this derivative becomes
 
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i (\beta_{1j}+2 \beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i (\beta_{1}+2 \beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\lambda}_{orth,k}^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i (\beta_{1j}+2 \beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i (\beta_{1}+2 \beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
 
 For a non-parametric density function this derivative is not available, which which greatly increase the optimization time.
 
@@ -688,7 +690,7 @@ All other second order derivatives equal zero.
 
 The response function $f(\boldsymbol{\alpha}^t\mathbf{C})$ need not have a parametric form. We can also estimate it non-parametrically as in Zhu and Hastie (2005). Like these authross, we use the locfit library. We regress $\frac{X}{exp(\lambda_i+\lambda_j)}$ on $\boldsymbol{\alpha}^t\mathbf{C}$ with a log-link. We limit the surface between this curve and the x-axis to sum to one as a means of normalization, only the importance parameter $\psi$ can differ in size between the different dimensions.
 
-##### Response functions
+##### Estimation of parametric response functions
 
 The score function for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
 
@@ -721,7 +723,8 @@ The whole estimation of the constrained RC(M)-model would then proceed as follow
   - Estimate $f_j$'s and $f_0$ given $\boldsymbol{\alpha}$
   - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
  5. Estimate overdispersions using empirical Bayes
- 6. Repeat steps for every dimension $k$ 4-5 until convergence
+ 6. Estimate importance parameter $\psi_k$
+ 7. Repeat steps 4-6 for every dimension $k$ until convergence
 
 Filtering of rare taxa is not needed in this case, as all covariates are summarized in one "continuous" row score. to check for convergencen, for $\psi_k$  we apply an infinity norm, for $\boldsymbol{\alpha}_k$ the default is an L2-norm.
 
@@ -729,12 +732,12 @@ Filtering of rare taxa is not needed in this case, as all covariates are summari
 
 The interpretation of the triplot is different from the one from Zhu _et al._ (2005), and also different from that of the unconstrained RC(M).
 
- - The components of $\alpha_k$ are plotted as arrows and represent the extent to which the covariates contribute to the departure from independence in dimension $k$. Categorical variables are centered, all their levels are shown. The continuous variables have been centered and scaled, so their magnitude can compared to one another.
+ - The components of $\boldsymbol{\alpha}_k$ are plotted as arrows and represent the extent to which the covariates contribute to the departure from independence in dimension $k$. Categorical variables are centered, all their levels are shown. The continuous variables have been centered and scaled, so their magnitude can compared to one another.
  - For the samples, the environmental scores are plotted as points and represent environmental scores of each sample. Samples close together in one dimension come from similar environments, considering that environmental gradient.
  - The plot for the taxa depends on the response function used. 
-  * In case of a linear response functionwe can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence. The direction and size of the arrow then depends purely on $\beta_{1j}$. The projection of this vector onto $\boldsymbol{alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
-  * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point. If this is a minimum, this represents the value of the environmental score with the smallest departure from indepence, in case of a maximum the largest departure. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation).
-  * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
+    * In case of a linear response functionwe can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence. The direction and size of the arrow then depends purely on $\beta_{1j}\psi_k$. The projection of this vector onto $\boldsymbol{\alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
+    * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point (taking the importance parameter $\psi_k$ into account, which is multiplied by eac of the parameters $\beta$ of the response functions). If this is a minimum, this represents the value of the environmental score with the smallest departure from indepence, in case of a maximum the largest departure. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation).
+    * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
   
 It is clear that the triplot is not trivial to interpret, but then again: neither is a triplot based on CCA.
 
@@ -922,7 +925,9 @@ cca2 = function (X, Y, Z, ...)
 }
 ```
 
-## Negative binomial
+## Unconstrained RC(M)
+
+### Negative binomial
 
 ```{r NBauxFuns, purl=TRUE}
 #-------------------------------------#
@@ -1311,7 +1316,7 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
 ```{r Negative binomial fit function, purl = TRUE}
 #-------------------------------------------#
 ## A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k. Not intended to be called directly but only through the RCM() function
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = ifelse(is.null(covariates), 1e-12, 1-16)), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear", analytic = TRUE){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = ifelse(is.null(covariates), 1e-12, 1-16)), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = "linear", analytic = TRUE, record = FALSE){
   
   # @param X: a nxp data matrix
   # @param k: a scalar, number of dimensions in the RC(M) model
@@ -1393,15 +1398,19 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       logLibSizesMLE  =log(libSizesMLE)
       abundsMLE = NBRCM$abunds
       logAbundsMLE = log(abundsMLE)
+      if(record){
       #Extend the record matrices, force same number of outer iterations as previous fit
       if(dim(NBRCM$colRec)[3]!=maxItOut){
         maxItOut = dim(NBRCM$colRec)[3]
         warning("Using same number of outer iterations as old fit! \n")
       }
+      }
       newK = (Kprev+1):k
       if(is.null(covariates)){
+        if(record){
       rowRec = array(0, dim = c(n,k,maxItOut))
       rowRec[,1:Kprev,] = NBRCM$rowRec
+        }
       lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
       svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
       rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
@@ -1409,12 +1418,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       psis = c(psis, svdX$d[newK])
       }
       muMarg = outer(libSizesMLE, abundsMLE)
+      if(record){
       colRec = array(0, dim = c(k,p,maxItOut))
       colRec[1:Kprev,,] = NBRCM$colRec
       thetaRec = array(0, dim = c(k,p,maxItOut))
       thetaRec[1:Kprev,,] = NBRCM$thetaRec
       psiRec = array(0, dim = c(k,maxItOut))
       psiRec[1:Kprev,] = NBRCM$psiRec
+      }
       lambdaCol = lambdaRow = rep(0, k*(2+(k-1)/2))
       lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
       convergence = c(NBRCM$converged, rep(FALSE, k-Kprev))
@@ -1484,10 +1495,14 @@ logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = 
                       )
 
   nLambda = 2*k+k*(k-1)/2
+  if(record){
   # Pre-allocate arrays to track iterations
   rowRec = array(0,dim=c(n,k, maxItOut))
   colRec = thetaRec = array(0,dim=c(k,p, maxItOut))
   psiRec = matrix(0, nrow=k,ncol=maxItOut)
+  } else {
+  rowRec = colRec = thetaRec = psiRec = NULL
+  }
   convergence = rep(FALSE, k)
   iterOut = rep(1,k)
   if(!is.null(confounders[[1]])){
@@ -1596,11 +1611,13 @@ tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasM
 rMat[,KK] = rMat[,KK] - sum(rMat[,KK] * rowWeights)/sum(rowWeights) 
 rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
 
+if(record){
 #Store intermediate estimates
   rowRec[,KK, iterOut[KK]] = rMat[,KK]
   colRec[KK,, iterOut[KK]] = cMat[KK,]
   thetaRec [KK,, iterOut[KK]] = thetas
   psiRec[KK, iterOut[KK]] = psis[KK]
+}
 
   ## Change iterator
   iterOut[KK] = iterOut[KK] + 1
@@ -1620,7 +1637,7 @@ rMat[,KK] = rMat[,KK]/sqrt(sum(rowWeights * rMat[,KK]^2))
   colnames(cMat) = colnames(X)
   rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
 
-    returnList =   list(converged = convergence, rMat = rMat, cMat=cMat, psis = psis, thetas = thetas,  rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
+    returnList = list(converged = convergence, rMat = rMat, cMat=cMat, psis = psis, thetas = thetas,  rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
        libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), 
        confounders = confounders, confParams = confParams)
   
@@ -1638,8 +1655,7 @@ if(!is.null(NBRCM)){
 } else {
   psis = CCA$eig[1:k]
 }
-
-alphaRec = array(0, dim=c(d, k, maxItOut))
+alphaRec = if(record){array(0, dim=c(d, k, maxItOut))} else {NULL}
 v = switch(responseFun, linear = 2, quadratic = 3, 1) #Number of parameters per taxon
 NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
 NB_params = vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))})
@@ -1649,7 +1665,7 @@ rowMat = NULL
   
  if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
    alpha[,1:Kprev] = NBRCM$alpha
-   alphaRec[,1:Kprev,] = NBRCM$alphaRec
+   if(record) alphaRec[,1:Kprev,] = NBRCM$alphaRec
    NB_params[,,1:Kprev] = NBRCM$NB_params
    NB_params_noLab[,1:Kprev] = NBRCM$NB_params_noLab
  }
@@ -1729,10 +1745,11 @@ if(verbose)  cat(ifelse(tmpAlpha$convergence, "Row scores converged \n", "Row sc
 alpha[,KK] = alpha[,KK]/sqrt(sum(alpha[,KK]^2))
 
 #Store intermediate estimates
+if(record){
   alphaRec[,KK, iterOut[KK]] = alpha[,KK]
   thetaRec [KK,, iterOut[KK]] = thetas
   psiRec[KK, iterOut[KK]] = psis[KK]
-
+}
     ## Change iterator
     iterOut[KK] = iterOut[KK] + 1
     
@@ -2602,7 +2619,7 @@ RCM_ZIP = function(X, k, rowWeights, colWeights, weightsChar, tol = 1e-3, maxItO
 }
 ```
 
-## Zero-inflated negative binomial
+### Zero-inflated negative binomial
 
 ```{r ZINB, purl=TRUE, echo=FALSE}
 ###Estimate the offsets
@@ -3451,214 +3468,6 @@ minK = ifelse(is.null(ZINBRCM),1,Kprev+1)
 }
 ```
 
-## A plotting function
-
-```{r plot, purl=TRUE}
-plotRCM = function(RCM, X = NULL, thetas = NULL, abunds = NULL, arrowFrac = 0.04, biplot = TRUE,
-                   libLoc ="topright", libInset = c(-0.7,-0.1), libCex = 0.85, libInterSp = 0.75, libLeg = TRUE, samColour=NULL,
-                   dispInset = c(0,-0.4), abInset = c(0,-0.4), abundLeg=FALSE, stressSpecies=NULL, taxColour = NULL, taxLegPos = "bottomright", taxCol = NULL, taxInset = libInset, taxIntersp = libInterSp,
-                   asp=1, xpd=TRUE, mar=c(4,5,5,5), Dim=c(1,2), ...){
-  
-  # @param psis: vector of length k with psi estimates
-  # @param rMat: a nxk matrix with final row scores
-  # @param cMat: a pxk with matrix with final column scores
-  # @param Dim (optional): a vector of length 2, indicating which dimensions to fit, defaults to the first two
-  # @param X (optional): the nxp data matrix
-  # @param thetas (optional): a vector of length p with estimates for the overdispersion
-  # @param abunds(optional): a vector of length p with abundance estimates (otherwise it is estimated from the data)
-  # @param arrowFrac(optional): Fraction of largest species to plot. defaults to 0.1
-  # @param biplot(optional): A boolean indicating if species should be added to the plot, defaults to TRUE
-  # @param libLoc(optional): a string, location of the library size legend. Defaults to "topleft"
-  # @param libLegend(optional): a boolean, should library size legend be displayed? defaults to TRUE
-  # @param libInset, dispInset, abInset(optional): numeric vectors of length 2, insets for library size, dispersion and abundance legends
-  # param stressSpecies(optional): names of species to be highlighted
-  # @param ... additional arguments, passed on to the plot() function
-  
-  cMat = RCM$cMat
-  rMat = RCM$rMat
-  psis = RCM$psis
-  
-  # @return: NONE,  plots the result in the plotting window
-  # tmp = par(no.readonly = TRUE)
-  par(mar=mar, pty="s")
-  if(!(length(psis)== NCOL(rMat) && length(psis) == NROW(cMat))){
-    stop("Dimensions don't match")
-  }
-  #Reorder dimensions according to importance
-
-  a = Dim[1]
-  b = Dim[2]
-  
-  if(!is.null(RCM$physeq) && is.character(samColour)){
-    tmp = get_variable(RCM$physeq, samColour)
-    samColour = if(is.factor(tmp)) tmp else factor(tmp)
-  }
-  
-  plot(x = rMat[,a] * psis[a],
-  y = rMat[,b] *psis[b],
-  xlab=paste0("Dim",a),
-  ylab=paste0("Dim",b),
-  xlim = max(abs(rMat[,a] * psis[a]))*c(-1,1),
-  ylim = max(abs(rMat[,b] * psis[b]))*c(-1,1),
-  col = samColour,
-  asp=asp,
-  ...)
-  if(libLeg){
-legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), x=libLoc, inset=libInset, xpd=xpd, cex = libCex, y.intersp = libInterSp, x.intersp = 0.7)
-}
-# {legend(libLoc,legend=c("Small library size","Large library size"),
-#       pch=c(1,1), col=c("blue","red"), inset=libInset, xpd=xpd)
-#   }
-  
-    if (biplot){
-      #Arrows
-        arrowLengths = apply(cMat[Dim,],2,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
-        scalingFactor = max(abs(apply(t(t(rMat[,Dim])*psis[Dim]),2, range)))/
-        max(abs(cMat[Dim,id]))*0.99
-    arrows(x0=0,y0=0,x1=cMat[a,id]*scalingFactor,y1=cMat[b, id]*scalingFactor, col=taxColour[id]
-           )
-    # legend(x = taxLegPos, legend = levels(taxColour),pch = 1, col = seq_along(levels(taxColour)) )
-    if( abundLeg){
-      legend(x = taxLegPos, legend = levels(taxColour), xpd=xpd, cex = libCex,lty = 1, col = taxCol, inset = taxInset, y.intersp = taxIntersp)
-    }
-    #if(!is.null(stressSpecies))
-    }
-return(invisible())
-  # par(tmp)
-}
-# A ggplot2-version
-PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="blue", plotTaxa = FALSE) {
-    #Retrieve dots (will be passed on to aes())
-    dotList=list(...)
-    constrained = !is.null(RCMfit$covariates)
-    if(constrained){
-      dataSam <- data.frame(RCMfit$covariates %*% RCMfit$alpha[,Dim] %*% diag(RCMfit$psis[Dim]))
-    } else {
-        dataSam <- data.frame(RCMfit$rMat[, Dim] %*% diag(RCMfit$psis[Dim]))
-      }
-    names(dataSam)=paste0("Dim", Dim)
-    
-    #Get the colours
-    if(!is.null(colour) && !is.factor(colour)){
-      dataSam$colourPlot = get_variable(RCMfit$physeq, colour)
-    } else if(is.factor(colour)){
-      dataSam$colourPlot = colour} else {dataSam$colourPlot=rep(1, nrow(dataSam))}
-    
-    #     #Set colour palette
-    if(is.null(Palette)){
-Palette=rainbow(length(unique(dataSam$colourPlot)))
-    }  
-
-    #Construct dataframe for taxa
-    
-      if(constrained) {
-        if(RCMfit$responseFun=="linear"){
-          dataTax = data.frame(
-            origin1 = -RCMfit$NB_params[1,,Dim[1]]/RCMfit$NB_params[2,,Dim[1]],
-            origin2 = -RCMfit$NB_params[1,,Dim[2]]/RCMfit$NB_params[2,,Dim[2]],
-            slope1 = RCMfit$NB_params[2,,Dim[1]], #The gradient
-            slope2 = RCMfit$NB_params[2,,Dim[2]]
-            ) 
-          dataTax = within(dataTax, {
-            end1 = origin1 + slope1 
-            end2 = origin2 + slope2
-          })
-    arrowLengths = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
-    #Filter out small arrows
-    dataTax = dataTax[id,] 
-    if(is.null(scalingFactor)){
-    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("slope1","slope2")]))*0.925
-    }
-    dataTax = within(dataTax, { #Scale the arrows
-            end1 = origin1 + slope1 * scalingFactor
-            end2 = origin2 + slope2 * scalingFactor
-          })
-        } else if (RCMfit$responseFun=="quadratic"){
-          dataTax =data.frame(
-            apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
-              -x[1]/(2*x[2])
-            })) #The extremum
-          names(dataTax) = c("end1","end2")
-          dataTax$colour = apply(RCMfit$NB_params[3,,Dim],1, function(x){
-              if(all(x>0)) {
-                return("green")
-              } else if (all(x<0)){
-                return("red")
-              } else {
-                return("brown")
-              }
-            })
-        } else if(RCMfit$responseFun  == "nonparametric"){
-          plotTaxa = FALSE
-        } else {
-          dataTax = data.frame(t(RCMfit$cMat[Dim,]))
-          names(dataTax) = c("end1","end2")
-      }
-    if(!constrained || RCMfit$responseFun == "quadratic"){
-    arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
-    #Filter out small arrows
-    dataTax = dataTax[id,] 
-    if(is.null(scalingFactor)){
-    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("end1","end2")]))*0.925
-    }
-    dataTax = within(dataTax, { #Scale the arrows
-            end1 = end1 * scalingFactor
-            end2 = end2 * scalingFactor
-          })
-        }
-    }
-
-    if(plotTaxa) dataTax$labels = sub(" ", "\n",colnames(RCMfit$X)[id])
-
-    plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
-      geom_point(size=size) + 
-      theme(aspect.ratio=1) +
-      if(is.null(colour)) {guides(color=FALSE)} 
-    #add legend names
-    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
-      plot = plot + scale_colour_manual(name=colLegend, values =Palette)
-    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
-      plot = plot + scale_colour_continuous(name=colLegend)
-    } 
-    if(!is.null(shapeLegend)){
-      plot = plot + scale_shape_discrete(name=shapeLegend)
-    }
-  
-    #Add arrows or labels
-    if(length(arrowCol)>1){
-     arrowCol = Palette[c(arrowCol[id])] 
-    }
-    if(plotTaxa){
-      if(!constrained || RCMfit$responseFun=="linear"){
-    plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
-    } else{
-
-    plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
-    }
-
-      plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE)
-    } else {}
-    
-    if(constrained){
-      #Add variable labels
-      varData = data.frame(RCMfit$alpha)
-      varData$label = rownames(RCMfit$alpha)
-      scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
-      varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
-      plot = plot + geom_text(data = varData, mapping = aes_string(x = names(dataSam)[1], y = names(dataSam)[2], label = "label"), inherit.aes = FALSE)
-    }
-    squarePlot(plot)
-}
-squarePlot <- function(plt){
-    return(plt+coord_equal()+
-            expand_limits(x=ggplot_build(plt)$panel$ranges[[1]]$y.range,
-                          y=ggplot_build(plt)$panel$ranges[[1]]$x.range))
-}
-```
-
 ## Constrained RC(M)
 
 ```{r LRnb, purl=TRUE} 
@@ -4251,7 +4060,7 @@ tic = proc.time() #Time the calculation
                              covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZINBRCM = prevFit, ...))
   if(classDat=="phyloseq"){tmp$physeq = prune_samples(rownames(X),prune_taxa(colnames(X),dat)) } 
   tmp = within(tmp, {
-    runtimeInMins = if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} + (proc.time()-tic)[1]/60 # Sum the runtimes
+    runtimeInMins = (proc.time()-tic)[1]/60 + if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} # Sum the runtimes
     k = k #Store number of dimensions
   })
   class(tmp) = "RCM"
@@ -4325,6 +4134,214 @@ liks = function(rcm, Disp=c("edgeR","MLE")){
 }
 ```
 
+## Plotting function
+
+```{r plot, purl=TRUE}
+plotRCM = function(RCM, X = NULL, thetas = NULL, abunds = NULL, arrowFrac = 0.04, biplot = TRUE,
+                   libLoc ="topright", libInset = c(-0.7,-0.1), libCex = 0.85, libInterSp = 0.75, libLeg = TRUE, samColour=NULL,
+                   dispInset = c(0,-0.4), abInset = c(0,-0.4), abundLeg=FALSE, stressSpecies=NULL, taxColour = NULL, taxLegPos = "bottomright", taxCol = NULL, taxInset = libInset, taxIntersp = libInterSp,
+                   asp=1, xpd=TRUE, mar=c(4,5,5,5), Dim=c(1,2), ...){
+  
+  # @param psis: vector of length k with psi estimates
+  # @param rMat: a nxk matrix with final row scores
+  # @param cMat: a pxk with matrix with final column scores
+  # @param Dim (optional): a vector of length 2, indicating which dimensions to fit, defaults to the first two
+  # @param X (optional): the nxp data matrix
+  # @param thetas (optional): a vector of length p with estimates for the overdispersion
+  # @param abunds(optional): a vector of length p with abundance estimates (otherwise it is estimated from the data)
+  # @param arrowFrac(optional): Fraction of largest species to plot. defaults to 0.1
+  # @param biplot(optional): A boolean indicating if species should be added to the plot, defaults to TRUE
+  # @param libLoc(optional): a string, location of the library size legend. Defaults to "topleft"
+  # @param libLegend(optional): a boolean, should library size legend be displayed? defaults to TRUE
+  # @param libInset, dispInset, abInset(optional): numeric vectors of length 2, insets for library size, dispersion and abundance legends
+  # param stressSpecies(optional): names of species to be highlighted
+  # @param ... additional arguments, passed on to the plot() function
+  
+  cMat = RCM$cMat
+  rMat = RCM$rMat
+  psis = RCM$psis
+  
+  # @return: NONE,  plots the result in the plotting window
+  # tmp = par(no.readonly = TRUE)
+  par(mar=mar, pty="s")
+  if(!(length(psis)== NCOL(rMat) && length(psis) == NROW(cMat))){
+    stop("Dimensions don't match")
+  }
+  #Reorder dimensions according to importance
+
+  a = Dim[1]
+  b = Dim[2]
+  
+  if(!is.null(RCM$physeq) && is.character(samColour)){
+    tmp = get_variable(RCM$physeq, samColour)
+    samColour = if(is.factor(tmp)) tmp else factor(tmp)
+  }
+  
+  plot(x = rMat[,a] * psis[a],
+  y = rMat[,b] *psis[b],
+  xlab=paste0("Dim",a),
+  ylab=paste0("Dim",b),
+  xlim = max(abs(rMat[,a] * psis[a]))*c(-1,1),
+  ylim = max(abs(rMat[,b] * psis[b]))*c(-1,1),
+  col = samColour,
+  asp=asp,
+  ...)
+  if(libLeg){
+legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), x=libLoc, inset=libInset, xpd=xpd, cex = libCex, y.intersp = libInterSp, x.intersp = 0.7)
+}
+# {legend(libLoc,legend=c("Small library size","Large library size"),
+#       pch=c(1,1), col=c("blue","red"), inset=libInset, xpd=xpd)
+#   }
+  
+    if (biplot){
+      #Arrows
+        arrowLengths = apply(cMat[Dim,],2,function(x){sqrt(sum(x^2))})
+    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+        scalingFactor = max(abs(apply(t(t(rMat[,Dim])*psis[Dim]),2, range)))/
+        max(abs(cMat[Dim,id]))*0.99
+    arrows(x0=0,y0=0,x1=cMat[a,id]*scalingFactor,y1=cMat[b, id]*scalingFactor, col=taxColour[id]
+           )
+    # legend(x = taxLegPos, legend = levels(taxColour),pch = 1, col = seq_along(levels(taxColour)) )
+    if( abundLeg){
+      legend(x = taxLegPos, legend = levels(taxColour), xpd=xpd, cex = libCex,lty = 1, col = taxCol, inset = taxInset, y.intersp = taxIntersp)
+    }
+    #if(!is.null(stressSpecies))
+    }
+return(invisible())
+  # par(tmp)
+}
+# A ggplot2-version
+PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="blue", plotTaxa = FALSE) {
+    #Retrieve dots (will be passed on to aes())
+    dotList=list(...)
+    constrained = !is.null(RCMfit$covariates)
+    if(constrained){
+      dataSam <- data.frame(RCMfit$covariates %*% RCMfit$alpha[,Dim] %*% diag(RCMfit$psis[Dim]))
+    } else {
+        dataSam <- data.frame(RCMfit$rMat[, Dim] %*% diag(RCMfit$psis[Dim]))
+      }
+    names(dataSam)=paste0("Dim", Dim)
+    
+    #Get the colours
+    if(!is.null(colour) && !is.factor(colour)){
+      dataSam$colourPlot = get_variable(RCMfit$physeq, colour)
+    } else if(is.factor(colour)){
+      dataSam$colourPlot = colour} else {dataSam$colourPlot=rep(1, nrow(dataSam))}
+    
+    #     #Set colour palette
+    if(is.null(Palette)){
+Palette=rainbow(length(unique(dataSam$colourPlot)))
+    }  
+
+    #Construct dataframe for taxa
+    
+      if(constrained) {
+        if(RCMfit$responseFun=="linear"){
+          dataTax = data.frame(
+            origin1 = -RCMfit$NB_params[1,,Dim[1]]/RCMfit$NB_params[2,,Dim[1]],
+            origin2 = -RCMfit$NB_params[1,,Dim[2]]/RCMfit$NB_params[2,,Dim[2]],
+            slope1 = RCMfit$NB_params[2,,Dim[1]], #The gradient
+            slope2 = RCMfit$NB_params[2,,Dim[2]]
+            ) 
+          dataTax = within(dataTax, {
+            end1 = origin1 + slope1 
+            end2 = origin2 + slope2
+          })
+    arrowLengths = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
+    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+    #Filter out small arrows
+    dataTax = dataTax[id,] 
+    if(is.null(scalingFactor)){
+    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("slope1","slope2")]))*0.925
+    }
+    dataTax = within(dataTax, { #Scale the arrows
+            end1 = origin1 + slope1 * scalingFactor
+            end2 = origin2 + slope2 * scalingFactor
+          })
+        } else if (RCMfit$responseFun=="quadratic"){
+          dataTax =data.frame(
+            apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
+              -x[1]/(2*x[2])
+            })) #The extremum
+          names(dataTax) = c("end1","end2")
+          dataTax$colour = apply(RCMfit$NB_params[3,,Dim],1, function(x){
+              if(all(x>0)) {
+                return("green")
+              } else if (all(x<0)){
+                return("red")
+              } else {
+                return("brown")
+              }
+            })
+        } else if(RCMfit$responseFun  == "nonparametric"){
+          plotTaxa = FALSE
+        } else {
+          dataTax = data.frame(t(RCMfit$cMat[Dim,]))
+          names(dataTax) = c("end1","end2")
+      }
+    if(!constrained || RCMfit$responseFun == "quadratic"){
+    arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
+    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+    #Filter out small arrows
+    dataTax = dataTax[id,] 
+    if(is.null(scalingFactor)){
+    scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("end1","end2")]))*0.925
+    }
+    dataTax = within(dataTax, { #Scale the arrows
+            end1 = end1 * scalingFactor
+            end2 = end2 * scalingFactor
+          })
+        }
+    }
+
+    if(plotTaxa) dataTax$labels = sub(" ", "\n",colnames(RCMfit$X)[id])
+
+    plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
+      geom_point(size=size) + 
+      theme(aspect.ratio=1) +
+      if(is.null(colour)) {guides(color=FALSE)} 
+    #add legend names
+    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
+      plot = plot + scale_colour_manual(name=colLegend, values =Palette)
+    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
+      plot = plot + scale_colour_continuous(name=colLegend)
+    } 
+    if(!is.null(shapeLegend)){
+      plot = plot + scale_shape_discrete(name=shapeLegend)
+    }
+  
+    #Add arrows or labels
+    if(length(arrowCol)>1){
+     arrowCol = Palette[c(arrowCol[id])] 
+    }
+    if(plotTaxa){
+      if(!constrained || RCMfit$responseFun=="linear"){
+    plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
+    } else{
+
+    plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
+    }
+
+      plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE)
+    } else {}
+    
+    if(constrained){
+      #Add variable labels
+      varData = data.frame(RCMfit$alpha)
+      varData$label = rownames(RCMfit$alpha)
+      scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
+      varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
+      plot = plot + geom_text(data = varData, mapping = aes_string(x = names(dataSam)[1], y = names(dataSam)[2], label = "label"), inherit.aes = FALSE)
+    }
+    squarePlot(plot)
+}
+squarePlot <- function(plt){
+    return(plt+coord_equal()+
+            expand_limits(x=ggplot_build(plt)$panel$ranges[[1]]$y.range,
+                          y=ggplot_build(plt)$panel$ranges[[1]]$x.range))
+}
+```
+
 ## Auxiliary functions
 
 ```{r auxFuns}
@@ -4353,6 +4370,13 @@ arrayprod <- function(x,y){
   dim(out) <- outdim
  
   out
+}
+#-------------------------------------------#
+# A function to drop the recorded parameter estimates throughout the iterations to save space
+dropArrayRec = function(RCM){
+  within(RCM, {
+    rowRec = colRec = psiRec = thetaRec = NULL
+  })
 }
   
 ```
@@ -4421,26 +4445,31 @@ con2DmatNon$alpha
 
 #### Real data examples
 
-Finally we also apply the method to real datasets
+Finally we also apply the method to real datasets. First the AGP and HMP datasets
 
-```{r RC(M)_NB real datasets, purl = FALSE, eval = FALSE}
+```{r RC(M)_NB real datasets, purl = FALSE, eval=FALSE}
 realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate" )
+if(!file.exists(file = "resListRCMagphmp.RData")){
 fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
 resListRCM = mapply(fileNames, c(AGphylo, physeqListV13[realNames[-1]]),  SIMPLIFY = FALSE, FUN=function(x,y){
   load(x)
   RCMres$physeq=y
   RCMres
 })
-
 names(resListRCM) = realNames
-sapply(resListRCM,function(x){x$converged}) # All converged
-sapply(resListRCM,function(x){x$runtime})
-sapply(resListRCM,function(x){x$iter})
+save(resListRCM, file = "resListRCMagphmp.RData")
+} else {load(file = "resListRCMagphmp.RData")}
+# sapply(resListRCM,function(x){x$converged}) # All converged
+# sapply(resListRCM,function(x){x$runtime})
+# sapply(resListRCM,function(x){x$iter})
 ```
 
-The HMP dataset
+The runtimes in minutes are tabulate below: `r round(sapply(resListRCM,function(x){x$runtime}),2)`
 
-```{r HMP plot, purl = FALSE, eval = FALSE}
+##### The HMP dataset: sample plots
+
+```{r HMP plot, purl = FALSE, include = FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate gender. \\label{fig:samHMP}", eval=FALSE}
+
 SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
   levels(get_variable("RUNCENTER",physeq=x))
 }))))
@@ -4464,15 +4493,27 @@ names(resListRCM2) = realNames
 
 par(mfrow = c(3,4))
 lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "sex", main=x)})
-par(mfrow = c(3,4))
-lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(1.1,-0.1))})
 ```
 
-We've discovered a clear impact of the runcenter!
-Now let's filter out the impact of this variable
+```{r HMPsamRuncenter, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate sequencing center. it is clear that there is a strong effect of sequencing center \\label{fig:samHMP}", purl = FALSE, eval=FALSE}
+par(mfrow = c(3,4))
+foo = lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(1.1,-0.1))})
+rm(resListRCM)
+```
 
-```{r HMP filter out variable effect, purl=FALSE, eval = FALSE}
-K=2
+\clearpage
+
+##### The HMP dataset: sample plots after conditioning
+
+Now let's filter out the impact of this variable using conditioning
+
+```{r HMP filter out variable effect, purl=FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset after conditioning. Colours indicate sequencing center. Even when fitted with a rough grouping of sequencing centers, it is clear that we have conditioned out its effect. \\label{fig:samHMP}"}
+# antNarJob = mcparallel(  RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2"))
+# antNar = mccollect(antNarJob, wait=FALSE)[[1]]
+# save(antNar, file="antNarConfounders.RData")
+
+if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
+  K=2
 nleqslv.control = list()
 #Group the runcenters together
 
@@ -4483,16 +4524,6 @@ runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("JCVI","JCVI,BI","JCV
 runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("WUGC,JCVI","WUGC","WUGC,BCM")] = "WUGC"
 sample_data(x) = data.frame(sample_data(x) ,RUNCENTER2 = runcenters[[1]])
 x})
-
-physeq = RCMhmpFilt[["Buccal.mucosa"]]
-conf = get_variable(physeq, "RUNCENTER2")
-confDrop = droplevels(conf)[[1]]
-
-# antNarJob = mcparallel(  RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2"))
-# antNar = mccollect(antNarJob, wait=FALSE)[[1]]
-# save(antNar, file="antNarConfounders.RData")
-
-if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
 filtResJob = mcparallel(lapply(RCMhmpFilt, function(x){
   RCM(x, distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2")
   }))
@@ -4500,9 +4531,10 @@ filtRes = mccollect(filtResJob, wait=FALSE)[[1]]
 save(filtRes, file="/home/stijn/PhD/Biplots/filtResHMP.RData")
 } else {load(file="/home/stijn/PhD/Biplots/filtResHMP.RData")}
 par(mfrow = c(3,3))
-lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
-lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
+foo = lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
+# lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
 par(mfrow = c(1,1))
+rm(filtRes)
 ```
 
 
@@ -4513,7 +4545,9 @@ confTest = mccollect(confTestJob, wait=FALSE)[[1]]
 save(confTest, file="/home/stijn/PhD/Biplots/confTestHMP.RData")
 ```
 
-The AGP dataset
+\clearpage
+
+##### The AGP dataset: sample plots
 
 ```{r AGPplots, purl = FALSE, eval = FALSE}
 par(mfrow = c(3,3))
@@ -4529,11 +4563,9 @@ The AGP dataset is presumably too noisy to find much of a signal
 lapply(names(resListRCM), function(x){with(resListRCM[[x]],{ plot(main=x, rowRec[2,1,1:iter[1]])})})
 ```
 
-AGP is known to be very noisy and does not yield anything.
+##### The Zeller data: sample plots
 
-The Zeller data
-
-```{r load zeller RC(M) NB results, purl = FALSE}
+```{r load zeller RC(M) NB results, purl = FALSE, include = FALSE}
 
 zellers = c("zellerMeta","zeller16S")
 # zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
@@ -4570,21 +4602,28 @@ sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samCo
 
 For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups. 
 
-```{r plotZellerSphy, purl = FALSE}
+```{r plotZellerSphy, purl = FALSE, eval = FALSE}
 lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
   PCbiplot(zellerSphyRCM, colour = x)
 })
 ```
 
-Are country and diagnosis related?
-
-```{r zeller country vs diagnosis, purl = FALSE}
-with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
+```{r plotZellerSphyExec, purl = FALSE}
+lapply(c("Country","Diagnosis"), function(x){
+  PCbiplot(zellerSphyRCM, colour = x)
+})
+rm(zellerRCM, zellerSphyRCM, zellerMphyRCM)
 ```
 
-Yes, only cancer patients from Germany!
+```{r zeller country vs diagnosis, purl = FALSE, eval = FALSE}
+#Are country and diagnosis related?
+with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
+#Yes, only cancer patients from Germany!
+```
 
-Constrained analysis
+\clearpage
+
+##### The Zeller data: Constrained RC(M)
 
 ```{r zellerConstrained, purl =FALSE}
 if(!file.exists("zellerSphyRCMconstr.RData")){
@@ -4595,20 +4634,30 @@ save(zellerSphyRCMconstrLin, file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 ```
 
-```{r ZellerConstrainedBiplot, purl=FALSE}
+```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
 PCbiplot(zellerSphyRCMconstrLin)
 PCbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis")
 PCbiplot(zellerSphyRCMconstrLin, colour = "Gender")
 PCbiplot(zellerSphyRCMconstrLin, colour = "Country")
 PCbiplot(zellerSphyRCMconstrLin, colour = "Age")
 #apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
+rm(zellerSphyRCMconstrLin)
 ```
+
+```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
+PCbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
+```
+
+```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
+PCbiplot(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
+```
+
 
 Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
 
-Constrained analysis of the AGP data
 
 ```{r AGPconstr, eval=FALSE}
+##### Constrained analysis of the AGP data
 AGPconstr = RCM(AGphylo, k=2, round = TRUE, covariates = "all")
 ```
 
@@ -4616,7 +4665,7 @@ AGPconstr = RCM(AGphylo, k=2, round = TRUE, covariates = "all")
 
 Also try the Turnbaugh (2008) dataset: lean and obese twins
 
-```{r turnTwins, eval = FALSE}
+```{r turnTwins, eval = FALSE, purl = FALSE}
 if(!file.exists("turntwinsRCm.RData")){
   load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
 turntwinsRCm = RCM(TurnTwins, k=3)
@@ -4638,7 +4687,7 @@ PCbiplot(turntwinsRCm, colour = "Status_p")
 - DGS: Diet and previous diet
 - DTG: combines sampling diet, time, and previous generation (if any) 
 
-```{r turnmice}
+```{r turnmice, purl = FALSE}
 if(!file.exists("turnMiceRCM.RData")){
   load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 HumMiceRCM = RCM(HumMicePhy, k=3)
@@ -4647,15 +4696,22 @@ save(HumMiceRCM, file = "turnMiceRCM.RData")
 } else {load("turnMiceRCM.RData")}
 ```
 
-```{r humMicePlot}
+```{r humMicePlot, purl = FALSE, eval = FALSE}
 PCbiplot(HumMiceRCM) # Two or three distinct groups
 PCbiplot(HumMiceRCM, colour = "Diet") #Diet is a main factor
 PCbiplot(HumMiceRCM, colour = "Individual") #Individuals play less of a role
 PCbiplot(HumMiceRCM, colour = "Generation_p") #Microbiome changes quickly with feed pattern
 PCbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
-PCbiplot(HumMiceRCM, colour = "DTG")
-PCbiplot(HumMiceRCM, colour = "DGS") #Initial feed seems crucial
+```
 
+```{r humMicePlotExec, purl = FALSE}
+PCbiplot(HumMiceRCM) # Two or three distinct groups
+PCbiplot(HumMiceRCM, colour = "Diet") #Diet is a main factor
+PCbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
+rm(HumMiceRCM)
+```
+
+```{r humMicePlot13D, purl = FALSE, eval = FALSE}
 PCbiplot(HumMiceRCM, colour = "Diet", Dim = c(1,3)) #Diet is a main factor
 PCbiplot(HumMiceRCM, colour = "Individual", Dim = c(1,3)) #Individuals play less of a role
 PCbiplot(HumMiceRCM, colour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
@@ -4663,102 +4719,6 @@ PCbiplot(HumMiceRCM, colour = "Time", Dim = c(1,3)) #Later samples also form a c
 PCbiplot(HumMiceRCM, colour = "DTG", Dim = c(1,3))
 PCbiplot(HumMiceRCM, colour = "DGS", Dim = c(1,3))
 ```
-
-
-```{r LRnbcheck, purl=FALSE, eval = FALSE}
-### Constrained RC(M): tests
-
-# Test this method in one dimension, linear response function. Default should probably be: linear for the dummy's of the categorical variables, quadratic or non-parametric for continuous ones.
-#Some synthetic data
-n = 40
-p = 200
-d = 3
-var1 = rnorm(n) # an unrelated variable
-var2 = rnorm(n) # A meaningful variable
-var3 = rnorm(n, sd=2) # An even more meaningful variable
-psi = 1
-cVec = rnorm(p)*psi
-libSizes = 10^runif(n, 3, 5)
-abunds = 10^runif(p, -5, -3)
-abunds = abunds/sum(abunds)
-muMarg = outer(libSizes, abunds)
-alphaK = c(0.2,1,1.5)
-alphaK = alphaK-mean(alphaK)
-alphaK = alphaK/sqrt(sum(alphaK^2))
-regMat = rbind(var1, var2,var3)
-mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
-thetasCon = thetas[1:p]
-prevCut = 0.1
-
-X0 = matrix(rnbinom(n*p, size=thetasCon, mu = t(mu)), ncol = p, byrow = TRUE)
-idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
-X = X0[rowSums(X0)>0,idCol ]
-cVec2 = cVec[idCol]
-muMargObs = outer(rowSums(X), colSums(X)/sum(X))
-
-testLR = LR_nb(alphaK, X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetaMat = matrix(thetasCon[idCol], byrow = TRUE, nrow = nrow(X), ncol = ncol(X)), cReg = cVec2, d= nrow(regMat), ncols=ncol(X),v=2)
-centMat = rbind(1, matrix(0,3,3))
-
-testAlpha = estAlpha(c(0.01,0.01,0.01), X, t(regMat), responseFun ="linear", muMarg = muMargObs, thetas = matrix(thetasCon[idCol],nrow(X),ncol(X), byrow=TRUE), cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, n=nrow(X), k=1)
-
-#Works really well, only a trifle slow!
-testRCMconstrJob = mcparallel(RCM_NB(X = X, k = 1, covariates = t(regMat)))
-testRCMconstr = mccollect(testRCMconstrJob, wait=FALSE)[[1]]
-
-save(testRCMconstr,X, regMat, cVec2, alphaK, file="testRCMconstr.RData")
-plot(c(testRCMconstr$cMat), cVec2)
-plot(testRCMconstr$alpha, alphaK) #Not bad!!
-plot(alphaK %*% regMat, c(testRCMconstr$alpha) %*% regMat)
-```
-
-```{r LRnbchack2, purl=FALSE, eval = FALSE}
-# Now a bit more complicated: two dimensions, dummy's and quadratice relationship
-#Some synthetic data
-n = 40
-p = 200
-d = 5
-var1 = rnorm(n) # an unrelated variable
-var2 = rnorm(n) # A meaningful variable
-var3 = rnorm(n, sd=2) # An even more meaningful variable
-var4 = factor(sample(c(1,1:3), n, replace=TRUE)) # A categorical variable
-var5 = factor(sample(c(1,1,1:3), n, replace=TRUE)) # Another categorical variable
-psi = 2
-cVec = rnorm(p)*psi
-libSizes = 10^runif(n, 3, 5)
-abunds = 10^runif(p, -5, -3)
-abunds = abunds/sum(abunds)
-muMarg = outer(libSizes, abunds)
-alphaK = c(0.2,
-           1,
-           1.5,
-           1.2,0.9,-3.1,
-           1.1,-2.5,1.4) #The categorical variables with zero-sum coding (they center around zero by default. Remember to estimate with treatment coding but normalize based on zero-sum coding.)
-alphaK = alphaK-mean(alphaK)
-alphaK = alphaK/sqrt(sum(alphaK^2))
-regMat = t(
-  cbind(model.matrix(~var1+var2+var3+var4+var5-1, contrasts.arg = lapply(list(var4 = var4,var5 = var5), contrasts, contrasts=FALSE))
-                  ))
-
-mu = muMarg * exp(outer(c(alphaK %*% regMat),cVec))
-thetasCon = thetas[1:p]
-prevCut = 0.1
-
-X0 = matrix(rnbinom(n*p, size=thetasCon, mu = t(mu)), ncol = p, byrow = TRUE)
-idCol = colSums(X0)>0 & (colMeans(X0!=0) >prevCut)
-X = X0[rowSums(X0)>0,idCol ]
-cVec2 = cVec[idCol]
-muMargObs = outer(rowSums(X), colSums(X)/sum(X))
-#centMat
-
-testAlpha2 = estAlpha(rep(0.01,9), X, t(regMat), responseFun ="gaussian", muMarg = muMargObs, thetas = thetasCon[idCol], cReg = cVec2, d = nrow(regMat), ncols=ncol(X), alphaK = NULL, centMat = centMat, k=1)
-
-testRCMconstr2Job = mcparallel(
-  RCM(dat = X, k = 2, covariates = data.frame(var1 = var1, var2 = var2, var3 = var3, var4 = var4, var5 = var5), responseFun = "quadratic")
-  )
-testRCMconstr2 = mccollect(testRCMconstr2Job, wait=FALSE)[[1]]
-```
-
-### Triplots
 
 # Competing methods
 
@@ -4886,7 +4846,6 @@ nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3
 
   - Constrained PCoA?
   - Constrained correspondence analysis (CCA)
-    * Sparse canonical correlation analysis (ssCCA) (Chen et al. 2013)
 
 # Method evaluation
 
@@ -4968,11 +4927,11 @@ silhouette = function(coord, clusters, Dim = c(1,2)){
 }
 ```
 
-## Correlation with library sizes
+## Correlation with library sizes and abundances
 
 The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
 
-Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot.
+Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot. Equivalently correlations with average relative abundance can be investigated.
 
 ```{r libSizeCorrelation}
 libCor = function(coord, margins, Dim = c(1,2)){
@@ -5116,8 +5075,6 @@ par(mfrow = c(1,1))
 
 ## Unconstrained RC(M)
 
-### Generating datasets
-
 As ways of generating test datasets we see three different options
 
   1) Parametric simulation with the negative binomial with known abundances. 
@@ -5126,15 +5083,15 @@ As ways of generating test datasets we see three different options
   
   Parametric simulation is needed as a first check but evidently favours our method (if we use the negative binomial distribution). SimSeq is a reasonably neutral tool, we will only use WMW to obtain the lfdr. Real datasets will need to complement our analysis but it may not be possible to evaluate them in a high-throughput way, this will need to happen empirically.
   
-#### Parametric simulations
+### Parametric simulations
 
-##### Negative binomial
+#### Negative binomial
 
 The negative binomial is the assumed distribution of our method. As a result we should outperform all other methods in this setting.
 
 \clearpage
 
-###### Null setting
+##### Null setting
 
 In this setting we simulate all distributions from the same template, thus there is no signal in this dataset
 
@@ -5151,7 +5108,6 @@ rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
 thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
 
 #Library sizes
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
 
 if(!file.exists(file = "RCMsim/datList0.RData")){
@@ -5183,12 +5139,16 @@ save(resList0, file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
 ```
 
+```{r reslist0 Running times, purl = FALSE, eval = FALSE fig.cap = "Boxplot of running times of the RC(M) method in minutes for 100 Monte Carlo simulations. \\label{fig:runtimes"}
+boxplot(sapply(resList0, function(x){x$RCM$runtimeInMins}))
+```
+
 ```{r resList0 sampleBiplot, purl = FALSE}
 #A sample biplot
 resList0Rows = lapply(resList0, extractRows)
 randomScatter(resList0Rows)
 # Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
-randomScatter(resList0Rows, Dim = c(1,3))
+#randomScatter(resList0Rows, Dim = c(1,3))
 ```
 
 ```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
@@ -5205,7 +5165,7 @@ The taxa
 resList0Cols = mapply(resList0, resList0Rows, FUN=extractCols, SIMPLIFY=FALSE)
 randomScatter(resList0Cols)
 # CA has outliers, CoDa and Hellinger reveal weird patterns
-randomScatter(resList0Cols, Dim = c(1,3))
+#randomScatter(resList0Cols, Dim = c(1,3))
 ```
 
 ```{r AbsCorr0, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
@@ -5216,7 +5176,7 @@ Only our RC(M) method has correlations at the level of random noise.
 
 \clearpage
 
-###### Simulate from different distributions
+##### Simulate from different distributions
 
 In this setting we will simulate data from 4 unrelated negative binomial distributions. Because of this clustering should be very good.
 
@@ -5228,7 +5188,7 @@ nPerPop = n/nPop #Number of samples per population
 reps = 100 #replicates
 nDim  = 3 #Number of dimensions
 
-load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
+#Load observed parameter values
 rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
 thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
 
@@ -5236,7 +5196,7 @@ groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactor1 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
 
 #Library sizes
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
 
 if(!file.exists(file = "RCMsim/datList1.RData")){
@@ -5273,10 +5233,13 @@ resList1Rows = lapply(resList1, extractRows)
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
+foo = lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
 rm(ID, obj)
 par(mfrow = c(1,1))
 # It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
+```
+
+```{r resList1b sampleBiplotE, purl = FALSE, eval = FALSE}
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
@@ -5302,11 +5265,11 @@ The library sizes of the CoDa approach do negatively correlate with the row scor
 
 \clearpage
 
-###### Simulate from related distributions
+##### Simulate from related distributions
 
 In this setting we will simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances
 
-```{r NBrelatedDistr, purl = FALSE, eval=FALSE}
+```{r NBrelatedDistr, purl = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -5356,11 +5319,11 @@ RCMresList2 = mclapply(mc.cores=4, datList2, function(y){
 save(RCMresList2, file = "RCMsim/resList2RCM.RData")
 } else {load("RCMsim/resList2RCM.RData")}
 resList2 = otherAnalyses(RCMresList2)
-save(resList2, file = "RCMsim/resList2.RData")
+save(resList2,groupFactor2, file = "RCMsim/resList2.RData")
 } else {load(file = "RCMsim/resList2.RData")}
 ```
 
-```{r resList2 sampleBiplot, purl = FALSE, eval = FALSE}
+```{r resList2 sampleBiplot, purl = FALSE}
 #A sample biplot
 resList2Rows = lapply(resList2, extractRows)
 par(mfrow = c(2,4), mar = c(3,3,3,3))
@@ -5370,43 +5333,41 @@ lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = 
 rm(ID, obj)
 par(mfrow = c(1,1))
 # In this setting, the RCM really appears to outperform the other methods
-
-par(mfrow = c(2,4), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList2))
-obj = resList2Rows[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
-rm(ID, obj)
-par(mfrow = c(1,1))
-
+# par(mfrow = c(2,4), mar = c(3,3,3,3))
+# ID = sample(size=1, seq_along(resList2))
+# obj = resList2Rows[[ID]]
+# lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+# rm(ID, obj)
+# par(mfrow = c(1,1))
 ```
 
-```{r resList2Evalsil, purl = FALSE, eval = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
-plotSil(resList2Rows)
+```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+plotSil(resList2Rows, groupFactor2)
 ```
 
 The RC(M) method has the highest silhouettes, PCoA is second best but far below.
 
-```{r resList2Evaldist, purl = FALSE, eval = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
-distRatioPlot(resList2Rows)
+```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:dist1}"}
+distRatioPlot(resList2Rows, groupFactor2)
 ```
 
 RCM comes out as best, CA as worst
 
-```{r libSizeCorr2, purl = FALSE, eval = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
-plotCor(resList2Rows, datList2)
+```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. "A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification"Control" is a negative control setting of an independent standard normal variable." \\label{fig:libCor1}"}
+plotCor(resList2Rows, datList2, dataMat = FALSE)
 ```
 
 The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
 
-##### Other distributions
+#### Other distributions
 
 We also simulate datasets from other distributions than the negative binomial to see how the method behaves when its distributional assumptions are violated
 
-###### Zero-inflated negative binomial distribution
+##### Zero-inflated negative binomial distribution
 
 The zero-inflated negative binomial (ZINB) distribution was used by Zhang _et al._ (2016) for differential abundance testing. Our own goodness-of-fit tests indicate that for 14\% of the taxa, the ZINB provides a better fit than the regular NB
 
-```{r simZINB, eval=FALSE}
+```{r simZINB}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -5448,11 +5409,59 @@ list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = theta
 })
 save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
 } else {load(file = "RCMsim/datListZINB.RData")}
+
+# Results
+if(!file.exists(file = "RCMsim/resListZINB.RData")){
+  if(!file.exists("RCMsim/resListZINBRCM.RData")){
+RCMresListZINB = mclapply(mc.cores=4, datListZINB, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresListZINB, file = "RCMsim/resListZINBRCM.RData")
+} else {load("RCMsim/resListZINBRCM.RData")}
+resListZINB = otherAnalyses(RCMresListZINB)
+save(resListZINB,groupFactorZINB, file = "RCMsim/resListZINB.RData")
+} else {load(file = "RCMsim/resListZINB.RData")}
+```
+
+```{r resListZINB sampleBiplot, purl = FALSE}
+#A sample biplot
+resListZINBRows = lapply(resListZINB, extractRows)
+par(mfrow = c(ZINB,4), mar = c(3,3,3,3))
+ID = sample(size=1, seq_along(resListZINB))
+obj = resListZINBRows[[ID]]
+lapply(names(obj),function(x){plot(obj[[x]], col = groupFactorZINB, main=x, xlab = "Dim 1",ylab = "Dim ZINB", pty = "s")})
+rm(ID, obj)
+par(mfrow = c(1,1))
+# In this setting, the RCM really appears to outperform the other methods
+
+# par(mfrow = c(ZINB,4), mar = c(3,3,3,3))
+# ID = sample(size=1, seq_along(resListZINB))
+# obj = resListZINBRows[[ID]]
+# lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactorZINB, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+# rm(ID, obj)
+# par(mfrow = c(1,1))
+
+```
+
+```{r resListZINBEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+plotSil(resListZINBRows)
+```
+
+The RC(M) method has the highest silhouettes, PCoA is second best but far below.
+
+```{r resListZINBEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:dist1}"}
+distRatioPlot(resListZINBRows)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorrZINB, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:libCor1}"}
+plotCor(resListZINBRows, datListZINB)
 ```
 
 \clearpage
 
-###### Dirichelt-multinomial
+##### Dirichelt-multinomial
 
 The use of the Dirichlet multinomial for microbiome data was proposed by La Rosa _et al._ (2012). Although it is very restrictive in terms of variance and covariance structures, we include it here because of its relative popularity. Also Chen _et al._ (2012) use it to simulate data for a visualization.
 
@@ -5515,7 +5524,7 @@ save(resListDM, groupFactorDM, file = "RCMsim/resListDM.RData")
 resListDMRows = lapply(resListDM, extractRows)
 randomScatter(resListDMRows)
 # Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
-randomScatter(resListDMRows, Dim = c(1,3))
+#randomScatter(resListDMRows, Dim = c(1,3))
 ```
 
 ```{r libSizeCorrDM, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 1DMDM simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
@@ -5532,7 +5541,7 @@ The taxa
 resListDMCols = mapply(resListDM, resListDMRows, FUN=extractCols, SIMPLIFY=FALSE)
 randomScatter(resListDMCols)
 # CA has outliers, CoDa and Hellinger reveal weird patterns
-randomScatter(resListDMCols, Dim = c(1,3))
+#randomScatter(resListDMCols, Dim = c(1,3))
 ```
 
 CoDa and Hellinger distances have unacceptable correlatios with the library sizes
@@ -5552,6 +5561,8 @@ distRatioPlot(resListDMRows, groupFactorDM)
 ```
 
 RCM comes out as best, together with JSD and Bray-Curtis
+
+\clearpage
 
 ##### Nonparametric simulation
 
