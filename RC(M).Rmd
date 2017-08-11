@@ -24,8 +24,6 @@ if(detectCores()==4)setwd(WD)
 #if(file.exists("/home/stijn/PhD/American Gut/AGpars.RData")) {load("/home/stijn/PhD/American Gut/AGpars.RData")}
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 ```
 
 \setcounter{tocdepth}{2}
@@ -445,7 +443,7 @@ Conditioning occurs in the same fashion as with regular CA: the residuals of the
 
 The following approaches to constrained analysis of ecological data exist, or have been considered
 
-## The classical approach for gradient analysis
+#### The classical approach for gradient analysis
 
 This model comes from ecology and is the one used by Zhu _et al._ (2005) and Zhang and Thas (2012 and 2016). This assumes each taxon has an optimal combination of covariates, and its expected abundance decreases as the covariates depart from this optimal combination. The expected abundance follows a Gaussian distribution in function of this departure.
 
@@ -463,13 +461,13 @@ whereby
  
  The scales of $h_{ik}$, $q_{jk}$ and $m_{jk}$ are undefined, so we need an additional restriction to render the model identifiable. Zhu _et al._, 2005 propose setting $\sum_{j=1}^p m_{jk}^2/p=1$. Note that $a_{jk}$, $q_{jk}$ and $m_{jk}$ are species specific parameters whereas $\boldsymbol{\alpha}_k$ is specific for the dimension but common to all species.
  
-#### Triplot
+##### Triplot
 
 - $q_{jk}$ is plotted as points as optimum per species
 - The components of $\boldsymbol{\alpha}$ are plotted as arrows for the environmental variables.
 - The samples are plotted as their site scores $\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$
  
-#### Estimation
+##### Estimation
 
 The estimation iterates between estimating $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_{jk} = \big(a_{jk}, q_{jk}, m_{jk})$.
 
@@ -501,9 +499,9 @@ I wonder how realistic the Gaussian response model still is with so many categor
 
 --->
 
-## RC(M) approach to gradient analysis
+#### RC(M) approach to gradient analysis
 
-### Constrained RC(M), overparametrized version
+#### Constrained RC(M), overparametrized version
 
 If we want to retain analogy with the unconstrained version and model only the departure from independence, we could fit the following model:
 
@@ -740,6 +738,11 @@ The interpretation of the triplot is different from the one from Zhu _et al._ (2
     * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
   
 It is clear that the triplot is not trivial to interpret, but then again: neither is a triplot based on CCA.
+
+## Some general thoughts on the RC(M)
+
+Contrary to most other methods to make biplots for microbiome data, the RC(M)-method is a truly statistical method that explicitly models the mean. This renders it very easy to interpret. It's main weaknesses are the reliance on a parametric distribution (which may be incorrect), and it's relatively long running times. However, many other biplot methods, such as CA ot PCoA with Hellinger distances, also make distributional assumptions, mostly without stating them explicitly.
+
 
 \newpage
 
@@ -2696,9 +2699,7 @@ dropArrayRec = function(RCM){
 }
 ```
 
-# Demonstration
-
-## Test the software
+#### Test the software
 
 Some preliminary test to make sure everything runs without errors
 
@@ -2763,6 +2764,8 @@ con2DmatNon$alpha
 Finally we also apply the method to real datasets. First the AGP and HMP datasets
 
 ```{r RC(M)_NB real datasets, purl = FALSE}
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate" )
 if(!file.exists(file = "resListRCMagphmp.RData")){
 fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
@@ -2774,12 +2777,9 @@ resListRCM = mapply(fileNames, c(AGphylo, physeqListV13[realNames[-1]]),  SIMPLI
 names(resListRCM) = realNames
 save(resListRCM, file = "resListRCMagphmp.RData")
 } else {load(file = "resListRCMagphmp.RData")}
-# sapply(resListRCM,function(x){x$converged}) # All converged
-# sapply(resListRCM,function(x){x$runtime})
-# sapply(resListRCM,function(x){x$iter})
 ```
 
-The runtimes in minutes are tabulate below: `r round(sapply(resListRCM,function(x){x$runtime}),2)`
+<!---The runtimes in minutes are tabulate below: $`r round(sapply(resListRCM,function(x){x[["runtimeInMins"]]}),2)`$--->
 
 ##### The HMP dataset: sample plots
 
@@ -2795,9 +2795,7 @@ physeqListV13_SC = lapply(physeqListV13, function(x){
   sample_data(x)[["RUNCENTER"]] = factor(sample_data(x)[["RUNCENTER"]], levels = SClevels, labels = SClevels)
   x
 })
-
 phyList = c(AGP = AGphylo, physeqListV13_SC)
-
 resListRCM2 = lapply(realNames, function(x){
   tmp = resListRCM[[x]]
   tmp$physeq = prune_samples(rownames(tmp$X),prune_taxa(colnames(tmp$X), phyList[[x]]))
@@ -2967,9 +2965,7 @@ PCbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
 PCbiplot(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
 ```
 
-
 Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
-
 
 ```{r AGPconstr, eval=FALSE}
 ##### Constrained analysis of the AGP data
@@ -3020,9 +3016,8 @@ PCbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
 ```
 
 ```{r humMicePlotExec, purl = FALSE}
-PCbiplot(HumMiceRCM) # Two or three distinct groups
-PCbiplot(HumMiceRCM, colour = "Diet") #Diet is a main factor
-PCbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
+PCbiplot(HumMiceRCM, colour = "Diet", main =  "Humanized mice") #Diet is a main factor
+PCbiplot(HumMiceRCM, colour = "Time", main =  "Humanized mice") #Later samples also form a cluster
 rm(HumMiceRCM)
 ```
 
@@ -3259,7 +3254,22 @@ The between distance between groups m and m' is then defined as $d_{mm'} = d_{eu
 
 ## Contribution of taxa to the separation of the clusters
 
-For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid.
+For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid. It is calculated as the ratio of the average contribution in the direction of the centroid of taxa with signal to all the average contribution of all other taxa. With $\mathbf{H}_l$ the vector from the origin to the centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
+
+$$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
+with $\mathbb{1}$ a column matrix of one of the appropriate dimension
+
+```{r contrTaxa}
+contrTaxa = function(rcm, groupFactor, idTax){
+  centroids = matrix(unlist(tapply(seq_len(nrow(rcm$rMat)), groupFactor, function(i){
+    colMeans(rcm$rMat[i,] %*% diag(rcm$psis))
+  })), nrow = rcm$k)
+  colnames(centroids) = levels(groupFactor)
+  sapply(seq_along(levels(groupFactor)), function(i){
+    crossprod(rcm$cMat[,idTax[,i]], centroids[, i])
+  })
+}
+```
 
 ## Auxiliary functions
 
@@ -3376,11 +3386,11 @@ abline(h=1, lty = "dashed")
 }
 #---------------------------#
 #A function to make a scatterplot of a randomly selected MC isntance
-randomScatter = function(list, Dim = c(1,2)){
+randomScatter = function(list, Dim = c(1,2), col = NULL){
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(list))
 obj = list[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,Dim], main=x, xlab = paste("Dim", Dim[1]),ylab = paste("Dim", Dim[2]), pty = "s")})
+lapply(names(obj),function(x){plot(obj[[x]][,Dim], main=x, col = col, xlab = paste("Dim", Dim[1]),ylab = paste("Dim", Dim[2]), pty = "s")})
 par(mfrow = c(1,1))
 }
 ```
@@ -3456,7 +3466,7 @@ save(resList0, file = "RCMsim/resList0.RData")
 boxplot(sapply(resList0, function(x){x$RCM$runtimeInMins}))
 ```
 
-```{r resList0 sampleBiplot, purl = FALSE}
+```{r resList0 sampleBiplot, purl = FALSE, include=FALSE}
 #A sample biplot
 resList0Rows = lapply(resList0, extractRows)
 randomScatter(resList0Rows)
@@ -3473,7 +3483,7 @@ Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations
 
 The taxa
 
-```{r resList0cols sampleBiplot, purl = FALSE}
+```{r resList0cols sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 resList0Cols = mapply(resList0, resList0Rows, FUN=extractCols, SIMPLIFY=FALSE)
 randomScatter(resList0Cols)
@@ -3591,13 +3601,12 @@ nPerPop = n/nPop #Number of samples per population
 reps = 100 #replicates
 nDim  = 3 #Number of dimensions
 TPR = 0.1
-FC = 10
+FC = 5
 
 groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactor2 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
 if(!file.exists(file = "RCMsim/resList2.RData")){
-
-if(!file.exists(file = "RCMsim/datList2.RData")){
+  if(!file.exists(file = "RCMsim/datList2.RData")){
 datList2 = mclapply(mc.cores = 1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
@@ -3619,6 +3628,8 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactor2
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
 list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
 })
@@ -3634,19 +3645,18 @@ RCMresList2 = mclapply(mc.cores=4, datList2, function(y){
 save(RCMresList2, file = "RCMsim/resList2RCM.RData")
 } else {load("RCMsim/resList2RCM.RData")}
 resList2 = otherAnalyses(RCMresList2)
-save(resList2,groupFactor2, file = "RCMsim/resList2.RData")
+IDlist2 = lapply(datList2, function(x){
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+   })
+save(resList2, groupFactor2, IDlist2, file = "RCMsim/resList2.RData")
 } else {load(file = "RCMsim/resList2.RData")}
 ```
 
 ```{r resList2 sampleBiplot, purl = FALSE}
 #A sample biplot
 resList2Rows = lapply(resList2, extractRows)
-par(mfrow = c(2,4), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resList2))
-obj = resList2Rows[[ID]]
-foo =lapply(names(obj),function(x){plot(obj[[x]], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 2", pty = "s")})
-rm(ID, obj)
-par(mfrow = c(1,1))
+randomScatter(resList2Rows, col = groupFactor2)
 # In this setting, the RCM really appears to outperform the other methods
 # par(mfrow = c(2,4), mar = c(3,3,3,3))
 # ID = sample(size=1, seq_along(resList2))
@@ -3671,6 +3681,7 @@ RCM comes out as best, CA as worst
 ```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor1}"}
 datList2 = lapply(resList2, function(x){x$RCM$X})
 plotCor(resList2Rows, datList2, dataMat = TRUE)
+load(file = "RCMsim/resListZINB.RData")
 ```
 
 The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
@@ -3683,7 +3694,7 @@ We also simulate datasets from other distributions than the negative binomial to
 
 The zero-inflated negative binomial (ZINB) distribution was used by Zhang _et al._ (2016) for differential abundance testing. Our own goodness-of-fit tests indicate that for 14\% of the taxa, the ZINB provides a better fit than the regular NB
 
-```{r simZINB, purl = FALSE}
+```{r simZINB, purl = FALSE, eval = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -3691,7 +3702,7 @@ nPerPop = n/nPop #Number of samples per population
 reps = 100 #replicates
 nDim  = 3 #Number of dimensions
 TPR = 0.1
-FC = 10
+FC = 5
 
 groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactorZINB = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
@@ -3722,6 +3733,8 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rzinegbin(prod(dim(meanMat)), munb = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE), pstr0 = matrix(propSampled,n,p,byrow = TRUE)),n,p)
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactorZINB
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
 list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, propSampled = propSampled)
 })
@@ -3730,26 +3743,25 @@ save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
 
 # Results
 
-  if(!file.exists("RCMsim/resListZINBRCM.RData")){
+ if(!file.exists("RCMsim/resListZINBRCM.RData")){
 RCMresListZINB = mclapply(mc.cores=4, datListZINB, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
   })
 save(RCMresListZINB, file = "RCMsim/resListZINBRCM.RData")
 } else {load("RCMsim/resListZINBRCM.RData")}
 resListZINB = otherAnalyses(RCMresListZINB)
-save(resListZINB,groupFactorZINB, file = "RCMsim/resListZINB.RData")
+IDlistZINB = lapply(datListZINB, function(x){
+  id = apply(x$IDsampled, 2, unique)
+  taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+  })
+save(resListZINB,groupFactorZINB, IDlistZINB, file = "RCMsim/resListZINB.RData")
 } else {load(file = "RCMsim/resListZINB.RData")}
 ```
 
 ```{r resListZINB sampleBiplot, purl = FALSE}
 #A sample biplot
 resListZINBRows = lapply(resListZINB, extractRows)
-par(mfrow = c(2,4), mar = c(3,3,3,3))
-ID = sample(size=1, seq_along(resListZINB))
-obj = resListZINBRows[[ID]]
-foo = lapply(names(obj),function(x){plot(obj[[x]], col = groupFactorZINB, main=x, xlab = "Dim 1",ylab = "Dim ZINB", pty = "s")})
-rm(ID, obj)
-par(mfrow = c(1,1))
+randomScatter(resListZINBRows, col = groupFactorZINB)
 # In this setting, the RCM really appears to outperform the other methods
 
 # par(mfrow = c(ZINB,4), mar = c(3,3,3,3))
@@ -3783,7 +3795,7 @@ plotCor(resListZINBRows, datListZINB)
 
 The use of the Dirichlet multinomial for microbiome data was proposed by La Rosa _et al._ (2012). Although it is very restrictive in terms of variance and covariance structures, we include it here because of its relative popularity. Also Chen _et al._ (2012) use it to simulate data for a visualization.
 
-```{r simDM}
+```{r simDM, purl = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -3791,7 +3803,7 @@ nPerPop = n/nPop #Number of samples per population
 reps = 100 #replicates
 nDim  = 3 #Number of dimensions
 TPR = 0.1
-FC = 10
+FC = 5
 
 groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactorDM = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
@@ -3818,6 +3830,8 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 
 ## Create dataset
 dataMat = t(sapply(seq_along(libSizesSampled),function(i){Dirichlet.multinomial(libSizesSampled[i], shape = rhosSampled[,i]*(1-thetaDM)/thetaDM)}))
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactorDM
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
 list(dataMat = dataMat, libSizesSampled = libSizesSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
 })
@@ -3833,14 +3847,18 @@ RCMresListDM = mclapply(mc.cores=4, datListDM, function(y){
 save(RCMresListDM, file = "RCMsim/resListDMRCM.RData")
 } else {load("RCMsim/resListDMRCM.RData")}
 resListDM = otherAnalyses(RCMresListDM)
-save(resListDM, groupFactorDM, file = "RCMsim/resListDM.RData")
+IDlistDM = lapply(datListDM, function(x){
+  id = apply(x$IDsampled, 2, unique)
+  taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+  })
+save(resListDM, groupFactorDM,IDlistDM, file = "RCMsim/resListDM.RData")
 } else {load(file = "RCMsim/resListDM.RData")}
 ```
 
 ```{r resListDM sampleBiplot, purl = FALSE}
 #A sample biplot
 resListDMRows = lapply(resListDM, extractRows)
-randomScatter(resListDMRows)
+randomScatter(resListDMRows, col = groupFactorDM)
 # Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
 #randomScatter(resListDMRows, Dim = c(1,3))
 ```
@@ -3854,7 +3872,7 @@ Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations
 
 The taxa
 
-```{r resListDMcols sampleBiplot, purl = FALSE}
+```{r resListDMcols sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 resListDMCols = mapply(resListDM, resListDMRows, FUN=extractCols, SIMPLIFY=FALSE)
 randomScatter(resListDMCols)
@@ -3937,7 +3955,7 @@ genSimSeq = function(testres, Ntaxa = ntaxa(testres$physeq), fracTaxa = 0.2){
 }
 ```
 
-```{r SimSeqTests, eval = FALSE}
+```{r SimSeqTests, eval = FALSE, purl = FALSE}
 if(!file.exists(file = "SimSeqTests.RData")){
 load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 testHum = testSimSeq(HumMicePhy, "Diet")
@@ -3951,7 +3969,7 @@ save(testHum, testTwins, testAG, testZeller, file = "SimSeqTests.RData")
 
 No DA for the lean and obese twins. Then again it is a small dataset.
 
-```{r SimSeqGenerateData, eval = FALSE}
+```{r SimSeqGenerateData, eval = FALSE, purl = FALSE}
 if(!file.exists(file = "SimSeqData.RData")){
 NsimSimSeq = 100
 HumSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
@@ -3967,7 +3985,7 @@ save(HumSimSeqList, ZellerSimSeqList, AGSimSeqList, file = "SimSeqData")
 } else {load(file = "SimSeqData.RData")}
 ```
 
-```{r simSeqAnalysis, eval = FALSE}
+```{r simSeqAnalysis, eval = FALSE, purl = FALSE}
 if(!file.exists("RCMsim/resListSimSeqRCM.RData")){
 RCMresListSimSeqHum = mclapply(mc.cores=4, HumSimSeqList, function(y){
   RCM(y$data, k = nDim, distribution = "NB")
