@@ -733,7 +733,7 @@ The interpretation of the triplot is different from the one from Zhu _et al._ (2
  - The components of $\boldsymbol{\alpha}_k$ are plotted as arrows and represent the extent to which the covariates contribute to the departure from independence in dimension $k$. Categorical variables are centered, all their levels are shown. The continuous variables have been centered and scaled, so their magnitude can compared to one another.
  - For the samples, the environmental scores are plotted as points and represent environmental scores of each sample. Samples close together in one dimension come from similar environments, considering that environmental gradient.
  - The plot for the taxa depends on the response function used. 
-    * In case of a linear response functionwe can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence. The direction and size of the arrow then depends purely on $\beta_{1j}\psi_k$. The projection of this vector onto $\boldsymbol{\alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
+    * In case of a linear response functionwe can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence. The direction and size of the arrow then depends purely on $\beta_{1j}\psi$. The projection of this vector onto $\boldsymbol{\alpha}^t\mathbf{C}_i$ then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
     * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point (taking the importance parameter $\psi_k$ into account, which is multiplied by eac of the parameters $\beta$ of the response functions). If this is a minimum, this represents the value of the environmental score with the smallest departure from indepence, in case of a maximum the largest departure. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation).
     * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
   
@@ -2554,10 +2554,10 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
       if(constrained) {
         if(RCMfit$responseFun=="linear"){
           dataTax = data.frame(
-            origin1 = -RCMfit$NB_params[1,,Dim[1]]/RCMfit$NB_params[2,,Dim[1]],
-            origin2 = -RCMfit$NB_params[1,,Dim[2]]/RCMfit$NB_params[2,,Dim[2]],
-            slope1 = RCMfit$NB_params[2,,Dim[1]], #The gradient
-            slope2 = RCMfit$NB_params[2,,Dim[2]]
+            origin1 = -RCMfit$NB_params[1,,Dim[1]]/RCMfit$NB_params[2,,Dim[1]] ,
+            origin2 = -RCMfit$NB_params[1,,Dim[2]]/RCMfit$NB_params[2,,Dim[2]] ,
+            slope1 = RCMfit$NB_params[2,,Dim[1]] * RCMfit$psis[Dim[1]], #The gradient
+            slope2 = RCMfit$NB_params[2,,Dim[2]] * RCMfit$psis[Dim[2]]
             ) 
           dataTax = within(dataTax, {
             end1 = origin1 + slope1 
@@ -3262,20 +3262,22 @@ $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathb
 with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal.
 
 ```{r contrTaxa}
-contrTaxa = function(rcm, groupFactor, idTax, sigFrac = 0.5){
-  centroids = matrix(unlist(tapply(seq_len(nrow(rcm$rMat)), groupFactor, function(i){
-    colMeans(rcm$rMat[i,] %*% diag(rcm$psis))
-  })), nrow = rcm$k)
+contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3){
+  rowMatPsi = rowMatPsi[,Dim]
+  colMat = colMat[Dim,]
+  centroids = matrix(unlist(tapply(seq_len(nrow(rowMatPsi)), groupFactor, function(i){
+    colMeans(rowMatPsi[i,])
+  })), nrow = ncol(rowMatPsi))
   colnames(centroids) = levels(groupFactor)
   contrib = sapply(seq_along(levels(groupFactor)), function(i){
-        crossprod(rcm$cMat, centroids[, i])
+        crossprod(colMat, centroids[, i])
   })
   sigContr = sapply(seq_along(levels(groupFactor)), function(i){
-    mean(contrib[match(idTax[,i], colnames(rcm$cMat), nomatch = 0),i])
+    mean(contrib[match(idTax[,i], colnames(colMat), nomatch = 0),i])
   })
   allContr = sapply(seq_along(levels(groupFactor)), function(i){
     mean(
-      apply(contrib[!colnames(rcm$cMat) %in% idTax[,i],],2,sort, decreasing = TRUE)[round(seq_len(sigFrac*(ncol(rcm$X)-nrow(idTax)))), ])
+      apply(contrib[!colnames(colMat) %in% idTax[,i],],2,sort, decreasing = TRUE)[round(seq_len(sigFrac*(nrow(colMat)-nrow(idTax)))), ])
   })
   ratios = sigContr/allContr
   ratios
@@ -3699,23 +3701,31 @@ randomScatter(resList2Rows, col = groupFactor2)
 # par(mfrow = c(1,1))
 ```
 
-```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette2}"}
 plotSil(resList2Rows, groupFactor2)
 ```
 
 The RC(M) method has the highest silhouettes, PCoA is second best but far below.
 
-```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:dist1}"}
+```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:dist2}"}
 distRatioPlot(resList2Rows, groupFactor2)
 ```
 
 RCM comes out as best, CA as worst
 
-```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor1}"}
+```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor2}"}
 datList2 = lapply(resList2, function(x){x$RCM$X})
 plotCor(resList2Rows, datList2, dataMat = TRUE)
-rm(resList2Rows, resList2, resList2Cols)
 load(file = "RCMsim/resListZINB.RData")
+```
+
+```{r AbCorr2, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCor2}"}
+resList2Cols = mapply(resList2, resList2Rows,FUN = extractCols, SIMPLIFY = FALSE)
+plotCor(resList2Cols, datList2, dataMat = TRUE, scoreDim = "columns")
+```
+
+```{r taxRat2, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRat2}"}
+contr2 = mapply(resList2Rows, resList2Cols, IDlist2, FUN = contrTaxa, MoreArgs = list(groupFactor = groupFactor2))
 ```
 
 The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
