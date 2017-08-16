@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -2811,7 +2811,7 @@ lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALS
 ```{r HMPsamRuncenter, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate sequencing center. it is clear that there is a strong effect of sequencing center \\label{fig:samHMP}", purl = FALSE}
 par(mfrow = c(3,4))
 foo = lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(1.1,-0.1))})
-rm(resListRCM)
+rm(resListRCM, resListRCM2)
 ```
 
 \clearpage
@@ -2847,7 +2847,7 @@ par(mfrow = c(3,3))
 foo = lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
 # lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
 par(mfrow = c(1,1))
-rm(filtRes)
+rm(filtRes, physeqListV13, physeqListV13_SC, phyList)
 ```
 
 
@@ -2963,6 +2963,7 @@ PCbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
 
 ```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
 PCbiplot(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
+rm(zellerSphyRCMconstrLin)
 ```
 
 Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
@@ -2986,6 +2987,7 @@ save(turntwinsRCm, file = "turntwinsRCm.RData")
 PCbiplot(turntwinsRCm, colour = "Family_p")
 PCbiplot(turntwinsRCm, colour = "twin")
 PCbiplot(turntwinsRCm, colour = "Status_p")
+rm(turntwinsRCm)
 ```
 
 ##### Turnbaugh et al. (2009)
@@ -3493,6 +3495,7 @@ randomScatter(resList0Cols)
 
 ```{r AbsCorr0, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
 plotCor(resList0Cols, datList = datList0,scoreDim = "columns", dataMat = TRUE)
+rm(resList0Rows, resList0, datList0)
 ```
 
 Only our RC(M) method has correlations at the level of random noise.
@@ -3583,6 +3586,7 @@ distRatioPlot(resList1Rows, groupFactor1)
 ```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:libCor1}"}
 datList1 = lapply(resList1, function(x){x$RCM$X})
 plotCor(resList1Rows, datList1, dataMat = TRUE)
+rm(resList1Rows, resList1, datList1)
 ```
 
 The library sizes of the CoDa approach do negatively correlate with the row scores, confirming our concern about the heteroscedasticity.
@@ -3681,14 +3685,30 @@ RCM comes out as best, CA as worst
 ```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor1}"}
 datList2 = lapply(resList2, function(x){x$RCM$X})
 plotCor(resList2Rows, datList2, dataMat = TRUE)
+rm(resList2Rows, resList2, resList2Cols)
 load(file = "RCMsim/resListZINB.RData")
 ```
 
 The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
 
+##### Negative binomial with phylogenetic information
+
+In order to also include the very popular distance measures UniFrac and weighted Unifrac, we also generate data with the negative binomial and Dirichlet multinomial taking into account phylogenetic structure. We base our strategy on the second strategy described by Chen _et al._ ("Associating microbiome composition with environmental
+covariates using generalized UniFrac distances", 2012), and use the dataset "Global Patterns" from Caporaso _et al._ available in the _phyloseq_ package.
+
+```{r UniFrac, purl = FALSE}
+data(GlobalPatterns) # The Caporaso et al. (2011) dataset is available in the phyloseq package
+getTreeClust = function(physeq, k = 20){
+  Tree = phy_tree(physeq)
+  dd = as.dist(cophenetic.phylo(Tree)) #Get distances
+  psclust = cutree(as.hclust(hclust(dd)), k = k) #Split into clusters
+  tax_table(physeq) = 
+}
+```
+
 #### Other distributions
 
-We also simulate datasets from other distributions than the negative binomial to see how the method behaves when its distributional assumptions are violated
+We also simulate datasets from other distributions than the negative binomial to see how the method behaves when its distributional assumptions are violated.
 
 ##### Zero-inflated negative binomial distribution
 
