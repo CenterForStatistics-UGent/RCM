@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool")#, "cluster", "ape")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -2847,7 +2847,7 @@ par(mfrow = c(3,3))
 foo = lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
 # lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
 par(mfrow = c(1,1))
-rm(filtRes, physeqListV13, physeqListV13_SC, phyList)
+rm(filtRes, physeqListV13_SC, phyList)
 ```
 
 
@@ -3259,17 +3259,26 @@ The between distance between groups m and m' is then defined as $d_{mm'} = d_{eu
 For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid. It is calculated as the ratio of the average contribution in the direction of the centroid of taxa with signal to all the average contribution of all other taxa. With $\mathbf{H}_l$ the vector from the origin to the centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
 
 $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
-with $\mathbb{1}$ a column matrix of one of the appropriate dimension
+with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal.
 
 ```{r contrTaxa}
-contrTaxa = function(rcm, groupFactor, idTax){
+contrTaxa = function(rcm, groupFactor, idTax, sigFrac = 0.5){
   centroids = matrix(unlist(tapply(seq_len(nrow(rcm$rMat)), groupFactor, function(i){
     colMeans(rcm$rMat[i,] %*% diag(rcm$psis))
   })), nrow = rcm$k)
   colnames(centroids) = levels(groupFactor)
-  sapply(seq_along(levels(groupFactor)), function(i){
-    crossprod(rcm$cMat[,idTax[,i]], centroids[, i])
+  contrib = sapply(seq_along(levels(groupFactor)), function(i){
+        crossprod(rcm$cMat, centroids[, i])
   })
+  sigContr = sapply(seq_along(levels(groupFactor)), function(i){
+    mean(contrib[match(idTax[,i], colnames(rcm$cMat), nomatch = 0),i])
+  })
+  allContr = sapply(seq_along(levels(groupFactor)), function(i){
+    mean(
+      apply(contrib[!colnames(rcm$cMat) %in% idTax[,i],],2,sort, decreasing = TRUE)[round(seq_len(sigFrac*(ncol(rcm$X)-nrow(idTax)))), ])
+  })
+  ratios = sigContr/allContr
+  ratios
 }
 ```
 
@@ -3277,8 +3286,8 @@ contrTaxa = function(rcm, groupFactor, idTax){
 
 ```{r extract row vectors}
 # A function to perform all analyses except for RC(M)
-otherAnalyses = function(RCMlist){
-datList0mat = lapply(RCMlist, function(x){x$X})
+otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL){
+datList0mat = lapply(RCMlist, function(x){tmp = x$X; rownames(tmp) = seq_len(nrow(tmp));tmp})
 CAresList0 = lapply(datList0mat, caSVD)
 CodaResList0 = lapply(datList0mat, CoDa)
 BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
@@ -3291,6 +3300,26 @@ HelDistresList = lapply(datList0mat, function(x){
   E = outer(R, colSums(x)/sum(x))
   svd(diag(1/sqrt(R)) %*% (sqrt(x)-sqrt(E))) 
 })
+if(unifrac){
+  UniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
+    physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
+    sample_names(physeq) = seq_len(nsamples(physeq))
+    ordinate(physeq, method = "PCoA", distance = "unifrac")
+  })
+   wUniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
+    physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
+    sample_names(physeq) = seq_len(nsamples(physeq))
+    ordinate(physeq, method = "PCoA", distance = "wunifrac")
+  })
+   mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, UniFracList, wUniFracList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell, Uni, wUni){
+                    list(RCM = RCM, CA = CA, 
+                         CoDa = CoDa,
+                         BC = BC, JSD = JSD, 
+                         BCrel = BCrel, Hellinger = Hell, UniFrac = Uni, wUniFrac = wUni)
+                  }, 
+                  SIMPLIFY = FALSE
+)
+}
 mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell){
                     list(RCM = RCM, CA = CA, 
                          CoDa = CoDa,
@@ -3694,16 +3723,77 @@ The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curt
 ##### Negative binomial with phylogenetic information
 
 In order to also include the very popular distance measures UniFrac and weighted Unifrac, we also generate data with the negative binomial and Dirichlet multinomial taking into account phylogenetic structure. We base our strategy on the second strategy described by Chen _et al._ ("Associating microbiome composition with environmental
-covariates using generalized UniFrac distances", 2012), and use the dataset "Global Patterns" from Caporaso _et al._ available in the _phyloseq_ package.
+covariates using generalized UniFrac distances", 2012). We generate random trees for the template vector of relative abundances, and modify abundances within one of the 20 clusters
 
 ```{r UniFrac, purl = FALSE}
-data(GlobalPatterns) # The Caporaso et al. (2011) dataset is available in the phyloseq package
-getTreeClust = function(physeq, k = 20){
-  Tree = phy_tree(physeq)
-  dd = as.dist(cophenetic.phylo(Tree)) #Get distances
-  psclust = cutree(as.hclust(hclust(dd)), k = k) #Split into clusters
-  tax_table(physeq) = 
-}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+k = round(1/TPR) #Number of clusters
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactorPhy = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+clusters = seq_len(k)
+
+if(!file.exists(file = "RCMsim/resListPhy.RData")){
+  if(!file.exists(file = "RCMsim/datListPhy.RData")){
+datListPhy = mclapply(mc.cores = 4, 1:reps, function(i){
+## Sample parameters
+cluSampled = sample(clusters, nPop) #Cluster to be made DA
+
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+
+randomTree = rtree(n = p, tip.label = names(rhosSampled0)) # The random tree
+dd = as.dist(cophenetic.phylo(randomTree)) #Get distances
+psclust = cutree(as.hclust(hclust(dd)), k = k) #Split into clusters
+  
+#For each population, modify the abundances of a cluster of related taxa. Record the clusters that have been modified.
+rhosIDSampled = lapply(cluSampled, function(x, rhos){
+  id = x == psclust
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactorPhy
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, cluSampled = cluSampled, randomTree = randomTree)
+})
+save(datListPhy,groupFactorPhy,  file = "RCMsim/datListPhy.RData")
+} else {load(file = "RCMsim/datListPhy.RData")}
+
+# Results
+
+  if(!file.exists("RCMsim/resListPhyRCM.RData")){
+RCMresListPhy = mclapply(mc.cores=4, datListPhy, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresListPhy, file = "RCMsim/resListPhyRCM.RData")
+} else {load("RCMsim/resListPhyRCM.RData")}
+resListPhy = otherAnalyses(RCMresListPhy)
+IDlistPhy = lapply(datListPhy, function(x){
+   id = apply(x$IDsampled, Phy, unique)
+   taxa = apply(id, Phy, function(y){rownames(x$rhosSampled)[y]})
+   })
+save(resListPhy, groupFactorPhy, IDlistPhy, file = "RCMsim/resListPhy.RData")
+} else {load(file = "RCMsim/resListPhy.RData")}
 ```
 
 #### Other distributions
