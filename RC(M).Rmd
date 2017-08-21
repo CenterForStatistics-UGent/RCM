@@ -742,12 +742,12 @@ Filtering of rare taxa is not needed in this case, as all covariates are summari
 The interpretation of the triplot is different from the one from Zhu _et al._ (2005), and also different from that of the unconstrained RC(M).
 
  - The components of $\boldsymbol{\alpha}_k$ are plotted as arrows and represent the extent to which the covariates contribute to environmental score in dimension $k$. Categorical variables are centered, all their levels are shown. The continuous variables have been centered and scaled, so the magnitude of their compponents in $\boldsymbol{\alpha}_k$ can be compared to one another.
- - For the samples, the environmental scores are plotted as points and represent environmental scores of each sample. Samples close together in one dimension come from similar environments, considering that environmental gradient.
+ - For the samples, the environmental scores are plotted as points and represent environmental scores of each sample. Samples close together in one dimension come from similar environments, considering that environmental gradient. This does _NOT_ mean that they have similar values of the environmental variables. 
  - The plot for the taxa depends on the response function used. 
     * In case of a linear response function we can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence explained by the covariates. The direction and size of the arrow then depends purely on $\beta_{1j}\psi$. We can make two sorts of projections:
       - The projection of (-\frac{\beta_{0j}}{\beta_{1j}}, -\frac{\beta_{0j}}{\beta_{1j}} + $\beta_{1j}\psi$) onto $\boldsymbol{\alpha}^t\mathbf{C}_i$ (the environmental scores), then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
       - The projection of (-\frac{\beta_{0j}}{\beta_{1j}}, -\frac{\beta_{0j}}{\beta_{1j}} + $\beta_{1j}\psi$) onto $(0,\alpha_y)$ reflects the sensitivity of taxon $j$ to changes in covariate $y$.
-      We cannot make a direct connection between components of the environmental gradient $\boldsymbol{\alpha}$ and the observed environmental scores $\boldsymbol{\alpha}^t\mathbf{C}_i$, even though this may seem so intuitively. Often it is so that a large $\alpha_y$ points in the direction of samples with a large $c_{iy}$, but this is not guaranteed. Many different combinations of covariates $\mathbf{C}_{i}$ can lead to the same environmental score for a given $\boldsymbol{\alpha}$. This is because of the dimension reduction from $d$ to 1 resulting from the projection by $\boldsymbol{\alpha}$. We will have to warn the user for this pitfall, and facilitate the depiction of the environmental variables of each samples trough colour codes.
+      We cannot make a direct connection between components of the environmental gradient $\boldsymbol{\alpha}$ and the observed environmental scores $\boldsymbol{\alpha}^t\mathbf{C}_i$, even though this may seem so intuitively. Often it is so that a large $\alpha_y$ points in the direction of samples with a large $c_{iy}$, but this is not guaranteed. Many different combinations of covariates $\mathbf{C}_{i}$ can lead to the same environmental score for a given $\boldsymbol{\alpha}$. This is because of the dimension reduction from $d$ to 1 resulting from the projection by $\boldsymbol{\alpha}$. We will have to warn the user for this pitfall, and facilitate the depiction of the environmental variables of each samples through colour codes.
     * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point (taking the importance parameter $\psi_k$ into account, which is multiplied by each of the parameters $\beta$ of the response functions). If this is a minimum, this represents the value of the environmental score with the largest drop in expected abundance compared to the independence model, in case of a maximum the largest rise. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation). To represent the tolerances, i.e. how steep these valleys and mountains of expected abundance are, we can use ellipses to designate e.g. points with 50% the departure from independence from the top. For CCA this feature is not needed since there all tolerances are assumed equal.
     * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
   
@@ -2539,9 +2539,30 @@ legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), 
 return(invisible())
   # par(tmp)
 }
-# A ggplot2-version
-RCMbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="blue", plotTaxa = FALSE) {
-    #Retrieve dots (will be passed on to aes())
+# A ggplot2-version of the biplot function
+plot.RCM = function(RCMfit, Dim = c(1,2), 
+                    samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
+                    taxFrac = 0.025, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.95, nPoints = 100,
+                    Palette = NULL, arrowCol = "blue", ...) {
+  # @param RCMfit: an RCM object
+  # @param Dim: two dimensions to plot, defaults to the first two
+  
+  # @param samColour: a character string, the variable to use for the colour of the sample dots
+  # @param colLegend: a character string, the legend text for the sample colour. Defaults to the name of the colour variable
+  # @param samShape: a character string, the variable to use for the shape of the sample dots
+  # @param shapeLegend: a character string, the text to use for the shapeLegend. Defaults to the name of the shape variable
+  # @param samSize: a scalar, the size of the sample dots, defaults to 3
+  
+  # @param taxFrac: a scalar between 0 and 1, the fraction of taxa to be plotted
+  # @param scalingFactor: a scalar, a user supplied scaling factor for the taxon location. If not supplied it will be calculated to make sample and taxon plots on the same scale
+  # @param plotTaxa: a boolean, whether to add the taxa to the plot to make a bi- or triplot
+  # @param quadDrop: a scalar, the value at which the response function has dropped to this fraction of its maximum on the log scale to be plotted as a halo
+  # @param nPoints: an integer, number of points to evaluate for the ellipse
+  
+  # @param Palette: teh colour palette
+  # @param arrowCol: a character string: the colour of the arrows of the environmental gradient.
+  
+  #Retrieve dots (will be passed on to aes())
     dotList=list(...)
     constrained = !is.null(RCMfit$covariates)
     if(constrained){
@@ -2552,10 +2573,10 @@ RCMbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour,
     names(dataSam)=paste0("Dim", Dim)
     
     #Get the colours
-    if(!is.null(colour) && !is.factor(colour)){
-      dataSam$colourPlot = get_variable(RCMfit$physeq, colour)
-    } else if(is.factor(colour)){
-      dataSam$colourPlot = colour} else {dataSam$colourPlot=rep(1, nrow(dataSam))}
+    if(!is.null(samColour) && !is.factor(samColour)){
+      dataSam$colourPlot = get_variable(RCMfit$physeq, samColour)
+    } else if(is.factor(samColour)){
+      dataSam$colourPlot = samColour} else {dataSam$colourPlot=rep(1, nrow(dataSam))}
     
     #     #Set colour palette
     if(is.null(Palette)){
@@ -2577,7 +2598,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
             end2 = origin2 + slope2
           })
     arrowLengths = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+    id = arrowLengths >= quantile(arrowLengths,1 - taxFrac)
     #Filter out small arrows
     dataTax = dataTax[id,] 
     if(is.null(scalingFactor)){
@@ -2587,12 +2608,19 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
             end1 = origin1 + slope1 * scalingFactor
             end2 = origin2 + slope2 * scalingFactor
           })
-        } else if (RCMfit$responseFun=="quadratic"){
-          dataTax =data.frame(
-            apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
-              -x[1]/(2*x[2])
-            })) #The extremum
+        } else if (RCMfit$responseFun == "quadratic"){
+          dataTax = data.frame(
+              apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
+                a = x[2]; b=x[1]
+                -b/(2*a)
+            })) #The location of the extrema
           names(dataTax) = c("end1","end2")
+          dataEllipseTmp = sapply(seq_along(taxa_names(RCMfit$physeq)), function(tax){
+              x = RCMfit$NB_params[,tax,Dim]
+              cbind(ellipseCoord(a = x[3,], b = x[2,], c = x[3,], quadDrop = quadDrop, nPoints = nPoints), taxon = tax)
+              })
+          #Unfold into two dimensions
+          dataEllipse = 
           dataTax$colour = apply(RCMfit$NB_params[3,,Dim],1, function(x){
               if(all(x>0)) {
                 return("green")
@@ -2602,7 +2630,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
                 return("brown")
               }
             })
-        } else if(RCMfit$responseFun  == "nonparametric"){
+        } else if(RCMfit$responseFun  == "nonparametric"){ #For non-parametric response function we cannot plot the taxa
           plotTaxa = FALSE
         } else {
           dataTax = data.frame(t(RCMfit$cMat[Dim,]))
@@ -2610,7 +2638,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
       }
     if(!constrained || RCMfit$responseFun == "quadratic"){
     arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
+    id = arrowLengths >= quantile(arrowLengths,1 - taxFrac)
     #Filter out small arrows
     dataTax = dataTax[id,] 
     if(is.null(scalingFactor)){
@@ -2622,11 +2650,10 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
           })
         }
     }
-
-    if(plotTaxa) dataTax$labels = sub(" ", "\n",colnames(RCMfit$X)[id])
+    if(plotTaxa) dataTax$labels = sub(" ", "\n", colnames(RCMfit$X)[id])
 
     plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
-      geom_point(size=size) + 
+      geom_point(size = samSize) + 
       theme(aspect.ratio=1) +
       if(is.null(colour)) {guides(color=FALSE)} 
     #add legend names
@@ -2646,8 +2673,9 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     if(plotTaxa){
       if(!constrained || RCMfit$responseFun=="linear"){
     plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
-    } else{
-
+    } else if(RCMfit$responseFun=="quadratic"){ #quadratic responsef unctions
+    plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour", size), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
+    } else {
     plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
     }
 
@@ -2668,6 +2696,18 @@ squarePlot <- function(plt){
     return(plt+coord_equal()+
             expand_limits(x=ggplot_build(plt)$panel$ranges[[1]]$y.range,
                           y=ggplot_build(plt)$panel$ranges[[1]]$x.range))
+}
+#--------------------------------#
+# A function that returns the coordinates of an ellipse, given the parameters of teh quadratic function and the fraction of the peak at which to draw the ellipse
+ellipseCoord = function(a,b,c, quadDrop = 0.95, nPoints = 100){
+  center = -b/(2*a)
+  roots = mapply(a,b,c, FUN = function(A,B,C){
+     Re(polyroot(c(C + quadDrop *(B^2-4*A*C)/(4*A), B, A))[1])
+  })
+  anglesEval = seq(0,2*pi, length.out = nPoints)
+  ab = center-roots
+  radii = prod(ab)/sqrt(sin(anglesEval)^2*ab[1]^2 + ab[2]^2* cos(anglesEval)^2)
+  cbind(x = radii*cos(anglesEval), y = radii * sin(anglesEval))
 }
 ```
 
@@ -2763,9 +2803,9 @@ con2DmatQuad = RCM(physeq, k = 2, covariates =  sample_variables(physeq), analyt
 # The zeller data?
 con2DmatNon = RCM(physeq, k = 2, covariates =  sample_variables(physeq), analytic = TRUE, responseFun = "nonparametric")
 
-RCMbiplot(con2DmatLin, colour = "BMI")
-RCMbiplot(con2DmatQuad, colour = "BMI")
-RCMbiplot(con2DmatNon, colour = "BMI")
+plot.RCM(con2DmatLin, colour = "BMI")
+plot.RCM(con2DmatQuad, colour = "BMI")
+plot.RCM(con2DmatNon, colour = "BMI")
 
 con2DmatLin$alpha
 con2DmatQuad$alpha
@@ -2930,13 +2970,13 @@ For the 16S data we see signals for Country and Cancer diagnosis. For the metage
 
 ```{r plotZellerSphy, purl = FALSE, eval = FALSE}
 lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
-  RCMbiplot(zellerSphyRCM, colour = x)
+  plot.RCM(zellerSphyRCM, colour = x)
 })
 ```
 
 ```{r plotZellerSphyExec, purl = FALSE}
 lapply(c("Country","Diagnosis"), function(x){
-  RCMbiplot(zellerSphyRCM, colour = x)
+  plot.RCM(zellerSphyRCM, colour = x)
 })
 rm(zellerRCM, zellerSphyRCM, zellerMphyRCM)
 ```
@@ -2961,21 +3001,21 @@ save(zellerSphyRCMconstrLin, file="zellerSphyRCMconstr.RData")
 ```
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
-RCMbiplot(zellerSphyRCMconstrLin)
-RCMbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis")
-RCMbiplot(zellerSphyRCMconstrLin, colour = "Gender")
-RCMbiplot(zellerSphyRCMconstrLin, colour = "Country")
-RCMbiplot(zellerSphyRCMconstrLin, colour = "Age")
+plot.RCM(zellerSphyRCMconstrLin)
+plot.RCM(zellerSphyRCMconstrLin, colour = "Diagnosis")
+plot.RCM(zellerSphyRCMconstrLin, colour = "Gender")
+plot.RCM(zellerSphyRCMconstrLin, colour = "Country")
+plot.RCM(zellerSphyRCMconstrLin, colour = "Age")
 #apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
 rm(zellerSphyRCMconstrLin)
 ```
 
 ```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
-RCMbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
+plot.RCM(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
 ```
 
 ```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
-RCMbiplot(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
+plot.RCM(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
 rm(zellerSphyRCMconstrLin)
 ```
 
@@ -2997,9 +3037,9 @@ turntwinsRCm = RCM(TurnTwins, k=3)
 #turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
 save(turntwinsRCm, file = "turntwinsRCm.RData")
 } else {load("turntwinsRCm.RData")}
-RCMbiplot(turntwinsRCm, colour = "Family_p")
-RCMbiplot(turntwinsRCm, colour = "twin")
-RCMbiplot(turntwinsRCm, colour = "Status_p")
+plot.RCM(turntwinsRCm, colour = "Family_p")
+plot.RCM(turntwinsRCm, colour = "twin")
+plot.RCM(turntwinsRCm, colour = "Status_p")
 rm(turntwinsRCm)
 ```
 
@@ -3023,26 +3063,26 @@ save(HumMiceRCM, file = "turnMiceRCM.RData")
 ```
 
 ```{r humMicePlot, purl = FALSE, eval = FALSE}
-RCMbiplot(HumMiceRCM) # Two or three distinct groups
-RCMbiplot(HumMiceRCM, colour = "Diet") #Diet is a main factor
-RCMbiplot(HumMiceRCM, colour = "Individual") #Individuals play less of a role
-RCMbiplot(HumMiceRCM, colour = "Generation_p") #Microbiome changes quickly with feed pattern
-RCMbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
+plot.RCM(HumMiceRCM) # Two or three distinct groups
+plot.RCM(HumMiceRCM, colour = "Diet") #Diet is a main factor
+plot.RCM(HumMiceRCM, colour = "Individual") #Individuals play less of a role
+plot.RCM(HumMiceRCM, colour = "Generation_p") #Microbiome changes quickly with feed pattern
+plot.RCM(HumMiceRCM, colour = "Time") #Later samples also form a cluster
 ```
 
 ```{r humMicePlotExec, purl = FALSE}
-RCMbiplot(HumMiceRCM, colour = "Diet", main =  "Humanized mice") #Diet is a main factor
-RCMbiplot(HumMiceRCM, colour = "Time", main =  "Humanized mice") #Later samples also form a cluster
+plot.RCM(HumMiceRCM, colour = "Diet", main =  "Humanized mice") #Diet is a main factor
+plot.RCM(HumMiceRCM, colour = "Time", main =  "Humanized mice") #Later samples also form a cluster
 rm(HumMiceRCM)
 ```
 
 ```{r humMicePlot13D, purl = FALSE, eval = FALSE}
-RCMbiplot(HumMiceRCM, colour = "Diet", Dim = c(1,3)) #Diet is a main factor
-RCMbiplot(HumMiceRCM, colour = "Individual", Dim = c(1,3)) #Individuals play less of a role
-RCMbiplot(HumMiceRCM, colour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
-RCMbiplot(HumMiceRCM, colour = "Time", Dim = c(1,3)) #Later samples also form a cluster
-RCMbiplot(HumMiceRCM, colour = "DTG", Dim = c(1,3))
-RCMbiplot(HumMiceRCM, colour = "DGS", Dim = c(1,3))
+plot.RCM(HumMiceRCM, colour = "Diet", Dim = c(1,3)) #Diet is a main factor
+plot.RCM(HumMiceRCM, colour = "Individual", Dim = c(1,3)) #Individuals play less of a role
+plot.RCM(HumMiceRCM, colour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
+plot.RCM(HumMiceRCM, colour = "Time", Dim = c(1,3)) #Later samples also form a cluster
+plot.RCM(HumMiceRCM, colour = "DTG", Dim = c(1,3))
+plot.RCM(HumMiceRCM, colour = "DGS", Dim = c(1,3))
 ```
 
 # Competing methods
