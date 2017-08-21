@@ -2540,7 +2540,7 @@ return(invisible())
   # par(tmp)
 }
 # A ggplot2-version
-PCbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="blue", plotTaxa = FALSE) {
+RCMbiplot = function(RCMfit, Dim=c(1,2), ..., colour = NULL, colLegend = colour, shapeLegend = NULL, size=3, arrowFrac = 0.025, scalingFactor=NULL, Palette=NULL, arrowCol="blue", plotTaxa = FALSE) {
     #Retrieve dots (will be passed on to aes())
     dotList=list(...)
     constrained = !is.null(RCMfit$covariates)
@@ -2763,9 +2763,9 @@ con2DmatQuad = RCM(physeq, k = 2, covariates =  sample_variables(physeq), analyt
 # The zeller data?
 con2DmatNon = RCM(physeq, k = 2, covariates =  sample_variables(physeq), analytic = TRUE, responseFun = "nonparametric")
 
-PCbiplot(con2DmatLin, colour = "BMI")
-PCbiplot(con2DmatQuad, colour = "BMI")
-PCbiplot(con2DmatNon, colour = "BMI")
+RCMbiplot(con2DmatLin, colour = "BMI")
+RCMbiplot(con2DmatQuad, colour = "BMI")
+RCMbiplot(con2DmatNon, colour = "BMI")
 
 con2DmatLin$alpha
 con2DmatQuad$alpha
@@ -2930,13 +2930,13 @@ For the 16S data we see signals for Country and Cancer diagnosis. For the metage
 
 ```{r plotZellerSphy, purl = FALSE, eval = FALSE}
 lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
-  PCbiplot(zellerSphyRCM, colour = x)
+  RCMbiplot(zellerSphyRCM, colour = x)
 })
 ```
 
 ```{r plotZellerSphyExec, purl = FALSE}
 lapply(c("Country","Diagnosis"), function(x){
-  PCbiplot(zellerSphyRCM, colour = x)
+  RCMbiplot(zellerSphyRCM, colour = x)
 })
 rm(zellerRCM, zellerSphyRCM, zellerMphyRCM)
 ```
@@ -2961,21 +2961,21 @@ save(zellerSphyRCMconstrLin, file="zellerSphyRCMconstr.RData")
 ```
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
-PCbiplot(zellerSphyRCMconstrLin)
-PCbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis")
-PCbiplot(zellerSphyRCMconstrLin, colour = "Gender")
-PCbiplot(zellerSphyRCMconstrLin, colour = "Country")
-PCbiplot(zellerSphyRCMconstrLin, colour = "Age")
+RCMbiplot(zellerSphyRCMconstrLin)
+RCMbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis")
+RCMbiplot(zellerSphyRCMconstrLin, colour = "Gender")
+RCMbiplot(zellerSphyRCMconstrLin, colour = "Country")
+RCMbiplot(zellerSphyRCMconstrLin, colour = "Age")
 #apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
 rm(zellerSphyRCMconstrLin)
 ```
 
 ```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
-PCbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
+RCMbiplot(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
 ```
 
 ```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
-PCbiplot(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
+RCMbiplot(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
 rm(zellerSphyRCMconstrLin)
 ```
 
@@ -2997,9 +2997,9 @@ turntwinsRCm = RCM(TurnTwins, k=3)
 #turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
 save(turntwinsRCm, file = "turntwinsRCm.RData")
 } else {load("turntwinsRCm.RData")}
-PCbiplot(turntwinsRCm, colour = "Family_p")
-PCbiplot(turntwinsRCm, colour = "twin")
-PCbiplot(turntwinsRCm, colour = "Status_p")
+RCMbiplot(turntwinsRCm, colour = "Family_p")
+RCMbiplot(turntwinsRCm, colour = "twin")
+RCMbiplot(turntwinsRCm, colour = "Status_p")
 rm(turntwinsRCm)
 ```
 
@@ -3023,26 +3023,26 @@ save(HumMiceRCM, file = "turnMiceRCM.RData")
 ```
 
 ```{r humMicePlot, purl = FALSE, eval = FALSE}
-PCbiplot(HumMiceRCM) # Two or three distinct groups
-PCbiplot(HumMiceRCM, colour = "Diet") #Diet is a main factor
-PCbiplot(HumMiceRCM, colour = "Individual") #Individuals play less of a role
-PCbiplot(HumMiceRCM, colour = "Generation_p") #Microbiome changes quickly with feed pattern
-PCbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
+RCMbiplot(HumMiceRCM) # Two or three distinct groups
+RCMbiplot(HumMiceRCM, colour = "Diet") #Diet is a main factor
+RCMbiplot(HumMiceRCM, colour = "Individual") #Individuals play less of a role
+RCMbiplot(HumMiceRCM, colour = "Generation_p") #Microbiome changes quickly with feed pattern
+RCMbiplot(HumMiceRCM, colour = "Time") #Later samples also form a cluster
 ```
 
 ```{r humMicePlotExec, purl = FALSE}
-PCbiplot(HumMiceRCM, colour = "Diet", main =  "Humanized mice") #Diet is a main factor
-PCbiplot(HumMiceRCM, colour = "Time", main =  "Humanized mice") #Later samples also form a cluster
+RCMbiplot(HumMiceRCM, colour = "Diet", main =  "Humanized mice") #Diet is a main factor
+RCMbiplot(HumMiceRCM, colour = "Time", main =  "Humanized mice") #Later samples also form a cluster
 rm(HumMiceRCM)
 ```
 
 ```{r humMicePlot13D, purl = FALSE, eval = FALSE}
-PCbiplot(HumMiceRCM, colour = "Diet", Dim = c(1,3)) #Diet is a main factor
-PCbiplot(HumMiceRCM, colour = "Individual", Dim = c(1,3)) #Individuals play less of a role
-PCbiplot(HumMiceRCM, colour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
-PCbiplot(HumMiceRCM, colour = "Time", Dim = c(1,3)) #Later samples also form a cluster
-PCbiplot(HumMiceRCM, colour = "DTG", Dim = c(1,3))
-PCbiplot(HumMiceRCM, colour = "DGS", Dim = c(1,3))
+RCMbiplot(HumMiceRCM, colour = "Diet", Dim = c(1,3)) #Diet is a main factor
+RCMbiplot(HumMiceRCM, colour = "Individual", Dim = c(1,3)) #Individuals play less of a role
+RCMbiplot(HumMiceRCM, colour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
+RCMbiplot(HumMiceRCM, colour = "Time", Dim = c(1,3)) #Later samples also form a cluster
+RCMbiplot(HumMiceRCM, colour = "DTG", Dim = c(1,3))
+RCMbiplot(HumMiceRCM, colour = "DGS", Dim = c(1,3))
 ```
 
 # Competing methods
@@ -3465,6 +3465,27 @@ meansDist = tapply(moltenContr$contrRatio, moltenContr$Method, mean)
 points(meansDist, col="red", pch=18, cex = 1.6)
 abline(h=1, lty = "dashed")
 }
+#-----------------------------#
+# A function to calculate correlation with the starting values
+startFun = function(list){
+  X = list$RCM$X
+  R = rowSums(X)
+  C = colSums(X)
+  E = outer(R, C)/sum(R)
+  svd1 = svd(diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C)))
+  svd2 = svd(diag(1/R) %*% (X-E) %*% diag(1/C))
+  svd3 = svd(diag(R^(-3/2)) %*% (X-E) %*% diag(C^(-3/2)))
+  svd4 = svd(diag(R^(-3)) %*% (X-E) %*% diag(C^(-3)))
+  svd5 = svd(diag(1/R^2) %*% (X-E) %*% diag(1/C^2))
+  cMat = list$RCM$cMat
+  rMat = list$RCM$rMat
+  list(corRows1 = getCor(svd1$u, rMat), corRows2 = getCor(svd2$u, rMat), corRows3 = getCor(svd3$u, rMat), corRows4 = getCor(svd4$u, rMat), corRows5 = getCor(svd5$u, rMat) ,corCols1 = getCor(svd1$v, t(cMat)), corCols2 = getCor(svd2$v, t(cMat)), corCols3 = getCor(svd3$v, t(cMat)), corCols4 = getCor(svd4$v, t(cMat)), corCols5 = getCor(svd5$v, t(cMat)))
+} 
+getCor = function(a,b){
+  sapply(1:ncol(b), function(x){
+    cor(a[,x], b[,x])
+  })
+}
 ```
 
 # Simulations
@@ -3568,6 +3589,16 @@ rm(resList0Rows, resList0, datList0)
 ```
 
 Only our RC(M) method has correlations at the level of random noise.
+
+```{r Starting Values, purl = FALSE, eval = FALSE}
+startList= lapply(resList0, startFun)
+moltStart = melt(startList, value.name="correlation")
+names(moltStart) = c("correlation", "scores","run")
+par(mar = c(6,4,4,4))
+boxplot(correlation ~ scores, data = moltStart, las=2)
+abline(h=0, col ="red", lty = "dashed")
+#Squared weighing clearly gives the best results, although no fantastic correlations.
+```
 
 \clearpage
 
