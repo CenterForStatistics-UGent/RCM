@@ -21,7 +21,6 @@ for(i in reqpkg)
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
 if(detectCores()==4) setwd(WD)
-
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
 load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
@@ -151,17 +150,16 @@ i.e. the average row score on the population level is zero. This is a useful res
 
 $$E(w_iX_{ik}X_{ik'}) = I(k=k')$$
 
-and accordingly for the column scores. But which weights $w_i$ and $z_j$ should we use?
+and accordingly for the column scores:
+$$E(z_j S_{jk}) = 0$$
+
+$$E(z_j S_{jk} S_{jk'}) = I(k=k')$$. 
+
+But which weights $w_i$ and $z_j$ should we use?
 
 Goodman proposes to use $w_i = x_{i.}$ and $z_j = x_{.j}$ thus uses _weighted_ constraints, to retain the relationship with correspondence analysis (see below). Becker _et al._ (1989) recommend using uniform weights not to let the marginal distribution affect the model fit. 
 
-For the microbiome case, every subject comes from the same population under the null-hypothesis and all subjects are thus eqaully likely to be sampled and have the same importance. The library sizes as a purely technical artefact, unrelated to the biological importance of the subject. Consequently we use uniform row weights $w_i = 1/n$ (or $w_i = 1$, the magnitude is of no importance since the associated $\psi_k$ will grow or shrink accordingly). However, some taxa are more prevalent in the population than others. We want the average column scores on the population level to be centered around zero, have variance one and be orthogonal. That is why we set
-
-$$E(z_j S_{jk}) = 0$$
-
-$$E(z_j S_{jk} S_{jk'}) = I(k=k')$$
-
-Because the more abundant species are in fact more abundant in the population as a whole (as opposed to samples with a large library size) it makes sense to use a marginal weighting scheme for the column scores. The weights $z_j$ will be estimated by maximum likelihood, as explained in the next paragraph.
+For the microbiome case, every subject comes from the same population under the null-hypothesis and all subjects are thus eqaully likely to be sampled and have the same importance. The library sizes as a purely technical artefact, unrelated to the biological importance of the subject. Consequently we use uniform row weights $w_i = 1/n$ (or $w_i = 1$, the magnitude is of no importance since the associated $\psi_k$ will grow or shrink accordingly). However, some taxa are more prevalent in the population than others. We want the average column scores on the population level to be centered around zero, have variance one and be orthogonal. That is why we set $z_j = exp(u_j)$; because the more abundant species are in fact more abundant in the population as a whole (as opposed to samples with a large library size), it makes sense to use a marginal weighting scheme for the column scores. The weights $z_j$ will be estimated by maximum likelihood, as explained in the next paragraph.
 
 #### RC(M) margins
 
@@ -178,6 +176,8 @@ $$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta
 $$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{j}} = \sum_{i=1}^n \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}.$$
 
 Note that since we are estimating offsets the value of the regressor is 1. In this case the difference of $y_{ij}$ with the expected value $\mu_{ij}$ is weighted by a factor $\frac{1}{1+\frac{\mu_{ij}}{\theta_j}} = \frac{\theta_j}{\theta_j+\mu_{ij}}$. When estimating $u_j$, $\theta$ is a constant but when estimating $u_i$ it is different for every observation $y_{ij}$. Hence the weights put on every observation differ much more when estimating the sample offsets than when estimating the taxon offsets. That is the reason why the MLE differs more from the marginal sum for the library size than for the abundances.
+
+Note also that when there is a very large overdispersion for a taxon _j_ ($\theta_j$ small), its observations carry little information and their weights are small in the calculation of the library sizes. However, when there is very little overdispersion ($\theta_j \rightarrow \infty$), the weights of the components of the score function equal 1, as with Poisson regression. Finally, we see that departures from the mean $\mu_{ij}$ are weighted down for large values of $\mu_{ij}$, acknowledging the fact that the variance increases faster than linear with the mean in the negative binomial model.
 
 #### Imposing the restrictions
 
@@ -537,7 +537,7 @@ For any response function with $q$ parameters $\boldsymbol{\beta}_j$ we model th
 
 $$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \psi_k f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i}|\boldsymbol{\beta}_j \big) .$$
 
-Basically this represents a marriage of the RC(m) models of Goodman and the gradient models of Zhu and Hastie (2005). For the response function previously a quadratic function (Gaussian on count scale) has been proposed but this may not be realistic. Also the setting is different: we are looking for response function that maximize the __departure from independence__, no longer the abundances themselves! In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). 
+Basically this represents a marriage of the RC(M) models of Goodman and the gradient models of Zhu and Hastie (2005). For the response function previously a quadratic function (Gaussian on count scale) has been proposed but this may not be realistic. Also the setting is different: we are looking for response function that maximize the __departure from independence__, no longer the abundances themselves! In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). 
 
 Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters $q$ estimated per response function $f_j$ is much smaller than the number of samples $n$.
 
