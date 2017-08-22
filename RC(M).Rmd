@@ -177,7 +177,7 @@ $$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta
 
 Note that since we are estimating offsets the value of the regressor is 1. In this case the difference of $y_{ij}$ with the expected value $\mu_{ij}$ is weighted by a factor $\frac{1}{1+\frac{\mu_{ij}}{\theta_j}} = \frac{\theta_j}{\theta_j+\mu_{ij}}$. When estimating $u_j$, $\theta$ is a constant but when estimating $u_i$ it is different for every observation $y_{ij}$. Hence the weights put on every observation differ much more when estimating the sample offsets than when estimating the taxon offsets. That is the reason why the MLE differs more from the marginal sum for the library size than for the abundances.
 
-Note also that when there is a very large overdispersion for a taxon _j_ ($\theta_j$ small), its observations carry little information and their weights are small in the calculation of the library sizes. However, when there is very little overdispersion ($\theta_j \rightarrow \infty$), the weights of the components of the score function equal 1, as with Poisson regression. Finally, we see that departures from the mean $\mu_{ij}$ are weighted down for large values of $\mu_{ij}$, acknowledging the fact that the variance increases faster than linear with the mean in the negative binomial model.
+Note also that when there is a very large overdispersion for a taxon _j_ ($\theta_j$ small), its observations carry little information and their weights are small in the calculation of the library sizes. However, when there is very little overdispersion ($\theta_j \rightarrow \infty$), the weights of the components of the score function equal 1, as with Poisson regression. These MLEs of the Poisson regression are also equal to the estimators based on the marginal sums. This means that the larger and the more diverse the overdispersion estimates are, the more the MLEs under the negative binomial model will depart from the marginal sums. Finally, we see that departures from the mean $\mu_{ij}$ are weighted down for large values of $\mu_{ij}$, acknowledging the fact that the variance increases faster than linear with the mean in the negative binomial model.
 
 #### Imposing the restrictions
 
@@ -213,7 +213,7 @@ $$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\
 
 #### Starting values
 
-1. Obtain a singular value decomposition as $R^{-c}(X-E)C^{-d} = U\Sigma V$. This gives us initial values $[r_{11}^{init}, r_{12}^{init},..., r_{1i}^{init}] = U_{(1.)}$, the first row of $U$, and correspondingly $\Sigma$ and $V$ give initial values for $\mathbf{\psi}$ and $\mathbf{s}$. The values for $c$ and $d$ depend ont he weighting scheme used, e.g. if the sample weights are uniform ($w_i=1/n$) and the taxon weights marginal($z_j = x_{.j}$) then $c=1$ and $d=0$. This makes sure the initial centering conditions are fulfilled.
+1. Obtain a singular value decomposition as $R^{-c}(X-E)C^{-d} = U\Sigma V$. This gives us initial values $[r_{11}^{init}, r_{12}^{init},..., r_{1i}^{init}] = U_{(1.)}$, the first row of $U$, and correspondingly $\Sigma$ and $V$ give initial values for $\mathbf{\psi}$ and $\mathbf{s}$. The values for $c$ and $d$ were determind based on correlation with the final values, and $c=d=1$ performed best.
 
 We still need to ensure that the (weighted) variances equal 1, so we set
 
@@ -2542,8 +2542,8 @@ return(invisible())
 # A ggplot2-version of the biplot function
 plot.RCM = function(RCMfit, Dim = c(1,2), 
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
-                    taxFrac = 0.025, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.95, nPoints = 100,
-                    Palette = NULL, arrowCol = "blue", ...) {
+                    taxFrac = 0.025, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.995, nPoints = 1e3,
+                    Palette = NULL, arrowCol = "blue", nudge_y = -0.08,...) {
   # @param RCMfit: an RCM object
   # @param Dim: two dimensions to plot, defaults to the first two
   
@@ -2556,11 +2556,12 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   # @param taxFrac: a scalar between 0 and 1, the fraction of taxa to be plotted
   # @param scalingFactor: a scalar, a user supplied scaling factor for the taxon location. If not supplied it will be calculated to make sample and taxon plots on the same scale
   # @param plotTaxa: a boolean, whether to add the taxa to the plot to make a bi- or triplot
-  # @param quadDrop: a scalar, the value at which the response function has dropped to this fraction of its maximum on the log scale to be plotted as a halo
+  # @param quadDrop: a scalar, the value at which the response function has dropped to this fraction of its maximum on the count scale to be plotted as a halo
   # @param nPoints: an integer, number of points to evaluate for the ellipse
   
-  # @param Palette: teh colour palette
+  # @param Palette: the colour palette
   # @param arrowCol: a character string: the colour of the arrows of the environmental gradient.
+  # @param nudge_y: a scalar, the offet for the taxon labels
   
   #Retrieve dots (will be passed on to aes())
     dotList=list(...)
@@ -2576,7 +2577,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     if(!is.null(samColour) && !is.factor(samColour)){
       dataSam$colourPlot = get_variable(RCMfit$physeq, samColour)
     } else if(is.factor(samColour)){
-      dataSam$colourPlot = samColour} else {dataSam$colourPlot=rep(1, nrow(dataSam))}
+      dataSam$colourPlot = samColour} else {dataSam$colourPlot=factor(rep(1, nrow(dataSam)))}
     
     #     #Set colour palette
     if(is.null(Palette)){
@@ -2615,28 +2616,53 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
                 -b/(2*a)
             })) #The location of the extrema
           names(dataTax) = c("end1","end2")
-          dataEllipseTmp = sapply(seq_along(taxa_names(RCMfit$physeq)), function(tax){
-              x = RCMfit$NB_params[,tax,Dim]
-              cbind(ellipseCoord(a = x[3,], b = x[2,], c = x[3,], quadDrop = quadDrop, nPoints = nPoints), taxon = tax)
-              })
-          #Unfold into two dimensions
-          dataEllipse = 
           dataTax$colour = apply(RCMfit$NB_params[3,,Dim],1, function(x){
               if(all(x>0)) {
                 return("green")
               } else if (all(x<0)){
                 return("red")
-              } else {
+              } else if(x[1] > 0){
                 return("brown")
+              } else{
+                return("purple")
               }
             })
+          dataEllipseTmp = vapply(seq_along(taxa_names(RCMfit$physeq)), FUN.VALUE = matrix(0,nPoints,3),function(tax){
+              x = RCMfit$NB_params[,tax,Dim]
+              cbind(ellipseCoord(a = x[3,] * RCMfit$psis, b = x[2,] * RCMfit$psis, c = x[3,] * RCMfit$psis, quadDrop = quadDrop, nPoints = nPoints), taxon = tax)
+              })
+  
+          meanPeakHeights = apply(RCMfit$NB_params[,,Dim],2, function(x){
+            A = x[3,]; B = x[2,]; C = x[1,];
+            mean(sapply(exp(B^2 * RCMfit$psis-4*A*C)/(4*A), function(y){max(y,1/y)})) #select largest relative departure
+          })
+           #Pick taxa with largest extrema, within observed values of the envrionmental scores (otherwise it is almost extrapolation)
+          dataID = data.frame(
+            meanPeakHeights = meanPeakHeights,
+            id = seq_len(nrow(dataTax)),
+            dataTax
+          )
+          envScores = RCMfit$covariates %*% RCMfit$alpha
+          id = dataID[with(dataID, 
+                               order(end1 > max(envScores[,Dim[1]]) | end1 < min(envScores[,Dim[1]]), 
+                                     end2 > max(envScores[,Dim[2]]) | end2 < min(envScores[,Dim[2]]),
+                                     -meanPeakHeights)),
+                      ]$id[seq_len(ceiling(taxFrac*nrow(dataTax)))]
+          dataTax = dataTax[id,] 
+          #Unfold into two dimensions
+          dataEllipse = data.frame(
+            apply(dataEllipseTmp[,,id], 2, c), colour = dataTax$colour
+          )
         } else if(RCMfit$responseFun  == "nonparametric"){ #For non-parametric response function we cannot plot the taxa
           plotTaxa = FALSE
         } else {
-          dataTax = data.frame(t(RCMfit$cMat[Dim,]))
-          names(dataTax) = c("end1","end2")
-      }
-    if(!constrained || RCMfit$responseFun == "quadratic"){
+          stop("No valid response function present in this RCM object!")
+        }
+    } else { #If not constrained
+    dataTax = data.frame(t(RCMfit$cMat[Dim,]))
+    names(dataTax) = c("end1","end2")
+    }
+    if(!constrained || RCMfit$responseFun == "linear"){ #Scaling needed
     arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
     id = arrowLengths >= quantile(arrowLengths,1 - taxFrac)
     #Filter out small arrows
@@ -2648,8 +2674,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
             end1 = end1 * scalingFactor
             end2 = end2 * scalingFactor
           })
-        }
-    }
+     } # End scaling needed
     if(plotTaxa) dataTax$labels = sub(" ", "\n", colnames(RCMfit$X)[id])
 
     plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
@@ -2674,14 +2699,15 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
       if(!constrained || RCMfit$responseFun=="linear"){
     plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic responsef unctions
-    plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour", size), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
+    plot <- plot + 
+      geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour", size), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
+      geom_path(inherit.aes = FALSE, data = dataEllipse, mapping = aes_string(x = "x", y = "y", group = "taxon", colour = "colour"))
     } else {
     plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
     }
 
-      plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE)
+      plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE, nudge_y = nudge_y)
     } else {}
-    
     if(constrained){
       #Add variable labels
       varData = data.frame(RCMfit$alpha)
@@ -2702,12 +2728,12 @@ squarePlot <- function(plt){
 ellipseCoord = function(a,b,c, quadDrop = 0.95, nPoints = 100){
   center = -b/(2*a)
   roots = mapply(a,b,c, FUN = function(A,B,C){
-     Re(polyroot(c(C + quadDrop *(B^2-4*A*C)/(4*A), B, A))[1])
+     Re(polyroot(c(C - log(ifelse(A>0,1/quadDrop,quadDrop)) + (B^2-4*A*C)/(4*A), B, A))[1]) #Log to go to count scale. Since function is symmetric, does not matter which root we pick, only distance to vertex matters so we just take the first
   })
   anglesEval = seq(0,2*pi, length.out = nPoints)
   ab = center-roots
   radii = prod(ab)/sqrt(sin(anglesEval)^2*ab[1]^2 + ab[2]^2* cos(anglesEval)^2)
-  cbind(x = radii*cos(anglesEval), y = radii * sin(anglesEval))
+  cbind(x = radii*cos(anglesEval) + center[1], y = radii * sin(anglesEval) + center[2])
 }
 ```
 
