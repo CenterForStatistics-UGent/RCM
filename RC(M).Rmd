@@ -2542,7 +2542,7 @@ return(invisible())
 # A ggplot2-version of the biplot function
 plot.RCM = function(RCMfit, Dim = c(1,2), 
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
-                    taxFrac = 0.025, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.995, nPoints = 1e3,
+                    taxFrac = 0.05, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
                     Palette = NULL, arrowCol = "blue", nudge_y = -0.08,...) {
   # @param RCMfit: an RCM object
   # @param Dim: two dimensions to plot, defaults to the first two
@@ -2558,6 +2558,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   # @param plotTaxa: a boolean, whether to add the taxa to the plot to make a bi- or triplot
   # @param quadDrop: a scalar, the value at which the response function has dropped to this fraction of its maximum on the count scale to be plotted as a halo
   # @param nPoints: an integer, number of points to evaluate for the ellipse
+  # @param plotEllipse: a boolean, whether to add the ellipses
+  # @param taxaScale: a scalar, by which to scale the rectangles of the quadratic taxon plot
   
   # @param Palette: the colour palette
   # @param arrowCol: a character string: the colour of the arrows of the environmental gradient.
@@ -2609,7 +2611,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
             end1 = origin1 + slope1 * scalingFactor
             end2 = origin2 + slope2 * scalingFactor
           })
-        } else if (RCMfit$responseFun == "quadratic"){
+     } else if (RCMfit$responseFun == "quadratic"){
           dataTax = data.frame(
               apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
                 a = x[2]; b=x[1]
@@ -2632,10 +2634,13 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
               cbind(ellipseCoord(a = x[3,] * RCMfit$psis, b = x[2,] * RCMfit$psis, c = x[3,] * RCMfit$psis, quadDrop = quadDrop, nPoints = nPoints), taxon = tax)
               })
   
-          meanPeakHeights = apply(RCMfit$NB_params[,,Dim],2, function(x){
+          peakHeights = apply(RCMfit$NB_params[,,Dim],2, function(x){
             A = x[3,]; B = x[2,]; C = x[1,];
-            mean(sapply(exp(B^2 * RCMfit$psis-4*A*C)/(4*A), function(y){max(y,1/y)})) #select largest relative departure
+            sapply(exp(B^2 * RCMfit$psis-4*A*C)/(4*A), function(y){max(y,1/y)}) #select largest relative departure
           })
+          rownames(peakHeights) = c("peak1","peak2")
+          meanPeakHeights = colMeans(peakHeights)
+          dataTax = cbind(dataTax, t(peakHeights))
            #Pick taxa with largest extrema, within observed values of the envrionmental scores (otherwise it is almost extrapolation)
           dataID = data.frame(
             meanPeakHeights = meanPeakHeights,
@@ -2649,6 +2654,9 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
                                      -meanPeakHeights)),
                       ]$id[seq_len(ceiling(taxFrac*nrow(dataTax)))]
           dataTax = dataTax[id,] 
+          #Rescale peak heights for plotting
+          dataTax[, c("peak1","peak2")] = taxaScale* rowMultiply(dataTax[, c("peak1","peak2")], apply(dataTax[, c("end1","end2")],2,function(x){max(abs(x))})/apply(dataTax[, c("peak1","peak2")], 2,max))
+          dataTax[, c("peak1","peak2")] = apply(dataTax[, c("peak1","peak2")], c(1,2), max, 0.0075) # Make sure a line always appears
           #Unfold into two dimensions
           dataEllipse = data.frame(
             apply(dataEllipseTmp[,,id], 2, c), colour = dataTax$colour
@@ -2700,8 +2708,8 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic responsef unctions
     plot <- plot + 
-      geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour", size), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
-      geom_path(inherit.aes = FALSE, data = dataEllipse, mapping = aes_string(x = "x", y = "y", group = "taxon", colour = "colour"))
+      geom_tile(data=dataTax, aes_string(x='end1', y='end2', fill="colour", width = "peak1", height = "peak2" ), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
+      if(plotEllipse) {geom_path(inherit.aes = FALSE, data = dataEllipse, mapping = aes_string(x = "x", y = "y", group = "taxon", colour = "colour"))}
     } else {
     plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
     }
