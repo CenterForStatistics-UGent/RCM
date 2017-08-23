@@ -91,6 +91,10 @@ $$R^{-a}(X-E)C^{-b}$$
 
 and estimate $a$ and $b$ by maximum likelihood but we did not really see how to go on from here.
 
+#### Detrended correspondence analysis
+
+In regular correspondence analysis it is often observed that the second axis points form an arch with respect to the first axis. This effect can be removed by detrending. The procedure is then called Detrended correspondence analysis (DCA) (Hill and Gauch, 1980).
+
 ### Hellinger distance
 
 With PCoA, any distance metric can be used to produce a distance matrix, which can be decomposed to make biplots.
@@ -424,13 +428,25 @@ A logical next step is to develop a __constrained__ method in the same framework
 
 We call our n-by-d covariate matrix $C$, for every sample $i$, $d$ baseline covariates are measured. These covariates can be either discrete or continuous. $c_{iy}$ is the observed value of covariate $y$ in sample $i$, $\mathbf{c_{i.}}$ the whole covariate vector of length $d$ of sample $i$, and $\mathbf{c_{.y}}$ all recorded values of variable $y$.
 
+We could of course just perform our classical, unconstrained methods and then regress the obtained sample scores on the envrionmental variables. However, it is to be expected that this is a less efficient use of the data, which has been shown for the case of correspondence analysis by Prodon and Lebreton (1994).
+
+### Niche theory
+
+Species can grow and reproduce best within certain ranges of parameter values that describe their envrionment. The multidimensional space spanned by environmental variables in which a certain species can grow is called its __niche__. The species prospers in the center of its niche, but its abundance decreases as the characteristics of the environment depart from this optimal conditions. In extreme cases the species simply cannot survive or reproduce in certain envrironments and is simply absent. Hence this niche is usually decribed by a unimodal function.
+
+### Canonical correlation analysis
+
 ### Constrained correspondence analysis (CCA)
 
-In contrast to canoncical correlation analysis, constrained correspondence analysis (CCA) assumes bell-shaped response curves with respect to environmental variables. A __response curve__ describes the expeceted abundance of a species in function of an environmental score, which is a fucntion fo environmental variables. Canonical correlation analysis asssumes linear responses to the environmental variables, which is less useful in the ecological context. Classical ecological theory assumes species have an optimal combination of values of the environmental variables, and their expected abundances decrease as the environment departs from these optimal values.
+There are many ways to introduce and explain CCA, with many parallels to other (forgotten) methods, but we will stick to the approach based on the singular value decomposition.
+
+In contrast to canonical correlation analysis, constrained correspondence analysis (CCA) assumes bell-shaped, unimodal response curves with respect to environmental variables. A __response curve__ describes the expeceted abundance of a species in function of an environmental score, which is a function fo environmental variables. Canonical correlation analysis asssumes linear responses to the environmental variables, which is less useful in the ecological context. Classical ecological theory assumes species have an optimal combination of values of the environmental variables, and their expected abundances decrease as the environment departs from these optimal values.
 
 Of course one could perform regular correspondence analysis, and then relate the obtained gradients to known envrionmental variables in a two-step approach. This is again an instance of _indirect_ gradient analysis (see Whittaker 1967).
 
-Ter Braak (1987) proposes a method of direct gradient analysis based on CA: canonical correspondence analysis (CCA). It basically assumes that species have a Gaussian response curve in function of an environmental score which is a _linear_ conbination of environmental variables. The linear projection vector $\boldsymbol{\alpha}$ is called the __environmental gradient__. The axes of the ordination are chosen in the light of the environmental variables. Prior to the analysis the environmental variables are centered and scaled to avoid arbitrariness in the choice of the units and render the elements of the envrionmental gradient comparable. The rows of the chi-square transformed matrix $R^{-1/2}(X-E)C^{-1/2}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting. Then singular value decomposition is applied to the matrix of fitted values $F = U'\Sigma'V'$ of this regression. Using the fitted values assures that only the systematic part explained by the covariates plays a role. CCA is related to weighted Redundancy analysis (RDA) of the Chi-squared distances, just like regular CA is a PCoA of Chi-squared distances.
+Ter Braak (1987) proposes a method of direct gradient analysis based on CA: canonical correspondence analysis (CCA). It basically assumes that species have a Gaussian response curve in function of an environmental score which is a _linear_ conbination of environmental variables. The linear projection vector $\boldsymbol{\alpha}$ is called the __environmental gradient__. The row scores of the ordination are restricted to be linear combinations of the environmental variables. Prior to the analysis the environmental variables are centered and scaled to avoid arbitrariness in the choice of the units and render the elements of the envrionmental gradient comparable. The rows of the chi-square transformed matrix $\mathbf{R^{-1/2}(X-E)C^{-1/2}}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals $\mathbf{R}$ as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting, with the library sizes as weights. The row-weight-centered matrix $C'$ is thus calculated as $C' = C(I - \frac{1}{c_{..}d}R\mathdd{1}$. Then singular value decomposition is applied to the matrix of fitted values $F = Y (C^T R C)^{-1} C' R R^{-1/2}(X-E)C^{-1/2}$ of this regression, such that $F = U'\Sigma'V'$. Using the fitted values assures that only the systematic part explained by the covariates plays a role. The scores of the environmental variables are then  CCA is related to weighted Redundancy analysis (RDA) of the Chi-squared distances, just like regular CA is a PCoA of Chi-squared distances.
+
+An interesting reference on the topic is _"The history of canonical correspondence analysis"_ by ter Braak, 2014, where he also references Goodman's work.
 
 #### CCA triplots
 
@@ -765,7 +781,6 @@ Contrary to most other methods to make biplots for microbiome data, the RC(M)-me
 
 ```{r Auxfuns Correspondence analysis, purl=TRUE}
 ## A function to perform correspondence analysis
-
 caSVD = function(X, Y = NULL, Z = NULL){
 # @param X: the nxp count matrix
 # @param Y(optional): a nxd matrix of covariates, or a vector of variable names if X is a phyloseq object. If null regular CA is performed
@@ -773,27 +788,27 @@ caSVD = function(X, Y = NULL, Z = NULL){
   
 # @return: the singular value decomposition of the matrix of pearson residuals
   if(class(X)=="phyloseq"){
-  if(!is.null(Y)){Y = model.matrix(get_variables(physeq = X, Y), ~.)}
-  if(!is.null(Z)){Z = model.matrix(get_variables(physeq = X, Z), ~.)} 
+  if(!is.null(Y)){Y = model.matrix(data = data.frame(sample_data(object = X))[,Y], ~.)}
+  if(!is.null(Z)){Z = model.matrix(data = sample_data(object = X)[,Z], ~.)} 
   X = if (taxa_are_rows(X)) t(otu_table(X)@.Data) else otu_table(X)@.Data
   }
   C = colSums(X)
   R = rowSums(X)
-  onesn =rep.int(1, nrow(X))
-  onesp = rep.int(1, ncol(X))
-  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C) #Expected counts under independence
+  E = outer(R,C)/sum(X) #Expected counts under independence
   if(is.null(Y)){ #Unconstrained analysis
   Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
-  } else { #Constrained analysis
-  Y = weight.centre(Y, R) #Weighted centering   
-  Goal = Y %*% solve(a =  t(Y) %*% diag(R) %*% Y,
-        b = t(Y) %*% diag(R) %*% diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
-  ) #The goal matrix consists of fitted values of weighted regression of the chi-square transformed data matrix on the covariates with row sums as weights
-  
-  
-  }
   dimnames(Goal) = dimnames(X)
   svd(Goal)
+  } else { #Constrained analysis
+  Ycent = t(t(Y) - rowMeans(t(Y)*R/sum(R) ))#Weighted centering  
+  Goal = Ycent %*% solve(a =  crossprod(Ycent,  diag(R)) %*% Ycent,
+        b = crossprod(Ycent, diag(R) %*% diag(1/sqrt(R))) %*% (X-E) %*% diag(1/sqrt(C))) 
+  #The goal matrix consists of fitted values of weighted regression of the chi-square transformed data matrix on the covariates with row sums as weights
+  }
+  dimnames(Goal) = dimnames(X)
+  Svd = svd(Goal)
+  envScores = 1/sqrt(colSums(Ycent^2))*crossprod(Ycent, Svd$u)
+  list(Svd = Svd, envScores = envScores)
 }
 #-------------------------------------------------#
 cca2 = function (X, Y, Z, ...) 
@@ -877,7 +892,7 @@ cca2 = function (X, Y, Z, ...)
         CCA$alias <- colnames(Y.r)[-oo]
       xx <- Y.r[, oo, drop = FALSE]
       CCA$biplot <- (1/sqrt(colSums(xx^2))) * crossprod(xx, 
-        sol$u[, seq_len(rank), drop = FALSE])
+        sol$u[, seq_len(rank), drop = FALSE]) #Standardize variables
       CCA$rank <- rank
       CCA$qrank <- qrank
       CCA$tot.chi <- sum(CCA$eig)
@@ -938,6 +953,170 @@ cca2 = function (X, Y, Z, ...)
   sol$inertia <- "mean squared contingency coefficient"
   class(sol) <- "cca"
   sol
+}
+#Our solution equals the plot.cca(display = "lc" option)
+
+anacor2 = function (tab, ndim = 2, row.covariates, col.covariates, scaling = c("Benzecri", 
+    "Benzecri"), ellipse = FALSE, eps = 1e-06) 
+{
+    tab <- as.matrix(tab)
+    if (length(scaling) == 1) 
+        scaling <- rep(scaling, 2)
+    scaling[1] <- match.arg(scaling[1], c("standard", "Benzecri", 
+        "Goodman"))
+    scaling[2] <- match.arg(scaling[2], c("standard", "Benzecri", 
+        "Goodman"))
+    if (missing(row.covariates)) {
+        row.covariates <- NULL
+    }
+    else {
+        row.covariates <- as.matrix(row.covariates)
+        if (nrow(row.covariates) != nrow(tab)) 
+            stop("Matrix with row covariates does not match table dimensions!")
+    }
+    if (missing(col.covariates)) {
+        col.covariates <- NULL
+    }
+    else {
+        col.covariates <- as.matrix(col.covariates)
+        if (nrow(col.covariates) != ncol(tab)) 
+            stop("Matrix with column covariates does not match table dimensions!")
+    }
+    if (ndim > min(dim(tab)) - 1) 
+        stop("Too many dimensions!")
+    name <- deparse(substitute(tab))
+    if (any(is.na(tab))) 
+        tab <- reconstitute(tab, eps = eps)
+    n <- dim(tab)[1]
+    m <- dim(tab)[2]
+    N <- sum(tab)
+    tab <- as.matrix(tab)
+    prop <- as.vector(t(tab))/N
+    r <- rowSums(tab)
+    c <- colSums(tab)
+    qdim <- ndim + 1
+    r <- ifelse(r == 0, 1, r)
+    c <- ifelse(c == 0, 1, c)
+    ROW <- FALSE
+    COL <- FALSE
+    z <- tab/sqrt(outer(r, c))
+    chisq <- N * (sum(z^2) - 1)
+    if (is.matrix(row.covariates)) {
+        xr <- cbind(rep(1, n), row.covariates)
+        nr <- dim(xr)[2]
+        cx <- crossprod(xr, r * xr)
+        or <- symSqrt(cx, inv = TRUE)
+        ROW <- TRUE
+    }
+    if (is.matrix(col.covariates)) {
+        yr <- cbind(rep(1, m), col.covariates)
+        mr <- dim(yr)[2]
+        cy <- crossprod(yr, c * yr)
+        oc <- symSqrt(cy, inv = TRUE)
+        COL <- TRUE
+    }
+    if (ROW) {
+        z <- or %*% crossprod(xr, tab)
+    }
+    else {
+        z <- tab/sqrt(r)
+    }
+    if (COL) {
+        z <- z %*% yr %*% oc
+    }
+    else {
+        z <- z/outer(rep(1, dim(z)[1]), sqrt(c))
+    }
+    sv <- svd(z, nu = qdim, nv = qdim)
+    sval <- N * ((sv$d[-1])^2)
+    sigmavec <- (sv$d)[2:qdim]
+    dimlab <- paste("D", 1:ndim, sep = "")
+    Tr <- Xstar <- isetCorRow <- NULL
+    Tc <- Ystar <- isetCorCol <- NULL
+    if (ROW) {
+        x <- (xr %*% or %*% (sv$u))[, -1]
+        U <- or %*% (sv$u)[, -1]
+        Tr <- U %*% (diag(sigmavec))
+        dimnames(Tr) <- list(paste("beta", 1:(dim(Tr)[1]), sep = ""), 
+            dimlab)
+        if (COL) 
+            y <- (yr %*% oc %*% (sv$v))[, -1]
+        else y <- ((sv$v)/sqrt(c))[, -1]
+        Xstar <- (diag(1/r) %*% tab %*% y)
+        dimnames(Xstar) <- list(rownames(tab), dimlab)
+        isetCorRow <- cor(Xstar, row.covariates)
+    }
+    else {
+        x <- ((sv$u)/sqrt(r))[, -1]
+    }
+    if (COL) {
+        y <- (yr %*% oc %*% (sv$v))[, -1]
+        V <- oc %*% (sv$v)[, -1]
+        Tc <- V %*% (diag(sigmavec))
+        dimnames(Tc) <- list(paste("beta", 1:(dim(Tc)[1]), sep = ""), 
+            dimlab)
+        Ystar <- (diag(1/c) %*% t(tab) %*% x)
+        dimnames(Ystar) <- list(colnames(tab), dimlab)
+        isetCorCol <- cor(Ystar, col.covariates)
+    }
+    else {
+        y <- ((sv$v)/sqrt(c))[, -1]
+    }
+    x <- x * sqrt(N)
+    y <- y * sqrt(N)
+    if (scaling[2] == "Goodman") 
+        y <- y * outer(rep(1, m), sqrt(sigmavec))
+    if (scaling[1] == "Goodman") 
+        x <- x * outer(rep(1, n), sqrt(sigmavec))
+    if (scaling[2] == "Benzecri") 
+        y <- y * outer(rep(1, m), sigmavec)
+    if (scaling[1] == "Benzecri") 
+        x <- x * outer(rep(1, n), sigmavec)
+    benzres <- benzdist(scaling, x, y, z, tab, n, m, r, c, row.covariates, 
+        col.covariates)
+    prob <- sval/chisq
+    pcum <- cumsum(prob)
+    cs.mat <- cbind(sval, prob, pcum)
+    eigenall <- sval/N
+    if (ellipse) {
+        res.deriv <- gsvdDer(tab, ndim)
+        res.deriv.scaling <- gsvdScal(res.deriv, scaling)
+        res.acov <- acovuv(res.deriv.scaling, prop, n, m, N, 
+            ndim)
+        se.sigma <- sqrt(diag(res.acov$acovd))
+    }
+    else {
+        res.acov <- NULL
+        se.sigma <- NULL
+    }
+    colnames(x) <- colnames(y) <- dimlab
+    rownames(x) <- rownames(tab)
+    rownames(y) <- colnames(tab)
+    rownames(cs.mat) <- paste("Dimension", 1:dim(cs.mat)[1])
+    colnames(cs.mat) <- c("Chisq", "Proportion", "Cumulative Proportion")
+    if (!is.null(se.sigma)) {
+        z.values <- sigmavec/se.sigma
+        pvalues <- (1 - pnorm(abs(z.values)))
+        stestmat <- data.frame(sigmavec, se.sigma, pvalues)
+        colnames(stestmat) <- c("Singular Value", "Standard Error", 
+            "p-value")
+        rownames(stestmat) <- paste("Dimension", 1:ndim)
+    }
+    else {
+        stestmat <- NULL
+    }
+    result <- list(datname = name, tab = tab, ndim = ndim, row.covariates = row.covariates, 
+        col.covariates = col.covariates, row.scores = x, col.scores = y, 
+        chisq.decomp = cs.mat, chisq = chisq, singular.values = sigmavec, 
+        se.singular.values = se.sigma, stestmat = stestmat, left.singvec = sv$u[, 
+            -1], right.singvec = sv$v[, -1], eigen.values = sigmavec^2, 
+        eigenall = eigenall, scaling = scaling, bdmat = benzres[1:4], 
+        rmse = benzres[5:6], row.acov = res.acov$acovu, col.acov = res.acov$acovv, 
+        cancoef = list(rows = Tr, columns = Tc), sitescores = list(rows = Xstar, 
+            columns = Ystar), isetcor = list(rows = isetCorRow, 
+            columns = isetCorCol), call = match.call())
+    class(result) <- "anacor"
+    result
 }
 ```
 
@@ -2726,6 +2905,8 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     }
     squarePlot(plot)
 }
+#--------------------------------#
+# A function to enforce squareness
 squarePlot <- function(plt){
     return(plt+coord_equal()+
             expand_limits(x=ggplot_build(plt)$panel$ranges[[1]]$y.range,
