@@ -804,11 +804,11 @@ caSVD = function(X, Y = NULL, Z = NULL){
   Goal = Ycent %*% solve(a =  crossprod(Ycent,  diag(R)) %*% Ycent,
         b = crossprod(Ycent, diag(R) %*% diag(1/sqrt(R))) %*% (X-E) %*% diag(1/sqrt(C))) 
   #The goal matrix consists of fitted values of weighted regression of the chi-square transformed data matrix on the covariates with row sums as weights
-  }
   dimnames(Goal) = dimnames(X)
   Svd = svd(Goal)
   envScores = 1/sqrt(colSums(Ycent^2))*crossprod(Ycent, Svd$u)
   list(Svd = Svd, envScores = envScores)
+  }
 }
 #-------------------------------------------------#
 cca2 = function (X, Y, Z, ...) 
@@ -2846,8 +2846,8 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
           stop("No valid response function present in this RCM object!")
         }
     } else { #If not constrained
-    dataTax = data.frame(t(RCMfit$cMat[Dim,]))
-    names(dataTax) = c("end1","end2")
+    dataTax = data.frame(cbind(t(RCMfit$cMat[Dim,]),0,0))
+    names(dataTax) = c("end1","end2", "origin1","origin2")
     }
     if(!constrained || RCMfit$responseFun == "linear"){ #Scaling needed
     arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
@@ -2867,7 +2867,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
       geom_point(size = samSize) + 
       theme(aspect.ratio=1) +
-      if(is.null(colour)) {guides(color=FALSE)} 
+      if(is.null(samColour)) {guides(color=FALSE)} 
     #add legend names
     if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
       plot = plot + scale_colour_manual(name=colLegend, values =Palette)
@@ -3306,9 +3306,13 @@ plot.RCM(HumMiceRCM, colour = "DGS", Dim = c(1,3))
 
 ### PCoA/MDS
 
-Principal coordinates analysis (PCoA) or multidimensional scaling (MDS) are dimension reduction techniques specifically for samples. The consist in calculating dissimilarity matrices with dissimilarities between samples based on some chosen dissimilarity measure. These dissimilarity matrices are than decomposed through eigenvalue decomposition, and the first two dimensions are plotted. More formally, for a n-by-p data matrix $\mathbf{X}$, all pairwise distances between samples $i$ and $i'$ $D_{ii'} = d(\mathbf{X_{i.}}, \mathbf{X_{i'.}})$ are calculated and summarized in a n-by-n dissimilarity matrix $\mathbf{D}$. If the dissimilarity measure is a true distance, then $d_{ii'} = d_{i'i}$ and $\mathbf{D}$ is symmetric. Next $\mathbf{D}$ undergoes eigendecomposition into
+Principal coordinates analysis (PCoA) or multidimensional scaling (MDS) are dimension reduction techniques specifically for samples. The consist in calculating dissimilarity matrices with dissimilarities between samples based on some chosen dissimilarity measure. These dissimilarity matrices are than decomposed through eigenvalue decomposition, and the first two dimensions are plotted. More formally, for a n-by-p data matrix $\mathbf{X}$, all pairwise distances between samples $i$ and $i'$ $D_{ii'} = d(\mathbf{X_{i.}}, \mathbf{X_{i'.}})$ are calculated and summarized in a n-by-n dissimilarity matrix $\mathbf{D}$. If the dissimilarity measure is a true distance, then $d_{ii'} = d_{i'i}$ and $\mathbf{D}$ is symmetric. Next $\mathbf{D}$ is squared and undergoes double centering:
 
-$$ \mathbf{D} = \mathbf{V}^t\boldsymbol{\Lambda}\mathbf{V} $$
+$$B = -1/2 J D^2 J$$
+
+with $\mathbf{J} = \mathbb{I} - \frac{1}{n}\mathbf{11'}$ a centering matrix. This transformed matrix __B__ then undergoes eigendecomposition into
+
+$$ \mathbf{B} = \mathbf{V}^t\boldsymbol{\Lambda}\mathbf{V} $$
   with the eigenvectors of $\mathbf{D}$ in the columns of $\mathbf{V}$ and $\boldsymbol{\Lambda}$ a diagonal matrix with eigenvalues of $\mathbf{D}$ on the diagonal. $\mathbf{v}_1\lambda_1$ can then be plotted _vs_ $\mathbf{v}_2\lambda_2$ in a 2D scatterplot to represent distances between the samples optimally in 2D. In the calculation of $\mathbf{D}$, the information on the individual taxa is lost. Taxa scores can be calculated by weighted averaging of the sample scores for each taxon, weighted by the taxon abundances in these samples. The taxon score of taxon _j_ in dimension 1 then becomes
    
    $$t_{j1} = \sum_{i=1}^n v_{i1}*\frac{x_{ij}}{x_{.j}}$$
@@ -3389,7 +3393,7 @@ CoDa = function(dat, abCutOff = 1e-6, scale = FALSE){
   X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
   } else {stop("Please provide a matrix or a phyloseq object! \n")}
   
-Xzero <- as.matrix(cmultRepl(X=X, method="CZM", output="counts")) #Correct zeroes in a Bayesian way
+Xzero <- as.matrix(cmultRepl(X = X, method="CZM", output="counts")) #Correct zeroes in a Bayesian way
 
 # convert to proportions 
 Xnorm = Xzero/rowSums(Xzero)
@@ -3398,7 +3402,7 @@ Xnorm = Xzero/rowSums(Xzero)
 Xtrim = Xnorm[,apply(Xnorm,2,min)>abCutOff]
 
 # make our compositional dataset
-Xcrl <- apply(Xtrim, 1, function(x){log(x) - mean(log(x))})
+Xcrl <- t(apply(Xtrim, 1, function(x){log(x) - mean(log(x))}))
 
 # Apply PCA
 prcomp(Xcrl, scale = scale) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
@@ -3492,7 +3496,7 @@ silhouette = function(coord, clusters, Dim = c(1,2)){
   distMat = as.matrix(dist(coord)) # all distances
   avDists = apply(distMat, 1 , function(x){
     tapply(x[x!=0], clusters[x!=0], mean) #Exclude observation itself
-  }) # Average distances with clusters
+  }) # Average distances within clusters
   ais = sapply(seq_along(clusters), function(i){
     avDists[clusters[i], i]
   }) #Average distance to own cluster
@@ -3530,25 +3534,27 @@ $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathb
 with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal.
 
 ```{r contrTaxa, purl = FALSE}
-contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3, singleID = FALSE){
+contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3){
   rowMatPsi = rowMatPsi[,Dim]
   colMat = t(colMat)[Dim,]
-  if(singleID){ #Replicate columns of idTax if needed 
-    idTax = matrix(idTax, nrow = length(idTax), ncol = length(levels(groupFactor)))
-  }
+  idTaxNum = matrix(-1,nrow(idTax) , ncol(idTax))
+  idTaxNum[idTax=="up"] = 1
+
   centroids = matrix(unlist(tapply(seq_len(nrow(rowMatPsi)), groupFactor, function(i){
     colMeans(rowMatPsi[i,])
   })), nrow = ncol(rowMatPsi)) #The group centroids
   colnames(centroids) = levels(groupFactor)
+  overalCenterSam = colMeans(rowMatPsi) # The overall sample centroid(not always c(0,0,0)!!)
+  overalCenterTax = colMeans(colMat)
   contrib = sapply(seq_along(levels(groupFactor)), function(i){
         crossprod(colMat, centroids[, i])
   }) # The inner product of all species' arrows with the vectors locating the centroids
   sigContr = sapply(seq_along(levels(groupFactor)), function(i){
-    mean(contrib[match(idTax[,i], colnames(colMat), nomatch = 0),i])
+    mean(contrib[match(rownames(idTax), colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
   }) # The mean contribution of the taxa with signal
   allContr = sapply(seq_along(levels(groupFactor)), function(i){
     mean(
-      apply(contrib[!colnames(colMat) %in% idTax[,i],],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-nrow(idTax)))), ])
+      apply(contrib[!colnames(colMat) %in% rownames(idTax),],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-nrow(idTax)))), ])
   }) # The mean contribution of the 50% taxa with highest contribution among non-significant taxa
   ratios = sigContr/allContr # The ratio of these mean contributions
   mean(ratios) # Mean ratio
@@ -3559,15 +3565,15 @@ contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim =
 
 ```{r extract row vectors}
 # A function to perform all analyses except for RC(M)
-otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL){
+otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
 datList0mat = lapply(RCMlist, function(x){tmp = x$X; rownames(tmp) = seq_len(nrow(tmp));tmp})
 CAresList0 = lapply(datList0mat, caSVD)
-CodaResList0 = lapply(datList0mat, CoDa)
-BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method="PCoA", distance = "jsd")})
+CodaResList0 = mclapply(datList0mat, CoDa, mc.cores = cores)
+BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
+JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "jsd")})
 #With relative abundances
-BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method="PCoA", distance = "bray")})
-#Hellinger distance
+BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
+#Hellinger distance. Actually this is also an svd technique, so also yields taxon scores
 HelDistresList = lapply(datList0mat, function(x){
   R = rowSums(x)
   E = outer(R, colSums(x)/sum(x))
@@ -3625,7 +3631,7 @@ extractCols = function(x, row){
     BC = weightedTaxonScores(RCM$X, row$BC),
     JSD = weightedTaxonScores(RCM$X, row$JSD),
     BCrel = weightedTaxonScores(RCM$X, row$BCrel),
-    Hellinger = weightedTaxonScores(RCM$X, row$Hellinger)
+    Hellinger = Hellinger$v
     ))
   rowNames = rownames(tmpList$RCM)
   lapply(tmpList, function(x){
@@ -3705,9 +3711,9 @@ par(mfrow = c(1,1))
 }
 #------------------------------#
 #A function to wrap the calculation of the contribution of the taxa
-contrTaxaWrap = function(resListRows, resListCols, IDlist, groupFactor, singleID = FALSE){
+contrTaxaWrap = function(resListRows, resListCols, IDlist, groupFactor){
 dat = mapply(resListRows, resListCols, IDlist, SIMPLIFY = TRUE, FUN = function(row, col, id){
-  mapply(row, col, SIMPLIFY = TRUE, MoreArgs = list(idTax = id, groupFactor = groupFactor, singleID = singleID), FUN = contrTaxa)
+  mapply(row, col, SIMPLIFY = TRUE, MoreArgs = list(idTax = id, groupFactor = groupFactor), FUN = contrTaxa)
 })
 as.data.frame(t(dat))
 }
@@ -4061,7 +4067,7 @@ The RC(M) and CA methods are best at identifying taxa that contribute to the sep
 
 In this setting we will again simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances. In this case we will make the library sizes different in each group. Th initial library sizes are all sampled from the same pool of library sizes observed in real data. The first group has unmodified library sizes, the second group library sizes multiplied by 1.5, the third by 2 and the fourth by 3.
 
-```{r NBrelatedDistr, purl = FALSE}
+```{r NBrelatedDistrConf, purl = FALSE, eval = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -4519,8 +4525,14 @@ testSimSeq = function(physeq, variable, filterTaxa = FALSE){
   treatment = factor(get_variable(physeq, variable))
   countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
   pvals = apply(countMat, 2, function(x){kruskal.test(x, g=treatment)$p.value})
+  result = apply(countMat, 2, function(x){
+    avRank = length(x)/2 + 0.5
+    rankX = rank(x)
+    sapply(levels(treatment),avRank = avRank, function(y, avRank){
+    ifelse(mean(rankX[treatment==y])>avRank, "up","down")
+        })}) #Was taxon up or down regulated in group 1 (first level of treatment?
   lfdr = fdrtool(pvals, statistic = "pvalue", plot=FALSE, verbose=FALSE)$lfdr
-  list(lfdr = lfdr, physeq = physeq, variable = variable)
+  list(lfdr = lfdr, physeq = physeq, variable = variable, result = result)
 }
 genSimSeq = function(testres, Ntaxa = ntaxa(testres$physeq), fracTaxa = 0.2){
   physeq = testres$physeq
@@ -4588,7 +4600,10 @@ RCMresListSimSeqZeller = mclapply(mc.cores=4, ZellerSimSeqList, function(y){
 save(RCMresListSimSeqHum, RCMresListSimSeqAG, RCMresListSimSeqZeller, file = "RCMsim/resListSimSeqRCM.RData")
   } else {load("RCMsim/resListSimSeqRCM.RData")}
   resListSimSeqHum = otherAnalyses(RCMresListSimSeqHum)
-  IDlistHum = mapply(HumSimSeqList,resListSimSeqHum, FUN =  function(y,x){y$DEtaxa[y$DEtaxa %in% colnames(x$RCM$X)]}, SIMPLIFY = FALSE)
+  IDlistHum = mapply(HumSimSeqList,resListSimSeqHum, FUN =  function(y,x, test){
+    taxa = y$DEtaxa[y$DEtaxa %in% colnames(x$RCM$X)]
+    test[taxa,]
+    }, SIMPLIFY = FALSE, MoreArgs = list(test = t(testHum$result)))
   groupFactorHum = HumSimSeqList[[1]]$treatment
 save(resListSimSeqHum, IDlistHum, groupFactorHum, file = "RCMsim/resListSimSeq.RData")
 } else {load("RCMsim/resListSimSeq.RData")}
@@ -4645,7 +4660,7 @@ plotCor(resListSimSeqHumCols, datListHum, dataMat = TRUE, scoreDim = "columns")
 CA suffers from correlation with relative abundances, but not on average.
 
 ```{r taxRatHum, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRatHum}"}
-contrHum = contrTaxaWrap(resListSimSeqHumRows, resListSimSeqHumCols, IDlistHum, groupFactorHum, singleID = TRUE)
+contrHum = contrTaxaWrap(resListSimSeqHumRows, resListSimSeqHumCols, IDlistHum, groupFactorHum)
 contrPlot(contrHum)
 ```
 
