@@ -10,7 +10,7 @@ output:
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=FALSE, fig.show = "hold", cache.lazy = FALSE)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape")
 # Load all required packages and show version
@@ -24,6 +24,9 @@ if(detectCores()==4) setwd(WD)
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
 load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
+levelsMeth = c("CA","Hellinger","BC","BCrel","JSD","CoDa","RCM")
+labelsMeth = c("CA","Hellinger","Bray-Curtis","Bray-Curtis Crel","Jenssen-Shannon divergence","CoDa","RCM")
+groupsMeth = factor(c("SVD","SVD","PCoA","PCoA","PCoA","CoDa","RCM"))
 ```
 
 \setcounter{tocdepth}{2}
@@ -94,6 +97,28 @@ and estimate $a$ and $b$ by maximum likelihood but we did not really see how to 
 #### Detrended correspondence analysis
 
 In regular correspondence analysis it is often observed that the second axis points form an arch with respect to the first axis. This effect can be removed by detrending. The procedure is then called Detrended correspondence analysis (DCA) (Hill and Gauch, 1980).
+
+#### Link to Gaussian ordination and niche theory
+
+Species can grow and reproduce best within certain ranges of parameter values that describe their envrionment. The multidimensional space spanned by environmental variables in which a certain species can grow is called its __niche__. The species prospers in the center of its niche, but its abundance decreases as the characteristics of the environment depart from this optimal conditions. In extreme cases the species simply cannot survive or reproduce in certain envrironments and is simply absent. Hence this niche is usually decribed by a unimodal function, often a Gaussian function (Gauc _et al._, 1974).
+
+The expected counts are then modelled as:
+
+$$log(E(X_{ij})) = \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
+
+whereby 
+
+ - $h_{ik}$ = a latent variable representing an environmental score
+ - $a_{jk}$ is the maximal logged expected abundance achieved when the latent variable $h_{ik}$ equals the optimum $q_{jk}$
+ - $m_{jk}$ is the tolerance, it determines how fast the expected value decreases as $\mathbf{c}_{i.}$ moves away from its optimal values $\boldsymbol{\alpha}_k^{-t}h_{ik}$
+
+Under the assumptions that:
+
+  1) All tolerances $m_{jk}$ are equal for all species ($m_k$)
+  2) All maxima $a_{jk}$ are equal for all species
+  3) The modi $q_{jk}$ are homogeneously distributed over a region larger than $m_k$
+  
+  CA yields the ML solution of this Gaussian model see ter Braak, 1986).
 
 ### Hellinger distance
 
@@ -339,7 +364,7 @@ $$Lag(s_{jk}, \mathbf{\lambda}) = L_{NB}(s_{jk}) + \sum_{k=1}^M \big( \lambda_{1
 
 #### Biplot
 
-8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ as sample points and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($s_{1j}$, $s_{2j}$) on ($\psi_1r_{1i}$, $\psi_2r_{2i}$) equals $(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i}) = cos (\eta) (\sqrt{(\psi_1r_{1i})^2 + (\psi_2r_{2i})^2})$ with $\eta$ the angle between the two vectors. This projection represents the departure from independence in the first two dimensions combined. The larger the entries of the species and sample scores and the smaller the angle, the larger the departure of this taxon in this sample. The choice of $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ assures the distances between samples are well represented, since more weight is added to differences in scores in important dimensions.
+8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ as sample points and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($\psi_1r_{1i}$, $\psi_2r_{2i}$) on ($s_{1j}$, $s_{2j}$) equals $cos (\eta) ||(\psi_1r_{1i}, \psi_2r_{2i})|| = \frac{(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i})}{||(s_{1j}, s_{2j})||}$ with $\eta$ the angle between the two vectors. This projection is thus proportional to the departure from independence in the first two dimensions combined. The larger the entries of the species and sample scores (the scaling between these two sets is arbitrary, we usually choose them in the same order of magnitude) and the smaller the angle, the larger the departure of this taxon in this sample. The choice of $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ assures the distances between samples are well represented, since more weight is added to differences in scores in important dimensions.
 
 In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)xn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
 
@@ -430,15 +455,13 @@ We call our n-by-d covariate matrix $C$, for every sample $i$, $d$ baseline cova
 
 We could of course just perform our classical, unconstrained methods and then regress the obtained sample scores on the envrionmental variables. However, it is to be expected that this is a less efficient use of the data, which has been shown for the case of correspondence analysis by Prodon and Lebreton (1994).
 
-### Niche theory
-
-Species can grow and reproduce best within certain ranges of parameter values that describe their envrionment. The multidimensional space spanned by environmental variables in which a certain species can grow is called its __niche__. The species prospers in the center of its niche, but its abundance decreases as the characteristics of the environment depart from this optimal conditions. In extreme cases the species simply cannot survive or reproduce in certain envrironments and is simply absent. Hence this niche is usually decribed by a unimodal function.
-
 ### Canonical correlation analysis
 
 ### Constrained correspondence analysis (CCA)
 
 There are many ways to introduce and explain CCA, with many parallels to other (forgotten) methods, but we will stick to the approach based on the singular value decomposition.
+
+CCA can be seen as regular CA, with the restrictions that the row scores must be linear combinations of the environmental variables. Also, it is Gaussian ordination with the scores equally restricted under the same conditions as the unrestricted Gaussian ordination.
 
 In contrast to canonical correlation analysis, constrained correspondence analysis (CCA) assumes bell-shaped, unimodal response curves with respect to environmental variables. A __response curve__ describes the expeceted abundance of a species in function of an environmental score, which is a function fo environmental variables. Canonical correlation analysis asssumes linear responses to the environmental variables, which is less useful in the ecological context. Classical ecological theory assumes species have an optimal combination of values of the environmental variables, and their expected abundances decrease as the environment departs from these optimal values.
 
@@ -3414,6 +3437,8 @@ Xsca = scale(Xcrl, center = TRUE, scale = FALSE) #Shouldn't this be scaled? It i
 Svd = svd(Xsca)
 rowScores = Svd$u %*% diag(Svd$d) #=Xsca %*% Svd$v #%*% diag(Svd$d)
 colScores = Svd$v #scale = 0 in biplot
+rownames(rowScores) = rownames(Xsca)
+rownames(colScores) = colnames(Xsca)
 
 # rowScores2 = Svd$u
 # colScores2 = Svd$v %*% diag(Svd$d) #scale = 1 in biplot
@@ -3544,14 +3569,16 @@ The between distance between groups m and m' is then defined as $d_{mm'} = d_{eu
 For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid. It is calculated as the ratio of the average contribution in the direction of the centroid of taxa with signal to all the average contribution of all other taxa. With $\mathbf{H}_l$ the vector from the origin to the centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
 
 $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
-with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal.
+with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal. Because the mean is very sensitive to outliers, we also include the median, whcih makes our method come out as best. it is very important to argue this in a publication and show both results!
 
-```{r contrTaxa, purl = FALSE}
-contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3){
+```{r contrTaxa}
+contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3, upDown = FALSE, centerFun = median){
   rowMatPsi = rowMatPsi[,Dim]
   colMat = t(colMat)[Dim,]
+  if(upDown){
   idTaxNum = matrix(-1,nrow(idTax) , ncol(idTax))
   idTaxNum[idTax=="up"] = 1
+  }
 
   centroids = matrix(unlist(tapply(seq_len(nrow(rowMatPsi)), groupFactor, function(i){
     colMeans(rowMatPsi[i,])
@@ -3562,13 +3589,21 @@ contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim =
   contrib = sapply(seq_along(levels(groupFactor)), function(i){
         crossprod(colMat, centroids[, i])
   }) # The inner product of all species' arrows with the vectors locating the centroids
-  sigContr = sapply(seq_along(levels(groupFactor)), function(i){
-    mean(contrib[match(rownames(idTax), colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
-  }) # The mean contribution of the taxa with signal
-  allContr = sapply(seq_along(levels(groupFactor)), function(i){
-    mean(
+  sigContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
+    centerFun(contrib[match(rownames(idTax), colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
+  })} else {
+    sapply(seq_along(levels(groupFactor)), function(i){
+    centerFun(contrib[match(idTax[,i], colnames(colMat), nomatch = 0),i])
+  })
+  } # The mean/median contribution of the taxa with signal
+  allContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
+    centerFun(
       apply(contrib[!colnames(colMat) %in% rownames(idTax),],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-nrow(idTax)))), ])
-  }) # The mean contribution of the 50% taxa with highest contribution among non-significant taxa
+  })} else {
+    sapply(seq_along(levels(groupFactor)), function(i){
+    centerFun( apply(contrib[!colnames(colMat) %in% idTax[,i],],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-nrow(idTax)))), ])
+  })
+  } # The mean/median contribution of the 50% taxa with highest contribution among non-significant taxa
   ratios = sigContr/allContr # The ratio of these mean contributions
   mean(ratios) # Mean ratio
 }
@@ -3578,7 +3613,7 @@ contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim =
 
 ```{r extract row vectors}
 # A function to perform all analyses except for RC(M)
-otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 4){
+otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
     if(unifrac) {
       RCMlist = mapply(RCMlist, treeList, FUN = function(x,tree){
         x$physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
@@ -3600,47 +3635,6 @@ mclapply(mc.cores = cores, RCMlist, function(x){
     UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL, 
     wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL)
 })
-
-# CAresList0 = lapply(datList0mat, caSVD)
-# CodaResList0 = mclapply(datList0mat, CoDa, mc.cores = cores)
-# BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
-# JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "jsd")})
-# #With relative abundances
-# BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
-# #Hellinger distance. Actually this is also an svd technique, so also yields taxon scores
-# HelDistresList = lapply(datList0mat, function(x){
-#   R = rowSums(x)
-#   E = outer(R, colSums(x)/sum(x))
-#   svd(diag(1/sqrt(R)) %*% (sqrt(x)-sqrt(E))) 
-# })
-# if(unifrac){
-#   UniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
-#     physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
-#     sample_names(physeq) = seq_len(nsamples(physeq))
-#     ordinate(physeq, method = "PCoA", distance = "unifrac")
-#   })
-#    wUniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
-#     physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
-#     sample_names(physeq) = seq_len(nsamples(physeq))
-#     ordinate(physeq, method = "PCoA", distance = "wunifrac")
-#   })
-#    mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, UniFracList, wUniFracList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell, Uni, wUni){
-#                     list(RCM = RCM, CA = CA, 
-#                          CoDa = CoDa,
-#                          BC = BC, JSD = JSD, 
-#                          BCrel = BCrel, Hellinger = Hell, UniFrac = Uni, wUniFrac = wUni)
-#                   }, 
-#                   SIMPLIFY = FALSE
-# )
-# }
-# mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell){
-#                     list(RCM = RCM, CA = CA, 
-#                          CoDa = CoDa,
-#                          BC = BC, JSD = JSD, 
-#                          BCrel = BCrel, Hellinger = Hell)
-#                   }, 
-#                   SIMPLIFY = FALSE
-# )
 } #JSD works on relative abundances by default
 #---------------------------------------#
 #A function to extract the row vectors multiplied by importance elements
@@ -3669,7 +3663,7 @@ extractCols = function(x, row){
     ))
   rowNames = rownames(tmpList$RCM)
   lapply(tmpList, function(x){
-    rownames(x) = rowNames
+    if(nrow(x)==length(rowNames)) rownames(x) = rowNames
     x
   })
 }
@@ -3745,9 +3739,9 @@ par(mfrow = c(1,1))
 }
 #------------------------------#
 #A function to wrap the calculation of the contribution of the taxa
-contrTaxaWrap = function(resListRows, resListCols, IDlist, groupFactor){
+contrTaxaWrap = function(resListRows, resListCols, IDlist, groupFactor, upDown = FALSE, centerFun = median){
 dat = mapply(resListRows, resListCols, IDlist, SIMPLIFY = TRUE, FUN = function(row, col, id){
-  mapply(row, col, SIMPLIFY = TRUE, MoreArgs = list(idTax = id, groupFactor = groupFactor), FUN = contrTaxa)
+  mapply(row, col, SIMPLIFY = TRUE, MoreArgs = list(idTax = id, groupFactor = groupFactor, upDown = upDown, centerFun = centerFun), FUN = contrTaxa)
 })
 as.data.frame(t(dat))
 }
@@ -3756,7 +3750,7 @@ as.data.frame(t(dat))
 contrPlot = function(contr) {
 moltenContr = melt(contr, variable.name = "Method", value.name = "contrRatio", id.vars = NULL)
 boxplot(contrRatio~Method, main = "Mean ratios of contribution of DA taxa \n relative to 50% most contributing non-DA taxa by method", data = moltenContr, ylab = "Mean contribution ratio")
-meansDist = tapply(moltenContr$contrRatio, moltenContr$Method, mean)
+meansDist = tapply(moltenContr$contrRatio, moltenContr$Method, mean, na.rm = TRUE)
 points(meansDist, col="red", pch=18, cex = 1.6)
 abline(h=1, lty = "dashed")
 }
@@ -3944,13 +3938,15 @@ RCMresList1 = mclapply(mc.cores = 4, datList1, function(y){
 save(RCMresList1, file = "RCMsim/resList1RCM.RData")
 } else {load("RCMsim/resList1RCM.RData")}
 resList1 = otherAnalyses(RCMresList1)
-save(resList1, groupFactor1, file = "RCMsim/resList1.RData")
+resList1Rows = lapply(resList1, extractRows)
+resList1Cols = mapply(resList1, resList1Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList1,resList1Rows, resList1Cols, groupFactor1, file = "RCMsim/resList1.RData")
 } else {load(file = "RCMsim/resList1.RData")}
 ```
 
 ```{r resList1 sampleBiplotE, purl = FALSE}
 #A sample biplot
-resList1Rows = lapply(resList1, extractRows)
+datList1 = lapply(resList1, function(x){x$RCM$X})
 par(mfrow = c(3,3), mar = c(3,3,3,3))
 ID = sample(size=1, seq_along(resList1))
 obj = resList1Rows[[ID]]
@@ -3979,7 +3975,7 @@ distRatioPlot(resList1Rows, groupFactor1)
 ```
 
 ```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means. \\label{fig:libCor1}"}
-datList1 = lapply(resList1, function(x){x$RCM$X})
+
 plotCor(resList1Rows, datList1, dataMat = TRUE)
 rm(resList1Rows, resList1, datList1)
 ```
@@ -4048,13 +4044,15 @@ IDlist2 = lapply(datList2, function(x){
    id = apply(x$IDsampled, 2, unique)
    taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
    })
-save(resList2, groupFactor2, IDlist2, file = "RCMsim/resList2.RData")
+resList2Rows = lapply(resList2, extractRows)
+resList2Cols = mapply(resList2, resList2Rows,FUN = extractCols, SIMPLIFY = FALSE)
+datList2 = lapply(resList2, function(x){x$RCM$X})
+save(datList2, resList2Rows, resList2Cols, IDlist2, groupFactor2, file = "RCMsim/resList2.RData")
 } else {load(file = "RCMsim/resList2.RData")}
 ```
 
 ```{r resList2 sampleBiplot, purl = FALSE}
 #A sample biplot
-resList2Rows = lapply(resList2, extractRows)
 randomScatter(resList2Rows, col = groupFactor2)
 # In this setting, the RCM really appears to outperform the other methods
 # par(mfrow = c(2,4), mar = c(3,3,3,3))
@@ -4078,13 +4076,12 @@ distRatioPlot(resList2Rows, groupFactor2)
 RCM comes out as best, CA as worst
 
 ```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor2}"}
-datList2 = lapply(resList2, function(x){x$RCM$X})
+
 plotCor(resList2Rows, datList2, dataMat = TRUE)
 load(file = "RCMsim/resListZINB.RData")
 ```
 
 ```{r AbCorr2, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCor2}"}
-resList2Cols = mapply(resList2, resList2Rows,FUN = extractCols, SIMPLIFY = FALSE)
 plotCor(resList2Cols, datList2, dataMat = TRUE, scoreDim = "columns")
 ```
 
@@ -4093,9 +4090,12 @@ The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curt
 ```{r taxRat2, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRat2}"}
 contr2 = contrTaxaWrap(resList2Rows, resList2Cols, IDlist2, groupFactor2)
 contrPlot(contr2)
+
+# contr2Mean = contrTaxaWrap(resList2Rows, resList2Cols, IDlist2, groupFactor2, centerFun = mean)
+# contrPlot(contr2Mean)
 ```
 
-The RC(M) and CA methods are best at identifying taxa that contribute to the separation of the clusters. This is not surprising since they are the only ones that have genuine taxon scores, for CoDA and PCoA we have to rely on weighted sample scores for the taxa. Even though this is often used, our results reveal their poor performance.
+The RC(M) and CA methods are best at identifying taxa that contribute to the separation of the clusters. This is not surprising since they are the only ones that have genuine taxon scores, for CoDA and PCoA we have to rely on weighted sample scores for the taxa. Even though this is often used, our results reveal their poor performance. Hellinger does well because of outliers, it does not really paint a good picture.
 
 ##### Simulate from related distributions, confounded by library sizes
 
@@ -4156,10 +4156,12 @@ save(RCMresList3, file = "RCMsim/resList3RCM.RData")
 } else {load("RCMsim/resList3RCM.RData")}
 resList3 = otherAnalyses(RCMresList3)
 IDlist3 = lapply(datList3, function(x){
-   id = apply(x$IDsampled, 3, unique)
-   taxa = apply(id, 3, function(y){rownames(x$rhosSampled)[y]})
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
    })
-save(resList3, groupFactor3, IDlist3, file = "RCMsim/resList3.RData")
+resList3Rows = lapply(resList3, extractRows)
+resList3Cols = mapply(resList3, resList3Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList3,resList3Rows, resList3Cols, IDlist3, groupFactor3, file = "RCMsim/resList3.RData")
 } else {load(file = "RCMsim/resList3.RData")}
 ```
 
@@ -4589,7 +4591,7 @@ genSimSeq = function(testres, Ntaxa = ntaxa(testres$physeq), fracTaxa = 0.2){
 }
 ```
 
-```{r SimSeqTests, eval = FALSE, purl = FALSE}
+```{r SimSeqTests, purl = FALSE}
 if(!file.exists(file = "SimSeqTests.RData")){
 load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 testHum = testSimSeq(HumMicePhy, "Diet")
@@ -4603,7 +4605,7 @@ save(testHum, testTwins, testAG, testZeller, file = "SimSeqTests.RData")
 
 No DA for the lean and obese twins. Then again it is a small dataset.
 
-```{r SimSeqGenerateData, eval = FALSE, purl = FALSE}
+```{r SimSeqGenerateData, purl = FALSE}
 if(!file.exists(file = "SimSeqData.RData")){
 NsimSimSeq = 100
 HumSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
@@ -4619,7 +4621,7 @@ save(HumSimSeqList, ZellerSimSeqList, AGSimSeqList, file = "SimSeqData")
 } else {load(file = "SimSeqData.RData")}
 ```
 
-```{r simSeqAnalysis, eval = FALSE, purl = FALSE}
+```{r simSeqAnalysis, purl = FALSE}
 if(!file.exists("RCMsim/resListSimSeq.RData")){
   if(!file.exists("RCMsim/resListSimSeqRCM.RData")){
 RCMresListSimSeqHum = mclapply(mc.cores=4, HumSimSeqList, function(y){
@@ -4639,13 +4641,16 @@ save(RCMresListSimSeqHum, RCMresListSimSeqAG, RCMresListSimSeqZeller, file = "RC
     test[taxa,]
     }, SIMPLIFY = FALSE, MoreArgs = list(test = t(testHum$result)))
   groupFactorHum = HumSimSeqList[[1]]$treatment
-save(resListSimSeqHum, IDlistHum, groupFactorHum, file = "RCMsim/resListSimSeq.RData")
+  resListSimSeqHumRows = lapply(resListSimSeqHum, extractRows)
+  resListSimSeqHumCols = mapply(resListSimSeqHum, resListSimSeqHumRows, FUN=extractCols, SIMPLIFY=FALSE)
+  datListHum = lapply(resListSimSeqHum, function(x){x$RCM$X})
+save(datListHum, IDlistHum, groupFactorHum, resListSimSeqHumRows, resListSimSeqHumCols, file = "RCMsim/resListSimSeq.RData")
 } else {load("RCMsim/resListSimSeq.RData")}
 ```
 
 ```{r resListSimSeqHum sampleBiplot, purl = FALSE}
 #A sample biplot
-resListSimSeqHumRows = lapply(resListSimSeqHum, extractRows)
+
 randomScatter(resListSimSeqHumRows, col = groupFactorHum)
 # Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
 #randomScatter(resListSimSeqHumRows, Dim = c(1,3))
@@ -4654,7 +4659,6 @@ randomScatter(resListSimSeqHumRows, col = groupFactorHum)
 Except for PCoA with Bray-Curtis distances and CA, all methods seem to separate the clusters rather well
 
 ```{r libSizeCorrHum, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 1HumHum simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.\\label{fig:libCor1}"}
-datListHum = lapply(resListSimSeqHum, function(x){x$RCM$X})
 plotCor(resListSimSeqHumRows, datListHum, scoreDim = "rows")
 ```
 
@@ -4664,12 +4668,11 @@ The taxa
 
 ```{r resListSimSeqHumcols sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
-resListSimSeqHumCols = mapply(resListSimSeqHum, resListSimSeqHumRows, FUN=extractCols, SIMPLIFY=FALSE)
 randomScatter(resListSimSeqHumCols)
 ```
 
 ```{r AbsCorrHum, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1HumHum simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.\\label{fig:libCor1}"}
-plotCor(resListSimSeqHumCols, lapply(resListSimSeqHum, function(x){x$RCM$X}), scoreDim = "columns", dataMat = TRUE)
+plotCor(resListSimSeqHumCols, datListHum, scoreDim = "columns", dataMat = TRUE)
 ```
 
 Taxa scores of correspondence analysis tend to correlate with taxon abundances in some cases
@@ -4687,14 +4690,13 @@ distRatioPlot(resListSimSeqHumRows, groupFactorHum)
 In the non-parametric setting, RCM achieves the lowest distance ratios, CA the highest
 
 ```{r AbCorrHum, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCorHum}"}
-resListSimSeqHumCols = mapply(resListSimSeqHum, resListSimSeqHumRows,FUN = extractCols, SIMPLIFY = FALSE)
 plotCor(resListSimSeqHumCols, datListHum, dataMat = TRUE, scoreDim = "columns")
 ```
 
 CA suffers from correlation with relative abundances, but not on average.
 
 ```{r taxRatHum, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRatHum}"}
-contrHum = contrTaxaWrap(resListSimSeqHumRows, resListSimSeqHumCols, IDlistHum, groupFactorHum)
+contrHum = contrTaxaWrap(resListSimSeqHumRows, resListSimSeqHumCols, IDlistHum, groupFactorHum, upDown = FALSE)
 contrPlot(contrHum)
 ```
 
