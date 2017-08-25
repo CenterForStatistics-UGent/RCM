@@ -2849,7 +2849,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     dataTax = data.frame(cbind(t(RCMfit$cMat[Dim,]),0,0))
     names(dataTax) = c("end1","end2", "origin1","origin2")
     }
-    if(!constrained || RCMfit$responseFun == "linear"){ #Scaling needed
+    if(!constrained){ #Scaling needed
     arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
     id = arrowLengths >= quantile(arrowLengths,1 - taxFrac)
     #Filter out small arrows
@@ -3212,7 +3212,7 @@ zellerSphyRCMconstrLin = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age"
 zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
 zellerSphyRCMconstrNonP = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
 save(zellerSphyRCMconstrLin, file="zellerSphyRCMconstr.RData")
-} else {load("zellerSphyRCMconstr.RData")} #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
+} else {load("zellerSphyRCMconstr.RData")}  #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 ```
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
@@ -3222,15 +3222,14 @@ plot.RCM(zellerSphyRCMconstrLin, colour = "Gender")
 plot.RCM(zellerSphyRCMconstrLin, colour = "Country")
 plot.RCM(zellerSphyRCMconstrLin, colour = "Age")
 #apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
-rm(zellerSphyRCMconstrLin)
 ```
 
 ```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
-plot.RCM(zellerSphyRCMconstrLin, colour = "Diagnosis", plotTaxa = TRUE)
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", plotTaxa = TRUE, taxFrac = 0.015)
 ```
 
 ```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
-plot.RCM(zellerSphyRCMconstrLin, colour = "Age", plotTaxa = TRUE)
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Age", plotTaxa = TRUE, taxFrac = 0.015)
 rm(zellerSphyRCMconstrLin)
 ```
 
@@ -3279,26 +3278,30 @@ save(HumMiceRCM, file = "turnMiceRCM.RData")
 
 ```{r humMicePlot, purl = FALSE, eval = FALSE}
 plot.RCM(HumMiceRCM) # Two or three distinct groups
-plot.RCM(HumMiceRCM, colour = "Diet") #Diet is a main factor
-plot.RCM(HumMiceRCM, colour = "Individual") #Individuals play less of a role
-plot.RCM(HumMiceRCM, colour = "Generation_p") #Microbiome changes quickly with feed pattern
-plot.RCM(HumMiceRCM, colour = "Time") #Later samples also form a cluster
+plot.RCM(HumMiceRCM, samColour = "Diet") #Diet is a main factor
+plot.RCM(HumMiceRCM, samColour = "Individual") #Individuals play less of a role
+plot.RCM(HumMiceRCM, samColour = "Generation_p") #Microbiome changes quickly with feed pattern
+plot.RCM(HumMiceRCM, samColour = "Time") #Later samples also form a cluster
 ```
 
 ```{r humMicePlotExec, purl = FALSE}
-plot.RCM(HumMiceRCM, colour = "Diet", main =  "Humanized mice") #Diet is a main factor
-plot.RCM(HumMiceRCM, colour = "Time", main =  "Humanized mice") #Later samples also form a cluster
+plot.RCM(HumMiceRCM, samColour = "Diet", main =  "Humanized mice") #Diet is a main factor
+plot.RCM(HumMiceRCM, samColour = "Time", main =  "Humanized mice") #Later samples also form a cluster
 rm(HumMiceRCM)
 ```
 
 ```{r humMicePlot13D, purl = FALSE, eval = FALSE}
-plot.RCM(HumMiceRCM, colour = "Diet", Dim = c(1,3)) #Diet is a main factor
-plot.RCM(HumMiceRCM, colour = "Individual", Dim = c(1,3)) #Individuals play less of a role
-plot.RCM(HumMiceRCM, colour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
-plot.RCM(HumMiceRCM, colour = "Time", Dim = c(1,3)) #Later samples also form a cluster
-plot.RCM(HumMiceRCM, colour = "DTG", Dim = c(1,3))
-plot.RCM(HumMiceRCM, colour = "DGS", Dim = c(1,3))
+plot.RCM(HumMiceRCM, samColour = "Diet", Dim = c(1,3)) #Diet is a main factor
+plot.RCM(HumMiceRCM, samColour = "Individual", Dim = c(1,3)) #Individuals play less of a role
+plot.RCM(HumMiceRCM, samColour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
+plot.RCM(HumMiceRCM, samColour = "Time", Dim = c(1,3)) #Later samples also form a cluster
+plot.RCM(HumMiceRCM, samColour = "DTG", Dim = c(1,3))
+plot.RCM(HumMiceRCM, samColour = "DGS", Dim = c(1,3))
 ```
+
+##### Dr. armpit data
+
+
 
 # Competing methods
 
@@ -3404,8 +3407,18 @@ Xtrim = Xnorm[,apply(Xnorm,2,min)>abCutOff]
 # make our compositional dataset
 Xcrl <- t(apply(Xtrim, 1, function(x){log(x) - mean(log(x))}))
 
+#Column center
+Xsca = scale(Xcrl, center = TRUE, scale = FALSE) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
+
 # Apply PCA
-prcomp(Xcrl, scale = scale) #Shouldn't this be scaled? It is not the default, and was not done by Gloor and Reid
+Svd = svd(Xsca)
+rowScores = Svd$u %*% diag(Svd$d) #=Xsca %*% Svd$v #%*% diag(Svd$d)
+colScores = Svd$v #scale = 0 in biplot
+
+# rowScores2 = Svd$u
+# colScores2 = Svd$v %*% diag(Svd$d) #scale = 1 in biplot
+
+list(rowScores = rowScores, colScores = colScores)
 }
 ```
 
@@ -3565,48 +3578,69 @@ contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim =
 
 ```{r extract row vectors}
 # A function to perform all analyses except for RC(M)
-otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
-datList0mat = lapply(RCMlist, function(x){tmp = x$X; rownames(tmp) = seq_len(nrow(tmp));tmp})
-CAresList0 = lapply(datList0mat, caSVD)
-CodaResList0 = mclapply(datList0mat, CoDa, mc.cores = cores)
-BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
-JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "jsd")})
-#With relative abundances
-BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
-#Hellinger distance. Actually this is also an svd technique, so also yields taxon scores
-HelDistresList = lapply(datList0mat, function(x){
-  R = rowSums(x)
-  E = outer(R, colSums(x)/sum(x))
-  svd(diag(1/sqrt(R)) %*% (sqrt(x)-sqrt(E))) 
+otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 4){
+    if(unifrac) {
+      RCMlist = mapply(RCMlist, treeList, FUN = function(x,tree){
+        x$physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
+        sample_names(x$physeq) = seq_len(nsamples(x$physeq))
+        x
+      })
+  }
+mclapply(mc.cores = cores, RCMlist, function(x){
+  tmp = x$X; rownames(tmp) = seq_len(nrow(tmp))
+  R = rowSums(tmp)
+  E = outer(R, colSums(tmp)/sum(tmp))
+  otuTab = otu_table(tmp, taxa_are_rows = FALSE)
+  list(
+    RCM = x, CA = caSVD(tmp), CoDa = CoDa(tmp),
+    BC = ordinate(otuTab, method = "PCoA", distance = "bray"),
+    JSD = ordinate(otuTab, method = "PCoA", distance = "jsd"),
+    BCrel = ordinate(otuTab, method = "PCoA", distance = "bray"),
+    Hellinger = svd(diag(1/sqrt(R)) %*% (sqrt(tmp)-sqrt(E))),
+    UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL, 
+    wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL)
 })
-if(unifrac){
-  UniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
-    physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
-    sample_names(physeq) = seq_len(nsamples(physeq))
-    ordinate(physeq, method = "PCoA", distance = "unifrac")
-  })
-   wUniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
-    physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
-    sample_names(physeq) = seq_len(nsamples(physeq))
-    ordinate(physeq, method = "PCoA", distance = "wunifrac")
-  })
-   mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, UniFracList, wUniFracList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell, Uni, wUni){
-                    list(RCM = RCM, CA = CA, 
-                         CoDa = CoDa,
-                         BC = BC, JSD = JSD, 
-                         BCrel = BCrel, Hellinger = Hell, UniFrac = Uni, wUniFrac = wUni)
-                  }, 
-                  SIMPLIFY = FALSE
-)
-}
-mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell){
-                    list(RCM = RCM, CA = CA, 
-                         CoDa = CoDa,
-                         BC = BC, JSD = JSD, 
-                         BCrel = BCrel, Hellinger = Hell)
-                  }, 
-                  SIMPLIFY = FALSE
-)
+
+# CAresList0 = lapply(datList0mat, caSVD)
+# CodaResList0 = mclapply(datList0mat, CoDa, mc.cores = cores)
+# BCresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
+# JSDresList0 = lapply(datList0mat, function(x){ordinate(otu_table(x, taxa_are_rows = FALSE), method = "PCoA", distance = "jsd")})
+# #With relative abundances
+# BCresList0Rel = lapply(datList0mat, function(x){ordinate(otu_table(x/rowSums(x), taxa_are_rows = FALSE), method = "PCoA", distance = "bray")})
+# #Hellinger distance. Actually this is also an svd technique, so also yields taxon scores
+# HelDistresList = lapply(datList0mat, function(x){
+#   R = rowSums(x)
+#   E = outer(R, colSums(x)/sum(x))
+#   svd(diag(1/sqrt(R)) %*% (sqrt(x)-sqrt(E))) 
+# })
+# if(unifrac){
+#   UniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
+#     physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
+#     sample_names(physeq) = seq_len(nsamples(physeq))
+#     ordinate(physeq, method = "PCoA", distance = "unifrac")
+#   })
+#    wUniFracList = mapply(datList0mat, treeList, FUN = function(dat, tree){
+#     physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
+#     sample_names(physeq) = seq_len(nsamples(physeq))
+#     ordinate(physeq, method = "PCoA", distance = "wunifrac")
+#   })
+#    mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, UniFracList, wUniFracList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell, Uni, wUni){
+#                     list(RCM = RCM, CA = CA, 
+#                          CoDa = CoDa,
+#                          BC = BC, JSD = JSD, 
+#                          BCrel = BCrel, Hellinger = Hell, UniFrac = Uni, wUniFrac = wUni)
+#                   }, 
+#                   SIMPLIFY = FALSE
+# )
+# }
+# mapply(RCMlist, CAresList0, CodaResList0, BCresList0, JSDresList0, BCresList0Rel, HelDistresList, FUN = function(RCM, CA, CoDa,  BC, JSD, BCrel, Hell){
+#                     list(RCM = RCM, CA = CA, 
+#                          CoDa = CoDa,
+#                          BC = BC, JSD = JSD, 
+#                          BCrel = BCrel, Hellinger = Hell)
+#                   }, 
+#                   SIMPLIFY = FALSE
+# )
 } #JSD works on relative abundances by default
 #---------------------------------------#
 #A function to extract the row vectors multiplied by importance elements
@@ -3614,7 +3648,7 @@ extractRows = function(x){
   with(x, list(
     RCM = RCM$rMat %*% diag(RCM$psis),
     CA = CA$u %*% diag(CA$d),
-    CoDa = CoDa$rotation %*% diag(CoDa$sdev^2),
+    CoDa = CoDa$rowScores,
     BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
     JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
     BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
@@ -3627,7 +3661,7 @@ extractCols = function(x, row){
   tmpList = with(x, list(
     RCM = t(RCM$cMat),
     CA = CA$v,
-    CoDa = weightedTaxonScores(RCM$X, row$CoDa),
+    CoDa = CoDa$colScores,
     BC = weightedTaxonScores(RCM$X, row$BC),
     JSD = weightedTaxonScores(RCM$X, row$JSD),
     BCrel = weightedTaxonScores(RCM$X, row$BCrel),
@@ -4067,7 +4101,7 @@ The RC(M) and CA methods are best at identifying taxa that contribute to the sep
 
 In this setting we will again simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances. In this case we will make the library sizes different in each group. Th initial library sizes are all sampled from the same pool of library sizes observed in real data. The first group has unmodified library sizes, the second group library sizes multiplied by 1.5, the third by 2 and the fourth by 3.
 
-```{r NBrelatedDistrConf, purl = FALSE, eval = FALSE}
+```{r NBrelatedDistrConf, purl = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
