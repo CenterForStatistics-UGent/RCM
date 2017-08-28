@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "alabama", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -25,8 +25,8 @@ par(pty="s") #Make sure the biplots are square!
 palStore = palette()
 load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
 levelsMeth = c("CA","Hellinger","BC","BCrel","JSD","CoDa","RCM")
-labelsMeth = c("CA","Hellinger","Bray-Curtis","Bray-Curtis Crel","Jenssen-Shannon divergence","CoDa","RCM")
-groupsMeth = factor(c("SVD","SVD","PCoA","PCoA","PCoA","CoDa","RCM"))
+labelsMeth = c("CA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","JSD","CoDa","RCM")
+groupsMeth = factor(c("Independence","Independence","PCoA","PCoA","PCoA","CoDa","RCM"), levels = c("Independence","PCoA","CoDa","RCM"), ordered = TRUE)
 ```
 
 \setcounter{tocdepth}{2}
@@ -117,6 +117,7 @@ Under the assumptions that:
   1) All tolerances $m_{jk}$ are equal for all species ($m_k$)
   2) All maxima $a_{jk}$ are equal for all species
   3) The modi $q_{jk}$ are homogeneously distributed over a region larger than $m_k$
+  4) Counts are Poisson distributed
   
   CA yields the ML solution of this Gaussian model see ter Braak, 1986).
 
@@ -128,7 +129,7 @@ The Hellinger distance divides by the square root of the observation as means of
 
 $$\frac{X}{\sqrt{Var(X)}} \approx \frac{X}{\sqrt{X}} = \sqrt{X}$$
 
-The rationale is that each observation x is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes.
+The rationale is that each observation x is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes. See Rao (1997), who suggests this method as an alternative to correspondence analysis. The drawback of correspondence analysis is that the estimate for the expected abundances used to standardize departures from independence $X-E$ is based on the taxon sums, and thus on other samples. With the Hellinger distance only, the sample itself is used to estimate the expected abundances, namely by the count itself.
 
 ### Log-linear analysis
 
@@ -2861,14 +2862,14 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
           dataTax[, c("peak1","peak2")] = apply(dataTax[, c("peak1","peak2")], c(1,2), max, 0.0075) # Make sure a line always appears
           #Unfold into two dimensions
           dataEllipse = data.frame(
-            apply(dataEllipseTmp[,,id], 2, c), colour = dataTax$colour
+            apply(dataEllipseTmp[,,id], 2, c), colour = as.character(dataTax$colour)
           )
         } else if(RCMfit$responseFun  == "nonparametric"){ #For non-parametric response function we cannot plot the taxa
           plotTaxa = FALSE
         } else {
           stop("No valid response function present in this RCM object!")
         }
-    } else { #If not constrained
+           } else { #If not constrained
     dataTax = data.frame(cbind(t(RCMfit$cMat[Dim,]),0,0))
     names(dataTax) = c("end1","end2", "origin1","origin2")
     }
@@ -2908,10 +2909,10 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     if(plotTaxa){
       if(!constrained || RCMfit$responseFun=="linear"){
     plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
-    } else if(RCMfit$responseFun=="quadratic"){ #quadratic responsef unctions
-    plot <- plot + 
+    } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
+      plot <- plot + 
       geom_tile(data=dataTax, aes_string(x='end1', y='end2', fill="colour", width = "peak1", height = "peak2" ), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
-      if(plotEllipse) {geom_path(inherit.aes = FALSE, data = dataEllipse, mapping = aes_string(x = "x", y = "y", group = "taxon", colour = "colour"))}
+        if(plotEllipse) {geom_path(inherit.aes = FALSE, data = dataEllipse, mapping = aes_string(x = "x", y = "y", group = "taxon"), colour = "grey50", show.legend = FALSE)}
     } else {
     plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE) 
     }
@@ -3234,17 +3235,19 @@ if(!file.exists("zellerSphyRCMconstr.RData")){
 zellerSphyRCMconstrLin = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear") # Use smallest possible cndtol!
 zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
 zellerSphyRCMconstrNonP = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
-save(zellerSphyRCMconstrLin, file="zellerSphyRCMconstr.RData")
+save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")}  #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 ```
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
 plot.RCM(zellerSphyRCMconstrLin)
-plot.RCM(zellerSphyRCMconstrLin, colour = "Diagnosis")
-plot.RCM(zellerSphyRCMconstrLin, colour = "Gender")
-plot.RCM(zellerSphyRCMconstrLin, colour = "Country")
-plot.RCM(zellerSphyRCMconstrLin, colour = "Age")
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", taxFrac = 0.015)
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Gender")
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Country")
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Age")
 #apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
+
+plot.RCM(zellerSphyRCMconstrQuad, samColour = "Diagnosis", taxFrac = 0.015, Palette = rainbow(5))
 ```
 
 ```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
@@ -3396,6 +3399,12 @@ This is the classical, statistical way of analysing contingency tables of count 
 
 In recent years there have been many publications on analysing microbiome data as compositional. Gloor and Reid (2016) and Gloor _et al._ propose a method to extend this philosophy to biplots. In a frist step, zero counts are replaced by a non-zero pseudocount, either 0.5 or through a Bayesian method. Next the data are normalized to realtive abundances, divided by the geometric mean and log-transformed. This is called the central logratio transform (clr). PCA is applied to these transformed data (through eigendecomposition of the variance-covariance matrix) and sample scores mutliplied by eigenvalues are plotted. Row scores can be added as weighted sample means.
 
+Theoretical concerns I have about this method are the following:
+
+ - Heteroscedasticity of count data is not addressed. Authors claim this should be handled "downstream".
+ - Negative correlations due to compositionality might be swamped by true biological correlations
+ - The library sizes are not always of merely technical nature, and very often measures of biomass or cell count are including. This questions the compositional nature of these data
+
 ### Bayesian Nonparametric Ordination 
 
 (Ren _et al._ (2016))
@@ -3508,7 +3517,7 @@ distanceFun = function(coord, clusters, Dim = c(1,2)){
     dist(rbind(y, overalCenter))
   })
   
-  ratio = mean(sapply(unique(clusters), function(x){withinDist[[x]]/overalDist[clusters==x]}))
+  ratio = mean(unlist(sapply(unique(clusters), function(x){withinDist[[x]]/overalDist[clusters==x]})))
   list(withinDist = withinDist, overalDist =  overalDist, ratio = ratio)
   }
 ```
@@ -3517,7 +3526,7 @@ distanceFun = function(coord, clusters, Dim = c(1,2)){
 
 See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
 
-$$s(i) = \frac{a(i) - b(i)}{max\big(a(i), b(i)\big)}$$
+$$s(i) = \frac{b(i) - a(i)}{max\big(a(i), b(i)\big)}$$
 
 The silhouette can take values between +1 for optimal separation and -1 for wrong classification. If a poin i close to the centroid of its own cluster but very far from all the others the methods has performed well and is rewarded with a high silhouette. We can average the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
 
@@ -3615,8 +3624,8 @@ contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim =
 # A function to perform all analyses except for RC(M)
 otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
     if(unifrac) {
-      RCMlist = mapply(RCMlist, treeList, FUN = function(x,tree){
-        x$physeq = phyloseq(otu_table(dat, taxa_are_rows = FALSE), tree)
+      RCMlist = mapply(SIMPLIFY = FALSE,RCMlist, treeList, FUN = function(x,tree){
+        x$physeq = phyloseq(otu_table(x$X, taxa_are_rows = FALSE), tree)
         sample_names(x$physeq) = seq_len(nsamples(x$physeq))
         x
       })
@@ -3626,11 +3635,12 @@ mclapply(mc.cores = cores, RCMlist, function(x){
   R = rowSums(tmp)
   E = outer(R, colSums(tmp)/sum(tmp))
   otuTab = otu_table(tmp, taxa_are_rows = FALSE)
+  otuTabRel = otu_table(tmp/R, taxa_are_rows = FALSE)
   list(
     RCM = x, CA = caSVD(tmp), CoDa = CoDa(tmp),
     BC = ordinate(otuTab, method = "PCoA", distance = "bray"),
     JSD = ordinate(otuTab, method = "PCoA", distance = "jsd"),
-    BCrel = ordinate(otuTab, method = "PCoA", distance = "bray"),
+    BCrel = ordinate(otuTabRel, method = "PCoA", distance = "bray"),
     Hellinger = svd(diag(1/sqrt(R)) %*% (sqrt(tmp)-sqrt(E))),
     UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL, 
     wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL)
@@ -3705,25 +3715,33 @@ par(mfrow = c(1,1))
 }
 #----------------------------------#
 # A function to plot the silhouettes
-plotSil = function(resListRows, groupFactor){
+plotSil = function(resListRows, groupFactor, method = NULL,...){
 sil1  = lapply(resListRows, function(x){
   sapply(x, silhouette, clusters = groupFactor)
 })
 meanSil1 = sapply(sil1, function(x){
   colMeans(x)
 })
-meanSil1df = melt(meanSil1, value.name = "Silhouette", varnames = c("Method"))
-boxplot(Silhouette~Method, main = "Mean silhouettes per Monte Carlo simulation by method", data = meanSil1df)
+meanSil1df = orderDF(melt(meanSil1, value.name = "Silhouette", varnames = c("Method")))
+
+if(!is.null(method)){
+  meanSil1df = subset(meanSil1df, meanSil1df$Method %in% method)
+  }
+boxplot(Silhouette~Method, main = "Mean silhouettes per Monte Carlo simulation by method", data = meanSil1df, col = groupsMeth, ...)
 meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
 points(meansSil, col="red", pch=18, cex = 1.6)
+addLegend()
 }
 #---------------------------------#
-distRatioPlot = function(resListRows, groupFactor) {
+distRatioPlot = function(resListRows, groupFactor, method = NULL, ...) {
 dist = sapply(resListRows, function(x){
   sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
 })
 meanDist1df = melt(dist, value.name = "DistanceRatio", varnames = c("Method"))
-boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist1df)
+if(!is.null(method)){
+  meanDist1df = subset(meanDist1df, meanDist1df$Method %in% method)
+}
+boxplot(DistanceRatio~Method, main = "Mean ratios of within to overal distance by method", data = meanDist1df, ...)
 meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
 points(meansDist, col="red", pch=18, cex = 1.6)
 abline(h=1, lty = "dashed")
@@ -3747,12 +3765,16 @@ as.data.frame(t(dat))
 }
 #-----------------------------#
 # A function to plot the result of this as boxplots
-contrPlot = function(contr) {
-moltenContr = melt(contr, variable.name = "Method", value.name = "contrRatio", id.vars = NULL)
-boxplot(contrRatio~Method, main = "Mean ratios of contribution of DA taxa \n relative to 50% most contributing non-DA taxa by method", data = moltenContr, ylab = "Mean contribution ratio")
+contrPlot = function(contr, method = NULL, ...) {
+moltenContr = orderDF(melt(contr, variable.name = "Method", value.name = "contrRatio", id.vars = NULL))
+if(!is.null(method)){
+  moltenContr = subset(moltenContr, moltenContr$Method %in% method)
+}
+boxplot(contrRatio~Method, main = "Mean ratios of contribution of DA taxa \n relative to 50% most contributing non-DA taxa by method", data = moltenContr, ylab = "Mean contribution ratio", ...)
 meansDist = tapply(moltenContr$contrRatio, moltenContr$Method, mean, na.rm = TRUE)
 points(meansDist, col="red", pch=18, cex = 1.6)
 abline(h=1, lty = "dashed")
+addLegend()
 }
 #-----------------------------#
 # A function to calculate correlation with the starting values
@@ -3774,6 +3796,18 @@ getCor = function(a,b){
   sapply(1:ncol(b), function(x){
     cor(a[,x], b[,x])
   })
+}
+#--------------------------------#
+# A function to reorder the methods
+orderDF = function(df){
+  df$Method = factor(df$Method, labels = labelsMeth, levels = levelsMeth, ordered = TRUE)
+  df$groupMethod = groupsMeth
+  df
+}
+#-------------------------------#
+#A function to add the legend
+addLegend = function(yloc = 0.2){
+legend(legend = levels(groupsMeth), col = factor(levels(groupsMeth), levels = levels(groupsMeth), ordered=TRUE),pch = 1, x = length(groupsMeth)+1, y = yloc, xpd = TRUE)
 }
 ```
 
@@ -3839,7 +3873,9 @@ RCMresList0 = mclapply(mc.cores=4, datList0, function(y){
 save(RCMresList0, file = "RCMsim/resList0RCM.RData")
 } else { load("RCMsim/resList0RCM.RData")}
 resList0 = otherAnalyses(RCMresList0)
-save(resList0, file = "RCMsim/resList0.RData")
+resList0Rows = lapply(resList0, extractRows)
+resList0Cols = mapply(resList0, resList0Rows, FUN=extractCols, SIMPLIFY=FALSE)
+save(resList0, resList0Rows,resList0Cols,  file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
 ```
 
@@ -3849,7 +3885,6 @@ boxplot(sapply(resList0, function(x){x$RCM$runtimeInMins}))
 
 ```{r resList0 sampleBiplot, purl = FALSE, include=FALSE}
 #A sample biplot
-resList0Rows = lapply(resList0, extractRows)
 randomScatter(resList0Rows)
 # Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
 #randomScatter(resList0Rows, Dim = c(1,3))
@@ -3866,7 +3901,6 @@ The taxa
 
 ```{r resList0cols sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
-resList0Cols = mapply(resList0, resList0Rows, FUN=extractCols, SIMPLIFY=FALSE)
 randomScatter(resList0Cols)
 # CA has outliers, CoDa and Hellinger reveal weird patterns
 #randomScatter(resList0Cols, Dim = c(1,3))
@@ -4076,9 +4110,7 @@ distRatioPlot(resList2Rows, groupFactor2)
 RCM comes out as best, CA as worst
 
 ```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor2}"}
-
 plotCor(resList2Rows, datList2, dataMat = TRUE)
-load(file = "RCMsim/resListZINB.RData")
 ```
 
 ```{r AbCorr2, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCor2}"}
@@ -4193,7 +4225,6 @@ RCM comes out as best, CA as worst
 ```{r libSizeCorr3, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor3}"}
 datList3 = lapply(resList3, function(x){x$RCM$X})
 plotCor(resList3Rows, datList3, dataMat = TRUE)
-load(file = "RCMsim/resListZINB.RData")
 ```
 
 ```{r AbCorr3, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCor3}"}
@@ -4274,8 +4305,9 @@ RCMresListPhy = mclapply(mc.cores=4, datListPhy, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
   })
 save(RCMresListPhy, file = "RCMsim/resListPhyRCM.RData")
-} else {load("RCMsim/resListPhyRCM.RData")}
-resListPhy = otherAnalyses(RCMresListPhy, unifrac = TRUE, treeList = )
+  } else {load("RCMsim/resListPhyRCM.RData")}
+  listID = sapply(RCMresListPhy, is.list)
+resListPhy = otherAnalyses(RCMresListPhy[listID], unifrac = TRUE, treeList = lapply(datListPhy[listID], function(x){x$randomTree}) )
 IDlistPhy = lapply(datListPhy, function(x){
    id = apply(x$IDsampled, 2, unique)
    taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
@@ -4644,7 +4676,18 @@ save(RCMresListSimSeqHum, RCMresListSimSeqAG, RCMresListSimSeqZeller, file = "RC
   resListSimSeqHumRows = lapply(resListSimSeqHum, extractRows)
   resListSimSeqHumCols = mapply(resListSimSeqHum, resListSimSeqHumRows, FUN=extractCols, SIMPLIFY=FALSE)
   datListHum = lapply(resListSimSeqHum, function(x){x$RCM$X})
-save(datListHum, IDlistHum, groupFactorHum, resListSimSeqHumRows, resListSimSeqHumCols, file = "RCMsim/resListSimSeq.RData")
+  # Zeller
+  zellerID = sapply(RCMresListSimSeqZeller, class) == "RCM"
+  resListSimSeqZeller = otherAnalyses(RCMresListSimSeqZeller[zellerID])
+  IDlistZeller = mapply(ZellerSimSeqList[zellerID],resListSimSeqZeller, FUN =  function(y,x, test){
+    taxa = y$DEtaxa[y$DEtaxa %in% colnames(x$RCM$X)]
+    test[taxa,]
+    }, SIMPLIFY = FALSE, MoreArgs = list(test = t(testZeller$result)))
+  groupFactorZeller = ZellerSimSeqList[[1]]$treatment
+  resListSimSeqZellerRows = lapply(resListSimSeqZeller, extractRows)
+  resListSimSeqZellerCols = mapply(resListSimSeqZeller, resListSimSeqZellerRows, FUN=extractCols, SIMPLIFY=FALSE)
+  datListZeller = lapply(resListSimSeqZeller, function(x){x$RCM$X})
+save(datListHum, IDlistHum, groupFactorHum, resListSimSeqHumRows, resListSimSeqHumCols, IDlistZeller, resListSimSeqZellerRows, resListSimSeqZellerCols, groupFactorZeller, datListZeller, file = "RCMsim/resListSimSeq.RData")
 } else {load("RCMsim/resListSimSeq.RData")}
 ```
 
@@ -4701,6 +4744,56 @@ contrPlot(contrHum)
 ```
 
 In the SimSeq setting neither method does really well, surprisingly here Hellinger distance and CoDa are the best performers
+
+```{r resListSimSeqZeller sampleBiplot, purl = FALSE}
+#A sample biplot
+randomScatter(resListSimSeqZellerRows, col = groupFactorZeller)
+# Clearly a tough job
+```
+
+Except for PCoA with Bray-Curtis distances and CA, all methods seem to separate the clusters rather well
+
+```{r libSizeCorrZeller, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 1ZellerZeller simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.\\label{fig:libCor1}"}
+plotCor(resListSimSeqZellerRows, datListZeller, scoreDim = "rows")
+```
+
+CoDa struggles with the library sizes, but also RC(M) and Hellinger seems to suffer from it slightly!
+
+The taxa
+
+```{r resListSimSeqZellercols sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resListSimSeqZellerCols)
+```
+
+```{r AbsCorrZeller, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1ZellerZeller simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.\\label{fig:libCor1}"}
+plotCor(resListSimSeqZellerCols, datListZeller, scoreDim = "columns", dataMat = TRUE)
+```
+
+Taxa scores of correspondence analysis tend to correlate with taxon abundances in some cases
+
+```{r resListSimSeqZellerEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette1}"}
+plotSil(resListSimSeqZellerRows, groupFactorZeller)
+```
+
+In the non-parametric setting RCM achieves by far the highest silhouette!
+
+```{r resListSimSeqZellerEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Red diamonds indicate means.  \\label{fig:dist1}"}
+distRatioPlot(resListSimSeqZellerRows, groupFactorZeller)
+```
+
+In the non-parametric setting, RCM achieves the lowest distance ratios, CA the highest
+
+```{r AbCorrZeller, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCorZeller}"}
+plotCor(resListSimSeqZellerCols, datListZeller, dataMat = TRUE, scoreDim = "columns")
+```
+
+CA suffers from correlation with relative abundances, but not on average.
+
+```{r taxRatZeller, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRatZeller}"}
+contrZeller = contrTaxaWrap(resListSimSeqZellerRows, resListSimSeqZellerCols, IDlistZeller, groupFactorZeller, upDown = TRUE)
+contrPlot(contrZeller)
+```
 
 ## Constrained RC(M)
 
