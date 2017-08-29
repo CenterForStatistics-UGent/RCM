@@ -3363,7 +3363,12 @@ if(!file.exists(file = "armpitRCM.RData")){
 ```
 
 ```{r ArmpitPlot1, purl = FALSE}
-plot(armpitRCM)
+plot(armpitRCM, taxFrac = 0.015)
+plot(armpitRCM, taxFrac = 0.015, samColour = "shaving")
+plot(armpitRCM, taxFrac = 0.015, samColour = "odor_panel")
+plot(armpitRCM, taxFrac = 0.015, samColour = "gender")
+plot(armpitRCM, taxFrac = 0.015, samColour = "age")
+plot(armpitRCM, taxFrac = 0.015, samColour = "antimicrobial")
 ```
 
 # Competing methods
@@ -3427,6 +3432,17 @@ $$d_{hellinger}(a,b) = \sum_{j=1}^p (\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_
    * See Warton _et al._ (2012): Distance-based multivariate analyses confound
 location and dispersion effects
    * See technical report bio BioRankings: "Dealing with High-Dimensional Data". Pairwise distances all become similar in high dimensions.
+   
+#### Non-metric multidimensional scaling
+
+Non-metric multidimensional scaling (NMDS) can be considered the little brother of MDS, since it also represents distance matrices in lower dimensions. Still there are some important differences: 
+
+ - NMDS is fitted numerically instead of through singular value decomposition
+ - The number of axes is chosen beforehand. There is no ordering in the axes, the solution depends on the number of axes chosen
+ - It makes no assumption on the distribution of the data, in contrast to PCA which assumes linear relationships and CCA which assumes unimodal ones.
+ 
+ The ordination is fitted iteratively, by minimizing the stress between the original distances and the distances of the actual ordination.
+
 
 ### Correspondence analysis
 
@@ -3674,10 +3690,11 @@ mclapply(mc.cores = cores, RCMlist, function(x){
   otuTab = otu_table(tmp, taxa_are_rows = FALSE)
   otuTabRel = otu_table(tmp/R, taxa_are_rows = FALSE)
   list(
-    RCM = x, CA = caSVD(tmp), CoDa = CoDa(tmp),
+    RCM = x, CA = caSVD(tmp), DCA = ordinate(otuTab, method = "DCA"), methCoDa = CoDa(tmp),
     BC = ordinate(otuTab, method = "PCoA", distance = "bray"),
     JSD = ordinate(otuTab, method = "PCoA", distance = "jsd"),
     BCrel = ordinate(otuTabRel, method = "PCoA", distance = "bray"),
+    BCrelNMDS = ordinate(otuTabRel, method = "NMDS", distance = "bray"),
     Hellinger = svd(diag(1/sqrt(R)) %*% (sqrt(tmp)-sqrt(E))),
     UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL, 
     wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL)
