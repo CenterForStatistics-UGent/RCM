@@ -458,7 +458,15 @@ We could of course just perform our classical, unconstrained methods and then re
 
 ### Canonical correlation analysis
 
-### Constrained correspondence analysis (CCA)
+Canonical correlation analysis seeks to compare multivariate sets of random variables __X__ (n-by-p) and __Y__ (n-by-m) with variables in the columns. This way one discovers which variables correlate best between both data sets. Usually both data sets represent different kinds of measurements, e.g. dietary habits vs. health condition, but all measured on the same individual. It looks for linear transformations __Xa__ and __Yb__ that maximize the correlation $\rho = cor(\mathbf{Xa}, \mathbf{Yb})$. We call these transformations the _canonical covariates_ $\mathbf{Xa_i} = \mathbf{U}_i$ and $\mathbf{Yb_i} = \mathbf{V}_i$ and the corresponding correlation $\rho_i$ the _canonical correlation_. The consecutive canonical covariates are linearly independent, the canonical correlation coefficients decrease over the dimensions of the solution.
+
+__X__ and __Y__ are column centered to obtain __A__ and __B__, and then we look for projecting vectors __x__ and __y__ that maximize correlation between $\mathbf{z}_x = \mathbf{Ax}$ and $\mathbf{z}_y = \mathbf{Ay}$. Note that there is no notion of percentage of variance explained, and that this method is symmetric with respect to datasets __X__ and __Y__.
+
+### Redundancy analysis (RDA)
+
+Redundancy analysis extracts variation between variables of a n-by-p dataset __X__ that can be explained by variables from another n-by-d dataset __Y__. It is a constrained version of principal components analysis (PCA), whereby principal components are restricted to be linear combinations of the set of constraining variables.
+
+### Constrained/canonical correspondence analysis (CCA)
 
 There are many ways to introduce and explain CCA, with many parallels to other (forgotten) methods, but we will stick to the approach based on the singular value decomposition.
 
