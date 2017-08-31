@@ -830,10 +830,9 @@ Contrary to most other methods to make biplots for microbiome data, the RC(M)-me
 
 ## Correspondence analysis
 
-$$(C^TX(C^TRC)^{-1}X^TC - \boldsymbol{\lambda}J)\mathbf{s} = \mathbf{0}$$
-
 ```{r Auxfuns Correspondence analysis, purl=TRUE}
 ## A function to perform correspondence analysis
+# The unconstrained approach is the approximation to the Pearson's chi-squared, as defined by Gower _et al._ in their book "Understanding Biplots". The constrained approach is the one implemented in vegan, based on a weighted regression of the departure matrix on the environmental scores. We cannot reproduce its results by the code given by ter Braak based on eigenvlaue or singular value decompositions.
 caSVD = function(X, Y = NULL, Z = NULL){
 # @param X: the nxp count matrix
 # @param Y(optional): a nxd matrix of covariates, or a vector of variable names if X is a phyloseq object. If null regular CA is performed
@@ -848,26 +847,60 @@ caSVD = function(X, Y = NULL, Z = NULL){
   C = colSums(X)
   R = rowSums(X)
   E = outer(R,C)/sum(X) #Expected counts under independence
-  if(is.null(Y)){ #Unconstrained analysis
+  if(is.null(Y) & is.null(Z)){ #Unconstrained analysis
   Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
   dimnames(Goal) = dimnames(X)
   svd(Goal)
   } else { #Constrained analysis
-  Ycent = t(t(Y) - rowMeans(t(Y)*R/sum(R) ))#Weighted centering  
-  Goal = Ycent %*% solve(a =  crossprod(Ycent,  diag(R)) %*% Ycent,
-        b = crossprod(Ycent, diag(R) %*% diag(1/sqrt(R))) %*% (X-E) %*% diag(1/sqrt(C))) 
-  #The goal matrix consists of fitted values of weighted regression of the chi-square transformed data matrix on the covariates with row sums as weights
-  dimnames(Goal) = dimnames(X)
-  Svd = svd(Goal)
-  envScores = 1/sqrt(colSums(Ycent^2))*crossprod(Ycent, Svd$u)
-  
-  # #Eigenvalue approach
+  vegan:::cca(X = X, Y=Y, Z=Z)
+  # Ycent = t(t(Y) - rowMeans(t(Y)*R/sum(R) ))#Weighted centering  
+  # Goal = Ycent %*% solve(a =  crossprod(Ycent,  diag(R)) %*% Ycent,
+  #       b = crossprod(Ycent, diag(R) %*% diag(1/sqrt(R))) %*% (X-E) %*% diag(1/sqrt(C))) 
+  # #The goal matrix consists of fitted values of weighted regression of the chi-square transformed data matrix on the covariates with row sums as weights
+  # dimnames(Goal) = dimnames(X)
+  # Svd = svd(Goal)
+  # envScores = 1/sqrt(colSums(Ycent^2))*crossprod(Ycent, Svd$u)
+  # 
+  # # #Eigenvalue approach (ter Braak 1986)
   # EigGoal = t(X) %*% Y %*% solve(t(Y) %*% diag(R) %*% Y) %*% t(Y) %*% X
   # EigDec = eigen(EigGoal)
+  # EigSitesWeighted = diag(1/R) %*% X %*% EigDec$vectors %*% diag(1/C)
+  # alpha = solve(t(Y) %*% diag(R) %*% Y) %*% t(Y) %*% diag(R) %*% EigSitesWeighted
+  # EigSitesConstr = Y %*% alpha
   # 
-  # GeigDec = geigen(t(X) %*% Y %*% diag(1/C) %*% t(Y) %*% X, t(Y) %*% diag(R) %*% Y)
-  
-  list(Svd = Svd, envScores = envScores)
+  # GeigDec = geigen(t(Y) %*% X %*% diag(1/C) %*% t(X) %*% Y, t(Y) %*% diag(R) %*% Y)
+  # 
+  # # Singular value approach (ter Braak 2014)
+  # Ystar = sqrtm(solve(t(Y) %*% diag(R) %*% Y)) %*% t(Y) %*% X %*% diag(1/sqrt(C))
+  # svdY = svd(Ystar)
+  # B = sqrtm(solve(t(Y) %*% diag(R) %*% Y)) %*% svdY$u
+  # U = diag(1/sqrt(C)) %*% svdY$v %*% diag(svdY$d)
+  # sites = Y %*% B
+  # 
+  # # At least 
+  # cor(B[,1:2], alpha[,1:2])
+  # cor(sites[,1:2], EigSitesConstr[,1:2])
+  # 
+  # # Vegan
+  # ccaVegan = cca(X, Y)$CCA
+  # 
+  # par(mfrow = c(2,2))
+  # #Species plots
+  # tmp = plot(cca(X, Y),display = "sp")
+  # plot(U)
+  # plot(EigDec$vectors)
+  # plot(Svd$v)
+  # cor(cbind(U[,1], EigDec$vectors[,1], Svd$v[,1], tmp[[1]][,1] ))
+  # 
+  # par(mfrow = c(2,2))
+  # # Sample plots constrained
+  # tmp = plot(cca(X, Y),display = "lc", type = "points")
+  # plot(sites)
+  # plot(EigSitesConstr)
+  # plot(Svd$u)
+  # cor(cbind(sites[,1], EigSitesConstr[,1], Svd$u[,1], tmp[[1]][,1] ))
+  # 
+  # # Ter Braaks eigen- and singular value decompositions are the same, but differ from the chi-square difference approach?
   }
 }
 #-------------------------------------------------#
@@ -2567,14 +2600,15 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     }
     
     if(any(sapply(datFrame, is.logical))){
-      datFrame[,sapply(datFrame, is.logical)] = sapply(datFrame[,sapply(datFrame, is.logical)], as.factor) #Convert logicals to factors
+      datFrame[,sapply(datFrame, is.logical)] = lapply(datFrame[,sapply(datFrame, is.logical)], factor) #Convert logicals to factors
     #warning("Logicals converted to factors! \n", immediate. = TRUE). No warning needed
     }
    if(any(sapply(datFrame, is.integer))){
-      datFrame[,sapply(datFrame, is.integer)] = sapply(datFrame[,sapply(datFrame, is.integer)], as.numeric) #Convert integers to numeric
+      datFrame[,sapply(datFrame, is.integer)] = lapply(datFrame[,sapply(datFrame, is.integer)], as.numeric) #Convert integers to numeric
     warning("Integer values treated as numeric! \n", immediate. = TRUE)
       }
     if(any(sapply(datFrame, is.character))){
+      datFrame[,sapply(datFrame, is.character)] = lapply(datFrame[,sapply(datFrame, is.character)], factor) #Convert characters to factor
       warning("Character vectors treated as factors! \n", immediate. = TRUE)
     }
     nFactorLevels = sapply(datFrame, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
@@ -2609,7 +2643,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
         rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #Zeroes after
     })) 
 
-    centMat = centMat[rowSums(centMat)>0,] #Remove zero rows, corresponding to the non-factors
+    centMat = if(all(rowSums(centMat)==0)) {matrix(0, 1,sum(nFactorLevels))} else {centMat[rowSums(centMat)>0,, drop = FALSE]} #Remove zero rows, corresponding to the non-factors
     #centMat = rbind(1, centMat) # Add a row of ones for the overal sum. This turned out to be a bad idea!
   } else {
     covModelMat = centMat = NULL
@@ -2927,8 +2961,8 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
       geom_point(size = samSize) + #point size
       theme(aspect.ratio=1) + #square plot
-      xlab(paste0(names(dataSam)[1],": psi = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
-      ylab(paste0(names(dataSam)[2],": psi = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
+      xlab(paste0(names(dataSam)[1],": ", paste0(psi,Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
+      ylab(paste0(names(dataSam)[2],": ", paste0(psi,Dim[2]), " = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
       if(is.null(samColour)) {guides(color=FALSE)} #Legend
 
     #add legend names
@@ -3411,22 +3445,35 @@ if(!file.exists(file = "CMETdata.RData")){
   library(openxlsx)
   samData = read.xlsx("/home/stijn/PhD/Datasets/CMET/Metadata.xlsx")
   rownames(samData) = samData$sample_title
+  samData$Reactor.cycle = as.character(samData$Reactor.cycle)
+  samData$cellDensity = samData$`Cell.density.(cells/mL)`
+  samData$`Cell.density.(cells/mL)` = NULL
   otuTab = read.csv("/home/stijn/PhD/Datasets/CMET/OTU_table_raw.csv", sep = ";")
   rownames(otuTab) = otuTab$Sample_ID
   otuTab$Sample_ID = NULL
   #Select only samples present in samData
   otuTab = otuTab[as.character(samData$sample_title),]
   #Multiply relative abundances by cell counts in samData
-  otuTab = round(as.matrix(otuTab)*samData$`Cell.density.(cells/mL)`)
+  otuTab = round(as.matrix(otuTab)/rowSums(as.matrix(otuTab))*samData$cellDensity)
   taxTab = read.csv("/home/stijn/PhD/Datasets/CMET/tax_table_raw.csv", sep = ";")
   rownames(taxTab) = taxTab$X
   taxTab$X = NULL
   samData = samData[rowSums(otuTab)>0,]
   taxTab = taxTab[ colSums(otuTab)>0,]
   otuTab = otuTab[rowSums(otuTab)>0, colSums(otuTab)>0] #Number of zeroes is not related to rounding
-  CMETwater = phyloseq(otu_table(otuTab, taxa_are_rows = FALSE), sample_data(samData), tax_table(taxTab))
+  CMETwater = phyloseq(otu_table(otuTab, taxa_are_rows = FALSE), sample_data(samData), tax_table(as.matrix(taxTab)))
   save(CMETwater, file = "CMETdata.RData")
 }else {load(file = "CMETdata.RData")}
+```
+
+```{r analysCMET, purl = FALSE, eval = FALSE}
+if(!file.exists(file = "CMETRCM.RData")){
+  CMETRCM = RCM(CMETwater, k = 3)
+  envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "collection_date", "Timepoint", "Reactor.cycle")
+  CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET)
+  CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET)
+  save(CMETRCM, CMETRCMlin, CMETRCMquad, file = "CMETRCM.RData")
+} else {load(file = "CMETRCM.RData")}
 ```
 
 # Competing methods
