@@ -23,7 +23,6 @@ for(i in reqpkg)
 if(detectCores()==4) setwd(WD)
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
-load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
 levelsMeth = c("CA","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","CoDa","RCM", "Control")
 labelsMeth = c("CA","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","CoDa","RCM", "Control")
 groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance", "CoDa","RCM"), levels = c("Independence","Distance","CoDa","RCM", "Control"), ordered = TRUE)
@@ -226,6 +225,10 @@ $$log(E(x_{ij})) = log(x_{i.}) + log(x_{.j}) - log(x_{..}) + log\big(1 + \sum_{k
 i.e. an equivalence between the RC(M)-model and correspondence analysis
 
 Since the same restricitions apply to the scores $v_{ki}$ and $w_{jk}$ as to U and V, we can state that  $\psi_k \approx \omega_k$. The assumption that the departure from independence is small seems unlikely in our case, but it does provide us with some starting values.
+
+#### The RC(M) model and time series
+
+Often we have data from experiments with repeated measurements, e.g. the evolution of the infant microbiome over time. Should we take this into account while fitting the RC(M) model? I do not think so, since it is an exploratroy method and we just want to visualize the variation in the data. It would be interesting to see if the individuals form clusters or not. In the constrained version of this method (see below), we can always add labels for the individuals and  time variable.
 
 ### Fitting the RC(M) model
 
@@ -4021,7 +4024,7 @@ nPop = 4 #Number of underlying populations
 nPerPop = n/nPop #Number of samples per population
 reps = 100 #replicates
 nDim  = 3 #Number of dimensions
-
+load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
 rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
 thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
 
