@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape", "SpiecEasi")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -26,6 +26,8 @@ palStore = palette()
 levelsMeth = c("CA","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","CoDa","RCM", "Control")
 labelsMeth = c("CA","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","CoDa","RCM", "Control")
 groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance", "CoDa","RCM"), levels = c("Independence","Distance","CoDa","RCM", "Control"), ordered = TRUE)
+funFiles = dir("R")
+for (i in funFiles) {source(file.path("R",i))}
 ```
 
 \setcounter{tocdepth}{2}
@@ -496,7 +498,7 @@ $$(C^TX(C^TRC)^{-1}X^TC - \boldsymbol{\lambda}J)\mathbf{s} = \mathbf{0}$$
 
 The first equation represents a generalized eigenvalue problem, the second a regular eigenvalue problem since __J__ is a diagonal matrix.
 
-Another approximation to CCA follows more the path we have before with CCA. Hereby the rows of the chi-square transformed matrix $\mathbf{R^{-1/2}(X-E)C^{-1/2}}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals $\mathbf{R}$ as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting, with the library sizes as weights. The row-weight-centered matrix $C'$ is thus calculated as $C' = C(I - \frac{1}{c_{..}d}R\mathdd{1}$. Then singular value decomposition is applied to the matrix of fitted values $F = Y (C^T R C)^{-1} C' R R^{-1/2}(X-E)C^{-1/2}$ of this regression, such that $F = U'\Sigma'V'$. Using the fitted values assures that only the systematic part explained by the covariates plays a role. 
+Another approximation to CCA follows more the path we have before with CCA. Hereby the rows of the chi-square transformed matrix $\mathbf{R^{-1/2}(X-E)C^{-1/2}}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals $\mathbf{R}$ as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting, with the library sizes as weights. The row-weight-centered matrix $C'$ is thus calculated as $C' = C(I - \frac{1}{c_{..}d}R\mathds{1}$. Then singular value decomposition is applied to the matrix of fitted values $F = Y (C^T R C)^{-1} C' R R^{-1/2}(X-E)C^{-1/2}$ of this regression, such that $F = U'\Sigma'V'$. Using the fitted values assures that only the systematic part explained by the covariates plays a role. 
 
 A third approach by ter Braak in _"The history of canonical correspondence analysis"_ (2014) uses a direct SVD. Here he also references Goodman's work.
 
@@ -710,7 +712,7 @@ $$ LR(\boldsymbol{\alpha}| \boldsymbol{\beta}_{j}, \boldsymbol{\beta}) = \sum_{i
 
 Taking into account the restrictions mentioned above, the associated Lagrangian becomes
 
-$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \sum_{i=1}^n  \sum_{j=1}^p \Big(log \big(\frac{f_{NB}(x_{ij}|s_{kj}, \psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_j)}{f_{NB}(x_{ij}|s_{kj}, \psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_0)} \big) \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{M} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) +  \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} \boldsymbol{\lambda}_{orth,k}$$
+$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \sum_{i=1}^n  \sum_{j=1}^p \Big(log \big(\frac{f_{NB}(x_{ij}|\psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_j)}{f_{NB}(x_{ij}| \psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_0)} \big) \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{M} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) +  \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} \boldsymbol{\lambda}_{orth,k}$$
 
 with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first to the (k-1)th column, and $f_{NB}$ the density function of the negative binomial distribution. $\boldsymbol{\lambda}_{orth,k}$ is a diagonal matrix with largangian multipliers for orthogonality on the diagonal.
 
@@ -720,7 +722,7 @@ with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first 
 
 The first order derivatives becomes (in case of a linear response function, and remember we set $s_{jk} = 1$)
 
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i \beta_{1j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i \beta_{1} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k +  \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p  \mathbf{C}_i \beta_{1j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^p \mathbf{C}_i \beta_{1} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k +  \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
 
 with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wise response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
 
@@ -728,15 +730,15 @@ with $\mu_{ij0}$ the mean under the null model of equal response functions and $
 
 For a quadratic response function ($f_j(z_i = \mathbf{C}_i\boldsymbol{\alpha}|\boldsymbol{\beta}) = \beta_0 + \beta_1 z_i + \beta_2 z_i^2$) this derivative becomes
 
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p s_{jk} \mathbf{C}_i (\beta_{1j}+2 \beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^ps_{jk} \mathbf{C}_i (\beta_{1}+2 \beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \boldsymbol{\alpha}_k^t\mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p\mathbf{C}_i (\beta_{1j}+2 \beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^p \mathbf{C}_i (\beta_{1}+2 \beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \mathbf{M}\boldsymbol{\lambda}_{1k} + \\ 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
 
 For a non-parametric density function this derivative is not available, which which greatly increase the optimization time.
 
 The other derivatives are (independent of the shape of the response function):
 
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\lambda_{1k}}} = \boldsymbol{\alpha}_k^t \mathbf{M} = 0$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\lambda_{1k}}} = \boldsymbol{\alpha}_k^t \mathbf{M} = \mathbf{0}$$
 $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{2k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1 = 0$$
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{3k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} = 0$$
+$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\lambda_{3k}}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
 
 ###### Jacobians
 
@@ -744,17 +746,19 @@ $$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{3k}} = \bold
 
 The second order derivatives are for the linear response function
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i \beta_{1j})^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \mathbf{C}_i \beta_{1})^2 \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (\mathbf{C}_i \beta_{1j})^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (\mathbf{C}_i \beta_{1})^2 \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1j})^2 c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (s_{jk} \beta_{1})^2 c_{iy} c_{iy'} \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p  \beta_{1j}^2 c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p \beta_{1}^2 c_{iy} c_{iy'} \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) $$
 
 ####### Quadratic response function
 
 For the quadratic response function these second order derivatives are:
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k} \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1j}+ 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}\psi_k + 2\beta_{2j}s_{jk} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}\Big) \\- \psi_k\sum_{i=1}^n  \sum_{j=1}^p \Big( (s_{jk} \mathbf{C}_i (\beta_{1}+ 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij0}(1+ \frac{x_{ij0}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2}\psi_k + 2\beta_{2}s_{jk} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\Big) + 2\lambda_{2k} $$
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( s_{jk}^2 (\beta_{1j} + 2\beta_{2j}\alpha_{yk}c_{iy})(\beta_{1j} + 2\beta_{2j}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} + \\ 2\beta_{2j} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} \Big) \\ 
-- \sum_{i=1}^n  \sum_{j=1}^p \Big( s_{jk}^2 (\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} + \\ 2\beta_{2} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} \Big) \Big) + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k} \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( (\mathbf{C}_i (\beta_{1j}+ 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}\psi_k + 2\beta_{2j} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}\Big) \\- \psi_k\sum_{i=1}^n  \sum_{j=1}^p \Big( (\mathbf{C}_i (\beta_{1}+ 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij0}(1+ \frac{x_{ij0}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2}\psi_k + 2\beta_{2}\mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\Big) + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n  \sum_{j=1}^p \Big(\psi_k(\beta_{1j} + 2\beta_{2j}\alpha_{yk}c_{iy})(\beta_{1j} + 2\beta_{2j}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \\ 
+- \sum_{i=1}^n  \sum_{j=1}^p \Big((\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] $$
+
+<!---+ \\ 2\beta_{2j} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}--->
 
 The other derivatives are again independent of the response function:
 
@@ -773,23 +777,23 @@ The response function $f(\boldsymbol{\alpha}^t\mathbf{C})$ need not have a param
 
 The score function for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
 
-$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv}} = \sum_{i=1}^n \psi s_j \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv}} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
+$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv}} = \sum_{i=1}^n \psi \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv}} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
 
 In the linear case (when $f \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big) = \beta_0 + \beta_1 \boldsymbol{\alpha}^t \mathbf{C}_{i.}$) this becomes:
 
-$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}} = \sum_{i=1}^n \psi s_j \boldsymbol{\alpha}^t \mathbf{C}_{i.} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
+$$ \frac{\partial l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}} = \sum_{i=1}^n \psi \boldsymbol{\alpha}^t \mathbf{C}_{i.} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
 
 The second order derivative in its general form is just horrible:
 
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv} \partial \beta_{jv'}} = \sum_{i=1}^n \frac{\psi s_j}{1+\frac{\mu_{ij}}{\theta_j}} \Big( \frac{\partial^2 f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj} \partial \beta_{v'j}} (x_{ij} - \mu_{ij}) + \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj}} \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{v'j}} \psi s_j \big(\frac{\mu_{ij}(1-\theta_j(1+\mu_{ij}))-x_{ij}}{\theta_j+\mu_{ij}} \big)  \Big)$$
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv} \partial \beta_{jv'}} = \sum_{i=1}^n \frac{\psi}{1+\frac{\mu_{ij}}{\theta_j}} \Big( \frac{\partial^2 f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj} \partial \beta_{v'j}} (x_{ij} - \mu_{ij}) + \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{vj}} \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{v'j}} \psi \big(\frac{\mu_{ij}(1-\theta_j(1+\mu_{ij}))-x_{ij}}{\theta_j+\mu_{ij}} \big)  \Big)$$
 
 In the linear case this simplifies to:
 
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}^2 } = \sum_{i=1}^n - \frac{(\psi s_j \boldsymbol{\alpha}^t \mathbf{C}_{i.})^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1}^2 } = \sum_{i=1}^n - \frac{(\psi \boldsymbol{\alpha}^t \mathbf{C}_{i.})^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
 
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1} \partial \beta_{j0} } = \sum_{i=1}^n - \frac{(\psi s_j \boldsymbol{\alpha}^t)^2 \mathbf{C}_{i.} \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j1} \partial \beta_{j0} } = \sum_{i=1}^n - \frac{(\psi \boldsymbol{\alpha}^t)^2 \mathbf{C}_{i.} \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2} $$
 
-$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j0}^2 } = \sum_{i=1}^n - \frac{(\psi s_j )^2 \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}$$
+$$ \frac{\partial^2 l_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{j0}^2 } = \sum_{i=1}^n - \frac{\psi \mu_{ij} (1+ \frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}$$
 
 #### Algorithm
 
@@ -815,8 +819,8 @@ The interpretation of the triplot is different from the one from Zhu _et al._ (2
  - For the samples, the environmental scores are plotted as points and represent environmental scores of each sample. Samples close together in one dimension come from similar environments, considering that environmental gradient. This does _NOT_ mean that they have similar values of the environmental variables. 
  - The plot for the taxa depends on the response function used. 
     * In case of a linear response function we can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence explained by the covariates. The direction and size of the arrow then depends purely on $\beta_{1j}\psi$. We can make two sorts of projections:
-      - The projection of (-\frac{\beta_{0j}}{\beta_{1j}}, -\frac{\beta_{0j}}{\beta_{1j}} + $\beta_{1j}\psi$) onto $\boldsymbol{\alpha}^t\mathbf{C}_i$ (the environmental scores), then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
-      - The projection of (-\frac{\beta_{0j}}{\beta_{1j}}, -\frac{\beta_{0j}}{\beta_{1j}} + $\beta_{1j}\psi$) onto $(0,\alpha_y)$ reflects the sensitivity of taxon $j$ to changes in covariate $y$.
+      - The projection of ($-\frac{\beta_{0j}}{\beta_{1j}}$, $-\frac{\beta_{0j}}{\beta_{1j}} + \beta_{1j}\psi$) onto $\boldsymbol{\alpha}^t\mathbf{C}_i$ (the environmental scores), then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
+      - The projection of ($-\frac{\beta_{0j}}{\beta_{1j}}$, $-\frac{\beta_{0j}}{\beta_{1j}} + \beta_{1j}\psi$) onto $(0,\alpha_y)$ reflects the sensitivity of taxon $j$ to changes in covariate $y$.
       We cannot make a direct connection between components of the environmental gradient $\boldsymbol{\alpha}$ and the observed environmental scores $\boldsymbol{\alpha}^t\mathbf{C}_i$, even though this may seem so intuitively. Often it is so that a large $\alpha_y$ points in the direction of samples with a large $c_{iy}$, but this is not guaranteed. Many different combinations of covariates $\mathbf{C}_{i}$ can lead to the same environmental score for a given $\boldsymbol{\alpha}$. This is because of the dimension reduction from $d$ to 1 resulting from the projection by $\boldsymbol{\alpha}$. We will have to warn the user for this pitfall, and facilitate the depiction of the environmental variables of each samples through colour codes.
     * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point (taking the importance parameter $\psi_k$ into account, which is multiplied by each of the parameters $\beta$ of the response functions). If this is a minimum, this represents the value of the environmental score with the largest drop in expected abundance compared to the independence model, in case of a maximum the largest rise. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation). To represent the tolerances, i.e. how steep these valleys and mountains of expected abundance are, we can use ellipses to designate e.g. points with 50% the departure from independence from the top. For CCA this feature is not needed since there all tolerances are assumed equal.
     * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
@@ -2172,7 +2176,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
 #In the quadratic case the fit is really dependent on starting values
 #--------------------------------------#
 # A function that returns the Jacobian of the likelihood ratio
-LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, v, ncols, ...){
+LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, v, ncols, ...){
   # @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
   # @param X: the n-by-p count matrix
   # @param CC: a n-by-d covariate vector
@@ -2213,6 +2217,7 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
   } else if (responseFun=="quadratic"){
     tmp = (1+X/thetaMat)*mu/(1+mu/thetaMat)^2
     tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2 
+    tmpCC = rowMultiply(CC, alpha)
   }
   #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
@@ -2225,18 +2230,20 @@ LR_nb_Jac <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonp
                            "linear" = 
                            - psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) 
                             - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1))) ,
-                          "quadratic" = psi^2 * (
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params[2,]^2) + colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC,1,1)*NB_params[2,]*NB_params[3,]*2) + 
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC*c(sampleScore),1,1)*NB_params[3,]^2*4) +
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params_noLab[2]^2) +
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC,1,1)*NB_params_noLab[2]*NB_params_noLab[3]*2) + 
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp*c(sampleScore)}),CC*c(sampleScore),1,1)*NB_params_noLab[3]^2*4)
-) + 
-  psi*(
+                          "quadratic" = - psi^2 * ( #This gave me headaches
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params[2,]^2) + #b1b1
+                          colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){tmpCC[,x]*tmp}), rowMultiply(CC^2,alpha),1,1)*NB_params[2,]*NB_params[3,]*2) + #b1b2
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]^2*tmp}), rowMultiply(CC^2,alpha),1,1)*NB_params[3,]^2*4) - #b2b2
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params_noLab[2]^2) - #b1b1
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){tmpCC[,x]*tmp}), rowMultiply(CC^2,alpha),1,1)*NB_params_noLab[2]*NB_params_noLab[3]*2) - #b1b2
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]^2*tmp}),rowMultiply(CC^2,alpha),1,1)*NB_params_noLab[3]^2*4) #b2b2
+) +# c_{iy} with the beta_2's are still missing
+  diag(diag(psi*(
     colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu)/(1+mu/thetaMat)}),CC,1,1)*2*NB_params[3,]) -
     colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu0)/(1+mu0/thetaMat)}),CC,1,1)*2*NB_params_noLab[3])
-           ))
-  diag(Jac)[did] = diag(Jac)[did] + 2*lambda2
+           )))
+)
+  diag(Jac)[did] = diag(Jac)[did] + 2*lambda2 #Correct the diagonal
 
   Jac
 }
@@ -2415,7 +2422,7 @@ NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = mu
   
  if(analytic){
    
-  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, jac = switch(responseFun,"linear" = LR_nb_Jac, NULL), X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = ncols)$x
+  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, jac = switch(responseFun, "linear" = LR_nb_Jac, "quadratic" = LR_nb_Jac, NULL), X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = ncols)$x
   Alpha = AlphaTmp[seq_len(d)]
   lambdasAlpha = AlphaTmp[d+seq_len(nLambda)]
 } else {
@@ -2568,12 +2575,12 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     confModelMatTrim = model.matrix(
         object = formula(paste("~", paste(confounders, collapse="+"),"-1")), 
         data = datFrame, 
-        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor), drop=FALSE][, confounders,drop=FALSE],
+        contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor), drop=FALSE][, confounders,drop=FALSE],
                                contrasts, contrasts=FALSE)) 
     confModelMat = model.matrix(
         object = formula(paste("~", paste(confounders, collapse="+"))), 
         data = datFrame, 
-        contrasts.arg = lapply(datFrame[,sapply(datFrame, is.factor), drop=FALSE][, confounders,drop=FALSE],
+        contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor), drop=FALSE][, confounders,drop=FALSE],
                                contrasts, contrasts = TRUE)) 
     } else{
       stop("Please provide the confounders either as matrix, dataframe, or character string! \n")
@@ -2603,15 +2610,15 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
     }
     
     if(any(sapply(datFrame, is.logical))){
-      datFrame[,sapply(datFrame, is.logical)] = lapply(datFrame[,sapply(datFrame, is.logical)], factor) #Convert logicals to factors
+      datFrame[,sapply(datFrame, is.logical)] = lapply(datFrame[sapply(datFrame, is.logical)], as.factor) #Convert logicals to factors
     #warning("Logicals converted to factors! \n", immediate. = TRUE). No warning needed
     }
    if(any(sapply(datFrame, is.integer))){
-      datFrame[,sapply(datFrame, is.integer)] = lapply(datFrame[,sapply(datFrame, is.integer)], as.numeric) #Convert integers to numeric
+      datFrame[,sapply(datFrame, is.integer)] = lapply(datFrame[sapply(datFrame, is.integer)], as.numeric) #Convert integers to numeric
     warning("Integer values treated as numeric! \n", immediate. = TRUE)
       }
     if(any(sapply(datFrame, is.character))){
-      datFrame[,sapply(datFrame, is.character)] = lapply(datFrame[,sapply(datFrame, is.character)], factor) #Convert characters to factor
+      datFrame[,sapply(datFrame, is.character)] = lapply(datFrame[sapply(datFrame, is.character)], factor) #Convert characters to factor
       warning("Character vectors treated as factors! \n", immediate. = TRUE)
     }
     nFactorLevels = sapply(datFrame, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
@@ -2964,8 +2971,8 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
     plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
       geom_point(size = samSize) + #point size
       theme(aspect.ratio=1) + #square plot
-      xlab(paste0(names(dataSam)[1],": ", paste0(psi,Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
-      ylab(paste0(names(dataSam)[2],": ", paste0(psi,Dim[2]), " = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
+      xlab(paste0(names(dataSam)[1],": ", paste0("psi",Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
+      ylab(paste0(names(dataSam)[2],": ", paste0("psi",Dim[2]), " = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
       if(is.null(samColour)) {guides(color=FALSE)} #Legend
 
     #add legend names
@@ -3147,12 +3154,9 @@ save(resListRCM, file = "resListRCMagphmp.RData")
 } else {load(file = "resListRCMagphmp.RData")}
 ```
 
-<!---The runtimes in minutes are tabulate below: $`r round(sapply(resListRCM,function(x){x[["runtimeInMins"]]}),2)`$--->
-
 ##### The HMP dataset: sample plots
 
-```{r HMP plot, purl = FALSE, include = FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate gender. \\label{fig:samHMP}"}
-
+```{r HMPplot, purl = FALSE, include = FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate gender. \\label{fig:samHMP}"}
 SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
   levels(get_variable("RUNCENTER",physeq=x))
 }))))
@@ -4404,6 +4408,124 @@ The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curt
 ```{r taxRat3, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRat3}"}
 contr3 = contrTaxaWrap(resList3Rows, resList3Cols, IDlist3, groupFactor3)
 contrPlot(contr3)
+```
+
+##### Simulate under H0, but with differences in dispersion
+
+Inspired by Warton _et al._ (2012): "Distance-based multivariate analyses confound location and dispersion effects" we set up a simulation without any signal, but whereby the dispersions in the different groups are different, as a result of the group effect itself or related sampling effects. Note that this also violates the assumption of our RC(M) method of constant dispersions
+
+```{r NBdispsersion, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor4 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+if(!file.exists(file = "RCMsim/resList4.RData")){
+  if(!file.exists(file = "RCMsim/datList4.RData")){
+datList4 = mclapply(mc.cores = 4, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+#Sampled dispersions differ between the population
+thetaMat = matrix(thetasSampled, n, p, byrow = TRUE) * c(rep(c(0.2,0.5,1,5), eac = nPerPop)) #Modify dispersions to 5 times, 2 times and 0.2 times the normal levels
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = thetaMat),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetaMat = thetaMat, rhosSampled = rhosSampled)
+})
+save(datList4,groupFactor4,  file = "RCMsim/datList4.RData")
+} else {load(file = "RCMsim/datList4.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList4RCM.RData")){
+RCMresList4 = mclapply(mc.cores=4, datList4, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList4, file = "RCMsim/resList4RCM.RData")
+} else {load("RCMsim/resList4RCM.RData")}
+resList4 = otherAnalyses(RCMresList4)
+IDlist4 = lapply(datList4, function(x){
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+   })
+resList4Rows = lapply(resList4, extractRows)
+resList4Cols = mapply(resList4, resList4Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList4,resList4Rows, resList4Cols, IDlist4, groupFactor4, file = "RCMsim/resList4.RData")
+} else {load(file = "RCMsim/resList4.RData")}
+```
+
+##### Simulate under H1, with correlated taxa
+
+We know that taxa living in the same niche are dependent on each other, and as a result their abundances are correlated. This phenomenon can affect the differentialn abundance detection, so it could also affect our visualization procedures. I would also expect it to have an effect on the CoDa method, which relies on ratios between taxa of the same sample. We'll use the correlation networks previously estimated from the HMP and AGP datasets.
+
+```{r NBrelatedDistrCorr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+load("/home/stijn/PhD/Simulations/data/covList.RData")
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor5 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+if(!file.exists(file = "RCMsim/resList5.RData")){
+  if(!file.exists(file = "RCMsim/datList5.RData")){
+datList5 = mclapply(mc.cores = 4, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes, confounded with group membership
+covMatName = sample(names(covListEst), 1)
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+
+dataMat = rmvnegbin(n = n,mu = meanMat, ks = thetasSampled, Sigma = as.matrix(covList[[covMatName]]))
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactor5
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, covMatName = covMatName)
+})
+save(datList5,groupFactor5,  file = "RCMsim/datList5.RData")
+} else {load(file = "RCMsim/datList5.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList5RCM.RData")){
+RCMresList5 = mclapply(mc.cores=4, datList5, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList5, file = "RCMsim/resList5RCM.RData")
+} else {load("RCMsim/resList5RCM.RData")}
+resList5 = otherAnalyses(RCMresList5)
+IDlist5 = lapply(datList5, function(x){
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+   })
+resList5Rows = lapply(resList5, extractRows)
+resList5Cols = mapply(resList5, resList5Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList5,resList5Rows, resList5Cols, IDlist5, groupFactor5, file = "RCMsim/resList5.RData")
+} else {load(file = "RCMsim/resList5.RData")}
 ```
 
 ##### Negative binomial with phylogenetic information
