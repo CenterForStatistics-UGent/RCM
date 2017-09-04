@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape", "SpiecEasi")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","alabama", "reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape", "SpiecEasi")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -754,9 +754,10 @@ $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alph
 
 For the quadratic response function these second order derivatives are:
 
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k} \Big( \sum_{i=1}^n  \sum_{j=1}^p \Big( (\mathbf{C}_i (\beta_{1j}+ 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}\psi_k + 2\beta_{2j} \mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}\Big) \\- \psi_k\sum_{i=1}^n  \sum_{j=1}^p \Big( (\mathbf{C}_i (\beta_{1}+ 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i))^2 \frac{\mu_{ij0}(1+ \frac{x_{ij0}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2}\psi_k + 2\beta_{2}\mathbf{C}_i^2 \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\Big) + 2\lambda_{2k} $$
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n  \sum_{j=1}^p \Big(\psi_k(\beta_{1j} + 2\beta_{2j}\alpha_{yk}c_{iy})(\beta_{1j} + 2\beta_{2j}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \\ 
-- \sum_{i=1}^n  \sum_{j=1}^p \Big((\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n \sum_{j=1}^p \Big((\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy}^2\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}   \\ 
+- (\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy}^2\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}^2 \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] + 2\lambda_{2k} $$
+$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n \sum_{j=1}^p \Big((\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}   \\ 
+- (\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}c_{iy'} \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] $$
 
 <!---+ \\ 2\beta_{2j} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}--->
 
@@ -2176,7 +2177,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
 #In the quadratic case the fit is really dependent on starting values
 #--------------------------------------#
 # A function that returns the Jacobian of the likelihood ratio
-LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), cMat, psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, v, ncols, ...){
+LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric"), psi, NB_params, NB_params_noLab, d, alphaK, k, nLambda, nLambda1s, centMat, thetaMat, muMarg, n, v, ncols, ...){
   # @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
   # @param X: the n-by-p count matrix
   # @param CC: a n-by-d covariate vector
@@ -2217,7 +2218,6 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
   } else if (responseFun=="quadratic"){
     tmp = (1+X/thetaMat)*mu/(1+mu/thetaMat)^2
     tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2 
-    tmpCC = rowMultiply(CC, alpha)
   }
   #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){
@@ -2230,19 +2230,31 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
                            "linear" = 
                            - psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) 
                             - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1))) ,
-                          "quadratic" = - psi^2 * ( #This gave me headaches
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params[2,]^2) + #b1b1
-                          colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){tmpCC[,x]*tmp}), rowMultiply(CC^2,alpha),1,1)*NB_params[2,]*NB_params[3,]*2) + #b1b2
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]^2*tmp}), rowMultiply(CC^2,alpha),1,1)*NB_params[3,]^2*4) - #b2b2
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}),CC,1,1)*NB_params_noLab[2]^2) - #b1b1
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){tmpCC[,x]*tmp}), rowMultiply(CC^2,alpha),1,1)*NB_params_noLab[2]*NB_params_noLab[3]*2) - #b1b2
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]^2*tmp}),rowMultiply(CC^2,alpha),1,1)*NB_params_noLab[3]^2*4) #b2b2
-) +# c_{iy} with the beta_2's are still missing
-  diag(diag(psi*(
-    colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu)/(1+mu/thetaMat)}),CC,1,1)*2*NB_params[3,]) -
-    colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu0)/(1+mu0/thetaMat)}),CC,1,1)*2*NB_params_noLab[3])
-           )))
+                          "quadratic" = psi^2 * ( #This gave me headaches
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply(tmp,NB_params[2,]^2)}),CC,1,1)) + #b1b1
+                          colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply(tmp*c(sampleScore),NB_params[2,]*NB_params[3,]*2)}),CC,1,1)) + #b1b2
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply(tmp*c(sampleScore)^2,NB_params[3,]^2*4)}), CC,1,1)) - #b2b2
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}),CC,1,1)*NB_params_noLab[2]^2) - #b1b1
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0 }), CC*c(sampleScore),1,1)*NB_params_noLab[2]*NB_params_noLab[3]*2) - #b1b2
+                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0 }),CC*c(sampleScore)^2,1,1)*NB_params_noLab[3]^2*4) #b2b2
+) +2*# c_{iy} with the beta_2's are still missing
+  psi*(
+    colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,])}),CC,1,1)) -
+    colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu0)/(1+mu0/thetaMat)}),CC,1,1)*NB_params_noLab[3])
+           )
 )
+  
+  tmpMat  = array(0, dim = c(n,p,d))
+  
+  for(i in seq_len(n)){
+    for (j in seq_len(p)){
+      for(b in seq_len(d)){
+        
+      }
+    }
+  }
+  
+  
   diag(Jac)[did] = diag(Jac)[did] + 2*lambda2 #Correct the diagonal
 
   Jac
@@ -2488,6 +2500,10 @@ getRowMatConstr = function(v, NB_params = NULL, alpha, covariates, responseFun, 
   desMat %*% NB_params
 }
 ```
+
+$$-(2hb_2cy_2 + b_1cy_2)(2hb_2 +
+b_1)cy \psi^2
+\frac{\mu}{(\frac{\mu}{\theta} + 1)} \\ + (2hb_2cy_2 + b_1cy_2)(2hb_2 + b_1)(\mu - x) cy\psi^2 \frac{\mu}{\theta(\mu)/\theta + 1)^2}) - 2(\mu) - x)b_2cycy_2\frac{\psi}{\frac{\mu}{\theta} + 1})$$
 
 ## Wrapper for all distributions
 
