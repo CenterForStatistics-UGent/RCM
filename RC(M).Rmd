@@ -21,11 +21,12 @@ for(i in reqpkg)
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
 if(detectCores()==4) setwd(WD)
-par(pty="s") #Make sure the biplots are square!
+par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = palette()
 levelsMeth = c("CA","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
 labelsMeth = c("CA","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
-groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM", "Control"), ordered = TRUE)
+groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM"), ordered = TRUE)
+names(groupsMeth) = grep(levelsMeth, value  = TRUE, pattern ="Control", invert = TRUE)
 funFiles = dir("R")
 for (i in funFiles) {source(file.path("R",i))}
 ```
@@ -2769,7 +2770,7 @@ plotRCM = function(RCM, X = NULL, thetas = NULL, abunds = NULL, arrowFrac = 0.04
   psis = RCM$psis
   
   # @return: NONE,  plots the result in the plotting window
-  # tmp = par(no.readonly = TRUE)
+  tmp = par(no.readonly = TRUE)
   par(mar=mar, pty="s")
   if(!(length(psis)== NCOL(rMat) && length(psis) == NROW(cMat))){
     stop("Dimensions don't match")
@@ -2815,7 +2816,7 @@ legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), 
     #if(!is.null(stressSpecies))
     }
 return(invisible())
-  # par(tmp)
+  par(tmp)
 }
 # A ggplot2-version of the biplot function
 plot.RCM = function(RCMfit, Dim = c(1,2), 
@@ -3505,7 +3506,7 @@ This distance measure was invented in 1957 in the context of forest ecology. It 
 
 $$BC_{12} = 1-\frac{2*S_{12}}{S_1 + S_2}$$
 
-with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017 and many others. You can apply it to eihter absolute or relative counts, although the latter appears to be the most popular.
+with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017 and many others. You can apply it to eihter absolute or relative counts, although the latter appears to be the most popular. In Callahan _et al._ (2016) they also apply it to log-transformed counts, even though they note that this leads to correlations with the library sizes.
 
 #### UniFrac distance
 
@@ -3746,17 +3747,17 @@ The between distance between groups m and m' is then defined as $d_{mm'} = d_{eu
 For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid. It is calculated as the ratio of the average contribution in the direction of the centroid of taxa with signal to all the average contribution of all other taxa. With $\mathbf{H}_l$ the vector from the origin to the centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
 
 $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
-with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal. Because the mean is very sensitive to outliers, we also include the median, whcih makes our method come out as best. it is very important to argue this in a publication and show both results!
+with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal. Because the mean is very sensitive to outliers, we also include the median, whcih makes our method come out as best. it is very important to mention this in a publication and show both results!
 
 ```{r contrTaxa}
 contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3, upDown = FALSE, centerFun = median){
+  #FIX ME!
   rowMatPsi = rowMatPsi[,Dim]
   colMat = t(colMat)[Dim,]
   if(upDown){
   idTaxNum = matrix(-1,nrow(idTax) , ncol(idTax))
   idTaxNum[idTax=="up"] = 1
   }
-
   centroids = matrix(unlist(tapply(seq_len(nrow(rowMatPsi)), groupFactor, function(i){
     colMeans(rowMatPsi[i,])
   })), nrow = ncol(rowMatPsi)) #The group centroids
@@ -3767,18 +3768,18 @@ contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim =
         crossprod(colMat, centroids[, i])
   }) # The inner product of all species' arrows with the vectors locating the centroids
   sigContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun(contrib[match(rownames(idTax), colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
+    centerFun(contrib[match(rownames(idTax[[i]]), colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
   })} else {
     sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun(contrib[match(idTax[,i], colnames(colMat), nomatch = 0),i])
+    centerFun(contrib[match(idTax[[i]], colnames(colMat), nomatch = 0),i])
   })
   } # The mean/median contribution of the taxa with signal
   allContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
     centerFun(
-      apply(contrib[!colnames(colMat) %in% rownames(idTax),],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-nrow(idTax)))), ])
+      apply(contrib[!colnames(colMat) %in% rownames(idTax[[i]]),],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
   })} else {
     sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun( apply(contrib[!colnames(colMat) %in% idTax[,i],],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-nrow(idTax)))), ])
+    centerFun( apply(contrib[!colnames(colMat) %in% idTax[[i]],],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
   })
   } # The mean/median contribution of the 50% taxa with highest contribution among non-significant taxa
   ratios = sigContr/allContr # The ratio of these mean contributions
@@ -3804,15 +3805,18 @@ mclapply(mc.cores = cores, RCMlist, function(x){
   E = outer(R, colSums(tmp)/sum(tmp))
   otuTab = otu_table(tmp, taxa_are_rows = FALSE)
   otuTabRel = otu_table(tmp/R, taxa_are_rows = FALSE)
+  otuTabLog = otu_table(log(tmp+1), taxa_are_rows = FALSE)
   list(
     RCM = x, CA = caSVD(tmp), DCA = ordinate(otuTab, method = "DCA"), CoDa = CoDa(tmp),
     BC = ordinate(otuTab, method = "PCoA", distance = "bray"),
+    BClog = ordinate(otuTabLog, method = "PCoA", distance = "bray"),
     JSD = ordinate(otuTab, method = "PCoA", distance = "jsd"),
     BCrel = ordinate(otuTabRel, method = "PCoA", distance = "bray"),
     BCrelNMDS = ordinate(otuTabRel, method = "NMDS", distance = "bray", k=3),
     Hellinger = svd(diag(1/sqrt(R)) %*% (sqrt(tmp)-sqrt(E))),
     UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL, 
-    wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL)
+    wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL
+    )
 })
 } #JSD works on relative abundances by default
 #---------------------------------------#
@@ -3827,10 +3831,11 @@ tmpList = with(x, list(
     JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
     BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
     BCrelNMDS = BCrelNMDS$points,
-    UniFrac = UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
-    wUniFrac = wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
+    UniFrac = if(is.null(UniFrac)) NULL else UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
+    wUniFrac = if(is.null(wUniFrac)) NULL else wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
     Hellinger = Hellinger$u %*% diag(Hellinger$d)
     ))
+tmpList = tmpList[!sapply(tmpList, is.null)]
 lapply(tmpList, function(y){
   colnames(y) = NULL; y
 })
@@ -3846,11 +3851,12 @@ extractCols = function(x, row){
     BC = weightedTaxonScores(RCM$X, row$BC),
     JSD = weightedTaxonScores(RCM$X, row$JSD),
     BCrel = weightedTaxonScores(RCM$X, row$BCrel),
-    UniFrac = weightedTaxonScores(RCM$X, row$UniFrac),
-    wUniFrac = weightedTaxonScores(RCM$X, row$wUniFrac),
+    UniFrac = if(!is.null(UniFrac))  weightedTaxonScores(RCM$X, row$UniFrac) ,
+    wUniFrac = if(!is.null(wUniFrac)) weightedTaxonScores(RCM$X, row$wUniFrac) ,
     BCrelNMDS = BCrelNMDS$species,
     Hellinger = Hellinger$v
     ))
+  tmpList = tmpList[!sapply(tmpList, is.null)]
   rowNames = rownames(tmpList$RCM)
   lapply(tmpList, function(x){
     colnames(x) = NULL
@@ -3865,8 +3871,7 @@ weightedTaxonScores = function(X, rowScores){
 }
 #-----------------------------------------#
 # A functions to plot the correlations of the library sizes with the row scores, or of the abundances with the column scores
-plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE, yloc = 0.2, groupMeth = factor(c(as.character(groupsMeth), "Control"), levels = levels(groupsMeth))){
-par(mar = c(4,4,4,4))
+plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE, yloc = 0.2, groupMeth = factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control"))){
 if(!dataMat){
   datList = lapply(datList, function(x){x$dataMat})
 }
@@ -3905,7 +3910,7 @@ par(mfrow = c(1,1))
 }
 #----------------------------------#
 # A function to plot the silhouettes
-plotSil = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth),...){
+plotSil = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]),las = 2,...){
 sil1  = lapply(resListRows, function(x){
   sapply(x, silhouette, clusters = groupFactor)
 })
@@ -3917,14 +3922,14 @@ meanSil1df = orderDF(melt(meanSil1, value.name = "Silhouette", varnames = c("Met
 if(!is.null(method)){
   meanSil1df = subset(meanSil1df, meanSil1df$Method %in% method)
   }
-boxplot(Silhouette~Method, main = "Mean silhouettes per Monte Carlo simulation by method", data = meanSil1df, col = groupMeth, ...)
+boxplot(Silhouette~Method, main = "Mean silhouettes per Monte Carlo simulation by method", data = meanSil1df, col = groupMeth,las = las, ...)
 meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
 points(meansSil, col="red", pch=18, cex = 1.6)
 abline(h=0, lty = "dashed")
 addLegend(groupMeth = groupMeth)
 }
 #---------------------------------#
-distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth),log="",...) {
+distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]),log = FALSE, las = 2,...) {
 dist = sapply(resListRows, function(x){
   sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
 })
@@ -3932,15 +3937,16 @@ meanDist1df = orderDF(melt(dist, value.name = "DistanceRatio", varnames = c("Met
 if(!is.null(method)){
   meanDist1df = subset(meanDist1df, meanDist1df$Method %in% method)
 }
-boxplot(DistanceRatio~Method, main = "Mean ratios of overal to within distance by method", data = meanDist1df, col = groupMeth, ylim = c(0, ceiling(max(meanDist1df$DistanceRatio))),las = 2,log = log,...)
+boxplot(DistanceRatio~Method, main = "Mean ratios of overal to within distance by method", data = meanDist1df, col = groupMeth, ylim = if(log) NULL else c(0, ceiling(max(meanDist1df$DistanceRatio))), las = las,log = ifelse(log,"y",""),...)
 meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
 points(meansDist, col="red", pch=18, cex = 1.6)
-abline(h=switch(log,""=1, "y"=0), lty = "dashed")
+abline(h=1, lty = "dashed")
 addLegend(groupMeth = groupMeth, yloc = 5)
 }
 #---------------------------#
 #A function to make a scatterplot of a randomly selected MC isntance
 randomScatter = function(list, Dim = c(1,2), col = "black"){
+  parTmp = par(no.readonly = TRUE)
   if(length(list)<=9) {
     par(mfrow = c(3,3), mar = c(3,3,3,3))
   } else {
@@ -3949,7 +3955,7 @@ randomScatter = function(list, Dim = c(1,2), col = "black"){
 ID = sample(size=1, seq_along(list))
 obj = list[[ID]]
 lapply(names(obj),function(x){plot(obj[[x]][,Dim], main=x, col = col, xlab = paste("Dim", Dim[1]),ylab = paste("Dim", Dim[2]), pty = "s")})
-par(mfrow = c(1,1))
+par(parTmp)
 }
 #------------------------------#
 #A function to wrap the calculation of the contribution of the taxa
@@ -3960,17 +3966,18 @@ dat = mapply(resListRows, resListCols, IDlist, SIMPLIFY = TRUE, FUN = function(r
 as.data.frame(t(dat))
 }
 #-----------------------------#
-# A function to plot the result of this as boxplots
-contrPlot = function(contr, method = NULL, groupMeth = groupsMeth, ...) {
+# A function to plot the result of this as boxplots. Horizontal boxplots have been tried but the overview over the best methods is a bit lost
+contrPlot = function(contr, method = NULL, las = 2, expFac = 1.2, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(contr)]),...) {
 moltenContr = orderDF(melt(contr, variable.name = "Method", value.name = "contrRatio", id.vars = NULL))
 if(!is.null(method)){
   moltenContr = subset(moltenContr, moltenContr$Method %in% method)
 }
-boxplot(contrRatio~Method, main = "Mean ratios of contribution of DA taxa \n relative to 50% most contributing non-DA taxa by method", data = moltenContr, ylab = "Mean contribution ratio", ...)
 meansDist = tapply(moltenContr$contrRatio, moltenContr$Method, mean, na.rm = TRUE)
-points(meansDist, col="red", pch=18, cex = 1.6)
+at = seq_along(meansDist)*expFac
+boxplot(contrRatio~Method, main = "Mean ratios of contribution of DA taxa \n relative to 50% most contributing non-DA taxa by method", data = moltenContr, ylab = "Mean contribution ratio", col = groupMeth, las = las, at = at,...)
+points(y = meansDist, x = at, col="red", pch=18, cex = 1.6)
 abline(h=1, lty = "dashed")
-addLegend(groupMeth = groupMeth)
+addLegend(groupMeth = groupMeth, expFac = expFac)
 }
 #-----------------------------#
 # A function to calculate correlation with the starting values
@@ -3998,12 +4005,12 @@ getCor = function(a,b){
 orderDF = function(df){
   df$Method = factor(df$Method, labels = labelsMeth, levels = levelsMeth, ordered = TRUE)
   df$groupMethod = groupsMeth[match(df$Method, levelsMeth)]
-  df
+  droplevels(df)
 }
 #-------------------------------#
 #A function to add the legend
-addLegend = function(yloc = 0.2, groupMeth, x = length(groupMeth)+1,...){
-legend(legend = levels(groupMeth), col = factor(levels(groupMeth), levels = levels(groupMeth), ordered=TRUE),pch = 16, x = x, y = yloc, xpd = TRUE,...)
+addLegend = function(yloc = 0.2, groupMeth, x = length(groupMeth)+1, expFac = 1,...){
+legend(legend = levels(groupMeth), col = factor(levels(groupMeth), levels = levels(groupMeth), ordered=TRUE),pch = 16, x = x*expFac, y = yloc, xpd = TRUE,...)
 }
 ```
 
@@ -4113,7 +4120,6 @@ Only our RC(M) method has correlations at the level of random noise.
 startList= lapply(resList0, startFun)
 moltStart = melt(startList, value.name = "correlation")
 names(moltStart) = c("correlation", "scores","run")
-par(mar = c(6,4,4,4))
 boxplot(correlation ~ scores, data = moltStart, las=2)
 abline(h=0, col ="red", lty = "dashed")
 #Squared weighing clearly gives the best results, although no fantastic correlations.
@@ -4461,7 +4467,6 @@ save(resList4,resList4Rows, resList4Cols, groupFactor4, file = "RCMsim/resList4.
 
 ```{r resList4 sampleBiplot, purl = FALSE}
 #A sample biplot
-resList4Rows = lapply(resList4, extractRows)
 randomScatter(resList4Rows, col = groupFactor4)
 ```
 
@@ -4480,7 +4485,7 @@ plotCor(resList4Cols, datList4, dataMat = TRUE, scoreDim = "columns")
 
 We know that taxa living in the same niche are dependent on each other, and as a result their abundances are correlated. This phenomenon can affect the differentialn abundance detection, so it could also affect our visualization procedures. I would also expect it to have an effect on the CoDa method, which relies on ratios between taxa of the same sample. We'll use the correlation networks previously estimated from the HMP and AGP datasets.
 
-```{r NBrelatedDistrCorr, purl = FALSE, eval = FALSE}
+```{r NBrelatedDistrCorr, purl = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -4511,7 +4516,7 @@ IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
 
 thetasSampled = sample(thetaEst, p) 
 libSizesSampled = sample(libSizesEst, n) #Sampled libSizes, confounded with group membership
-covMatName = sample(names(covListEst), 1)
+covMatName = sample(names(covList), 1)
 
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
@@ -4541,6 +4546,35 @@ resList5Rows = lapply(resList5, extractRows)
 resList5Cols = mapply(resList5, resList5Rows,FUN = extractCols, SIMPLIFY = FALSE)
 save(resList5,resList5Rows, resList5Cols, IDlist5, groupFactor5, file = "RCMsim/resList5.RData")
 } else {load(file = "RCMsim/resList5.RData")}
+```
+
+```{r resList5 sampleBiplot, purl = FALSE}
+#A sample biplot
+randomScatter(resList5Rows, col = groupFactor5)
+```
+
+```{r resList5Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette5}"}
+plotSil(resList5Rows, groupFactor5)
+```
+
+```{r resList5Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:dist5}"}
+distRatioPlot(resList5Rows, groupFactor5)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorr5, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor5}"}
+datList5 = lapply(resList5, function(x){x$RCM$X})
+plotCor(resList5Rows, datList5, dataMat = TRUE)
+```
+
+```{r AbCorr5, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCor5}"}
+plotCor(resList5Cols, datList5, dataMat = TRUE, scoreDim = "columns")
+```
+
+```{r taxRat5, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRat5}"}
+contr5 = contrTaxaWrap(resList5Rows, resList5Cols, IDlist5, groupFactor5)
+contrPlot(contr5)
 ```
 
 ##### Negative binomial with phylogenetic information
@@ -4574,7 +4608,7 @@ rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
 
 randomTree = rtree(n = p, tip.label = names(rhosSampled0)) # The random tree
-dd = as.dist(cophenetic.phylo(randomTree)) #Get distances
+dd = as.dist(cophenetic.phylo(randomTree)) #Get branch lenghts
 psclust = cutree(as.hclust(hclust(dd)), k = k) #Split into clusters
   
 #For each population, modify the abundances of a cluster of related taxa. Record the clusters that have been modified.
@@ -4611,9 +4645,8 @@ save(RCMresListPhy, file = "RCMsim/resListPhyRCM.RData")
   } else {load("RCMsim/resListPhyRCM.RData")}
   listID = sapply(RCMresListPhy, is.list)
 resListPhy = otherAnalyses(RCMresListPhy[listID], unifrac = TRUE, treeList = lapply(datListPhy[listID], function(x){x$randomTree}) )
-IDlistPhy = lapply(datListPhy, function(x){
-   id = apply(x$IDsampled, 2, unique)
-   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+IDlistPhy = lapply(datListPhy[listID], function(x){
+   taxa = apply(x$IDsampled, 2, function(y){rownames(x$rhosSampled)[as.logical(y)]})
    })
 resListPhyRows = lapply(resListPhy, extractRows)
 resListPhyCols = mapply(resListPhy, resListPhyRows,FUN = extractCols, SIMPLIFY = FALSE)
@@ -4636,7 +4669,6 @@ The Unifrac distances do not seem to get any advantage from their phylogenetic d
 distRatioPlot(resListPhyRows, groupFactorPhy)
 ```
 
-
 ```{r libSizeCorrPhy, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCorPhy}"}
 datListPhy = lapply(resListPhy, function(x){x$RCM$X})
 plotCor(resListPhyRows, datListPhy, dataMat = TRUE)
@@ -4650,7 +4682,7 @@ plotCor(resListPhyCols, datListPhy, dataMat = TRUE, scoreDim = "columns")
 
 ```{r taxRatPhy, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRatPhy}"}
 contrPhy = contrTaxaWrap(resListPhyRows, resListPhyCols, IDlistPhy, groupFactorPhy)
-contrPlot(contrPhy)
+contrPlot(contrPhy, ylim = c(-4,4)) #Excluding outliers
 ```
 
 #### Other distributions
