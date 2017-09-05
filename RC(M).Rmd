@@ -23,9 +23,9 @@ for(i in reqpkg)
 if(detectCores()==4) setwd(WD)
 par(pty="s") #Make sure the biplots are square!
 palStore = palette()
-levelsMeth = c("CA","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","CoDa","RCM", "Control")
-labelsMeth = c("CA","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","CoDa","RCM", "Control")
-groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance", "CoDa","RCM"), levels = c("Independence","Distance","CoDa","RCM", "Control"), ordered = TRUE)
+levelsMeth = c("CA","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
+labelsMeth = c("CA","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
+groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM", "Control"), ordered = TRUE)
 funFiles = dir("R")
 for (i in funFiles) {source(file.path("R",i))}
 ```
@@ -755,9 +755,9 @@ $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alph
 For the quadratic response function these second order derivatives are:
 
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n \sum_{j=1}^p \Big((\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy}^2\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}   \\ 
-- (\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy}^2\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}^2 \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] + 2\lambda_{2k} $$
+- (\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy}^2\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}^2 \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] + 2\lambda_{2k} $$
 $$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n \sum_{j=1}^p \Big((\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}   \\ 
-- (\beta_{1} + 2\beta_{2}\alpha_{yk}c_{iy})(\beta_{1} + 2\beta_{2}\alpha_{y'k}c_{iy'}) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}c_{iy'} \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] $$
+- (\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}c_{iy'} \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] $$
 
 <!---+ \\ 2\beta_{2j} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}--->
 
@@ -2226,34 +2226,14 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
   
   #Symmetrize
    Jac = Jac + t(Jac)
+   cSam = c(sampleScore)
+   cSam2 = cSam^2
+   
   Jac[did,did] = switch(responseFun,
-                           "linear" = 
-                           - psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp}), CC,1,1)) 
-                            - colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}), CC, 1, 1))) ,
-                          "quadratic" = psi^2 * ( #This gave me headaches
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply(tmp,NB_params[2,]^2)}),CC,1,1)) + #b1b1
-                          colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply(tmp*c(sampleScore),NB_params[2,]*NB_params[3,]*2)}),CC,1,1)) + #b1b2
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply(tmp*c(sampleScore)^2,NB_params[3,]^2*4)}), CC,1,1)) - #b2b2
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0}),CC,1,1)*NB_params_noLab[2]^2) - #b1b1
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0 }), CC*c(sampleScore),1,1)*NB_params_noLab[2]*NB_params_noLab[3]*2) - #b1b2
-                        colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*tmp0 }),CC*c(sampleScore)^2,1,1)*NB_params_noLab[3]^2*4) #b2b2
-) +2*# c_{iy} with the beta_2's are still missing
-  psi*(
-    colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,])}),CC,1,1)) -
-    colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(X-mu0)/(1+mu0/thetaMat)}),CC,1,1)*NB_params_noLab[3])
-           )
-)
-  
-  tmpMat  = array(0, dim = c(n,p,d))
-  
-  for(i in seq_len(n)){
-    for (j in seq_len(p)){
-      for(b in seq_len(d)){
-        
-      }
-    }
-  }
-  
+                           "linear" = - psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(tmp-tmp0)}), CC,1,1))),
+                          "quadratic" = colSums((tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2))-
+tmp0*(NB_params_noLab[2]+NB_params_noLab[3]*2*cSam)^2) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,])-(X-mu0)/(1+mu0/thetaMat)*NB_params_noLab[3]))}),CC,1,1))
+))
   
   diag(Jac)[did] = diag(Jac)[did] + 2*lambda2 #Correct the diagonal
 
@@ -2433,8 +2413,7 @@ NB_params = NB_params/sqrt(rowSums(NB_params^2)) #Normalize the parameters
 NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, psi = psi, X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab, n = n, v = v)
   
  if(analytic){
-   
-  AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, jac = switch(responseFun, "linear" = LR_nb_Jac, "quadratic" = LR_nb_Jac, NULL), X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = ncols)$x
+   AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = CC, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = ncols)$x
   Alpha = AlphaTmp[seq_len(d)]
   lambdasAlpha = AlphaTmp[d+seq_len(nLambda)]
 } else {
@@ -3526,13 +3505,13 @@ This distance measure was invented in 1957 in the context of forest ecology. It 
 
 $$BC_{12} = 1-\frac{2*S_{12}}{S_1 + S_2}$$
 
-with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017 and many others.
+with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017 and many others. You can apply it to eihter absolute or relative counts, although the latter appears to be the most popular.
 
-#### Unifrac distance
+#### UniFrac distance
 
 The UniFrac distance was developed specifically for the microbiome by Lozupone and coworkers (2005), and includes phylogenetic information in the distance calculation. It is defined as the fraction of the phylogenetic tree length that leads to species found in only one of the two samples. As opposed to Bray-Curtis dissimilarity, it is a true distance metric.
 
-##### Weighted Unifrac
+##### Weighted UniFrac
 
 To account for differences in sequencing depth, in 2007 weighted UniFrac was proposed. This weights every branch by the absolute difference in relative abundances the species of both samples as follows:
 
@@ -3555,6 +3534,10 @@ $$d_{hellinger}(a,b) = \sum_{j=1}^p (\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_
 
 . It does works on the relative abundances. It has been used in publications on microbiome, e.g. Kreisinger _et al._, 2015, Hollister _et al._ 2015, Vital _et al._, 2015.
 
+#### Transformations
+
+In Callahan _et al._ (2016), which serves as a manual for the popular _phyloseq_ package, it is suggested to first log-transform the counts(after adding pseudocount 1) as a variance stabilizing transformation, prior to applying methods like PCoA
+
 #### Related material
 
    * See Warton _et al._ (2012): Distance-based multivariate analyses confound
@@ -3571,6 +3554,9 @@ Non-metric multidimensional scaling (NMDS) can be considered the little brother 
  
  The ordination is fitted iteratively, by minimizing the stress between the original distances and the distances of the actual ordination. See the tutorial by Steven M. Holland for more information.
 
+### PCA
+
+#### PCA on ranks
 
 ### Correspondence analysis
 
@@ -3841,6 +3827,8 @@ tmpList = with(x, list(
     JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
     BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
     BCrelNMDS = BCrelNMDS$points,
+    UniFrac = UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
+    wUniFrac = wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
     Hellinger = Hellinger$u %*% diag(Hellinger$d)
     ))
 lapply(tmpList, function(y){
@@ -3858,6 +3846,8 @@ extractCols = function(x, row){
     BC = weightedTaxonScores(RCM$X, row$BC),
     JSD = weightedTaxonScores(RCM$X, row$JSD),
     BCrel = weightedTaxonScores(RCM$X, row$BCrel),
+    UniFrac = weightedTaxonScores(RCM$X, row$UniFrac),
+    wUniFrac = weightedTaxonScores(RCM$X, row$wUniFrac),
     BCrelNMDS = BCrelNMDS$species,
     Hellinger = Hellinger$v
     ))
@@ -3934,7 +3924,7 @@ abline(h=0, lty = "dashed")
 addLegend(groupMeth = groupMeth)
 }
 #---------------------------------#
-distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth),...) {
+distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth),log="",...) {
 dist = sapply(resListRows, function(x){
   sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
 })
@@ -3942,16 +3932,20 @@ meanDist1df = orderDF(melt(dist, value.name = "DistanceRatio", varnames = c("Met
 if(!is.null(method)){
   meanDist1df = subset(meanDist1df, meanDist1df$Method %in% method)
 }
-boxplot(DistanceRatio~Method, main = "Mean ratios of overal to within distance by method", data = meanDist1df, col = groupMeth, ylim = c(0, ceiling(max(meanDist1df$DistanceRatio))),las = 2,...)
+boxplot(DistanceRatio~Method, main = "Mean ratios of overal to within distance by method", data = meanDist1df, col = groupMeth, ylim = c(0, ceiling(max(meanDist1df$DistanceRatio))),las = 2,log = log,...)
 meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
 points(meansDist, col="red", pch=18, cex = 1.6)
-abline(h=1, lty = "dashed")
+abline(h=switch(log,""=1, "y"=0), lty = "dashed")
 addLegend(groupMeth = groupMeth, yloc = 5)
 }
 #---------------------------#
 #A function to make a scatterplot of a randomly selected MC isntance
 randomScatter = function(list, Dim = c(1,2), col = "black"){
-par(mfrow = c(3,3), mar = c(3,3,3,3))
+  if(length(list)<=9) {
+    par(mfrow = c(3,3), mar = c(3,3,3,3))
+  } else {
+     par(mfrow = c(3,4), mar = c(3,3,3,3))
+  }
 ID = sample(size=1, seq_along(list))
 obj = list[[ID]]
 lapply(names(obj),function(x){plot(obj[[x]][,Dim], main=x, col = col, xlab = paste("Dim", Dim[1]),ylab = paste("Dim", Dim[2]), pty = "s")})
@@ -4388,13 +4382,6 @@ save(resList3,resList3Rows, resList3Cols, IDlist3, groupFactor3, file = "RCMsim/
 #A sample biplot
 resList3Rows = lapply(resList3, extractRows)
 randomScatter(resList3Rows, col = groupFactor3)
-# In this setting, the RCM really appears to outperform the other methods
-# par(mfrow = c(3,4), mar = c(3,3,3,3))
-# ID = sample(size=1, seq_along(resList3))
-# obj = resList3Rows[[ID]]
-# lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor3, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
-# rm(ID, obj)
-# par(mfrow = c(1,1))
 ```
 
 ```{r resList3Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouette3}"}
@@ -4415,7 +4402,6 @@ plotCor(resList3Rows, datList3, dataMat = TRUE)
 ```
 
 ```{r AbCorr3, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCor3}"}
-resList3Cols = mapply(resList3, resList3Rows,FUN = extractCols, SIMPLIFY = FALSE)
 plotCor(resList3Cols, datList3, dataMat = TRUE, scoreDim = "columns")
 ```
 
@@ -4467,21 +4453,34 @@ RCMresList4 = mclapply(mc.cores=4, datList4, function(y){
 save(RCMresList4, file = "RCMsim/resList4RCM.RData")
 } else {load("RCMsim/resList4RCM.RData")}
 resList4 = otherAnalyses(RCMresList4)
-IDlist4 = lapply(datList4, function(x){
-   id = apply(x$IDsampled, 2, unique)
-   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
-   })
 resList4Rows = lapply(resList4, extractRows)
 resList4Cols = mapply(resList4, resList4Rows,FUN = extractCols, SIMPLIFY = FALSE)
-save(resList4,resList4Rows, resList4Cols, IDlist4, groupFactor4, file = "RCMsim/resList4.RData")
+save(resList4,resList4Rows, resList4Cols, groupFactor4, file = "RCMsim/resList4.RData")
 } else {load(file = "RCMsim/resList4.RData")}
+```
+
+```{r resList4 sampleBiplot, purl = FALSE}
+#A sample biplot
+resList4Rows = lapply(resList4, extractRows)
+randomScatter(resList4Rows, col = groupFactor4)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorr4, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor4}"}
+datList4 = lapply(resList4, function(x){x$RCM$X})
+plotCor(resList4Rows, datList4, dataMat = TRUE)
+```
+
+```{r AbCorr4, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCor4}"}
+plotCor(resList4Cols, datList4, dataMat = TRUE, scoreDim = "columns")
 ```
 
 ##### Simulate under H1, with correlated taxa
 
 We know that taxa living in the same niche are dependent on each other, and as a result their abundances are correlated. This phenomenon can affect the differentialn abundance detection, so it could also affect our visualization procedures. I would also expect it to have an effect on the CoDa method, which relies on ratios between taxa of the same sample. We'll use the correlation networks previously estimated from the HMP and AGP datasets.
 
-```{r NBrelatedDistrCorr, purl = FALSE}
+```{r NBrelatedDistrCorr, purl = FALSE, eval = FALSE}
 p = 1000 #Number of taxa
 n = 60 #Number of samples
 nPop = 4 #Number of underlying populations
@@ -4546,7 +4545,7 @@ save(resList5,resList5Rows, resList5Cols, IDlist5, groupFactor5, file = "RCMsim/
 
 ##### Negative binomial with phylogenetic information
 
-In order to also include the very popular distance measures UniFrac and weighted Unifrac, we also generate data with the negative binomial and Dirichlet multinomial taking into account phylogenetic structure. We base our strategy on the second strategy described by Chen _et al._ ("Associating microbiome composition with environmental
+In order to also include the very popular distance measures UniFrac and weighted UniFrac, we also generate data with the negative binomial and Dirichlet multinomial taking into account phylogenetic structure. We base our strategy on the second strategy described by Chen _et al._ ("Associating microbiome composition with environmental
 covariates using generalized UniFrac distances", 2012). We generate random trees for the template vector of relative abundances, and modify abundances within one of the 20 clusters
 
 ```{r UniFrac, purl = FALSE}
@@ -4600,12 +4599,11 @@ rownames(dataMat) = groupFactorPhy
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
 list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, cluSampled = cluSampled, randomTree = randomTree)
 })
-save(datListPhy,groupFactorPhy,  file = "RCMsim/datListPhy.RData")
+save(datListPhy, groupFactorPhy, file = "RCMsim/datListPhy.RData")
 } else {load(file = "RCMsim/datListPhy.RData")}
 
 # Results
-
-  if(!file.exists("RCMsim/resListPhyRCM.RData")){
+ if(!file.exists("RCMsim/resListPhyRCM.RData")){
 RCMresListPhy = mclapply(mc.cores=4, datListPhy, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
   })
@@ -4617,8 +4615,42 @@ IDlistPhy = lapply(datListPhy, function(x){
    id = apply(x$IDsampled, 2, unique)
    taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
    })
-save(resListPhy, groupFactorPhy, IDlistPhy, file = "RCMsim/resListPhy.RData")
+resListPhyRows = lapply(resListPhy, extractRows)
+resListPhyCols = mapply(resListPhy, resListPhyRows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resListPhy, resListPhyRows, resListPhyCols, groupFactorPhy, IDlistPhy, file = "RCMsim/resListPhy.RData")
 } else {load(file = "RCMsim/resListPhy.RData")}
+```
+
+```{r resListPhy sampleBiplot, purl = FALSE}
+#A sample biplot
+randomScatter(resListPhyRows, col = groupFactorPhy)
+```
+
+```{r resListPhyEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{fig:silhouettePhy}"}
+plotSil(resListPhyRows, groupFactorPhy, las = 2)
+```
+
+The Unifrac distances do not seem to get any advantage from their phylogenetic distances
+
+```{r resListPhyEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:distPhy}"}
+distRatioPlot(resListPhyRows, groupFactorPhy)
+```
+
+
+```{r libSizeCorrPhy, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCorPhy}"}
+datListPhy = lapply(resListPhy, function(x){x$RCM$X})
+plotCor(resListPhyRows, datListPhy, dataMat = TRUE)
+```
+
+Regular unifrac suffers from correlations with the library sizes
+
+```{r AbCorrPhy, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCorPhy}"}
+plotCor(resListPhyCols, datListPhy, dataMat = TRUE, scoreDim = "columns")
+```
+
+```{r taxRatPhy, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:taxRatPhy}"}
+contrPhy = contrTaxaWrap(resListPhyRows, resListPhyCols, IDlistPhy, groupFactorPhy)
+contrPlot(contrPhy)
 ```
 
 #### Other distributions
