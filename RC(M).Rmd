@@ -1959,8 +1959,8 @@ nLambda1s = NROW(centMat)
   
   #Modify offset if needed
   if(KK>1){
-    modMat = if(responseFun %in% c("linear","quadratic")){
-     exp(getRowMatConstr(responseFun = responseFun, NB_params = NB_params[,,KK-1], covariates = covariates, alpha = alpha[, KK-1])*psis[KK-1])
+modMat = if(responseFun %in% c("linear","quadratic")){
+   exp(getRowMat(responseFun = responseFun, sampleScore = covariates %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,K-1])*psis[KK-1])
     } else {
     exp(nonParamRespFun$taxonWise*psis[KK-1])
     }
@@ -1986,10 +1986,13 @@ nLambda1s = NROW(centMat)
   NBparamsOld = NB_params[,,KK]
 
   sampleScore = covariates %*% alpha[,KK]
-  rowMat = if(responseFun %in% c("linear","quadratic")){
-    sampleScore %*% NB_params[,,KK]
+  if(responseFun %in% c("linear","quadratic")){
+    design = switch(responseFun,
+                     linear = model.matrix(~sampleScore),
+                     quadratic = model.matrix(~sampleScore + I(sampleScore^2) )) 
+    rowMat = design %*% NB_params[,,KK]
   } else{
-   nonParamRespFun$taxonWise
+   rowMat = nonParamRespFun$taxonWise
    }
 
 #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
@@ -2004,9 +2007,7 @@ if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
 psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod)$x)
 
 if(responseFun %in% c("linear","quadratic")){
-design = switch(responseFun,
-                     linear = model.matrix(~sampleScore),
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2) )) #With intercept
+#With intercept
   
 NB_params[,,KK] = estNBparams(design = design, thetas = thetasMat[1,], muMarg = muMarg, psi = psi, X = X, nleqslv.control = nleqslv.control, ncols =ncols, initParam = NB_params[,,KK], v = v)
 
