@@ -28,7 +28,9 @@ labelsMeth = c("CA","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curt
 groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM"), ordered = TRUE)
 names(groupsMeth) = grep(levelsMeth, value  = TRUE, pattern ="Control", invert = TRUE)
 funFiles = dir("R")
+funFilesPub = dir("pubFun")
 for (i in funFiles) {source(file.path("R",i))}
+for (i in funFilesPub) {source(file.path("pubFun",i))}
 ```
 
 \setcounter{tocdepth}{2}
@@ -122,16 +124,6 @@ Under the assumptions that:
   4) Counts are Poisson distributed
   
   CA yields the ML solution of this Gaussian model see ter Braak, 1986).
-
-### Hellinger distance
-
-With PCoA, any distance metric can be used to produce a distance matrix, which can be decomposed to make biplots.
-
-The Hellinger distance divides by the square root of the observation as means of normalization:
-
-$$\frac{X}{\sqrt{Var(X)}} \approx \frac{X}{\sqrt{X}} = \sqrt{X}$$
-
-The rationale is that each observation x is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes. See Rao (1997), who suggests this method as an alternative to correspondence analysis. The drawback of correspondence analysis is that the estimate for the expected abundances used to standardize departures from independence $X-E$ is based on the taxon sums, and thus on other samples. With the Hellinger distance only, the sample itself is used to estimate the expected abundances, namely by the count itself.
 
 ### Log-linear analysis
 
@@ -2028,7 +2020,7 @@ psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta =  thetasMat , X = X, 
 #if(KK==2) debug(estAlpha)
 tmpAlpha = estAlpha(Alpha = alpha[, KK,drop=FALSE], X = X, CC = covariates, d = d, ncols = p, v = v, responseFun = responseFun, muMarg = muMarg, thetas = thetasMat , alphaK = alpha[,1:(KK-1),drop=FALSE], k=KK, centMat = centMat, n=n, NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[,KK], psi = psis[KK], nLambda1s = nLambda1s, nLambda = KK + nLambda1s, analytic = analytic, lambdasAlpha = lambdasAlpha, nleqslv.control = nleqslv.control, verbose = verbose) #Provide previous parameters of the response function since they might provide good initial estimates
 
-if(verbose)  cat(ifelse(tmpAlpha$convergence, "Row scores converged \n", "Row scores DID NOT converge \n"))
+if(verbose)  cat(ifelse(tmpAlpha$convergence, "Environmental gradient converged \n", "Environmental gradient DID NOT converge \n"))
   alpha[,KK] = tmpAlpha$Alpha
  
   if(responseFun %in% c("linear","quadratic")){
@@ -2286,43 +2278,6 @@ dNBllcol_constr = function(betas, X, reg, theta, muMarg, psi) {
 
   mu = exp(c(reg %*% betas)*psi) * muMarg
   crossprod((X-mu)/(1+mu/theta) , reg) * psi
-}
-#--------------------------------------#
-# Try this for all taxa combined
-dNBllcol_constr_mat = function(betas, aX, reg, theta, muMarg, psi) {
-  # @param beta: a (deg+1)*p matrix of regression parameters with deg the degree of the response function
-  # @param X: the nxp data matrix
-  # @param reg: a matrix of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
-  # @param theta: The dispersion parameter
-  # @param mumarg: offset matrix of size nxp
-  # @param cReg: a vector of lentgh p psi_k * s_{jk}
-
-  # @return The evaluation of the score functions, a matrix of size p*(deg+1)
-
-  mu = exp(t(t(reg %*% betas)* cReg)) * muMarg
-  score =  crossprod((aX-mu)/(1+t(t(mu)/theta)) , reg) * cReg
-  return(c(t(score))) #Taxon per taxon
-}
-#--------------------------------------#
-# The jacobian of this function
-JacCol_constr_mat = function(betas, aX, reg, theta, muMarg, cReg) {
-  # @param beta: a (deg+1)*p matrix of regression parameters with deg the degree of the response function
-  # @param X: the nxp data matrix
-  # @param reg: a vector of regressors with the dimension (deg+1)*n (\mathbf{C} \boldsymbol{\alpha})
-  # @param theta: The dispersion parameter
-  # @param mumarg: offset matrix of size nxp
-  # @param cReg: a vector of lentgh p psi_k * s_{jk}
-
-  # @return The jacobian, a (deg+1)*p x (deg+1)*p matrix, a block correlation matrix
-v=ncol(reg);p=ncol(aX)
-  mu = exp(t(t(reg %*% betas)* cReg)) * muMarg
-  tmp = t(t((1+t(t(X)/theta))*mu/(1+t(t(mu)/theta))^2)*cReg^2)
-  tmp2 =  vapply(seq_len(v), FUN.VALUE = tmp, function(x){reg[,x]*tmp})
-  tmp3 =  vapply(seq_len(v), FUN.VALUE = betas, function(x){crossprod(reg,tmp2[,,x])})
-  Jac = matrix(0, p*v, p*v)
-  ind = as.logical(Reduce(f=adiag,lapply(seq_len(p),function(x){matrix(TRUE,v,v)})))
-  Jac[ind] = apply(tmp3,2,identity)
-  return(-Jac)
 }
 #--------------------------------------#
 # The jacobian of this function
@@ -2747,7 +2702,7 @@ liks = function(rcm, Disp=c("edgeR","MLE")){
 ```{r plot, purl=TRUE}
 plotRCM = function(RCM, X = NULL, thetas = NULL, abunds = NULL, arrowFrac = 0.04, biplot = TRUE,
                    libLoc ="topright", libInset = c(-0.7,-0.1), libCex = 0.85, libInterSp = 0.75, libLeg = TRUE, samColour=NULL,
-                   dispInset = c(0,-0.4), abInset = c(0,-0.4), abundLeg=FALSE, stressSpecies=NULL, taxColour = NULL, taxLegPos = "bottomright", taxCol = NULL, taxInset = libInset, taxIntersp = libInterSp,
+                   dispInset = c(0,-0.4), abInset = c(0,-0.4), abundLeg=FALSE, stressSpecies = NULL, taxColour = NULL, taxLegPos = "bottomright", taxCol = NULL, taxInset = libInset, taxIntersp = libInterSp,
                    asp=1, xpd=TRUE, mar=c(4,5,5,5), Dim=c(1,2), ...){
   
   # @param psis: vector of length k with psi estimates
@@ -2821,7 +2776,7 @@ return(invisible())
 # A ggplot2-version of the biplot function
 plot.RCM = function(RCMfit, Dim = c(1,2), 
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
-                    taxFrac = 0.05, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
+                    taxNum = 10, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
                     Palette = NULL, arrowCol = "blue", nudge_y = -0.08,...) {
   # @param RCMfit: an RCM object
   # @param Dim: two dimensions to plot, defaults to the first two
@@ -2832,7 +2787,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   # @param shapeLegend: a character string, the text to use for the shapeLegend. Defaults to the name of the shape variable
   # @param samSize: a scalar, the size of the sample dots, defaults to 3
   
-  # @param taxFrac: a scalar between 0 and 1, the fraction of taxa to be plotted
+  # @param taxNum: an integer, the number of taxa to be plotted
   # @param scalingFactor: a scalar, a user supplied scaling factor for the taxon location. If not supplied it will be calculated to make sample and taxon plots on the same scale
   # @param plotTaxa: a boolean, whether to add the taxa to the plot to make a bi- or triplot
   # @param quadDrop: a scalar, the value at which the response function has dropped to this fraction of its maximum on the count scale to be plotted as a halo
@@ -2845,7 +2800,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   # @param nudge_y: a scalar, the offet for the taxon labels
   
   #Retrieve dots (will be passed on to aes())
-    dotList=list(...)
+    dotList = list(...)
     constrained = !is.null(RCMfit$covariates)
     if(constrained){
       dataSam <- data.frame(RCMfit$covariates %*% RCMfit$alpha[,Dim] %*% diag(RCMfit$psis[Dim]))
@@ -2857,6 +2812,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     #Get the colours
     if(!is.null(samColour) && !is.factor(samColour)){
       dataSam$colourPlot = get_variable(RCMfit$physeq, samColour)
+      if(is.character(dataSam$colourPlot)) dataSam$colourPlot  = factor(dataSam$colourPlot )
+
     } else if(is.factor(samColour)){
       dataSam$colourPlot = samColour} else {dataSam$colourPlot=factor(rep(1, nrow(dataSam)))}
     
@@ -2864,7 +2821,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     if(is.null(Palette)){
 Palette=rainbow(length(unique(dataSam$colourPlot)))
     }  
-
+  taxFrac = taxNum/ncol(RCMfit$X)
+    
     #Construct dataframe for taxa
     
       if(constrained) {
@@ -2880,7 +2838,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
             end2 = origin2 + slope2
           })
     arrowLengths = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1 - taxFrac)
+    id = arrowLengths >= quantile(arrowLengths,taxFrac)
     #Filter out small arrows
     dataTax = dataTax[id,] 
     if(is.null(scalingFactor)){
@@ -2966,7 +2924,6 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
 
     plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) + 
       geom_point(size = samSize) + #point size
-      theme(aspect.ratio=1) + #square plot
       xlab(paste0(names(dataSam)[1],": ", paste0("psi",Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
       ylab(paste0(names(dataSam)[2],": ", paste0("psi",Dim[2]), " = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
       if(is.null(samColour)) {guides(color=FALSE)} #Legend
@@ -3011,7 +2968,7 @@ Palette=rainbow(length(unique(dataSam$colourPlot)))
 #--------------------------------#
 # A function to enforce squareness
 squarePlot <- function(plt){
-    return(plt+coord_equal()+
+    return(plt+coord_fixed()+
             expand_limits(x=ggplot_build(plt)$panel$ranges[[1]]$y.range,
                           y=ggplot_build(plt)$panel$ranges[[1]]$x.range))
 }
@@ -3317,21 +3274,21 @@ save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, file="zellerSphyRCMconstr.
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
 plot.RCM(zellerSphyRCMconstrLin)
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", taxFrac = 0.015)
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis")
 plot.RCM(zellerSphyRCMconstrLin, samColour = "Gender")
 plot.RCM(zellerSphyRCMconstrLin, samColour = "Country")
 plot.RCM(zellerSphyRCMconstrLin, samColour = "Age")
 #apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
 
-plot.RCM(zellerSphyRCMconstrQuad, samColour = "Diagnosis", taxFrac = 0.015, Palette = rainbow(5))
+plot.RCM(zellerSphyRCMconstrQuad, samColour = "Diagnosis", Palette = rainbow(5))
 ```
 
 ```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", plotTaxa = TRUE, taxFrac = 0.015)
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", plotTaxa = TRUE)
 ```
 
 ```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Age", plotTaxa = TRUE, taxFrac = 0.015)
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Age", plotTaxa = TRUE)
 rm(zellerSphyRCMconstrLin)
 ```
 
@@ -3430,12 +3387,12 @@ if(!file.exists(file = "armpitRCM.RData")){
 ```
 
 ```{r ArmpitPlot1, purl = FALSE}
-plot(armpitRCM, taxFrac = 0.015)
-plot(armpitRCM, taxFrac = 0.015, samColour = "shaving")
-plot(armpitRCM, taxFrac = 0.015, samColour = "odor_panel")
-plot(armpitRCM, taxFrac = 0.015, samColour = "gender")
-plot(armpitRCM, taxFrac = 0.015, samColour = "age")
-plot(armpitRCM, taxFrac = 0.015, samColour = "antimicrobial")
+plot(armpitRCM)
+plot(armpitRCM, samColour = "shaving")
+plot(armpitRCM, samColour = "odor_panel")
+plot(armpitRCM, samColour = "gender")
+plot(armpitRCM, samColour = "age")
+plot(armpitRCM, samColour = "antimicrobial")
 rm(armpitRCM)
 ```
 
@@ -3444,7 +3401,7 @@ rm(armpitRCM)
 This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing relative counts trhough 16S sequencing that can be multiplied by absolute counts from flow cytometry to get truly absolute abundances that reflect the number of cells. This type of data does not qualify for the term _compositional data_ anymore. The advent of these kind of approaches support the use of count models rather than compositional data approaches.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
-if(!file.exists(file = "CMETdata.RData")){
+if(!file.exists(file = "ata.RData")){
   library(openxlsx)
   samData = read.xlsx("/home/stijn/PhD/Datasets/CMET/Metadata.xlsx")
   rownames(samData) = samData$sample_title
@@ -3469,7 +3426,7 @@ if(!file.exists(file = "CMETdata.RData")){
 }else {load(file = "CMETdata.RData")}
 ```
 
-```{r analysCMET, purl = FALSE, eval = FALSE}
+```{r analysCMET, purl = FALSE}
 if(!file.exists(file = "CMETRCM.RData")){
   CMETRCM = RCM(CMETwater, k = 3)
   envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "collection_date", "Timepoint", "Reactor.cycle")
@@ -3478,6 +3435,20 @@ if(!file.exists(file = "CMETRCM.RData")){
   save(CMETRCM, CMETRCMlin, CMETRCMquad, file = "CMETRCM.RData")
 } else {load(file = "CMETRCM.RData")}
 ```
+
+```{r plotCMET, purl = FALSE}
+plot(CMETRCM)
+plot(CMETRCM, samColour = "ph")
+plot(CMETRCM, samColour = "temp")
+plot(CMETRCM, samColour = "Conductivity")
+plot(CMETRCM, samColour = "cellDensity")
+plot(CMETRCM, samColour = "Reactor.phase")
+plot(CMETRCM, samColour = "Timepoint")
+plot(CMETRCM, samColour = "collection_date")
+plot(CMETRCM, samColour = "Reactor.cycle")
+```
+
+We clearly have two groups in the second dimension, partly explained by the _Reactor.phase_ and _collection.date_ variables. In the first dimension we have a strong time signal.
 
 # Competing methods
 
@@ -3529,9 +3500,15 @@ It is a true distance.
 
 #### Hellinger distance
 
-This came up during our own researhc into a version of correspondence analysis that would accurately model the variance of our count data. Still it is designed for distances between distributions rather than between real data ratios. It is defined as 
+This came up during our own researhc into a version of correspondence analysis that would accurately model the variance of our count data. Still it is designed for distances between distributions rather than between real data ratios.
 
-$$d_{hellinger}(a,b) = \sum_{j=1}^p (\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_{bj}}{x_{b.}}})^2 $$
+The Hellinger distance divides by the square root of the observation as means of normalization:
+
+$$\frac{X}{\sqrt{Var(X)}} \approx \frac{X}{\sqrt{X}} = \sqrt{X}$$
+
+The rationale is that each observation x is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes. See Rao (1997), who suggests this method as an alternative to correspondence analysis. The drawback of correspondence analysis is that the estimate for the expected abundances used to standardize departures from independence $X-E$ is based on the taxon sums, and thus on other samples. With the Hellinger distance only, the sample itself is used to estimate the expected abundances, namely by the count itself. It is defined as 
+
+$$d_{hellinger}^2(a,b) = \sum_{j=1}^p (\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_{bj}}{x_{b.}}})^2 $$
 
 . It does works on the relative abundances. It has been used in publications on microbiome, e.g. Kreisinger _et al._, 2015, Hollister _et al._ 2015, Vital _et al._, 2015.
 
@@ -3751,7 +3728,7 @@ with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, 
 
 ```{r contrTaxa}
 contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3, upDown = FALSE, centerFun = median){
-  #FIX ME!
+  #FIX ME! Hellinger!
   rowMatPsi = rowMatPsi[,Dim]
   colMat = t(colMat)[Dim,]
   if(upDown){
