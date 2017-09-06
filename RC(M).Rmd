@@ -2366,6 +2366,8 @@ NB_params = estNBparams(design = design, thetas = thetas[1,], muMarg = muMarg, p
 
 NB_params = NB_params/sqrt(rowSums(NB_params^2)) #Normalize the parameters
 
+NB_params_tmp = nleqslv(x = c(NB_params, lambda2), fn = respFunScoreMat, jac = respFunJacMat, aX = X, reg = design, thetaMat = thetas, muMarg = muMarg, v=v, p=p, psi = psi)
+
 NB_params_noLab = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, psi = psi, X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab, n = n, v = v)
   
  if(analytic){
@@ -3037,6 +3039,15 @@ counts = matrix(rnbinom(n*p, mu = 5, size = 3), n, p)
 covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6), status = sample(c("Treatment","Control"),n, replace=TRUE), siblings = rpois(n, lambda = 0.9))
 physeq = phyloseq(otu_table(counts, taxa_are_rows = FALSE), sample_data(covars))
 confounderVec = get_variable(physeq, "country")
+d = 30
+v = 2
+X = matrix(rpois(n*p,2), n, p)
+thetaMat = X
+psi = 3
+muMarg = outer(rowSums(X), colSums(X))/sum(X)
+NB_params = betas = matrix(rnorm(p*v),v,p)
+reg = model.matrix(~rnorm(n))
+
 
 #Unconstrained one dimension matrix
 un1Dmat = RCM(counts, k=1)
