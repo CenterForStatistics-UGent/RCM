@@ -15,16 +15,18 @@ respFunJacMat = function(betas, aX, reg, thetaMat, muMarg, lambda2, psi, v, p) {
   NBparams = matrix(betas[seq_len(p*v)], ncol = p)
   mu = exp(reg %*% NBparams*psi) * muMarg
   Jac = matrix(0, (p+1)*v, (p+1)*v)
-  did  = seq_len(p*v)
+  did = seq_len(p*v)
   didv = seq_len(v)
-  indVec = matrix(rep(c(TRUE, rep(FALSE, v), TRUE),p), nrow = p*v, byrow = TRUE)
-  Jac[did, didv][indVec] = NBparams
-  Jac[lower.tri(Jac)] = Jac[upper.tri(Jac)]
+  indVec = matrix(rep(c(TRUE, rep(FALSE, v), TRUE),p), ncol = p*v, byrow = FALSE)
+  Jac[didv +p*v, did][indVec] = 2*NBparams
+  # diagInd = matrix(rep(c(rep(TRUE,v), rep(FALSE, (p-1)*v), TRUE),p), nrow = p*v, byrow = FALSE)
+  Jac = Jac + t(Jac)
 
-  tmp = (1+X/thetaMat)*mu/(1+(mu/thetaMat)^2)*psi^2
+  tmp = (1+X/thetaMat)*mu/(1+(mu/thetaMat))^2*psi^2
   tmp2 =  vapply(didv, FUN.VALUE = tmp, function(x){reg[,x]*tmp})
-  Jac[did, did] = tensor(reg, tmp2, 1, 1)
+  ID = as.logical(bdiag(replicate(simplify = FALSE,n = p,expr = do.call(matrix, args = list(1,v,v)))))
+  Jac[did, did][ID] = -aperm(tensor(reg, tmp2, 1, 1), c(3,1,2)) #Permute the dimensions to assure correct insertion
 
   diag(Jac)[did] =  diag(Jac)[did] + 2*betas[seq_len(v) + p*v]
-  return(-Jac)
+  return(Jac)
 }
