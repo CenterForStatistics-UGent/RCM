@@ -11,7 +11,7 @@
 #'
 #' @return The jacobian, a square matrix of dimension (deg+1)*(p+1)
 
-respFunJacMat = function(betas, aX, reg, thetaMat, muMarg, lambda2, psi, v, p) {
+respFunJacMat = function(betas, aX, reg, thetaMat, muMarg, psi, v, p) {
   NBparams = matrix(betas[seq_len(p*v)], ncol = p)
   mu = exp(reg %*% NBparams*psi) * muMarg
   Jac = matrix(0, (p+1)*v, (p+1)*v)
