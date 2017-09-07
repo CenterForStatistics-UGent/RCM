@@ -8,24 +8,26 @@
 #' @param psi a scalar, the importance parameter
 #' @param v an integer, one plus the degree of the response function
 #' @param p an integer, the number of taxa
+#' @param IDmat an logical matrix with indices of non-zero elements
+#' @param IndVec  a vector with indices with non-zero elements
 #'
 #' @return The jacobian, a square matrix of dimension (deg+1)*(p+1)
 
-respFunJacMat = function(betas, aX, reg, thetaMat, muMarg, psi, v, p) {
+respFunJacMat = function(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec) {
   NBparams = matrix(betas[seq_len(p*v)], ncol = p)
   mu = exp(reg %*% NBparams*psi) * muMarg
   Jac = matrix(0, (p+1)*v, (p+1)*v)
   did = seq_len(p*v)
   didv = seq_len(v)
-  indVec = matrix(rep(c(TRUE, rep(FALSE, v), TRUE),p), ncol = p*v, byrow = FALSE)
-  Jac[didv +p*v, did][indVec] = 2*NBparams
-  # diagInd = matrix(rep(c(rep(TRUE,v), rep(FALSE, (p-1)*v), TRUE),p), nrow = p*v, byrow = FALSE)
-  Jac = Jac + t(Jac)
+  #d²Lag/dlambda dBeta
+  Jac[didv +p*v, did][IndVec] = 2*NBparams
+  Jac = Jac + t(Jac) #symmetrize
 
-  tmp = (1+X/thetaMat)*mu/(1+(mu/thetaMat))^2*psi^2
-  tmp2 =  vapply(didv, FUN.VALUE = tmp, function(x){reg[,x]*tmp})
-  ID = as.logical(bdiag(replicate(simplify = FALSE,n = p,expr = do.call(matrix, args = list(1,v,v)))))
-  Jac[did, did][ID] = -aperm(tensor(reg, tmp2, 1, 1), c(3,1,2)) #Permute the dimensions to assure correct insertion
+  tmp = (1+X/thetaMat)*mu/(1+mu/thetaMat)^2
+  tmp2 =  vapply(didv, FUN.VALUE = tmp, function(x){reg[,x]*tmp}) #outer?
+  # tmpMat = aperm(array(c(t(tmp))*rep(c(reg), each = p), dim = c(p,n,v)),c(2,3,1) ) #This is actually slower!
+  #d²Lag/dBeta²
+  Jac[did, did][IDmat] = -aperm(tensor(reg, tmp2, 1, 1), c(3,1,2))*psi^2 #Permute the dimensions to assure correct insertion
 
   diag(Jac)[did] =  diag(Jac)[did] + 2*betas[seq_len(v) + p*v]
   return(Jac)
