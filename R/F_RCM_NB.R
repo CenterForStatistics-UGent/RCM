@@ -417,7 +417,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         # lambdaResp = NB_params_tmp[p*v + seq_len(v)]
 
         NB_params[,,KK] = estNBparams(design = design, thetas = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v)
-        psis[KK] = psis[KK]*exp(mean(log(sqrt(rowSums(NB_params[,,KK]^2))))) #Multiply psis by geometric mean
+        # psis[KK] = psis[KK]*exp(mean(log(sqrt(rowSums(NB_params[,,KK]^2))))) #Multiply psis by geometric mean
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2)) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
 
         NB_params_noLab[, KK] = nleqslv(x = NB_params_noLab[, KK] , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, psi = psis[KK], X = X, control = nleqslv.control, jac = JacCol_constr_noLab, n=n, v=v)$x

@@ -1799,23 +1799,6 @@ dNBllcol_constr = function(betas, X, reg, theta, muMarg, psi) {
   crossprod((X-mu)/(1+mu/theta) , reg) * psi
 }
 #--------------------------------------#
-# The jacobian of this function
-JacCol_constr = function(betas, X, reg, theta, muMarg, psi) {
-  # @param beta: a vector of regression parameters (\boldsymbol{beta}_j)
-  # @param X: the nx1 data vector
-  # @param reg: a matrix of regressors with the same length as beta (\mathbf{C} \boldsymbol{\alpha})
-  # @param theta: The dispersion parameter
-  # @param mumarg: offset of length n
-  # @param cReg:  a scalar psi_k * s_{jk}
-
-  # @return The jacobian
-
-  mu = exp(c(reg %*% betas)* psi) * muMarg
-  tmp = (1+X/theta)*mu/(1+mu/theta)^2
-  -crossprod(tmp*reg,reg) * psi^2 #Don't forget to square psi!
-
-}
-#--------------------------------------#
 # A function to evaluate the score function ignoring taxon labels
 dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, psi, n, ncols,...) {
   # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
@@ -1846,81 +1829,6 @@ JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, psi, n ,v) {
   tmp = (1+(X/thetas))*mu/(1+(mu/thetas))^2*psi^2 #Don't forget to square psi!
   -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric", n), function(x){rowSums(reg[,x]*tmp)}))
   }
-
-#--------------------------------------#
-# A function to estimate alpha based on the LR-criterion
-estAlpha = function(Alpha, X, CC, d, k, ncols, centMat, n, v, nLambda1s, nLambda, muMarg, thetas, psi, alphaK, maxItAlpha = 200, responseFun = c("linear", "quadratic", "nonparametric"),  control.outer = list(trace=FALSE), control.optim = list(trace=FALSE), nleqslv.control = list(), convNorm = 2, tol = 1e-3, NB_params = NULL, NB_params_noLab = NULL, analytic = FALSE, lambdasAlpha = NULL, verbose = TRUE){
-  # @param alpha: a vector of length d, the environmental gradient
-  # @param alphaK: a matrix with d columns d, the environmental gradient of the previous dimensions
-  # @param ncols: a scalar, the number of columns of X
-  # @param k: a scalar, dimension index
-  # @param v: an integer, the number of parameters per taxon of the response function
-  # @param nLambdas1: an integer, number of centering equations
-  # @param nLambdas: an integer, total number of lambda parameters
-  # @param X: the n-by-ncols count matrix
-  # @param C: the n-by-d covariate matrix
-  # @param responseFun: a character string indicating the type of response function
-  # @param muMarg: an n-by-ncols offset matrix
-  # @param thetas: nxp matrix with with estimated dispersion parameters (they will not be re-estimated within the alpha estimation to keep computation time down)
-  # @param cReg: a vector of length p, column scores * importance parameter
-  # @param maxItAlpha: an integer, the maximum number of iterations
-  
-  # @return: a vector of length  with the new alpha estimate
-  
-  iterA = 1
-
-  if(responseFun %in% c("linear","quadratic")){
-    
- while ((iterA == 1) || ((iterA <= maxItAlpha) &&                           
-             (!convergenceA))) { 
-  AlphaOld = Alpha
-  if(verbose) cat("Environmental gradient iteration ",iterA, "\n")
-  #New strategy: estimate the parameters and then optimize alpha, iterate between both.
-  sampleScore = CC %*% Alpha
-  design = switch(responseFun,
-                     linear = model.matrix(~sampleScore),
-                     quadratic = model.matrix(~sampleScore + I(sampleScore^2) )) #With intercept
-  
-NB_params = estNBparams(design = design, thetas = thetas[1,], muMarg = muMarg, psi = psi, X = X, nleqslv.control = nleqslv.control, ncols =ncols, initParam = NB_params, v = v)
-
-NB_params = NB_params/sqrt(rowSums(NB_params^2)) #Normalize the parameters
-
-NB_params_noLab = nleqslv(x = NB_params_noLab , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, psi = psi, X = X, control = nleqslv.control, jac = JacCol_constr_noLab, n=n, v=v)$x
-  
- if(analytic){
-   AlphaTmp = nleqslv(x = c(Alpha,lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, alphaK = alphaK, k = k, d = d, centMat = centMat, nLambda = nLambda, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = ncols)$x
-  Alpha = AlphaTmp[seq_len(d)]
-  lambdasAlpha = AlphaTmp[d+seq_len(nLambda)]
-} else {
-   AlphaTmp = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, psi = psi, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, NB_params = NB_params, NB_params_noLab = NB_params_noLab, v = v, thetaMat = thetas, n=n) #
-  Alpha = AlphaTmp$par
-  lambdasAlpha = AlphaTmp$lambda
-}
-  
-  iterA = iterA + 1
-  convergenceA = sum((AlphaOld - Alpha)^convNorm)^(1/convNorm) < tol
-  } 
-  
-  return(list(Alpha = Alpha, NB_params = NB_params, NB_params_noLab = NB_params_noLab, convergence = convergenceA, lambdasAlpha = lambdasAlpha ))
-  } else {
-     while ((iterA == 1) || ((iterA <= maxItAlpha) &&                           
-             (!convergenceA))) { 
-    
-  AlphaOld = Alpha
-  cat("Environmental gradient iteration ",iterA, "\n")
-  #New strategy: estimate the parameters and then optimize alpha, iterate between both.
-  sampleScore = CC %*% Alpha
-  nonParamRespFun = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = ncols, psi = psi)
-  AlphaTmp = constrOptim.nl(par = Alpha, fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alphaK, X=X, CC=CC, responseFun = responseFun, muMarg = muMarg, d = d, ncols=ncols, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k =k, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun, psi = psi, thetaMat = thetas)
-  Alpha = AlphaTmp$par
-  lambdasAlpha = AlphaTmp$lambda
-  
-  iterA = iterA + 1
-  convergenceA = sum((AlphaOld - Alpha)^convNorm)^(1/convNorm) < tol
-     }
-    return(list(Alpha = Alpha, convergence = convergenceA, nonParamRespFun = nonParamRespFun))  
-  }
-}
 #--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
 heq_nb = function(Alpha, alphaK, d, k,  centMat, ...){
@@ -1937,10 +1845,6 @@ heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){
     } else {rbind(centMat, 2*Alpha, t(alphaK))}
 }
 ```
-
-$$-(2hb_2cy_2 + b_1cy_2)(2hb_2 +
-b_1)cy \psi^2
-\frac{\mu}{(\frac{\mu}{\theta} + 1)} \\ + (2hb_2cy_2 + b_1cy_2)(2hb_2 + b_1)(\mu - x) cy\psi^2 \frac{\mu}{\theta(\mu)/\theta + 1)^2}) - 2(\mu) - x)b_2cycy_2\frac{\psi}{\frac{\mu}{\theta} + 1})$$
 
 ## Wrapper for all distributions
 
