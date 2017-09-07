@@ -1784,21 +1784,6 @@ normCurve = function(fit, newDataLength = 200){
   fitted(fit)/auc
 }
 #--------------------------------------#
-# A function to evaluate the score function for 1 taxon at the time
-dNBllcol_constr = function(betas, X, reg, theta, muMarg, psi) {
-  # @param beta: a vector of regression parameters (\boldsymbol{beta}_j)
-  # @param X: the nx1 data vector
-  # @param reg: a matrix of regressors with the same length as beta (\mathbf{C} \boldsymbol{\alpha})
-  # @param theta: The dispersion parameter
-  # @param mumarg: offset of length n
-  # @param cReg:a scalar psi_k * s_{jk}
-
-  # @return The evaluation of the score functions
-
-  mu = exp(c(reg %*% betas)*psi) * muMarg
-  crossprod((X-mu)/(1+mu/theta) , reg) * psi
-}
-#--------------------------------------#
 # A function to evaluate the score function ignoring taxon labels
 dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, psi, n, ncols,...) {
   # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
@@ -1812,7 +1797,6 @@ dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, psi, n, ncols,..
 
   mu = c(exp(reg %*% betas*psi)) * muMarg
   colSums(crossprod((X-mu)/(1+(mu/thetas)),reg) * psi)
-
 }
 #--------------------------------------#
 # The jacobian of this function
@@ -2861,6 +2845,18 @@ plot(CMETRCM, samColour = "Reactor.phase")
 plot(CMETRCM, samColour = "Timepoint")
 plot(CMETRCM, samColour = "collection_date")
 plot(CMETRCM, samColour = "Reactor.cycle")
+```
+
+```{r plotCMETquad, purl = FALSE}
+plot(CMETRCMquad)
+plot(CMETRCMquad, samColour = "ph")
+plot(CMETRCMquad, samColour = "temp")
+plot(CMETRCMquad, samColour = "Conductivity")
+plot(CMETRCMquad, samColour = "cellDensity")
+plot(CMETRCMquad, samColour = "Reactor.phase")
+plot(CMETRCMquad, samColour = "Timepoint")
+plot(CMETRCMquad, samColour = "collection_date")
+plot(CMETRCMquad, samColour = "Reactor.cycle")
 ```
 
 We clearly have two groups in the second dimension, partly explained by the _Reactor.phase_ and _collection.date_ variables. In the first dimension we have a strong time signal.
