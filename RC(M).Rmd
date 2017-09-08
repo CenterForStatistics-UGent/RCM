@@ -48,7 +48,7 @@ The underlying motivation is to develop a visualization technique for the microb
 
 ### Correspondence analysis
 
-Suppose we have a $nxp$ count data matrix $\mathbf{X}$ with $n$ samples and $p$ taxa, with $i$ and $j$ row respectively column indices. The count matrix has been trimmed to exclude all-zero rows and columns.
+Suppose we have a $nxp$ count data matrix $\mathbf{X}$ with $n$ samples (sites) and $p$ taxa (species), with $i$ and $j$ row respectively column indices. The count matrix has been trimmed to exclude all-zero rows and columns.
 
 #### Independence model
 
@@ -56,35 +56,87 @@ Under independence between rows and columns we model the counts in a contingency
 
 $$E(X_{ij}) = a_i b_j$$
 
-whereby usually $a_i=x_{i.}=\sum_{j=1}^px_{ij}$ (the library sizes) and $b_j=\frac{x_{.j}}{x_{..}}=\frac{\sum_{i=1}^nx_{ij}}{\sum_{j=1}^p\sum_{i=1}^nx_{ij}}$ (the average relative abundances).
+whereby usually $a_i=x_{i.}=\sum_{j=1}^px_{ij}$ (the library sizes) and $b_j=\frac{x_{.j}}{x_{..}}=\frac{\sum_{i=1}^nx_{ij}}{\sum_{j=1}^p\sum_{i=1}^nx_{ij}}$ (the average relative abundances). The matrix of expectations under the independence model can then be written as:
+
+$$E = \frac{R\mathbf{11}^TC}{x_{..}}$$
+
+with $x_{..}=\sum_{i=1}^n\sum_{j=1}^px_{ij}$ the total sum of the count table, and __1__ a row vector of ones of suitable length.
+
+There exist many variation so of correspondence analysis, but all are concerned with the difference between the observed count __X__ and the expected counts based on the margins __E__: $X-E$. This means that the signal can come from observations that are either smaller or larger than expected. This two-way mode of deviations will give rise to the unimodality of correspondence analysis (see later).
+
+The aim is to represent these departures from independence in a few important dimensions.
 
 #### Reconsitution formula of Correspondence Analysis (CA)
 
-A more extended model is
+A more extended model than the independence model is
 
 $$E(X_{ij}) = a_i  b_j + c_i d_j \sum_{k=1}^K \omega_k v_{ki} w_{jk}$$.
 
-For $a_i = c_i = x_{i.}$ and $b_j = d_j = \frac{x_{.j}}{x_{..}}$ this is regular correspondence analysis. The second term in the equation represents deviation from independence. This is called the *reconstitution formula* since it decomposes the observed average count into its expectation under independence and a residual. The residual is then further decomposed into $k$ pieces. The expected count can then be written as
+with $a_i = c_i = x_{i.} = \sum_{j=1}^px_{ij}$ and $b_j = d_j = \frac{x_{.j}}{x_{..}}$ with $x_{.j} = \sum_{i=1}^nx_{ij}$. K = min(n,p) and the terms are ordered such that $\omega_1 >\omega_2>...>\omega_K$. When fitted, the second series of terms will attempt to repair discrepancies between __X__ and __E__ and as such capture departures from independence. This is called the *reconstitution formula* since it decomposes the observed average count into its expectation under independence and a residual. The residual is then further decomposed into $k$ pieces.
+The first two dimensions $(\omega_1\mathbf{v}_1,\omega_2\mathbf{v}_2)$ can then be plotted to represent samples that depart from independence in a similar way. $(\mathbf{w}_1,\mathbf{w}_2)$ can be added to show which taxa contribute to these departures, according to the biplot principle. Note that we give priority to correctly representing distances between _samples_ rather than _taxa_. The orthogonal projection of $(\omega_1 v_{ki}, \omega_2 v_{ki})$ on $(w_{j1},w_{j2})$ then equals $\frac{(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2})}{||(w_{j1},w_{j2})||}$. This value is proportional to the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$ ($(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2}) = \omega_1 v_{ki} w_{j1} + \omega_2 v_{ki} w_{j2}$), with the norm of the species vector as proportionality constant. We could fit this model by maximum likelihood after assuming e.g. a Poisson distribution, but it is much more efficient to do this through a matrix decomposition
 
-$$E(X_{ij}) = \frac{x_{i.}x_{.j}}{x_{..}} \big(1 + \sum_{k=1}^K \omega_k v_{ki} w_{jk}\big)$$.
+#### Correspondence analysis as a singular value decomposition
 
-Regular corrsepondence analysis is done through singular value decomposition(SVD) of the matrix of weighted (Pearson) residuals
+Corrsepondence analysis is usually done through singular value decomposition(SVD) of the matrix of departures from independence __X-E__. This is not done on the matrix of raw departures, but is usually weighted by row and column scores in one way or the other, to account for the heteroscedasicity of count data. Subtle differences in choice of weights lead to different versions of correspondence analysis. very often it is not mentioned which version is used, which complicates comparison of results of different packages. We are following "Understanding Biplots", from Gower _et al._ here.
 
-$$R^{-1/2}(X-E)J^{-1/2}=U\Sigma V$$
+CA performs a singular value decomposition of the following matrix
 
-with $\Sigma$ a diagonal matrix with the singular values of $X$ on the diagnonal and $R$ and $J$ diagonal matrices with row and column sums.
+$$A_1 = R^{-1/2}(X-E)J^{-1/2}=U\Sigma V^T$$
+
+with $\Sigma$ a diagonal matrix with the singular values of __X__ (all between 0 and 1) on the diagnonal and __R__ and __J__ diagonal matrices with row and column sums of __X__.
+
+Elements of this matrix are $$a_{1ij} = \frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}}} = \frac{1}{\sqrt(n}}\frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}/n}}$$
+
+, also known as also known as $\sqrt{n}$ times the Pearson standardized residuals. The Pearson standardized residuals standardize the departures from __E__ by dividing by the square root of the expected value. This is in line with the common assumption that for count data $E(X_{ij}) = Var(X_{ij})$ and would yield approximately standard normally distributed variables if this assumption holds and $E(X_{ij})$ is sufficiently large. Hence the sum of squared elements $$\sum_[i=1}^n\sum_{j=1}^pa_{1ij}^2$$ yields 1/n the Pearson $\Chi^2$ statistic to test for association in the contingency table.
 
 In matrix notation the reconstitution formula becomes
 
 $$X = E_{independence} + R^{1/2}U\Sigma VJ^{1/2}$$
 
-with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}J^{1/2}V=\mathbf{0}$ (weighted means equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'K^{1/2}V=\mathbf{1}$ (weighted variances equal one) (see VanDerHeijden et al., 1985).
-
-For plotting usually $\omega_1 \mathbf{v_{1}}$ is plotted versus $\omega_2 \mathbf{v_{2}}$ to correctly represent the distances between the samples. $\mathbf{w_{1}}$ and $\mathbf{w_{2}}$ can then be added to construct a biplot. The orthogonal projection of $(\omega_1 v_{ki}, \omega_2 v_{ki})$ on $(w_{j1},w_{j2})$ then equals $\frac{(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2})}{||(w_{j1},w_{j2})||}$. This value is proportional to the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$ ($(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2}) = \omega_1 v_{ki} w_{j1} + \omega_2 v_{ki} w_{j2}$), with the norm of the species vector as proportionality constant.
+with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}J^{1/2}V=\mathbf{0}$ (weighted means of rows and columns equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'K^{1/2}V=\mathbf{1}$ (weighted variances equal one) (see VanDerHeijden et al., 1985).
 
 Note that the use of correspondence analysis implies unimodal response curves (see later). Hence it is not appropriate to represent species as arrows. Representing them as points is more appropriate.
 
+#### Biplots based on correspondence analysis
+
+Many biplots are possible, we will discuss three of the most important ones.
+
+##### Pearson standardized residuals
+
+We could proceed by plotting the first two columns of $U\Sigma$ to represent the samples and add the first two columns of __V__ to show which taxa contribute to the departure. This seems also the most logical course to me, since it allows to identify samples and species that contribute most to the divergence from independence.
+
+##### Contingency ratio
+
+To optimally represent the distances between samples, we could also plot the columns of $R^{-1/2}U\Sigma$ and add $VC^{-1/2}$ for the species. This representation has the merit of centering the sample and species vectors in the plot. Also in this configuration the site scores are at the _centroids_ or _barycentres_ of the sample scores as can be seen from:
+
+$$R^{-1}X(J^{-1/2}V) = R^{-1/2}(R^{-1/2}XJ^{-1/2})V = R^{-1/2}(R^{-1/2}XJ^{-1/2})V = \\ R^{-1/2}(U\Sigma V' + R^{-1/2}EJ^{-1/2})V = R^{-1/2}(U\Sigma V' + R^{-1/2}EJ^{-1/2})V = R^{-1/2}(U\Sigma V' + R^{-1/2}R11^TJJ^{-1/2})V = R^{-1/2}U\Sigma$$
+ 
+The last step of the derivation relies on the orthogonality of __V__ and on the property $\mathbf{1}^TJ^{-1/2}V = \mathbf{0}$. A centroid is defined as a centre of mass: the weighted average of the sample scores with taxon abundances in that sample as weights. This is the same way as in which the species scores are calculated in PCoA based on the sample scores (see later). This version of correspondence analysis is implemented in the _vegan_ and _phyloseq_ packages, as it was described in Legendre and Legendre, 2012, p466-471.
+
+An alternative way to consider this version is to look at the svd of
+
+$$A_2 = R^-1(X-E)C^{-1} = U'\Sigma V^T' = R^{-1/2}(U \Sigma V^T)C^{-1/2}$$
+
+The elements of the matrix $A_2$ are $a_{2ij} = \frac{x_{ij}-e_{ij}}{e_{ij}} = \frac{x_{ij}}{e_{ij}}-1$. The ratio $\frac{x_{ij}}{e_{ij}}$ represents the relative departure from the expected counts and is called the _contingency ratio_. The biplot of $U'\Sigma$ vs $V'$ will thus visualize contributions to the departure of this contingency ratio.
+
+##### Chi-squared distance
+
+A third biplot is one based on the chi-squared distances. True to our original aim to give priority to samples, we will only discuss chi-squared distances between samples. 
+
+The squared chi-squared distance between two samples $i$ and $i'$ is defined as:
+
+$$d^2_{ii'} = \sum_{j=1}^p \frac{1}{x_{.j}}\Big(\frac{x_{ij}}{x_{i.}}-\frac{x_{i'j}}{x_{i'.}}\Big)^2$$
+, i.e. squared differences in proportions weighted by column scores. A drawback of this distance is that it gives more weighted to taxa with low abundances. The lower dimensional representation of these distances can be achieved by the svd
+
+$$A_3 = R^{-1}(X-E)C^{-1/2} = U'\Sigma V^T = R^{-1/2}U\Sigma V$$
+
+It is evident that the row scores of these biplots will be equal to PCoA biplots based on the chi-squared distance.
+
 Correspondence analysis has been criticised for putting undue emphasis on rare species (Legendre and Gallagher, 2001).
+
+#### Joint plots
+
+Some researchers prefer to plot $U\Sigma$ vs $\SigmaV^T$ to represent distances between both sites and species corrrectly. However, this loses the biplot property (inner product interpration) and end their discussion here.
 
 #### Skewness
 
