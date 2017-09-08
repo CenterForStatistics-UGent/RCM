@@ -1488,39 +1488,6 @@ NBrowInfl = function(X, psis, cMat, rMat, thetas, rowWeights, k, lambdaRow){
 getInflRow = function(score, InvJac, parIndex){
   score* InvJac[, parIndex]
 }
-
-#-------------------------------------------#
-# A function to estimate the overdispersion of the NB with empirical Bayes using the edgeR pacakage
-estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersion, prior.df = 10, dispWeights = NULL, rowMat = NULL)
-{
-  # @param X: the data matrix of dimensions nxp
-  # @param cMat: a 1xp colum scores matrix
-  # @param rMat(optional): a nx1 rowscores matrix, if unconstrained
-  # @param muMarg: an nxp offset matrix
-  # @param psis: a scalar, the current psi estimate
-  # @param trended.dispersion: a vector of length p with pre-calculated trended.dispersion estimates. They do not vary in function of the offset anyway
-  # @param prior.df(optional): an integer, number of degrees of freedom of the prior for the Bayesian shrinkage
-  # @param dispWeights (optional): Weights for estimating the dispersion in a zero-inflated model
-  # @param rowMat: matrix of row scores in case of constrained ordination
-  
-  # @return A vector of length p with dispersion estimates
-  
-  require(edgeR)
-  logMeansMat = 
-    if(!is.null(rMat)){ #Unconstrained
-      t(rMat %*% (cMat * psis) + log(muMarg))
-    } else { #Constrained
-      t(log(muMarg) + psis* rowMat)
-    }
-  thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL,
-                                        prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
-  if (anyNA(thetaEsts)) {
-    idNA = is.na(thetaEsts)
-    thetaEsts[idNA] = mean(thetaEsts[!idNA])
-    warning(paste(sum(idNA), "dispersion estimations did not converge!"))
-  }
-  return(thetas = thetaEsts)
-}
 #-------------------------------------------#
 # A function to trim based on confounders to ensure there are no taxa with only zero counts in one of the subgroups defined by the confounders. Returns a trimmed data matrix, should be called prior to fitting the independence model
 trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
@@ -1544,7 +1511,6 @@ trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
   
   X[, !trimmingID] #Return trimmed X
 }
-
 #-------------------------------------------#
 #A function to filter out the effect of known confounders. This is done by fitting interactions of every taxon with the levels of the confounders. 
 
