@@ -23,9 +23,9 @@ for(i in reqpkg)
 if(detectCores()==4) setwd(WD)
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = palette()
-levelsMeth = c("CA","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
-labelsMeth = c("CA","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
-groupsMeth = factor(c("Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM"), ordered = TRUE)
+levelsMeth = c("CApearson","CAcontrRat","CAchisq","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
+labelsMeth = c("CApearson","CAcontrRat","CAchisq","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
+groupsMeth = factor(c("Independence","Independence","Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM"), ordered = TRUE)
 names(groupsMeth) = grep(levelsMeth, value  = TRUE, pattern ="Control", invert = TRUE)
 funFiles = dir("R")
 funFilesPub = dir("pubFun")
@@ -2871,7 +2871,8 @@ mclapply(mc.cores = cores, RCMlist, function(x){
 extractRows = function(x){
 tmpList = with(x, list(
     RCM = RCM$rMat %*% diag(RCM$psis),
-    CA = CA$u %*% diag(CA$d),
+    CApearson = CA$u %*% diag(CA$d),
+    CAcontRat = CAchisq  = daig(1/sqrt(rowSums(RCM$X))) %*% CA$u %*% diag(CA$d),
     DCA = DCA$rproj,
     CoDa = CoDa$rowScores,
     BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
@@ -2892,7 +2893,8 @@ lapply(tmpList, function(y){
 extractCols = function(x, row){
   tmpList = with(x, list(
     RCM = t(RCM$cMat),
-    CA = CA$v,
+    CApearson = CAchisq = CA$v,
+    CAcontRat = diag(1/sqrt(colSums(RCM$X))) %*% CA$v,
     DCA = DCA$cproj,
     CoDa = CoDa$colScores,
     BC = weightedTaxonScores(RCM$X, row$BC),
@@ -2958,6 +2960,8 @@ par(mfrow = c(1,1))
 #----------------------------------#
 # A function to plot the silhouettes
 plotSil = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]),las = 2,...){
+  parTmp = par(no.readonly = TRUE)
+  par(mfrow=  c(1,1))
 sil1  = lapply(resListRows, function(x){
   sapply(x, silhouette, clusters = groupFactor)
 })
@@ -2974,6 +2978,7 @@ meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
 points(meansSil, col="red", pch=18, cex = 1.6)
 abline(h=0, lty = "dashed")
 addLegend(groupMeth = groupMeth)
+par(parTmp)
 }
 #---------------------------------#
 distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]),log = FALSE, las = 2,...) {
@@ -3655,8 +3660,17 @@ rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
 
 randomTree = rtree(n = p, tip.label = names(rhosSampled0)) # The random tree
-dd = as.dist(cophenetic.phylo(randomTree)) #Get branch lenghts
-psclust = cutree(as.hclust(hclust(dd)), k = k) #Split into clusters
+# newHclust = list(merge = randomTree$edge, labels = randomTree$tip.label)
+# class(newHclust) = "hclust"
+# outgroup <- match(c("root1","root2"),randomTree$tip.label)
+# sptree.rooted <- root(randomTree,outgroup,node = NULL)
+
+sptree.rooted.ultra <- chronopl(randomTree, 0, age.min = 1, age.max = NULL,node = "root", S = 1, tol = 1e-8,CV = FALSE, eval.max = 500, iter.max = 500) #Make tree ultrametric
+
+
+# dd = as.dist(cophenetic.phylo(randomTree)) #Get branch lenghts
+# psclust = cutree(as.hclust(hclust(dd)), k = k) #Split into clusters
+psclust = cutree(as.hclust(sptree.rooted.ultra), k = k) #Split into clusters
   
 #For each population, modify the abundances of a cluster of related taxa. Record the clusters that have been modified.
 rhosIDSampled = lapply(cluSampled, function(x, rhos){
@@ -3722,6 +3736,11 @@ plotCor(resListPhyRows, datListPhy, dataMat = TRUE)
 ```
 
 Regular unifrac suffers from correlations with the library sizes
+
+```{r resListPhy taxaBiplot, purl = FALSE}
+#A taxon biplot
+randomScatter(resListPhyCols)
+```
 
 ```{r AbCorrPhy, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:abCorPhy}"}
 plotCor(resListPhyCols, datListPhy, dataMat = TRUE, scoreDim = "columns")
