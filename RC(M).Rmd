@@ -514,7 +514,20 @@ __X__ and __Y__ are column centered to obtain __A__ and __B__, and then we look 
 
 ### Redundancy analysis (RDA)
 
-Redundancy analysis extracts variation between variables of a n-by-p dataset __X__ that can be explained by variables from another n-by-d dataset __Y__. It is a constrained version of principal components analysis (PCA), whereby principal components are restricted to be linear combinations of the set of constraining variables.
+Redundancy analysis extracts variation between variables of a n-by-p dataset __X__ that can be explained by variables from another n-by-d dataset __Y__ (column centered). It is a constrained version of principal components analysis (PCA), whereby principal components are restricted to be linear combinations of the set of constraining variables.
+
+In a first step the rows of __X__ are fitted on those of __Y__ in multiple linear regression:
+
+$$\widehat{X} = X (Y^tY)^{-1}Y^t X$$
+
+Next the covariance matrix $\widehat{X}^t\widehat{X}$ is subjected to regular PCA:
+
+$$\widehat{X}^t\widehat{X} = W \Lambda W^t$$
+We plot the first columns of $\widehat{X} W \Lambda$ to represent the variability of __X__ explained by __Y__. Components of $B = (Y^tY)^{-1}Y^t X$ may be added to show which columns of __Y__ explain most variance of __X__.
+
+#### Partial redundancy analysis
+
+In partial redundancy analysis, the effect of a second covariate matrix Z is conditioned on prior to PCA or RDA. __X__ is regressed on __Z__, PCA or RDA proceeds on the residual matrix of this regression.
 
 ### Constrained/canonical correspondence analysis (CCA)
 
@@ -1262,31 +1275,6 @@ anacor2 = function (tab, ndim = 2, row.covariates, col.covariates, scaling = c("
 ### Negative binomial
 
 ```{r NBauxFuns, purl=TRUE}
-#-------------------------------------#
-#A score function for the row components of the independence model (library sizes (u_i))
-dNBlibSizes = function(beta, X, reg, thetas){
-  mu = exp(outer(beta,reg, "+"))
-  rowSums((X-mu)/(1+(mu/thetas)))
-}
-#------------------------------------#
-# The corresponding Jacobian
-NBjacobianLibSizes = function(beta, X, reg, thetas){
-       mu = exp(outer(beta,reg, "+"))
-  diag(-rowSums((1+(X/thetas))*mu/(1+(mu/thetas))^2))
-}
-#-------------------------------------#
-#A score function for the column components of the independence model (mean relative abundances (u_j))
-dNBabunds = function(beta, X, reg, thetas){
-    mu = exp(outer(reg,beta, "+"))
-  score = colSums((X-mu)/(1+(mu/thetas)))
-}
-#------------------------------------#
-# The corresponding Jacobian
-NBjacobianAbunds = function(beta, X, reg, thetas){
-    mu = exp(outer(reg,beta, "+"))
-  -diag(colSums((1+(X/thetas))*mu/(1+(mu/thetas))^2))
-}
-
 #------------------------------#
 #A small aux function for the length of the lambdas
 seq_k = function(y){
@@ -2609,11 +2597,11 @@ PCA is performed as an eigenvalue decomposition of the variance covariance matri
 
 $$Y^tY = W \Lambda W^t$$
 
-with $W^TW = I$. This dimensionality reduction optimally represents Euclidean distances between samples in lower dimensions. Its use with dummies of categorical variables is problematic, since they are inherently correlated and affect the ordination of the PCA.
+with $W^TW = I$. The variables (columns) of __Y__ are presumed to be centered and scaled. This dimensionality reduction optimally represents Euclidean distances between samples in lower dimensions. Its use with dummies of categorical variables is problematic, since they are inherently correlated and affect the ordination of the PCA. This analysis seems usefull for explorative visualization of continuous covariate data, rather than counts.
 
 #### PCA on ranks
 
-In the phyloseq manual it is proposed to perform PCA on ranked abundance data
+In the phyloseq manual it is proposed to perform PCA on ranked abundance data.
 
 ### Correspondence analysis
 
@@ -2914,7 +2902,7 @@ extractCols = function(x, row){
     UniFrac = if(!is.null(UniFrac))  {weightedTaxonScores(RCM$X, row$UniFrac)} ,
     wUniFrac = if(!is.null(wUniFrac)) {weightedTaxonScores(RCM$X, row$wUniFrac)} ,
     BCrelNMDS = BCrelNMDS$species,
-    Hellinger = Hellinger$v %*% 1/diag((crossprod(sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)), diag(rowSums(RCM$X))) %*% (sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)))))
+    Hellinger = diag(1/diag((crossprod(sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)), diag(rowSums(RCM$X))) %*% (sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)))))) %*% Hellinger$v
     ))
   tmpList = tmpList[!sapply(tmpList, is.null)]
   rowNames = rownames(tmpList$RCM)
