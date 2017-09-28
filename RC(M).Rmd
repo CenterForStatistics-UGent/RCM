@@ -10,7 +10,7 @@ output:
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","alabama", "reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape", "SpiecEasi", "Matrix")
 # Load all required packages and show version
@@ -23,8 +23,8 @@ for(i in reqpkg)
 if(detectCores()==4) setwd(WD)
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = palette()
-levelsMeth = c("CApearson","CAcontrRat","CAchisq","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
-labelsMeth = c("CApearson","CAcontrRat","CAchisq","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
+levelsMeth = c("CApearson","CAcontRat","CAchisq","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
+labelsMeth = c("CApearson","CAcontRat","CAchisq","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
 groupsMeth = factor(c("Independence","Independence","Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM"), ordered = TRUE)
 names(groupsMeth) = grep(levelsMeth, value  = TRUE, pattern ="Control", invert = TRUE)
 funFiles = dir("R")
@@ -38,7 +38,7 @@ for (i in funFilesPub) {source(file.path("pubFun",i))}
 
 # Introduction
 
-The aim of this notebook is to wrap the codes to fit the RC(M) model with the negative binomial, zero-inflated poisson and zero-inflated negative binomial models. Also an overview of the theory is given here.
+The aim of this notebook is to wrap the codes to fit the RC(M) model with the negative binomial, zero-inflated poisson and zero-inflated negative binomial models. Also an overview of the theory is given here. Functions for fitting the RC(M) model have been moved to separate files in the "R"-folder, functions related the simulation study but not belonging to the core RC(M) methodology are shown in 
 
 The underlying motivation is to develop a visualization technique for the microbiome that does not suffer from the defects of currently applied techniques such as PCA, PCoA with Bray-Curtis distance etc. These methods are in particular sensitive to differences in library size.
 
@@ -130,9 +130,9 @@ $$d^2_{ii'} = \sum_{j=1}^p \frac{1}{x_{.j}}\Big(\frac{x_{ij}}{x_{i.}}-\frac{x_{i
 
 $$A_3 = R^{-1}(X-E)C^{-1/2} = U'\Sigma V^T = R^{-1/2}U\Sigma V$$
 
-It is evident that the row scores of these biplots will be equal to PCoA biplots based on the chi-squared distance.
+It is evident that the row scores of these biplots will be equal to PCoA biplots based on the chi-squared distance, and to the row scores of the correspondence analysis based on the contingency ratio. The column scores on the other hand, are equal to those from the approximation to the Pearson residuals.
 
-Correspondence analysis has been criticised for putting undue emphasis on rare species (Legendre and Gallagher, 2001).
+This form of correspondence analysis has been criticised for putting undue emphasis on rare species (Legendre and Gallagher, 2001 and Rao, 1997).
 
 #### Joint plots
 
@@ -1994,34 +1994,11 @@ legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), 
 return(invisible())
   par(tmp)
 }
-#--------------------------------#
-# A function to enforce squareness
-squarePlot <- function(plt){
-    return(plt+coord_fixed()+
-            expand_limits(x=ggplot_build(plt)$panel$ranges[[1]]$y.range,
-                          y=ggplot_build(plt)$panel$ranges[[1]]$x.range))
-}
-#--------------------------------#
-# A function that returns the coordinates of an ellipse, given the parameters of teh quadratic function and the fraction of the peak at which to draw the ellipse
-ellipseCoord = function(a,b,c, quadDrop = 0.95, nPoints = 100){
-  center = -b/(2*a)
-  roots = mapply(a,b,c, FUN = function(A,B,C){
-     Re(polyroot(c(C - log(ifelse(A>0,1/quadDrop,quadDrop)) + (B^2-4*A*C)/(4*A), B, A))[1]) #Log to go to count scale. Since function is symmetric, does not matter which root we pick, only distance to vertex matters so we just take the first
-  })
-  anglesEval = seq(0,2*pi, length.out = nPoints)
-  ab = center-roots
-  radii = prod(ab)/sqrt(sin(anglesEval)^2*ab[1]^2 + ab[2]^2* cos(anglesEval)^2)
-  cbind(x = radii*cos(anglesEval) + center[1], y = radii * sin(anglesEval) + center[2])
-}
 ```
 
 ## Auxiliary functions
 
 ```{r auxFuns}
-# A function to efficiently row multiply a a-by-b matrix by a vector of length b. More memory intensive but that does not matter with given matrix sizes
-rowMultiply = function(matrix, vector){
-  matrix * rep(vector, rep(nrow(matrix),length(vector)))
-}
 #An auxiliary R function to "array" multiply an array with a vector, kindly provided by Joris Meys
 #-------------------------------------------#
 arrayprod <- function(x,y){
@@ -2424,8 +2401,6 @@ if(!file.exists(file = "armpitRCM.RData")){
 } else {load(file = "armpitRCM.RData")}
 ```
 
-#Linear response functions seem to require a stricter cut-off
-
 ```{r ArmpitPlot1, purl = FALSE}
 plot(armpitRCM)
 plot(armpitRCM, samColour = "shaving")
@@ -2436,9 +2411,21 @@ plot(armpitRCM, samColour = "antimicrobial")
 rm(armpitRCM)
 ```
 
+```{r ArmpitPlot1, purl = FALSE}
+plot(armpitRCMconstrLin)
+plot(armpitRCMconstrLin, samColour = "shaving")
+plot(armpitRCMconstrLin, samColour = "odor_panel")
+plot(armpitRCMconstrLin, samColour = "gender")
+plot(armpitRCMconstrLin, samColour = "age")
+plot(armpitRCMconstrLin, samColour = "antimicrobial")
+rm(armpitRCMconstrLin)
+```
+
+OTU855 staphylococcus represents a clear outlier, in the other direction the Corynebacteria react most strongly to the environmental gradient. Fish and bread consumption appear to be drivers of the environmental gradient. Note how different the results of the constrained and unconstrained analyses are.
+
 ##### CMET data
 
-This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing relative counts trhough 16S sequencing that can be multiplied by absolute counts from flow cytometry to get truly absolute abundances that reflect the number of cells. This type of data does not qualify for the term _compositional data_ anymore. The advent of these kind of approaches support the use of count models rather than compositional data approaches.
+This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing relative counts through 16S sequencing that can be multiplied by absolute counts from flow cytometry to get truly absolute abundances that reflect the number of cells. This type of data does not qualify for the term _compositional data_ anymore. The advent of these kind of approaches support the use of count models rather than compositional data approaches.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
 if(!file.exists(file = "ata.RData")){
@@ -2570,17 +2557,23 @@ It is a true distance.
 
 #### Hellinger distance
 
-This came up during our own researhc into a version of correspondence analysis that would accurately model the variance of our count data. Still it is designed for distances between distributions rather than between real data ratios.
+This came up during our own research into a version of correspondence analysis that would accurately model the variance of our count data. Still, it was originally designed for distances between distributions rather than between real data ratios.
 
 The Hellinger distance divides by the square root of the observation as means of normalization:
 
 $$\frac{X}{\sqrt{Var(X)}} \approx \frac{X}{\sqrt{X}} = \sqrt{X}$$
 
-The rationale is that each observation x is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes. See Rao (1997), who suggests this method as an alternative to correspondence analysis. The drawback of correspondence analysis is that the estimate for the expected abundances used to standardize departures from independence $X-E$ is based on the taxon sums, and thus on other samples. With the Hellinger distance only, the sample itself is used to estimate the expected abundances, namely by the count itself. It is defined as 
+The rationale is that each observation x (rather than the margins of the table) is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes. See Rao (1997), who suggests this method as an alternative to correspondence analysis. The drawback of correspondence analysis is that the estimate for the expected abundances used to standardize departures from independence $X-E$ is based on the taxon sums, and thus on other samples. With the Hellinger distance only, the sample itself is used to estimate the expected abundances, namely by the count itself. It is defined as 
 
-$$d_{hellinger}^2(a,b) = \sum_{j=1}^p (\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_{bj}}{x_{b.}}})^2 $$
+$$d_{hellinger}^2(a,b) = \sum_{j=1}^p \Big(\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_{bj}}{x_{b.}}}\Big)^2 $$
 
 . It does works on the relative abundances. It has been used in publications on microbiome, e.g. Kreisinger _et al._, 2015, Hollister _et al._ 2015, Vital _et al._, 2015.
+
+For a biplot we find the singular value decomposition
+
+$$R^{1/2}(P-Q) = STV^t$$
+
+with $p_{ij} = \sqrt{\frac{x_{ij}}{x_{i.}}}$ and $q_{ij} = \sqrt{\frac{x_{.j}}{x_{..}}}$. To represent the samples we plot the first $k$ columns of $TR^{1/2}S$, and to add the taxa we can add the first $k$ columns of $\Delta^{-1}V$ with $\delta_{ij} = \Big(\sqrt{(P-Q)^tR(P-Q)}\Big)_{ij}$ if $i=j$ and 0 otherwise.
 
 #### Transformations
 
@@ -2872,7 +2865,8 @@ extractRows = function(x){
 tmpList = with(x, list(
     RCM = RCM$rMat %*% diag(RCM$psis),
     CApearson = CA$u %*% diag(CA$d),
-    CAcontRat = CAchisq  = daig(1/sqrt(rowSums(RCM$X))) %*% CA$u %*% diag(CA$d),
+    CAcontRat = diag(1/sqrt(rowSums(RCM$X))) %*% CA$u %*% diag(CA$d),
+    CAchisq  = diag(1/sqrt(rowSums(RCM$X))) %*% CA$u %*% diag(CA$d),
     DCA = DCA$rproj,
     CoDa = CoDa$rowScores,
     BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
@@ -2893,15 +2887,16 @@ lapply(tmpList, function(y){
 extractCols = function(x, row){
   tmpList = with(x, list(
     RCM = t(RCM$cMat),
-    CApearson = CAchisq = CA$v,
+    CApearson = CA$v,
+    CAchisq = CA$v,
     CAcontRat = diag(1/sqrt(colSums(RCM$X))) %*% CA$v,
     DCA = DCA$cproj,
     CoDa = CoDa$colScores,
     BC = weightedTaxonScores(RCM$X, row$BC),
     JSD = weightedTaxonScores(RCM$X, row$JSD),
     BCrel = weightedTaxonScores(RCM$X, row$BCrel),
-    UniFrac = if(!is.null(UniFrac))  weightedTaxonScores(RCM$X, row$UniFrac) ,
-    wUniFrac = if(!is.null(wUniFrac)) weightedTaxonScores(RCM$X, row$wUniFrac) ,
+    UniFrac = if(!is.null(UniFrac))  {weightedTaxonScores(RCM$X, row$UniFrac)} ,
+    wUniFrac = if(!is.null(wUniFrac)) {weightedTaxonScores(RCM$X, row$wUniFrac)} ,
     BCrelNMDS = BCrelNMDS$species,
     Hellinger = Hellinger$v
     ))
@@ -3001,8 +2996,10 @@ randomScatter = function(list, Dim = c(1,2), col = "black"){
   parTmp = par(no.readonly = TRUE)
   if(length(list)<=9) {
     par(mfrow = c(3,3), mar = c(3,3,3,3))
-  } else {
+  } else if(length(list)<=12){
      par(mfrow = c(3,4), mar = c(3,3,3,3))
+  } else {
+    par(mfrow = c(4,4), mar = c(3,3,3,3))
   }
 ID = sample(size=1, seq_along(list))
 obj = list[[ID]]
@@ -3659,19 +3656,11 @@ cluSampled = sample(clusters, nPop) #Cluster to be made DA
 rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
 
-randomTree = rtree(n = p, tip.label = names(rhosSampled0)) # The random tree
-# newHclust = list(merge = randomTree$edge, labels = randomTree$tip.label)
-# class(newHclust) = "hclust"
-# outgroup <- match(c("root1","root2"),randomTree$tip.label)
-# sptree.rooted <- root(randomTree,outgroup,node = NULL)
+randomTree = rcoal(n = p, tip.label = names(rhosSampled0)) # The random tree, use rcoal to make it ultrametric
+psclust = cutree(as.hclust(randomTree), k = k) #Split into clusters
+names(psclust) = randomTree$tip.label #Assign names
+psclust = psclust[names(rhosSampled0)] #Reorder according to the rhos
 
-sptree.rooted.ultra <- chronopl(randomTree, 0, age.min = 1, age.max = NULL,node = "root", S = 1, tol = 1e-8,CV = FALSE, eval.max = 500, iter.max = 500) #Make tree ultrametric
-
-
-# dd = as.dist(cophenetic.phylo(randomTree)) #Get branch lenghts
-# psclust = cutree(as.hclust(hclust(dd)), k = k) #Split into clusters
-psclust = cutree(as.hclust(sptree.rooted.ultra), k = k) #Split into clusters
-  
 #For each population, modify the abundances of a cluster of related taxa. Record the clusters that have been modified.
 rhosIDSampled = lapply(cluSampled, function(x, rhos){
   id = x == psclust
@@ -3707,7 +3696,7 @@ save(RCMresListPhy, file = "RCMsim/resListPhyRCM.RData")
   listID = sapply(RCMresListPhy, is.list)
 resListPhy = otherAnalyses(RCMresListPhy[listID], unifrac = TRUE, treeList = lapply(datListPhy[listID], function(x){x$randomTree}) )
 IDlistPhy = lapply(datListPhy[listID], function(x){
-   taxa = apply(x$IDsampled, 2, function(y){rownames(x$rhosSampled)[as.logical(y)]})
+   taxa = lapply(seq_len(ncol(x$IDsampled)), function(y){rownames(x$rhosSampled)[as.logical(x$IDsampled[,y])]})
    })
 resListPhyRows = lapply(resListPhy, extractRows)
 resListPhyCols = mapply(resListPhy, resListPhyRows,FUN = extractCols, SIMPLIFY = FALSE)
@@ -3727,15 +3716,17 @@ plotSil(resListPhyRows, groupFactorPhy, las = 2)
 The Unifrac distances do not seem to get any advantage from their phylogenetic distances
 
 ```{r resListPhyEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. \\label{fig:distPhy}"}
-distRatioPlot(resListPhyRows, groupFactorPhy)
+distRatioPlot(resListPhyRows, groupFactorPhy, log = TRUE)
 ```
+
+The distance ratio statistic does reveal an advantage for weighted UniFrac in this setting.
 
 ```{r libSizeCorrPhy, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCorPhy}"}
 datListPhy = lapply(resListPhy, function(x){x$RCM$X})
 plotCor(resListPhyRows, datListPhy, dataMat = TRUE)
 ```
 
-Regular unifrac suffers from correlations with the library sizes
+But weighted unifrac suffers from correlations with the library sizes
 
 ```{r resListPhy taxaBiplot, purl = FALSE}
 #A taxon biplot

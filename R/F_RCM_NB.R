@@ -412,6 +412,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         if(responseFun %in% c("linear","quadratic")){
           if (verbose) cat("\n Estimating response function \n")
+          #Psis
+          if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
+          psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod)$x)
         # NB_params_tmp = nleqslv(x = c(NB_params[,,KK], lambdaResp), fn = respFunScoreMat, jac = respFunJacMat, X = X, reg = design, thetaMat = thetasMat, muMarg = muMarg, v=v, p = p, psi = psis[KK], control = nleqslv.control, IndVec = IndVec, IDmat = IDmat)$x
         # NB_params[,,KK] = matrix(NB_params_tmp[seq_len(p*v)], nrow = v, ncol = p)
         # lambdaResp = NB_params_tmp[p*v + seq_len(v)]
@@ -421,10 +424,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2)) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
 
         NB_params_noLab[, KK] = nleqslv(x = NB_params_noLab[, KK] , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, psi = psis[KK], X = X, control = nleqslv.control, jac = JacCol_constr_noLab, n=n, v=v)$x
-
-        #Psis
-        if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
-        psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod)$x)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
     AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p)$x
