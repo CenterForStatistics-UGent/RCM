@@ -543,9 +543,13 @@ $$(C^TX(C^TRC)^{-1}X^TC - \boldsymbol{\lambda}J)\mathbf{s} = \mathbf{0}$$
 
 The first equation represents a generalized eigenvalue problem, the second a regular eigenvalue problem since __J__ is a diagonal matrix.
 
-Another approximation to CCA follows more the path we have before with CCA. Hereby the rows of the chi-square transformed matrix $\mathbf{R^{-1/2}(X-E)C^{-1/2}}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals $\mathbf{R}$ as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting, with the library sizes as weights. The row-weight-centered matrix $C'$ is thus calculated as $C' = C(I - \frac{1}{c_{..}d}R\mathds{1}$. Then singular value decomposition is applied to the matrix of fitted values $F = Y (C^T R C)^{-1} C' R R^{-1/2}(X-E)C^{-1/2}$ of this regression, such that $F = U'\Sigma'V'$. Using the fitted values assures that only the systematic part explained by the covariates plays a role. 
+Another approximation to CCA follows more the path we have before with CA. Hereby the rows of the chi-square transformed matrix $\mathbf{R^{-1/2}(X-E)C^{-1/2}}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals $\mathbf{R}$ as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting, with the library sizes as weights. The row-weight-centered matrix $C'$ is thus calculated as $C' = C(I - \frac{1}{c_{..}d}R\mathds{1}$. Then singular value decomposition is applied to the matrix of fitted values $F = Y (C^T R C)^{-1} C' R R^{-1/2}(X-E)C^{-1/2}$ of this regression, such that $F = U'\Sigma'V'$. Using the fitted values assures that only the systematic part explained by the covariates plays a role. 
 
-A third approach by ter Braak in _"The history of canonical correspondence analysis"_ (2014) uses a direct SVD. Here he also references Goodman's work.
+A third approach by ter Braak in _"The history of canonical correspondence analysis"_ (2014) uses a direct SVD. Here he also references Goodman's work. The singular value approach he proposes is:
+
+$$(Y^tRY)^{-1/2}Y^tXC^{-1/2} = U\Sigma V^t$$
+
+The environmental gradients are then $(Y^tRY)^{-1/2}U \Sigma$, the taxon scores $C^{-1/2}V$.
 
 CCA is related to weighted Redundancy analysis (RDA) of the Chi-squared distances, just like regular CA is related to PCoA of Chi-squared distances.
 
@@ -2397,6 +2401,7 @@ if(!file.exists(file = "armpitRCM.RData")){
   armpitRCM = RCM(armpit, k=3)
   armpitRCMconstrLin = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "linear")
   armpitRCMconstrQuad = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "quadratic")
+  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric")
   save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, file = "armpitRCM.RData")
 } else {load(file = "armpitRCM.RData")}
 ```
@@ -2459,6 +2464,7 @@ if(!file.exists(file = "CMETRCM.RData")){
   envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "collection_date", "Timepoint", "Reactor.cycle")
   CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
   CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET)
+  CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET)
   save(CMETRCM, CMETRCMlin, CMETRCMquad, file = "CMETRCM.RData")
 } else {load(file = "CMETRCM.RData")}
 ```
@@ -2597,7 +2603,17 @@ Non-metric multidimensional scaling (NMDS) can be considered the little brother 
 
 ### PCA
 
+Principal components analysis (PCA) is perhaps the most widely used of all dimension reduction methods. Out os a number of possibly correlated continuous variables, it creates linear combinations of these variables that are orthogonal to each other, and for which each linear combinations has maximal variance, conditional on the previous ones.
+
+PCA is performed as an eigenvalue decomposition of the variance covariance matrix
+
+$$Y^tY = W \Lambda W^t$$
+
+with $W^TW = I$. This dimensionality reduction optimally represents Euclidean distances between samples in lower dimensions. Its use with dummies of categorical variables is problematic, since they are inherently correlated and affect the ordination of the PCA.
+
 #### PCA on ranks
+
+In the phyloseq manual it is proposed to perform PCA on ranked abundance data
 
 ### Correspondence analysis
 
@@ -2875,7 +2891,7 @@ tmpList = with(x, list(
     BCrelNMDS = BCrelNMDS$points,
     UniFrac = if(is.null(UniFrac)) NULL else UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
     wUniFrac = if(is.null(wUniFrac)) NULL else wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
-    Hellinger = Hellinger$u %*% diag(Hellinger$d)
+    Hellinger = diag(sqrt(1/rowSums(RCM$X))) %*% Hellinger$u %*% diag(Hellinger$d)
     ))
 tmpList = tmpList[!sapply(tmpList, is.null)]
 lapply(tmpList, function(y){
@@ -2898,7 +2914,7 @@ extractCols = function(x, row){
     UniFrac = if(!is.null(UniFrac))  {weightedTaxonScores(RCM$X, row$UniFrac)} ,
     wUniFrac = if(!is.null(wUniFrac)) {weightedTaxonScores(RCM$X, row$wUniFrac)} ,
     BCrelNMDS = BCrelNMDS$species,
-    Hellinger = Hellinger$v
+    Hellinger = Hellinger$v %*% 1/diag((crossprod(sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)), diag(rowSums(RCM$X))) %*% (sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)))))
     ))
   tmpList = tmpList[!sapply(tmpList, is.null)]
   rowNames = rownames(tmpList$RCM)
