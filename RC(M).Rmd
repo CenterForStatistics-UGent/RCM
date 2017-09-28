@@ -679,11 +679,17 @@ Note that the concept of a "row score" is lost here: since every taxon reacts di
 
 Note that our definition of the response function differs from the response function defined by Zhu and Hastie (2005): it no longer models mean abundance but mean departure from independence.
 
-A linear response function may be most appropriate for problems with __short gradients__ i.e. whereby the difference in observed environmental variables is too short to devine more than an increase or decrease in departure from independence. Also in this case it is easy to interpret the effect of each of the environmental variables on the departure from independence. As so often in statistics, the linearity assumption may not be realistic, but renders models that are easy to interpret ("All models are wrong, but some models are useful"). For problems with __long gradients__, i.e. whereby species' departures of independence rise and drop (or drop and rise) within the score of the observed environmental scores, quadratic response functions may be more appropriate. This corresponds e.g. with the scenario whereby a species' abundance does bot depart a lot from independence for extreme values of the environmental score, and but does depart the independence model for an intermediate value of the environmental score, e.g. it thrives in this environment and its abundance is higher than under independence. In essence this is the same as the approach of Zhu and Hastie, only now the baseline is the independence model rather than 0. Every taxon thereby has its own baseline, the response function models departures from this baseline. If the user is unsure and has enough data, he may use non-parametric response funcion. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret.
+A linear response function may be most appropriate for problems with __short gradients__ i.e. whereby the difference in observed environmental variables is too short to devine more than an increase or decrease in departure from independence. Also in this case it is easy to interpret the effect of each of the environmental variables on the departure from independence. As so often in statistics, the linearity assumption may not be realistic, but renders models that are easy to interpret ("All models are wrong, but some models are useful"). 
+
+For problems with __long gradients__, i.e. whereby species' departures of independence rise and drop (or drop and rise) within the score of the observed environmental scores, quadratic response functions may be more appropriate. This corresponds e.g. with the scenario whereby a species' abundance does bot depart a lot from independence for extreme values of the environmental score, and but does depart the independence model for an intermediate value of the environmental score, e.g. it thrives in this environment and its abundance is higher than under independence. In essence this is the same as the approach of Zhu and Hastie, only now the baseline is the independence model rather than 0. Every taxon thereby has its own baseline, the response function models departures from this baseline. 
+
+Even though the quadratic response function can be fitted, and/or has a "significantly" (quotation marks due to non-likelihood framework) higher likelihood than the linear response function, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "choose"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. 
+
+If the user is unsure and has enough data, he may use non-parametric response funcion. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret.
 
 ##### Relationship to constrained RC(M)
 
-If we fit this method with only one covariate, namely a factor with a unique level for every sample, and all $\beta_{0j}$ (and $\beta_{2j}$) equal to zero , we expect to find the same solution as the unconstrained case. This means we do not constrain the ordination at all in this case and $\beta_{1jk} = s_{jk}$ and $\alpha_{ik} = r_{ik}$.
+If we fit this method with only one covariate, namely a factor with a unique level for every sample, and all $\beta_{0j}$ (and $\beta_{2j}$) equal to zero , we expect to find the same solution as the unconstrained case. This means we do not constrain the ordination at all in this case and $\beta_{1jk} = s_{jk}$ and $\boldsymbol{\alpha}_{k}^t\mathbf{C}_i = r_{ik}$.
 
 #### Restricitions
 
@@ -1280,38 +1286,6 @@ anacor2 = function (tab, ndim = 2, row.covariates, col.covariates, scaling = c("
 seq_k = function(y){
   (y-1)*(2+(y-2)/2) + seq_len(y+1)
 }
-
-#--------------------------------------#
-# A score function for the psis
-dNBpsis = function(beta, X, reg, theta,  muMarg){
-  # @param beta: the current guess for the psi parameter, a scalar
-  # @param X: the nxp data matrix
-  # @param muMarg: the nxp offset
-  # @param reg: the regressor matrix, the outer product of current row and column scores
-  # @param theta: a vector of length p with the dispersion parameters
-
-  # @return The evaluation of the score function at beta, a scalar
-
-  mu = muMarg * exp(reg* beta)
-  
-  sum(reg*(X-mu)/(1+(mu/theta)))
-
-}
-#--------------------------------------#
-#A jacobian for the psi parameters
-NBjacobianPsi = function(beta, X, reg, muMarg, theta){
-  # @param beta: the current guess for the psi parameter, a scalar
-  # @param X: the nxp data matrix
-  # @param muMarg: the nxp offset
-  # @param reg: the regressor matrix, the outer product of current row and column scores
-  # @param theta: nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)
-  
-  # @return The evaluation of the Jacobian function at beta, a 1x1 matrix
-  
-  mu = muMarg * exp(reg* beta)
-  matrix(-sum(reg^2*(1+X/theta)*mu/(1+mu/theta)^2),1,1)
-
-}
 #-------------------------------------# 
 #The influence function for the psis
 NBpsiInfl = function(psi, X, cMat, rMat, muMarg, theta){
@@ -1319,96 +1293,6 @@ NBpsiInfl = function(psi, X, cMat, rMat, muMarg, theta){
   mu = muMarg * exp(reg* psi)
   -((X-mu)*(theta+mu))/(reg*(theta+X)*mu)
 }
-
-#--------------------------------------#
-#A score function of the NB for the column scores
-dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, constrained = FALSE) {
-  # @param beta: vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
-  # @param X: the nxp data matrix
-  # @param reg: a nx1 regressor matrix: outer product of rowScores and psis
-  # @param theta: nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)
-  # @param mumarg: the nxp offset
-  # @param k: a scalar, the dimension of the RC solution
-  # @param p: a scalar, the number of taxa
-  # @param n: a scalar, the number of samples
-  # @param nLambda: the number of restrictions
-  # @param colWeights: the weights used for the restrictions
-  # @param cMatK: the lower dimensions of the colScores
-  # @param constrained: a boolean, indicates if ordination is constrained.
-  
-  # @return A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
-  
-  cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
-  
-  mu = if (constrained){exp(rowMultiply(reg, c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
-  
-  lambda1 = beta[p+1] #Lagrangian multiplier for centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[p+2] #Lagrangian multiplier for normalization restrictions sum(abunds*r^2_{ik}) = 1
-  
-  lambda3 = if(k==1){0} else {beta[(p + 3):length(beta)]} #Lagrangian multiplier for orhtogonalization restriction
-  
-  score = if(constrained) {
-    colSums(reg*((X-mu)/(1+mu/thetas))) + (colWeights*lambda1 + colWeights*lambda2*2*cMat + (lambda3 %*% cMatK)*colWeights)
-  } else {
-    crossprod(reg,((X-mu)/(1+mu/thetas))) + (colWeights*lambda1 + colWeights*lambda2*2*cMat + (lambda3 %*% cMatK)*colWeights)
-    }
-
-  center = sum(colWeights*cMat)
-  unitSum = sum(colWeights*cMat^2)-1
-  if(k==1) {
-      return(c(score, center, unitSum))
-    }
-  orthogons = tcrossprod(cMatK, cMat*colWeights)
-      return(c(score, center, unitSum, orthogons))
-}
-#--------------------------------------#
-# A function to provide an analytical jacobian in the hope to speed up the calculations
-NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLambda, cMatK, constrained = FALSE){
-  # @param beta: vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
-  # @param X: the nxp data matrix
-  # @param reg: a nx1 regressor matrix: outer product of rowScores and psis
-  # @param theta: nxp matrix with the dispersion parameters
-  # @param mumarg: the nxp offset
-  # @param k: a scalar, the dimension of the RC solution
-  # @param p: a scalar, the number of taxa
-  # @param n: a scalar, the number of samples
-  # @param nLambda: the number of restrictions
-  # @param colWeights: the weights used for the restrictions
-  # @param cMatK: the lower dimensions of the colScores
-  # @param constrained: a boolean, indicates if ordination is constrained.
-
-  #@return a symmetric jacobian matrix of size p + k +1
-  cMat = matrix(beta[1:p], byrow=TRUE, nrow=1, ncol=p)
-
-  #Calculate the mean
-  mu = if (constrained){exp(rowMultiply(reg, c(cMat))) * muMarg} else {exp(reg %*% cMat) * muMarg}
-  
-  Jac = matrix(0, nrow= p + nLambda, ncol=p + nLambda)
-  #The symmetric jacobian matrix. The upper part is filled first, then mirror image is taken for lower triangle
-#   
-  #dLag²/dr_{ik}dlambda_{1k}
-  Jac[1:p,(p+1)] = colWeights
-  #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
-  Jac[1:p,p+2] = colWeights*2 *cMat
-
-  tmp = (1+X/thetas)*mu/(1+mu/thetas)^2
-
-    #dLag²/ds_{ik}dlambda_{3kk'}
-  if(k>1){
-    Jac[1:p,(p+3):(p+nLambda)] = t(cMatK)*colWeights
-  }
-
-  #Symmetrize
-   Jac = Jac + t(Jac)
-  #dLag²/dr_{ik}²
-    diag(Jac)[1:p] = if(constrained) {
-          -colSums(tmp * reg^2) + 2*beta[p+2]*colWeights
-    } else {
-    -crossprod(tmp, reg^2) + 2*beta[p+2]*colWeights
-    }
-  Jac
-}
-#--------------------------------------#
 # The influence function for the column scores
 NBcolInfl = function(X, psis, cMat, rMat, thetas, colWeights, k, lambdaCol){
   reg = psis[k] *rMat[,k]
