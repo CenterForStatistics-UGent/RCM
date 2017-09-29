@@ -21,7 +21,7 @@ dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, 
   lambda2 = beta[p+2] #Lagrangian multiplier for normalization restrictions sum(abunds*r^2_{ik}) = 1
   lambda3 = if(k==1){0} else {beta[(p + 3):length(beta)]} #'agrangian multiplier for orthogonalization restriction
 
-  score = crossprod(reg,((X-mu)/(1+mu/thetas))) + (colWeights*lambda1 + colWeights*lambda2*2*cMat + (lambda3 %*% cMatK)*colWeights)
+  score = crossprod(reg,((X-mu)/(1+mu/thetas))) + colWeights*(lambda1 + lambda2*2*cMat + (lambda3 %*% cMatK))
 
   center = sum(colWeights*cMat)
   unitSum = sum(colWeights*cMat^2)-1

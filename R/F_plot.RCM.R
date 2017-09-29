@@ -18,12 +18,14 @@
 #' @param arrowCol a character string: the colour of the arrows of the environmental gradient.
 #' @param nudge_y a scalar, the offet for the taxon labels
 #' @param square A boolean, should the plot be square? This is highly preferred to honestly represent differences
+#' @param xInd a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side
+#' @param yInd a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
                     taxNum = 10, scalingFactor = NULL, plotTaxa = TRUE, quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, arrowCol = "blue", nudge_y = -0.08,square = TRUE,...) {
+                    Palette = NULL, arrowCol = "blue", nudge_y = -0.08,square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0),...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates)
@@ -190,5 +192,6 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   }
   #Add cross in the centre
   plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3)
-  if(square) squarePlot(plot) else plot
+  #Expand limits to show all text
+  if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
 }
