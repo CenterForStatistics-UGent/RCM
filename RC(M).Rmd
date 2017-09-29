@@ -1373,36 +1373,6 @@ normCurve = function(fit, newDataLength = 200){
   fitted(fit)/auc
 }
 #--------------------------------------#
-# A function to evaluate the score function ignoring taxon labels
-dNBllcol_constr_noLab = function(betas, X, reg, thetas, muMarg, psi, n, ncols,...) {
-  # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
-  # @param X: the nxp data matrix
-  # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
-  # @param thetas: The dispersion parameters (a vector of length p)
-  # @param muMarg: offset matrix of dimension nxp
-  # @param cReg: a vector of length p with the column scores * importance parameter
-
-  # @return The evaluation of the score functions (a vector length v)
-
-  mu = c(exp(reg %*% betas*psi)) * muMarg
-  colSums(crossprod((X-mu)/(1+(mu/thetas)),reg) * psi)
-}
-#--------------------------------------#
-# The jacobian of this function
-JacCol_constr_noLab = function(betas, X, reg, thetas, muMarg, psi, n ,v) {
-  # @param beta: a vector of regression parameters with length v (\boldsymbol{beta}_j)
-  # @param X: the nxp data matrix
-  # @param reg: a matrix of regressors of dimension nxv (\mathbf{C} \boldsymbol{\alpha})
-  # @param thetas: The dispersion parameters (a vector of length p)
-  # @param muMarg: offset matrix of dimension nxp
-
-  # @return The jacobian (a v-by-v matrix)
-
-  mu = c(exp(reg %*% betas*psi)) * muMarg
-  tmp = (1+(X/thetas))*mu/(1+(mu/thetas))^2*psi^2 #Don't forget to square psi!
-  -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric", n), function(x){rowSums(reg[,x]*tmp)}))
-  }
-#--------------------------------------#
 # A linear equality constraints function for estAlpha (see ?alabama)
 heq_nb = function(Alpha, alphaK, d, k,  centMat, ...){
   centerFactors = centMat %*% Alpha #Includes overal centering
