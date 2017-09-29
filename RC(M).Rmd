@@ -747,6 +747,10 @@ Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the
 
 To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. This means that their corresponding elements of $\boldsymbol{\alpha}$ represent the contribution to the environmental score of one standard deviation away from the mean of this variable (in case of linear response functions). A perfect quantitative comparison to the magnitude of the values of the paramaters of the dummies of the categorical variables will never be possible. In our case, with 0-1 dummy coding, equal parameters for a dummy and a continuous variable imply that this level of the categorical variable contributes as much to the environmental score as one standard deviation away from the overall mean of the continuous variable.
 
+#### A note on the importance parameters
+
+For the constrained model we have noted that the ordering of the importance parameters $\psi_k$ is not always decreasing. This is because of the way the $\alpha$'s are estimated: by maximizing the separation of the niches of the species. The first dimension is thus the one that maximally separates these niches, regardless of the total impact on the modelled mean. Therefore I think it is appropriate to keep the ordering of the dimensions as our algorithm spits it out.
+
 #### Estimation of the constrained RC(M) model
 
 ##### Environmental gradient
