@@ -683,6 +683,8 @@ A linear response function may be most appropriate for problems with __short gra
 
 For problems with __long gradients__, i.e. whereby species' departures of independence rise and drop (or drop and rise) within the score of the observed environmental scores, quadratic response functions may be more appropriate. This corresponds e.g. with the scenario whereby a species' abundance does bot depart a lot from independence for extreme values of the environmental score, and but does depart the independence model for an intermediate value of the environmental score, e.g. it thrives in this environment and its abundance is higher than under independence. In essence this is the same as the approach of Zhu and Hastie, only now the baseline is the independence model rather than 0. Every taxon thereby has its own baseline, the response function models departures from this baseline. 
 
+Note that we usually do not choose the ranges of the environmental variables or scores, so that we cannot guarantee a range long enough for the quadratic response function to be appropriate. Note also that what is a long gradient for one species, may be a short one for another.
+
 Even though the quadratic response function can be fitted, and/or has a "significantly" (quotation marks due to non-likelihood framework) higher likelihood than the linear response function, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "dynamic"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. Does this invalidate the likelihood-ratio criterion used to estimate the environmental gradient? I do not think this should be a problem. And should we use the same criterion then for the overall response function ignoring taxon labels? Probably yes, although this scenario seems highly unlikely.
 
 If the user is unsure and has enough data, he may use non-parametric response funcion. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret.
@@ -1354,12 +1356,6 @@ getInflRow = function(score, InvJac, parIndex){
 
 ```{r LRnb, purl=TRUE} 
 #--------------------------------------#
-# A function to estimate the NB-params ignoring the taxon labels
-estNBparamsNoLab = function(design, thetas, muMarg, psi, X, nleqslv.control, initParam, n, v){
-     #Without taxon Labels
-nleqslv(x = initParam , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, psi = psi, X = X, control = nleqslv.control, jac = JacCol_constr_noLab, n=n, v=v)$x
-}
-#--------------------------------------#
 # A function to estimate the taxon-wise response functions non-parametrically, and return their fitted values
 estNPresp = function(sampleScore, muMarg, X, ncols, psi, ...){
   taxonWiseFits = lapply(seq_len(ncols), function(i){
@@ -1493,109 +1489,9 @@ liks = function(rcm, Disp=c("edgeR","MLE")){
 }
 ```
 
-## Plotting function
-
-```{r plot, purl=TRUE}
-plotRCM = function(RCM, X = NULL, thetas = NULL, abunds = NULL, arrowFrac = 0.04, biplot = TRUE,
-                   libLoc ="topright", libInset = c(-0.7,-0.1), libCex = 0.85, libInterSp = 0.75, libLeg = TRUE, samColour=NULL,
-                   dispInset = c(0,-0.4), abInset = c(0,-0.4), abundLeg=FALSE, stressSpecies = NULL, taxColour = NULL, taxLegPos = "bottomright", taxCol = NULL, taxInset = libInset, taxIntersp = libInterSp,
-                   asp=1, xpd=TRUE, mar=c(4,5,5,5), Dim=c(1,2), ...){
-  
-  # @param psis: vector of length k with psi estimates
-  # @param rMat: a nxk matrix with final row scores
-  # @param cMat: a pxk with matrix with final column scores
-  # @param Dim (optional): a vector of length 2, indicating which dimensions to fit, defaults to the first two
-  # @param X (optional): the nxp data matrix
-  # @param thetas (optional): a vector of length p with estimates for the overdispersion
-  # @param abunds(optional): a vector of length p with abundance estimates (otherwise it is estimated from the data)
-  # @param arrowFrac(optional): Fraction of largest species to plot. defaults to 0.1
-  # @param biplot(optional): A boolean indicating if species should be added to the plot, defaults to TRUE
-  # @param libLoc(optional): a string, location of the library size legend. Defaults to "topleft"
-  # @param libLegend(optional): a boolean, should library size legend be displayed? defaults to TRUE
-  # @param libInset, dispInset, abInset(optional): numeric vectors of length 2, insets for library size, dispersion and abundance legends
-  # param stressSpecies(optional): names of species to be highlighted
-  # @param ... additional arguments, passed on to the plot() function
-  
-  cMat = RCM$cMat
-  rMat = RCM$rMat
-  psis = RCM$psis
-  
-  # @return: NONE,  plots the result in the plotting window
-  tmp = par(no.readonly = TRUE)
-  par(mar=mar, pty="s")
-  if(!(length(psis)== NCOL(rMat) && length(psis) == NROW(cMat))){
-    stop("Dimensions don't match")
-  }
-  #Reorder dimensions according to importance
-
-  a = Dim[1]
-  b = Dim[2]
-  
-  if(!is.null(RCM$physeq) && is.character(samColour)){
-    tmp = get_variable(RCM$physeq, samColour)
-    samColour = if(is.factor(tmp)) tmp else factor(tmp)
-  }
-  
-  plot(x = rMat[,a] * psis[a],
-  y = rMat[,b] *psis[b],
-  xlab=paste0("Dim",a),
-  ylab=paste0("Dim",b),
-  xlim = max(abs(rMat[,a] * psis[a]))*c(-1,1),
-  ylim = max(abs(rMat[,b] * psis[b]))*c(-1,1),
-  col = samColour,
-  asp=asp,
-  ...)
-  if(libLeg){
-legend(pch = 1, col = seq_along(levels(samColour)), legend = levels(samColour), x=libLoc, inset=libInset, xpd=xpd, cex = libCex, y.intersp = libInterSp, x.intersp = 0.7)
-}
-# {legend(libLoc,legend=c("Small library size","Large library size"),
-#       pch=c(1,1), col=c("blue","red"), inset=libInset, xpd=xpd)
-#   }
-  
-    if (biplot){
-      #Arrows
-        arrowLengths = apply(cMat[Dim,],2,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1-arrowFrac)
-        scalingFactor = max(abs(apply(t(t(rMat[,Dim])*psis[Dim]),2, range)))/
-        max(abs(cMat[Dim,id]))*0.99
-    arrows(x0=0,y0=0,x1=cMat[a,id]*scalingFactor,y1=cMat[b, id]*scalingFactor, col=taxColour[id]
-           )
-    # legend(x = taxLegPos, legend = levels(taxColour),pch = 1, col = seq_along(levels(taxColour)) )
-    if( abundLeg){
-      legend(x = taxLegPos, legend = levels(taxColour), xpd=xpd, cex = libCex,lty = 1, col = taxCol, inset = taxInset, y.intersp = taxIntersp)
-    }
-    #if(!is.null(stressSpecies))
-    }
-return(invisible())
-  par(tmp)
-}
-```
-
 ## Auxiliary functions
 
 ```{r auxFuns}
-#An auxiliary R function to "array" multiply an array with a vector, kindly provided by Joris Meys
-#-------------------------------------------#
-arrayprod <- function(x,y){
-  # @param x: a axbxc array
-  # @param y: a vector of length c matrix
-  
-  # @return a axb matrix
-  xdim <- dim(x)
-  outdim <- xdim[1:2]
-  outn <- prod(outdim)
- 
-  yexpand <- rep(y, each = outn)
-
-  tmp <- x * yexpand
- 
-  dim(tmp) <- c(outn, xdim[3])
-  out <- rowSums(tmp)
- 
-  dim(out) <- outdim
- 
-  out
-}
 #-------------------------------------------#
 # A function to drop the recorded parameter estimates throughout the iterations to save space
 dropArrayRec = function(RCM){
@@ -1613,7 +1509,7 @@ dropArrayRec = function(RCM){
 Some preliminary test to make sure everything runs without errors
 
 ```{r tests, purl = FALSE, eval = FALSE}
-n=50;p=200
+n = 100; p = 500
 counts = matrix(rnbinom(n*p, mu = 5, size = 3), n, p)
 covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6), status = sample(c("Treatment","Control"),n, replace=TRUE), siblings = rpois(n, lambda = 0.9))
 physeq = phyloseq(otu_table(counts, taxa_are_rows = FALSE), sample_data(covars))
@@ -1626,7 +1522,6 @@ psi = 3
 muMarg = outer(rowSums(X), colSums(X))/sum(X)
 NB_params = betas = matrix(rnorm(p*v),v,p)
 reg = model.matrix(~rnorm(n))
-
 
 #Unconstrained one dimension matrix
 un1Dmat = RCM(counts, k=1)

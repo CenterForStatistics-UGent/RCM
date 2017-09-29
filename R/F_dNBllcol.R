@@ -13,7 +13,7 @@
 #' @param cMatK the lower dimensions of the colScores
 
 #' @return A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
-dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK) {
+dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, ...) {
   cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
   mu = exp(reg %*% cMat) * muMarg
 

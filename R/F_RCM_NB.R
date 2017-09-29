@@ -237,9 +237,23 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
       #Modify offset if needed
       if(KK>1){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
+      idK = seq_k(KK) #prepare an index
 
-      idK = seq_k(KK)
-      ## 2) Propagation
+      JacR = matrix(0, nrow = n+KK+1, ncol = n+KK+1) #Prepare sparse Jacobians, and prefill what we can
+      JacR[1:n, n+1] = rowWeights
+      if(k>1){
+        JacR[1:n,(n+3):(n+KK+1)] = rMat[,1:(KK-1), drop=FALSE]*rowWeights
+      }
+      #Symmetrize
+      JacR = JacR + t(JacR)
+
+      JacC = matrix(0, nrow = p+KK+1, ncol = p+KK+1)
+      JacC[1:p, p+1] = colWeights
+      if(k>1){
+        JacC[1:p,(p+3):(p+KK+1)] = t(cMat[1:(KK-1),, drop=FALSE])*colWeights
+      }
+      #Symmetrize
+      JacC = JacC + t(JacC)
 
       while((iterOut[KK] ==1) || ((iterOut[KK] <= maxItOut) && (!convergence[KK])))
       {
@@ -261,16 +275,17 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           if (verbose) cat("\n Estimating overdispersions \n")
           thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
           thetasMat = matrix(thetas, n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
+          preFabMat = 1+X/thetasMat # Another matrix that can be pre-calculated
         }
         #Psis
         if (verbose) cat("\n Estimating psis \n")
         regPsis = outer(rMat[,KK] ,cMat[KK,])
 
-        psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method=jacMethod)$x)
+        psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method=jacMethod, preFabMat = preFabMat)$x)
         #Column scores
         if (verbose) cat("\n Estimating column scores \n")
         regCol = rMat[,KK, drop=FALSE]*psis[KK]
-        tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,], lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE])
+        tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,], lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], preFabMat = preFabMat, Jac = JacC)
 
         cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
         cMat[KK,] = tmpCol$x[1:p]
@@ -282,7 +297,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Row scores
         if (verbose) cat("\n Estimating row scores \n")
         regRow = cMat[KK,,drop=FALSE]*psis[KK]
-        tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg=muMarg, k=KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianRow, method=jacMethod, rowWeights=rowWeights, nLambda=(KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE])
+        tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg=muMarg, k=KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianRow, method=jacMethod, rowWeights=rowWeights, nLambda=(KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE], preFabMat = preFabMat, Jac = JacR)
 
         if(verbose) cat(ifelse(tmpRow$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
         rMat[,KK] = tmpRow$x[1:n]
@@ -394,6 +409,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         NBparamsOld = NB_params[,,KK]
 
         sampleScore = covariates %*% alpha[,KK]
+        envRange = range(sampleScore)
         if(responseFun %in% c("linear","quadratic")){
           design = switch(responseFun,
                           linear = model.matrix(~sampleScore),
@@ -415,15 +431,12 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           #Psis
           if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
           psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod)$x)
-        # NB_params_tmp = nleqslv(x = c(NB_params[,,KK], lambdaResp), fn = respFunScoreMat, jac = respFunJacMat, X = X, reg = design, thetaMat = thetasMat, muMarg = muMarg, v=v, p = p, psi = psis[KK], control = nleqslv.control, IndVec = IndVec, IDmat = IDmat)$x
-        # NB_params[,,KK] = matrix(NB_params_tmp[seq_len(p*v)], nrow = v, ncol = p)
-        # lambdaResp = NB_params_tmp[p*v + seq_len(v)]
 
-        NB_params[,,KK] = estNBparams(design = design, thetas = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v)
+        NB_params[,,KK] = estNBparams(design = design, thetas = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = dynamic, envRange = envRange)
         # psis[KK] = psis[KK]*exp(mean(log(sqrt(rowSums(NB_params[,,KK]^2))))) #Multiply psis by geometric mean
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2)) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
 
-        NB_params_noLab[, KK] = nleqslv(x = NB_params_noLab[, KK] , reg = design,  fn = dNBllcol_constr_noLab, thetas = thetas, muMarg = muMarg, psi = psis[KK], X = X, control = nleqslv.control, jac = JacCol_constr_noLab, n=n, v=v)$x
+        NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetas = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = dynamic, envRange = envRange)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
     AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetas, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p)$x

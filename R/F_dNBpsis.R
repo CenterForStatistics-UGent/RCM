@@ -7,7 +7,7 @@
 #' @param theta a n-by-p matrix with the dispersion parameters
 
 #' @return The evaluation of the score function at beta, a scalar
-dNBpsis = function(beta, X, reg, theta,  muMarg){
+dNBpsis = function(beta, X, reg, theta, muMarg, ...){
   mu = muMarg * exp(reg* beta)
   sum(reg*(X-mu)/(1+(mu/theta)))
 }
