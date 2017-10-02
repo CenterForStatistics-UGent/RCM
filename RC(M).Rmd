@@ -1131,11 +1131,11 @@ con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq))
 # Add two dimensions
 con3Dmat = RCM(dat = physeq, prevFit = con1Dmat, k=3, covariates =  sample_variables(physeq))
 
-con2DmatLin = RCM(physeq, k = 2, covariates =  sample_variables(physeq), analytic = TRUE, responseFun = "linear")
+con2DmatLin = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "linear")
 
-con2DmatQuad = RCM(physeq, k = 2, covariates =  sample_variables(physeq), analytic = TRUE, responseFun = "quadratic")
+con2DmatQuad = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "quadratic")
 # The zeller data?
-con2DmatNon = RCM(physeq, k = 2, covariates =  sample_variables(physeq), analytic = TRUE, responseFun = "nonparametric")
+con2DmatNon = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "nonparametric")
 
 plot.RCM(con2DmatLin, colour = "BMI")
 plot.RCM(con2DmatQuad, colour = "BMI")
@@ -1441,8 +1441,8 @@ if(!file.exists(file = "armpitRCM.RData")){
   armpitRCM = RCM(armpit, k=3)
   armpitRCMconstrLin = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "linear")
   armpitRCMconstrQuad = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "quadratic")
-  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric")
-  save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, file = "armpitRCM.RData")
+  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric", prevCutOff = 0.05)
+  save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, armpitRCMconstrNonParam, file = "armpitRCM.RData")
 } else {load(file = "armpitRCM.RData")}
 ```
 
