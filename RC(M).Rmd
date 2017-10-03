@@ -1464,18 +1464,20 @@ rm(armpitRCM)
 
 ```{r ArmpitPlot2, purl = FALSE}
 plot(armpitRCMconstrLin, plotType = "samples")
-plot(armpitRCMconstrLin, plotType = "samples")
-plot(armpitRCMconstrLin, samColour = "shaving")
-plot(armpitRCMconstrLin, samColour = "odor_panel")
-plot(armpitRCMconstrLin, samColour = "gender")
-plot(armpitRCMconstrLin, samColour = "antimicrobial")
+plot(armpitRCMconstrLin, plotType = "variables")
+plot(armpitRCMconstrLin, plotType = c("samples", "species"), taxNum = 6)
+plot(armpitRCMconstrLin, plotType = c("variables", "species"), taxNum = 6)
+plot(armpitRCMconstrLin, samColour = "shaving", plotType = "samples")
+plot(armpitRCMconstrLin, samColour = "odor_panel", plotType = "samples")
+plot(armpitRCMconstrLin, samColour = "gender", plotType = "samples")
 rm(armpitRCMconstrLin)
 ```
 
-OTU855 staphylococcus represents a clear outlier, in the other direction the Corynebacteria react most strongly to the environmental gradient. Fish and bread consumption appear to be drivers of the environmental gradient. Note how different the results of the constrained and unconstrained analyses are.
+Corynebacteria react most strongly to the environmental gradient. Note how different the results of the constrained and unconstrained analyses are.
 
 ```{r ArmpitPlotNonParam, purl = FALSE}
 plot(armpitRCMconstrNonParam, plotType = "samples")
+plot(armpitRCMconstrNonParam, plotType = "variables")
 plot(armpitRCMconstrNonParam, samColour = "gender", plotType = "samples")
 plot(armpitRCMconstrNonParam, samColour = "shaving")
 plot(armpitRCMconstrNonParam, samColour = "odor_panel")
@@ -1526,10 +1528,10 @@ if(!file.exists(file = "ata.RData")){
 if(!file.exists(file = "CMETRCM.RData")){
   CMETRCM = RCM(CMETwater, k = 3)
   envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "collection_date", "Timepoint", "Reactor.cycle")
-  CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
+  CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET)
   CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET)
   CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET)
-  save(CMETRCM, CMETRCMlin, CMETRCMquad, file = "CMETRCM.RData")
+  save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
 } else {load(file = "CMETRCM.RData")}
 ```
 

@@ -184,7 +184,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE)
     }
 
-    plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE, nudge_y = nudge_y)
+    plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE, nudge_y = nudge_y, size = labSize)
   } else {}
   if("variables" %in% plotType){
     #Add variable labels

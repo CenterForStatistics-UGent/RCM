@@ -17,9 +17,10 @@
 #' @param muMarg an n-by-p offset matrix
 #' @param n an integer, the number of rows of X
 #' @param ncols a scalar, the number of columns of X
+#' @param preFabMat a prefabricated matrix
 #'
 #' @return A symmetric matrix, the evaluated Jacobian
-LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric","dynamic"), psi, NB_params, NB_params_noLab, d, alphaK, k, centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, ...){
+LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric","dynamic"), psi, NB_params, NB_params_noLab, d, alphaK, k, centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, preFabMat, ...){
   did = seq_len(d)
   #Extract the parameters
   alpha = Alpha[did]
@@ -41,11 +42,11 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
   responseFun = switch(responseFun, dynamic = "quadratic", responseFun)
 
   if(responseFun=="linear"){
-    tmp = rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,NB_params[2,]^2)
-    tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2 * NB_params_noLab[2]^2
+    tmp = rowMultiply(preFabMat*mu/(1+mu/thetaMat)^2,NB_params[2,]^2)
+    tmp0 = preFabMat*mu0/(1+mu0/thetaMat)^2 * NB_params_noLab[2]^2
   } else if (responseFun =="quadratic"){
-    tmp = (1+X/thetaMat)*mu/(1+mu/thetaMat)^2
-    tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2
+    tmp = preFabMat*mu/(1+mu/thetaMat)^2
+    tmp0 = preFabMat*mu0/(1+mu0/thetaMat)^2
   }
   #dLag²/ds_{ik}dlambda_{3kk'}
   if(k>1){

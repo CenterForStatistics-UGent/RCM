@@ -431,13 +431,13 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         if(responseFun %in% c("linear","quadratic", "dynamic")){
           if (verbose) cat("\n Estimating response function \n")
-        NB_params[,,KK] = estNBparams(design = design, thetas = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
+        NB_params[,,KK] = estNBparams(design = design, thetas = thetas, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2)) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
 
-        NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetas = thetas, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)
+        NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p)$x
+    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat)$x
             alpha[,KK] = AlphaTmp[seq_len(d)]
             lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
         } else {
