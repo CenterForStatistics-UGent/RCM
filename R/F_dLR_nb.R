@@ -27,16 +27,12 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
   lambda3 = if(k==1) {0} else {Alpha[(d+nLambda1s+2):(d+nLambda)]}
 
   sampleScore = CC %*% alpha #A linear combination of the environmental variables yields the sampleScore
-  design = switch(responseFun,
-                  linear = model.matrix(~ sampleScore),#With intercept
-                  quadratic = model.matrix(~ sampleScore + I(sampleScore^2)),
-                  stop("Non-parametric model not yet implemented")
-  )
-
+  design = buildDesign(sampleScore, responseFun)
   mu = muMarg * exp(design %*% NB_params *psi)
   mu0 = muMarg * c(exp(design %*% NB_params_noLab*psi))
   tmp = (X-mu)/(1+mu/thetaMat)
   tmp0 = (X-mu0)/(1+mu0/thetaMat)
+  responseFun = switch(responseFun, dynamic = "quadratic", responseFun)
 
   lag = switch(responseFun, #The lagrangian depends on the shape of the response function
                "linear" = psi * (crossprod(CC, tmp) %*% (NB_params[2,]) - rowSums(crossprod(CC, tmp0*NB_params_noLab[2]))) ,

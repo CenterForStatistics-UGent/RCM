@@ -20,11 +20,7 @@
 LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric","dynamic"), muMarg, psi, nleqslv.control = list(trace=FALSE), n, NB_params, NB_params_noLab, thetaMat, ncols, nonParamRespFun,...){
 
   sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the environmental score
-  design = switch(responseFun,
-                  linear = model.matrix(~  sampleScore),
-                  quadratic = model.matrix(~ sampleScore + I(sampleScore^2)),
-                  dynamic = model.matrix(~ sampleScore + I(sampleScore^2))
-  )
+  design = buildDesign(sampleScore, responseFun)
   if(responseFun %in% c("linear","quadratic","dynamic")){
     muT = muMarg * c(exp(design %*% NB_params *psi))
     mu0 = muMarg * c(exp(design %*% NB_params_noLab *psi))

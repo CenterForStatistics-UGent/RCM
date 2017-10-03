@@ -28,12 +28,7 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
   lambda3 = if(k==1) {0} else {Alpha[(d+nLambda1s+2):(d+nLambda)]}
 
   sampleScore = CC %*% alpha #A linear combination of the environmental variables yields the sampleScore
-  design = switch(responseFun,
-                  linear = model.matrix(~ sampleScore),#With intercept
-                  quadratic = model.matrix(~ sampleScore + I(sampleScore^2)),
-                  dynamic = model.matrix(~ sampleScore + I(sampleScore^2)),
-                  stop("Non-parametric model not yet implemented")
-  )
+  design = buildDesign(sampleScore, responseFun)
 
   mu = muMarg * exp(design %*% NB_params *psi)
   mu0 = muMarg * c(exp(design %*% NB_params_noLab*psi))
@@ -43,11 +38,12 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
   Jac[(d+seq_len(nLambda1s)), did] = centMat
 
   Jac[did,d+nLambda1s+1] = 2 * alpha
+  responseFun = switch(responseFun, dynamic = "quadratic", responseFun)
 
   if(responseFun=="linear"){
     tmp = rowMultiply((1+X/thetaMat)*mu/(1+mu/thetaMat)^2,NB_params[2,]^2)
     tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2 * NB_params_noLab[2]^2
-  } else if (responseFun=="quadratic"){
+  } else if (responseFun =="quadratic"){
     tmp = (1+X/thetaMat)*mu/(1+mu/thetaMat)^2
     tmp0 = (1+X/thetaMat)*mu0/(1+mu0/thetaMat)^2
   }

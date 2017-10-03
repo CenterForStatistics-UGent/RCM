@@ -8,5 +8,5 @@
 #'
 #' @return a n-by-p matrix of scores
 getRowMat = function(sampleScore, responseFun, NB_params){
-getModelMat(sampleScore, responseFun) %*% NB_params
+buildDesign(sampleScore, responseFun) %*% NB_params
 }

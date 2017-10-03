@@ -687,9 +687,11 @@ For problems with __long gradients__, i.e. whereby species' departures of indepe
 
 Note that we usually do not choose the ranges of the environmental variables or scores, so that we cannot guarantee a range long enough for the quadratic response function to be appropriate. Note also that what is a long gradient for one species, may be a short one for another.
 
-Even though the quadratic response function can be fitted, and/or has a "significantly" (quotation marks due to non-likelihood framework) higher likelihood than the linear response function, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "dynamic"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. Does this invalidate the likelihood-ratio criterion used to estimate the environmental gradient? I do not think this should be a problem. And should we use the same criterion then for the overall response function ignoring taxon labels? Probably yes, although this scenario seems highly unlikely.
+Even though the quadratic response function can be fitted, and/or has a "significantly" (quotation marks due to non-likelihood framework) higher likelihood than the linear response function, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "dynamic"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. Does this invalidate the likelihood-ratio criterion used to estimate the environmental gradient? I do not think this should be a problem. And should we use the same criterion then for the overall response function ignoring taxon labels? Probably yes, although this scenario seems highly unlikely. For plotting it is not very attractive to have different shapes of the response function for the same taxon in different dimensions.
 
 If the user is unsure and has enough data, he may use non-parametric response funcion. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret.
+
+ All in all we see a trade-off between quality of the ordination of the samples versus interpretability of the role of the taxa. Personally I tend to give the second factor most weight, to maximise the amount of information we visualize.
 
 ##### Relationship to constrained RC(M)
 
@@ -1133,6 +1135,10 @@ con3Dmat = RCM(dat = physeq, prevFit = con1Dmat, k=3, covariates =  sample_varia
 
 con2DmatLin = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "linear")
 
+con2DmatDyn = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "dynamic")
+apply(con2DmatDyn$NB_params,3, function(x){mean(x[3,]==0)}) #19 and 16% of the taxa prefer linear response functions
+con2DmatDyn$NB_params_noLab
+
 con2DmatQuad = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "quadratic")
 # The zeller data?
 con2DmatNon = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "nonparametric")
@@ -1441,7 +1447,7 @@ if(!file.exists(file = "armpitRCM.RData")){
   armpitRCM = RCM(armpit, k=3)
   armpitRCMconstrLin = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "linear")
   armpitRCMconstrQuad = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "quadratic")
-  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric", prevCutOff = 0.05)
+  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric")
   save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, armpitRCMconstrNonParam, file = "armpitRCM.RData")
 } else {load(file = "armpitRCM.RData")}
 ```
@@ -1457,16 +1463,34 @@ rm(armpitRCM)
 ```
 
 ```{r ArmpitPlot2, purl = FALSE}
-plot(armpitRCMconstrLin)
+plot(armpitRCMconstrLin, plotType = "samples")
+plot(armpitRCMconstrLin, plotType = "samples")
 plot(armpitRCMconstrLin, samColour = "shaving")
 plot(armpitRCMconstrLin, samColour = "odor_panel")
 plot(armpitRCMconstrLin, samColour = "gender")
-plot(armpitRCMconstrLin, samColour = "age")
 plot(armpitRCMconstrLin, samColour = "antimicrobial")
 rm(armpitRCMconstrLin)
 ```
 
 OTU855 staphylococcus represents a clear outlier, in the other direction the Corynebacteria react most strongly to the environmental gradient. Fish and bread consumption appear to be drivers of the environmental gradient. Note how different the results of the constrained and unconstrained analyses are.
+
+```{r ArmpitPlotNonParam, purl = FALSE}
+plot(armpitRCMconstrNonParam, plotType = "samples")
+plot(armpitRCMconstrNonParam, samColour = "gender", plotType = "samples")
+plot(armpitRCMconstrNonParam, samColour = "shaving")
+plot(armpitRCMconstrNonParam, samColour = "odor_panel")
+plot(armpitRCMconstrNonParam, samColour = "gender")
+plot(armpitRCMconstrNonParam, samColour = "age")
+plot(armpitRCMconstrNonParam, samColour = "wash_p_week")
+plot(armpitRCMconstrNonParam, samColour = "deo_p_week")
+rm(armpitRCMconstrNonParam)
+```
+
+Gender is clearly associated with the microbiome composition, but also correlated with other variables such as shaving and deodorant use.
+
+```{r armPitplotNonParamsVaribales, purl = FALSE}
+plot(armpitRCMconstrNonParam, plotType = "variables")
+```
 
 ##### CMET data
 
