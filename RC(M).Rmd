@@ -12,7 +12,7 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","alabama", "reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape", "SpiecEasi", "Matrix")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","alabama", "reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape", "SpiecEasi", "flux")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -468,6 +468,14 @@ For the filtering based on the prevalence and abundance, we need a confounder ma
  2. With treatment coding
  
  In this case all that matters is to change the offset formed by the independence model. We will still return the confoundes' parameters though.
+ 
+### Model quality
+
+In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
+
+Since we are not in a full likelihood framework, we cannot use deviance residuals or formal tests. Therefore I propose to use the number and extent of outlying values as a measure of lack of fit. In our setting outliers will always be values larger than expected, a zero is practically never outlying.
+
+If we look at the quantile functions, we could consider all observations of a sample from the $1-\frac{1}{n}$th quantile or higher as possible outliers. The ratio of $1-\frac{1}{n}$ to the geometric mean of all quantiles of observations above the $1-\frac{1}{n}$th quantile is then a measure of the severity of the outliers.
 
 ### Zero-inflated poisson
 
@@ -1527,7 +1535,7 @@ if(!file.exists(file = "ata.RData")){
 ```{r analysCMET, purl = FALSE}
 if(!file.exists(file = "CMETRCM.RData")){
   CMETRCM = RCM(CMETwater, k = 3)
-  envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "collection_date", "Timepoint", "Reactor.cycle")
+  envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "Reactor.cycle")
   CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET)
   CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET)
   CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET)
