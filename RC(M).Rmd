@@ -423,13 +423,26 @@ In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispers
 
 9. Assess the goodness of fit
 
-Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(2) and the intermediate models to get an idea of the relative importance of the dimensions. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. The log-likelihood of the saturated model is by definition equal to 0.
+It would be interesting to assess the goodness of fit of our models. Questions that come to mind are:
+
+ - How do the different dimensions of the fit relate to one another in terms of importance?
+ - How well does our lower dimensional solution represent high-dimensional departures from independence?
+ - How much better are quadratic or nonparametric response functions compared to the linear response functions?
+ - How well does the negative binomial distribution fit as we add dimensions?
+ 
+###### Relative importance of dimensions
+
+The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
+
+Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. The log-likelihood of the saturated model is by definition equal to 0.
 
 We can decompose the difference in log-likelihood between the independence and the full RC(K) model as
 
 $$(LL_2 - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1)$$
 
 with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1) and RC(2) models respectively. Scaling by $(LL_2 - LL_0)$ will provide interpretable fractions.
+
+This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
 
 ### One-by-one (1B1)
 
@@ -1467,7 +1480,7 @@ if(!file.exists(file = "CMETdata.RData")){
 if(!file.exists(file = "CMETRCM.RData")){
   CMETRCM = RCM(CMETwater, k = 3)
   envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "Reactor.cycle")
-  CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET)
+  CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
   CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET)
   CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET)
   save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
@@ -1477,7 +1490,9 @@ if(!file.exists(file = "CMETRCM.RData")){
 No convergence for quadratic case. That one seems hard to fit.
 
 ```{r CMETliks, purl = FALSE}
-liksCMET = sapply(c(CMETRCM, CMETRCMlin, CMETRCMnonParam), liks)
+liksCMET = sapply(list("unconstrained" = CMETRCM, "linear" = CMETRCMlin, "nonParametric" = CMETRCMnonParam), liks)
+#The comparison is complicated here because we trimmed the linear case.
+liksCMERmelt = melt(liksCMET, varnames = c("Dimension","responseFun"),value.name = "logLik")
 ```
 
 ```{r plotCMET, purl = FALSE}

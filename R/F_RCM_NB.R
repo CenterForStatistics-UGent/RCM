@@ -362,7 +362,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
     NB_params = vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))})
     NB_params_noLab = matrix(0.1,v,k) #Initiate parameters of the response function, ignoring taxon-labels
-    nonParamRespFun = if(responseFun == "nonparametric") {rep(list(taxonWise = matrix(0,n,p), overall = rep(0,n)),k)} else {NULL}
+    nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWise = matrix(0,n,p), overall = rep(0,n))})} else {NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
