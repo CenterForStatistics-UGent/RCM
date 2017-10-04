@@ -55,6 +55,7 @@
 #' \item{abunds}{ a vector of length p with estimated mean relative abundances}
 #' \item{confounders}{(if provided) the confounder matrix}
 #' \item{confParams}{ the parameters used to filter out the confounders}
+#' \item{nonParamRespFun}{A list of the non parametric response functions}
 RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list()){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
@@ -361,7 +362,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
     NB_params = vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))})
     NB_params_noLab = matrix(0.1,v,k) #Initiate parameters of the response function, ignoring taxon-labels
-    nonParamRespFun = if(responseFun == "nonparametric") {list(taxonWise = matrix(0,n,p), overall = rep(0,n))} else {NULL}
+    nonParamRespFun = if(responseFun == "nonparametric") {rep(list(taxonWise = matrix(0,n,p), overall = rep(0,n)),k)} else {NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
@@ -387,7 +388,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         modMat = if(responseFun %in% c("linear","quadratic", "dynamic")){
           exp(getRowMat(responseFun = responseFun, sampleScore = covariates %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,KK-1])*psis[KK-1])
         } else {
-          exp(nonParamRespFun$taxonWise*psis[KK-1])
+          exp(nonParamRespFun[[KK]]$taxonWise*psis[KK-1])
         }
         muMarg = muMarg * modMat
       }
@@ -415,7 +416,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           design = buildDesign(sampleScore, responseFun)
           rowMat = design %*% NB_params[,,KK]
         } else{
-          rowMat = nonParamRespFun$taxonWise
+          rowMat = nonParamRespFun[[KK]]$taxonWise
         }
         #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
         if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
@@ -442,9 +443,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
             lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
         } else {
           if (verbose) cat("\n Estimating response function \n")
-          nonParamRespFun = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, psi = psis[KK])
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, psi = psis[KK])
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun, psi = psis[KK], thetaMat = thetasMat)
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha = AlphaTmp$lambda
         }
@@ -477,7 +478,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
                       alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab,
                       libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds),
-                      confounders = confounders, confParams = confParams, responseFun = responseFun)
+                      confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun=nonParamRespFun)
   }
   if(!all(convergence)){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")

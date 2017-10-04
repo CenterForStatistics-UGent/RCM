@@ -11,16 +11,22 @@
 #' @param rowMat matrix of row scores in case of constrained ordination
 #'
 #' @return A vector of length p with dispersion estimates
-estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersion, prior.df = 10, dispWeights = NULL, rowMat = NULL)
+estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersion = NULL, prior.df = 10, dispWeights = NULL, rowMat = NULL)
 {
 
   require(edgeR)
   logMeansMat =
-    if(!is.null(rMat)){ #Unconstrained
+    if(is.null(cMat) && is.null(rMat)){
+      t(log(muMarg))
+    }
+    else if(!is.null(rMat)){ #Unconstrained
       t(rMat %*% (cMat * psis) + log(muMarg))
     } else { #Constrained
       t(log(muMarg) + psis* rowMat)
     }
+  trended.dispersion = if(is.null(trended.dispersion)){
+    estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = logMeansMat, weights = NULL)
+    } else {trended.dispersion}
   thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL,
                                         prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
   if (anyNA(thetaEsts)) {

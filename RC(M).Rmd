@@ -10,7 +10,7 @@ output:
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=FALSE, tidy = TRUE, fig.width = 9, fig.height=6, root.dir=WD, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "VGAM","HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor","alabama", "reshape2", "tensor", "locfit", "SimSeq","fdrtool", "cluster", "ape", "SpiecEasi", "flux")
 # Load all required packages and show version
@@ -85,9 +85,9 @@ $$A_1 = R^{-1/2}(X-E)J^{-1/2}=U\Sigma V^T$$
 
 with $\Sigma$ a diagonal matrix with the singular values of __X__ (all between 0 and 1) on the diagnonal and __R__ and __J__ diagonal matrices with row and column sums of __X__.
 
-Elements of this matrix are $$a_{1ij} = \frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}}} = \frac{1}{\sqrt(n}}\frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}/n}}$$
+Elements of this matrix are $$a_{1ij} = \frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}}} = \frac{1}{\sqrt{n}}\frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}/n}}$$
 
-, also known as also known as $\sqrt{n}$ times the Pearson standardized residuals. The Pearson standardized residuals standardize the departures from __E__ by dividing by the square root of the expected value. This is in line with the common assumption that for count data $E(X_{ij}) = Var(X_{ij})$ and would yield approximately standard normally distributed variables if this assumption holds and $E(X_{ij})$ is sufficiently large. Hence the sum of squared elements $$\sum_[i=1}^n\sum_{j=1}^pa_{1ij}^2$$ yields 1/n the Pearson $\Chi^2$ statistic to test for association in the contingency table.
+, also known as also known as $\sqrt{n}$ times the Pearson standardized residuals. The Pearson standardized residuals standardize the departures from __E__ by dividing by the square root of the expected value. This is in line with the common assumption that for count data $E(X_{ij}) = Var(X_{ij})$ and would yield approximately standard normally distributed variables if this assumption holds and $E(X_{ij})$ is sufficiently large. Hence the sum of squared elements $$\sum_{i=1}^n\sum_{j=1}^pa_{1ij}^2$$ yields 1/n the Pearson $\chi^2$ statistic to test for association in the contingency table.
 
 In matrix notation the reconstitution formula becomes
 
@@ -115,7 +115,7 @@ The last step of the derivation relies on the orthogonality of __V__ and on the 
 
 An alternative way to consider this version is to look at the svd of
 
-$$A_2 = R^-1(X-E)C^{-1} = U'\Sigma V^T' = R^{-1/2}(U \Sigma V^T)C^{-1/2}$$
+$$A_2 = R^{-1}(X-E)C^{-1} = U'\Sigma V'^{T} = R^{-1/2}(U \Sigma V^T)C^{-1/2}$$
 
 The elements of the matrix $A_2$ are $a_{2ij} = \frac{x_{ij}-e_{ij}}{e_{ij}} = \frac{x_{ij}}{e_{ij}}-1$. The ratio $\frac{x_{ij}}{e_{ij}}$ represents the relative departure from the expected counts and is called the _contingency ratio_. The biplot of $U'\Sigma$ vs $V'$ will thus visualize contributions to the departure of this contingency ratio.
 
@@ -136,7 +136,7 @@ This form of correspondence analysis has been criticised for putting undue empha
 
 #### Joint plots
 
-Some researchers prefer to plot $U\Sigma$ vs $\SigmaV^T$ to represent distances between both sites and species corrrectly. However, this loses the biplot property (inner product interpration) and end their discussion here.
+Some researchers prefer to plot $U\Sigma$ vs $\Sigma V^T$ to represent distances between both sites and species corrrectly. However, this loses the biplot property (inner product interpration) and end their discussion here.
 
 #### Skewness
 
@@ -1003,75 +1003,6 @@ getInflRow = function(score, InvJac, parIndex){
 }
 ```
 
-## Wrapper for all distributions
-
-```{r Wrapper all dists, purl = TRUE}
-#Likelihoods-------------------------------------
-# A function to calculate the likelihoods of
-#-The independence model
-#-The saturated model
-#-The fitted model
-#-All models with dimension k 0<k<K
-#Which overdispersions to use is a non-trivial problem.  One option would be to use the estimated dispersions of the full model for all calculations. Another is to estimate the overdispersions of the independence and lower dimensional models separately and use them. The problem is that if we use the edgeR machinery again, we get stable estimates but not MLE's, so that the likelihood of the independence model can sometimes be larger than that of a RC model. We provide three options, specified through the Disp parameter:
-# - "MLE" Use the MLE's of the separate models where possible,
-# - "edgeR" Use the edgeR robust estimate separately for every model
-liks = function(rcm, Disp=c("edgeR","MLE")){
-  require(MASS)
-  #@param rcm: a list, the output of the outerLoop function
-  
-  #@return a list with components
-    #-indLL: likelihood of the indepence model
-    #-LL1,..., LL[K-1]: likelihood of intermediate models
-    #-LLK: The likelihood of the fitted model
-  #Independence model
-  C = colSums(rcm$X)
-  R = rowSums(rcm$X)
-  onesn =rep.int(1, nrow(rcm$X))
-  onesp = rep.int(1, ncol(rcm$X))
-  E = diag(R) %*% outer(onesn ,onesp) %*% diag(C)/sum(C)
-  
-  if(Disp=="MLE"){
-    
-  #Estimate dispersions for the independence model
-  # thetasInd = estDisp(rcm$X, cMat=matrix(0,ncol=ncol(rcm$X)), rMat=matrix(0,nrow=nrow(rcm$X)), libSizes=rowSums(rcm$X), abunds=colSums(rcm$X)/sum(rcm$X), psis=0)
-  thetasInd =sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=E[,i])})
-  #The overdispersions of the independence model are larger: This is logical since less variation has been explained in this model
-  
-    #Estimate the overdispersions for the intermediate models and the Full RC model
-    LLintDisp = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
-      mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
-    sapply(1:ncol(rcm$X), function(i){theta.ml(y=rcm$X[,i],mu=mu[,i])})
-  })
-
-  } else if(Disp=="edgeR"){
-  #Independence model
-  trended.dispersion.ind  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(E)))
-  thetasInd = 1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(E)), dispersion = trended.dispersion.ind)
-  
-  #RCM models
-  thetasInt = vapply(1:(ncol(rcm$rMat)),FUN.VALUE=rep(0, ncol(rcm$X)), function(k){
-  mu=E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k]))
-  trended.dispersion  <- estimateGLMTrendedDisp(y = t(rcm$X), design = NULL, method = "bin.loess",offset=t(log(mu)))
-  1/estimateGLMTagwiseDisp(y = t(rcm$X), design = NULL,  offset=t(log(mu)), dispersion = trended.dispersion)
-  })
-  LLintDisp=cbind(thetasInd, thetasInt)
-  }  else{stop("No valid dispersion estimation paradigm provided! Choose either MLE or edgeR")}
-    names(LLintDisp) = paste0("dispLL",1:(ncol(rcm$rMat)-1))
-#Now we have the overdispersions, estimate the likelihoods
-  
-  #Estimate the likelihoods
-  LLintList = mapply(1:(ncol(rcm$rMat)-1),1:(ncol(LLintDisp)-2), FUN = function(k, ThetasI){
-    sum(dnbinom(rcm$X, mu = E * exp(rcm$rMat[, 1:k, drop=FALSE] %*% (rcm$cMat[1:k,,drop=FALSE]*rcm$psis[1:k])), size=LLintDisp[,ThetasI], log=TRUE))
-  })
-  names(LLintList) = paste0("LL",1:(ncol(rcm$rMat)-1))
-  indLL = sum(dnbinom(rcm$X, mu=E, size=thetasInd, log=TRUE))
-  
-#Full RC model
-  LLK = sum(dnbinom(rcm$X, mu=E * exp(rcm$rMat %*% (rcm$cMat*rcm$psis)), size=LLintDisp[, ncol(LLintDisp)], log=TRUE))
-    
-  c(indLL=indLL, LLintList,  LLK=LLK)
-}
-```
 
 ## Auxiliary functions
 
@@ -1493,13 +1424,13 @@ plot(armpitRCMconstrNonParam, samColour = "gender")
 plot(armpitRCMconstrNonParam, samColour = "age")
 plot(armpitRCMconstrNonParam, samColour = "wash_p_week")
 plot(armpitRCMconstrNonParam, samColour = "deo_p_week")
-rm(armpitRCMconstrNonParam)
 ```
 
 Gender is clearly associated with the microbiome composition, but also correlated with other variables such as shaving and deodorant use.
 
 ```{r armPitplotNonParamsVaribales, purl = FALSE}
 plot(armpitRCMconstrNonParam, plotType = "variables")
+rm(armpitRCMconstrNonParam)
 ```
 
 ##### CMET data
@@ -1507,7 +1438,7 @@ plot(armpitRCMconstrNonParam, plotType = "variables")
 This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing relative counts through 16S sequencing that can be multiplied by absolute counts from flow cytometry to get truly absolute abundances that reflect the number of cells. This type of data does not qualify for the term _compositional data_ anymore. The advent of these kind of approaches support the use of count models rather than compositional data approaches.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
-if(!file.exists(file = "ata.RData")){
+if(!file.exists(file = "CMETdata.RData")){
   library(openxlsx)
   samData = read.xlsx("/home/stijn/PhD/Datasets/CMET/Metadata.xlsx")
   rownames(samData) = samData$sample_title
@@ -1541,6 +1472,12 @@ if(!file.exists(file = "CMETRCM.RData")){
   CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET)
   save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
 } else {load(file = "CMETRCM.RData")}
+```
+
+No convergence for quadratic case. That one seems hard to fit.
+
+```{r CMETliks, purl = FALSE}
+liksCMET = sapply(c(CMETRCM, CMETRCMlin, CMETRCMnonParam), liks)
 ```
 
 ```{r plotCMET, purl = FALSE}
