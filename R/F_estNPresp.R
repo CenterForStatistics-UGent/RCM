@@ -15,7 +15,7 @@
 #' \item{taxonWiseFits}{A list of length p of normalized response curves of all the taxa. This may be useful to investigate the shape of the response function through plots.}
 estNPresp = function(sampleScore, muMarg, X, ncols, psi, ...){
   taxonWiseFits = lapply(seq_len(ncols), function(i){
-    locfit.raw(x = sampleScore, y = X[,i]/muMarg[,i], link = "ident", ...) #link ="log" simply won't fit. Since it is non-parametric, the exponentiation does not really matter after all.
+    locfit.raw(x = sampleScore, y = X[,i]/muMarg[,i], link = "identity", ...) #link ="log" simply won't fit. Since it is non-parametric, the exponentiation does not really matter after all.
   })
   overall = matrix(normCurve(locfit.raw(x = rep(sampleScore,ncols), y = c(X/muMarg), link = "log",...)),ncol = ncols)
   taxonWise = sapply(taxonWiseFits, normCurve)

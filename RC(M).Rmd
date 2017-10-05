@@ -38,7 +38,7 @@ for (i in funFilesPub) {source(file.path("pubFun",i))};rm(i)
 
 # Introduction
 
-The aim of this notebook is to wrap the codes to fit the RC(M) model with the negative binomial, zero-inflated poisson and zero-inflated negative binomial models. Also an overview of the theory is given here. Functions for fitting the RC(M) model have been moved to separate files in the "R"-folder, functions related the simulation study but not belonging to the core RC(M) methodology are shown in 
+The aim of this notebook is to wrap the codes to fit the RC(M) model with the negative binomial, zero-inflated poisson and zero-inflated negative binomial models. Also an overview of the theory is given here. Functions for fitting the RC(M) model have been moved to separate files in the "R"-folder, functions related the simulation study but not belonging to the core RC(M) methodology are shown in the "pubFun" folder.
 
 The underlying motivation is to develop a visualization technique for the microbiome that does not suffer from the defects of currently applied techniques such as PCA, PCoA with Bray-Curtis distance etc. These methods are in particular sensitive to differences in library size.
 
@@ -425,24 +425,35 @@ In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispers
 
 It would be interesting to assess the goodness of fit of our models. Questions that come to mind are:
 
- - How do the different dimensions of the fit relate to one another in terms of importance?
- - How well does our lower dimensional solution represent high-dimensional departures from independence?
+ - How do the different dimensions of the fit relate to one another in terms of importance? How well does our lower dimensional solution represent high-dimensional departures from independence?
  - How much better are quadratic or nonparametric response functions compared to the linear response functions?
- - How well does the negative binomial distribution fit as we add dimensions?
+ - Which samples and/or taxa are poorly represented in the low-dimensional solution? Which ones exhibit lack of fit to the negative binomial distribution?
  
 ###### Relative importance of dimensions
 
-The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
+The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
 
-Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. The log-likelihood of the saturated model is by definition equal to 0.
+Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions. The log-likelihood of the saturated model is by definition equal to 0.
 
 We can decompose the difference in log-likelihood between the independence and the full RC(K) model as
 
 $$(LL_2 - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1)$$
 
-with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1) and RC(2) models respectively. Scaling by $(LL_2 - LL_0)$ will provide interpretable fractions.
+with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1) and RC(2) models respectively. Scaling by $(LL_2 - LL_0)$ will provide interpretable fractions. However, these are onlt fractions of the variance _explained by the model_, not the total variance.
 
 This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
+
+###### Comparison of response functions
+
+In case the models are fitted on exactly the same dataset, we can compare the likelihoods of these models. Unconstrained models are freer and generally have more parameters, hence their likelihood is expected to be higher. On the other hand, the constrained models get more information, which they might exploit to beat the constrained ones. Within the constrained models, the likelihood is expected to increase from linear over quadratic to non-parametric response functions. However, if we estimate the environmental gradient $\alpha$ through the likelihood ratio criterion, this criterion does not necessarily maximize the likelihood or guarantee an increasing likelihood with the dimensions.
+
+###### Detecting lack of fit
+
+In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
+
+Since we are not in a full likelihood framework, we cannot use deviance residuals or formal tests. Therefore I propose to use the number and extent of outlying values as a measure of lack of fit. In our setting outliers will always be values larger than expected, a zero is practically never outlying.
+
+If we look at the quantile functions, we could consider all observations of a sample from the $1-\frac{1}{n}$th quantile or higher as possible outliers. The ratio of $1-\frac{1}{n}$ to the geometric mean of all quantiles of observations above the $1-\frac{1}{n}$th quantile is then a measure of the severity of the outliers.
 
 ### One-by-one (1B1)
 
@@ -481,14 +492,6 @@ For the filtering based on the prevalence and abundance, we need a confounder ma
  2. With treatment coding
  
  In this case all that matters is to change the offset formed by the independence model. We will still return the confoundes' parameters though.
- 
-### Model quality
-
-In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
-
-Since we are not in a full likelihood framework, we cannot use deviance residuals or formal tests. Therefore I propose to use the number and extent of outlying values as a measure of lack of fit. In our setting outliers will always be values larger than expected, a zero is practically never outlying.
-
-If we look at the quantile functions, we could consider all observations of a sample from the $1-\frac{1}{n}$th quantile or higher as possible outliers. The ratio of $1-\frac{1}{n}$ to the geometric mean of all quantiles of observations above the $1-\frac{1}{n}$th quantile is then a measure of the severity of the outliers.
 
 ### Zero-inflated poisson
 
@@ -1054,7 +1057,7 @@ reg = model.matrix(~rnorm(n))
 #Unconstrained one dimension matrix
 un1Dmat = RCM(counts, k=1)
 # Add two dimensions
-un3Dmat = RCM(dat = counts, prevFit = un1Dmat, k=3)
+un3Dmat = RCM(dat = counts, prevFit = un1Dmat, k=2)
 
 #Unconstrained one dimension phyloseq
 un1DmatPhy = RCM(physeq, k=1)
@@ -1221,7 +1224,7 @@ lapply(names(resListRCM), function(x){with(resListRCM[[x]],{ plot(main=x, rowRec
 ##### The Zeller data: sample plots
 
 ```{r load zeller RC(M) NB results, purl = FALSE, include = FALSE}
-
+load("/home/stijn/PhD/Simulations/data/zellerData.RData")
 zellers = c("zellerMeta","zeller16S")
 # zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
 #   load(x)
@@ -1284,10 +1287,19 @@ with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
 if(!file.exists("zellerSphyRCMconstr.RData")){
 zellerSphyRCMconstrLin = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear") # Use smallest possible cndtol!
 zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
-zellerSphyRCMconstrNonP = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
-save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, file="zellerSphyRCMconstr.RData")
+zellerSphyRCMconstrNonParam = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
+save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam,file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")}  #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 ```
+
+```{r zeller liks, purl = FALSE}
+liksZeller = sapply(list(zellerSphyRCM, zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam), liks)
+colnames(liksZeller) = c("unconstrained","linear","quadratic","nonparametric")
+liksZellerMelt = melt(liksZeller, varnames = c("Dimension", "responseFun"), value.name = "logLik")
+ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksZellerMelt) + geom_point() +geom_line(aes(group = responseFun))
+```
+
+The linear response functions gains most in likelihood, the non-parametric one even decreases?
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
 plot.RCM(zellerSphyRCMconstrLin)
@@ -1478,11 +1490,11 @@ if(!file.exists(file = "CMETdata.RData")){
 
 ```{r analysCMET, purl = FALSE}
 if(!file.exists(file = "CMETRCM.RData")){
-  CMETRCM = RCM(CMETwater, k = 3)
+  CMETRCM = RCM(CMETwater, k = 3, prevCutOff = 0.05)
   envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "Reactor.cycle")
   CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
-  CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET)
-  CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET)
+  CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET, prevCutOff = 0.05)
+  CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET, prevCutOff = 0.05)
   save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
 } else {load(file = "CMETRCM.RData")}
 ```
@@ -1490,9 +1502,10 @@ if(!file.exists(file = "CMETRCM.RData")){
 No convergence for quadratic case. That one seems hard to fit.
 
 ```{r CMETliks, purl = FALSE}
-liksCMET = sapply(list("unconstrained" = CMETRCM, "linear" = CMETRCMlin, "nonParametric" = CMETRCMnonParam), liks)
+liksCMET = sapply(list("unconstrained" = CMETRCM, "linear" = CMETRCMlin,"quadratic" = CMETRCMquad, "nonParametric" = CMETRCMnonParam), liks)
 #The comparison is complicated here because we trimmed the linear case.
 liksCMERmelt = melt(liksCMET, varnames = c("Dimension","responseFun"),value.name = "logLik")
+ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksCMERmelt) + geom_point() +geom_line(aes(group = responseFun))
 ```
 
 ```{r plotCMET, purl = FALSE}

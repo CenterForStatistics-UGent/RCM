@@ -84,6 +84,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       libSizesMLE = NBRCM$libSizes
       logLibSizesMLE  =log(libSizesMLE)
       abundsMLE = NBRCM$abunds
+      lambdaRow = NBRCM$lambdaRow
+      lambdaCol = NBRCM$lambdaCol
       logAbundsMLE = log(abundsMLE)
       if(record){
         #Extend the record matrices, force same number of outer iterations as previous fit
@@ -247,7 +249,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
       JacR = matrix(0, nrow = n+KK+1, ncol = n+KK+1) #Prepare sparse Jacobians, and prefill what we can
       JacR[1:n, n+1] = rowWeights
-      if(k>1){
+      if(KK>1){
         JacR[1:n,(n+3):(n+KK+1)] = rMat[,1:(KK-1), drop=FALSE]*rowWeights
       }
       #Symmetrize
@@ -255,7 +257,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
       JacC = matrix(0, nrow = p+KK+1, ncol = p+KK+1)
       JacC[1:p, p+1] = colWeights
-      if(k>1){
+      if(KK>1){
         JacC[1:p,(p+3):(p+KK+1)] = t(cMat[1:(KK-1),, drop=FALSE])*colWeights
       }
       #Symmetrize
@@ -360,8 +362,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     alphaRec = if(record){array(0, dim=c(d, k, maxItOut))} else {NULL}
     v = switch(responseFun, linear = 2, quadratic = 3, dynamic = 3, 1) #Number of parameters per taxon
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
-    NB_params = vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))})
-    NB_params_noLab = matrix(0.1,v,k) #Initiate parameters of the response function, ignoring taxon-labels
+    NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
+    NB_params_noLab = if(responseFun != "nonparametric") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
     nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWise = matrix(0,n,p), overall = rep(0,n))})} else {NULL}
     rowMat = NULL
 
@@ -438,14 +440,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat)$x
+    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, estEnvGrad = estEnvGrad)$x
             alpha[,KK] = AlphaTmp[seq_len(d)]
             lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
         } else {
           if (verbose) cat("\n Estimating response function \n")
           nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, psi = psis[KK])
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat)
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat, estEnvGrad = estEnvGrad)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha = AlphaTmp$lambda
         }
