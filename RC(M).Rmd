@@ -439,7 +439,7 @@ We can decompose the difference in log-likelihood between the independence and t
 
 $$(LL_2 - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1)$$
 
-with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1) and RC(2) models respectively. Scaling by $(LL_2 - LL_0)$ will provide interpretable fractions. However, these are onlt fractions of the variance _explained by the model_, not the total variance.
+with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1) and RC(2) models respectively. Scaling by $(LL_2 - LL_0)$ will provide interpretable fractions. However, these are only fractions of the variance _explained by the model_, not the total variance. This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
 
 This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
 
@@ -603,6 +603,10 @@ Conditioning occurs in the same fashion as with regular CA: the residuals of the
 ### Redundancy analysis (RDA)
 
 Redundancy analysis (RDA) is a constrained version of PCA, whereby the loadings are constrained to be linear combinations of a set of exploratory variables. This result can be compared to unconstrained PCA to see how much of the total variance is accounted for by the constrained variance. This type of analysis is indicated in case of linear relationships between the response variables (species counts) and explanatory variables. In our case this would e.g. be a environmental gradient in dimension $k$ that is dominated by the concentration of a toxic substance, which only decreases the expected abundance as its concentration increases. Another option is that the gradient is dominated by a variable with a short gradient.
+
+### Constrained Analysis of Principal Coordinates
+
+Constrained Analysis of Principal Coordinates (CAP) can be seen as a constrained version of PCoA. It is similar to RDA but extends to dissimilarity measures other than the Euclidean distance. See Anderson and Willis (2003).
 
 ### Constrained RC(M) model
 
@@ -785,11 +789,13 @@ For the constrained model we have noted that the ordering of the importance para
 
 ##### Environmental gradient
 
-$\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the log-likelihood ratio approach from Zhu _et al._ (2005):
+Another aspect from niche theory is that species have eveolved to occupy maximally distinct niches. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the log-likelihood ratio approach from Zhu _et al._ (2005):
 
 $$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}_j) \big)}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}) \big)}$$
 
 with $p^{(\alpha)}$ and $p^{(\alpha)}_j$ estimated probability density functions without and with taxon labels and $\boldsymbol{\beta}_l$ and $\boldsymbol{\beta}$ the parameters of the response functions. $p^{(\alpha)}$ and $p^{(\alpha)}_j$ are calculated under a certain error distribution (e.g. negative binomial). $LR(\boldsymbol{\alpha})$ actually compares two models. In the restricted model each species reacts in the same way to its environment, relative to its own baseline defined by $u_j$, and all do not depart from independence for a certain combination of environmental variables. In the extended model each species is left to react to the environment in its own way. In case of a linear response function it means that it gets a unique intercept and slope.
+
+Another option, so far not implemented, is to estimate $\alpha$ through full ML.
 
 Naive approach
 
@@ -1387,6 +1393,28 @@ plot.RCM(HumMiceRCM, samColour = "DTG", Dim = c(1,3))
 plot.RCM(HumMiceRCM, samColour = "DGS", Dim = c(1,3))
 ```
 
+##### Kostic colorectal cancer
+
+This is a study on the microbiome of colorectal cancer in humans. Nine tumor patients were matched with 9 healthy patients, samples were taken repeatedly. The researchers find a enrichment of Fusobacteria in the tumor and a depletion of Bacteroidetes and Firmicutes.
+
+```{r load Kostic, purl=FALSE}
+if(!file.exists("Kostic.RData")){
+filepath = system.file("extdata", "study_1457_split_library_seqs_and_mapping.zip", package="phyloseq")
+kostic = microbio_me_qiime(filepath)
+save(kostic, file = "Kostic.RData")
+} else {load("Kostic.RData")}
+```
+
+```{r KosticRCM}, purl = FALSE}
+if(!file.exists("kosticRCM.RData")){
+kosticRCM = RCM(kostic, k = 3)
+save(kosticRCM, file = "kosticRCM.RData")
+} else {load("kosticRCM.RData")}
+plot(kosticRCM)
+plot(kosticRCM, samColour = "DIAGNOSIS")
+plot(kosticRCM, samColour = "OSH_DIAGNOSIS")
+```
+
 ##### Dr. armpit data
 
 The dataset contains 16S sequencing data from armpit swabs of volunteers.
@@ -1622,7 +1650,17 @@ with $p_{ij} = \sqrt{\frac{x_{ij}}{x_{i.}}}$ and $q_{ij} = \sqrt{\frac{x_{.j}}{x
 
 #### Transformations
 
+##### Log transform
+
 In Callahan _et al._ (2016), which serves as a manual for the popular _phyloseq_ package, it is suggested to first log-transform the counts(after adding pseudocount 1) as a variance stabilizing transformation, prior to applying methods like PCoA
+
+##### Variance stabilizng transformation
+
+The _DESeq_ packages provides a variance stabilizing transformation (VST), based on the estimated mean-variance trend. The point is to get transformed values whose variance is independent of the mean.
+
+##### Regularized log-transform
+
+Apart from the VST, the _DESeq2_ packages also offers the _rlog_ transformation. It results in a $log_2$ transformed expected value of the count, based on an intercept and a sample-wise coefficient that is shrunk based on the mean variance trend. This transformation should account for differences in library sizes. See _DESeq2_ manual.
 
 #### Related material
 
@@ -1639,6 +1677,18 @@ Non-metric multidimensional scaling (NMDS) can be considered the little brother 
  - It makes no assumption on the distribution of the data, in contrast to PCA which assumes linear relationships and CCA which assumes unimodal ones.
  
  The ordination is fitted iteratively, by minimizing the stress between the original distances and the distances of the actual ordination. See the tutorial by Steven M. Holland for more information.
+ 
+### Double principal coordinates analysis
+
+Double principal coordinates analysis (DPCoA) intends to include dissimilarities between species into the analysis. These could be morphological differences, but in the microbiome case these will be phylogentic distances. 
+
+We have given a n-by-p data matrix __X__ and a p-by-p symmetric dissimilarity matrix between the species $\Sigma$.
+
+1) Use PCoA to find the optimal _n-1_th dimensional representation of the the dissimilarity matrix $\Sigma$
+2) Add the samples points at the barycentres (weighted averages) of the species points. In this representations Euclidean distances between samples equal the square roots of their Rao dissimilarity.
+3) Use PCA to find a lower dimensional representation of the samples.
+
+It is similar to Unifrac in the sense that it uses phylogenetic information. It is also reminiscent of PCoA, only that here distances between _species_ rather than samples are used. Also the dimension reduction is more complex.
 
 ### PCA
 
@@ -1652,7 +1702,7 @@ with $W^TW = I$. The variables (columns) of __Y__ are presumed to be centered an
 
 #### PCA on ranks
 
-In the phyloseq manual it is proposed to perform PCA on ranked abundance data.
+In the phyloseq manual it is proposed to perform PCA on ranked abundance data. Thereby low ranks are set equal to 1 to avoid creating artificially large differences between lowly abundant taxa.
 
 ### Correspondence analysis
 
