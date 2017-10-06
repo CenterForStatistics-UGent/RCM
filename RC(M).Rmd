@@ -1500,7 +1500,9 @@ rm(armpitRCMconstrNonParam)
 
 ##### CMET data
 
-This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing relative counts through 16S sequencing that can be multiplied by absolute counts from flow cytometry to get truly absolute abundances that reflect the number of cells. This type of data does not qualify for the term _compositional data_ anymore. The advent of these kind of approaches support the use of count models rather than compositional data approaches.
+This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing cell concentrations from flow cytometry from the same samples as used for the 16S sequencing. We could use this information to alleviate the compositional effect. This is relatively new in the literature, and no standard way exists of incorporating this information. In general, the cell concentratios and library sizes correlate poorly.
+
+1) In a first approach we thought of was to normalize the 16S sequencing data to relative abundances through division by the library sizes, and then multiply them by the cell concentrations, and round to the nearest integer to achieve the counts. This is several drawbacks however. Firstly the information on the variance of the relative abundances is lost. Secondly the unit in which the concentration is expressed is arbitrary but will affect the analysis because of the assumed mean-variance analysis of count data.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
 if(!file.exists(file = "CMETdata.RData")){
