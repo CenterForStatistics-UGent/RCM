@@ -433,13 +433,13 @@ It would be interesting to assess the goodness of fit of our models. Questions t
 
 The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
 
-Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions. The log-likelihood of the saturated model is by definition equal to 0.
+Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions.
 
 We can decompose the difference in log-likelihood between the independence and the full RC(K) model as
 
-$$(LL_2 - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1)$$
+$$(LL_K - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1) + ... + (LL_K - LL_{K-1})$$
 
-with $LL_0$, $LL_1$ and $LL_2$ -2 the log-likelihoods of the independence, RC(1) and RC(2) models respectively. Scaling by $(LL_2 - LL_0)$ will provide interpretable fractions. However, these are only fractions of the variance _explained by the model_, not the total variance. This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
+with $LL_k$ the log-likelihoods of RC(k) model, $LL_0$ being the independence model. Scaling by $(LL_{sat} - LL_0)$ with $LL-sat$ the log-likelihood of the saturated model, will provide interpretable fractions of the log-likelihood explained(for fitting the saturated model, we need to set the means of the observed zeroes to a very small number to avoid overflow). This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
 
 This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
 
@@ -451,7 +451,9 @@ In case the models are fitted on exactly the same dataset, we can compare the li
 
 In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
 
-Since we are not in a full likelihood framework, we cannot use deviance residuals or formal tests. Therefore I propose to use the number and extent of outlying values as a measure of lack of fit. In our setting outliers will always be values larger than expected, a zero is practically never outlying.
+Deviance (in relation to the saturated model) would be one option. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of how which ones are worst.
+
+Since we are not in a full likelihood framework, we cannot use formal tests. Therefore I propose to use the number and extent of outlying values as a measure of lack of fit. In our setting outliers will always be values larger than expected, a zero is practically never outlying.
 
 If we look at the quantile functions, we could consider all observations of a sample from the $1-\frac{1}{n}$th quantile or higher as possible outliers. The ratio of $1-\frac{1}{n}$ to the geometric mean of all quantiles of observations above the $1-\frac{1}{n}$th quantile is then a measure of the severity of the outliers.
 
@@ -789,13 +791,18 @@ For the constrained model we have noted that the ordering of the importance para
 
 ##### Environmental gradient
 
+###### Log-likelihood criterion
+
 Another aspect from niche theory is that species have eveolved to occupy maximally distinct niches. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the log-likelihood ratio approach from Zhu _et al._ (2005):
 
 $$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}_j) \big)}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}) \big)}$$
 
 with $p^{(\alpha)}$ and $p^{(\alpha)}_j$ estimated probability density functions without and with taxon labels and $\boldsymbol{\beta}_l$ and $\boldsymbol{\beta}$ the parameters of the response functions. $p^{(\alpha)}$ and $p^{(\alpha)}_j$ are calculated under a certain error distribution (e.g. negative binomial). $LR(\boldsymbol{\alpha})$ actually compares two models. In the restricted model each species reacts in the same way to its environment, relative to its own baseline defined by $u_j$, and all do not depart from independence for a certain combination of environmental variables. In the extended model each species is left to react to the environment in its own way. In case of a linear response function it means that it gets a unique intercept and slope.
 
-Another option, so far not implemented, is to estimate $\alpha$ through full ML.
+###### Full ML
+
+However, the niche concept is not accepted by all ecologists. If niches are really maximally separated, how can species co-occur then?
+An alternative option would be to estimate $\alpha$ through full ML. Surprisingly, the solutions of both approaches are very similar, although not exactly identical. The full ML solution is also much faster.
 
 Naive approach
 
@@ -1091,8 +1098,10 @@ un3DmatConfPhy = RCM(dat = counts, prevFit = un1DmatConf, k=3)
 
 #Constrained one dimension matrix without confounder filtering
 con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq))
+con1DmatML = RCM(dat = physeq, k=1, covariates =  sample_variables(physeq), envGradEst = "ML")
 # Add two dimensions
 con3Dmat = RCM(dat = physeq, prevFit = con1Dmat, k=3, covariates =  sample_variables(physeq))
+
 
 con2DmatLin = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "linear")
 
@@ -1299,13 +1308,16 @@ save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonPara
 ```
 
 ```{r zeller liks, purl = FALSE, eval= FALSE}
-liksZeller = sapply(list(zellerSphyRCM, zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam), liks)
-colnames(liksZeller) = c("unconstrained","linear","quadratic","nonparametric")
-liksZellerMelt = melt(liksZeller, varnames = c("Dimension", "responseFun"), value.name = "logLik")
-ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksZellerMelt) + geom_point() +geom_line(aes(group = responseFun))
+liksZeller = lapply(list(zellerSphyRCM, zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam), liks)
+names(liksZeller) = c("unconstrained","linear","quadratic","nonparametric")
+
+liksZeller2 = rbind(liksZeller, (liksZeller[c("Dim 1", "Dim 2"),]-liksZeller[c("independence", "Dim 1"),])/matrix(liksZeller["saturated",]-liksZeller["independence",], byrow = TRUE, nrow = 2, ncol = 4))
+rownames(liksZeller2)[5:6] = c("Dim 1 rel", "Dim 2 rel")
+liksZellerMelt = melt(liksZeller2, varnames = c("Dimension", "responseFun"), value.name = "logLik")
+ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksZellerMelt[!grepl("rel",liksZellerMelt$Dimension),]) + geom_point() +geom_line(aes(group = responseFun))
 ```
 
-The linear response functions gains most in likelihood, the non-parametric one even decreases?
+The "fraction of likelihood explained" appears to be very small.
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
 plot.RCM(zellerSphyRCMconstrLin)

@@ -28,7 +28,10 @@
 #' @param record A boolean, should intermediate parameter estimates be stored?
 #' @param control.outer a list of control options for the outer loop constrOptim.nl function
 #' @param control.optim a list of control options for the optim() function
+#' @param envGradEst a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution
+#'
 #' Not intended to be called directly but only through the RCM() function
+#'
 #' @return A list with elements
 #' \item{converged}{a vector of booleans of length k indicating if the algorithm converged for every dimension}
 #' \item{rMat}{(if not constrained a nxk matrix with estimated row scores}
@@ -55,7 +58,7 @@
 #' \item{confounders}{(if provided) the confounder matrix}
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list()){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR"){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -365,7 +368,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     v = switch(responseFun, linear = 2, quadratic = 3, dynamic = 3, 1) #Number of parameters per taxon
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
     NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
-    NB_params_noLab = if(responseFun != "nonparametric") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
+    NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
     nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWise = matrix(0,n,p), overall = rep(0,n))})} else {NULL}
     rowMat = NULL
 
@@ -373,7 +376,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       alpha[,1:Kprev] = NBRCM$alpha
       if(record) alphaRec[,1:Kprev,] = NBRCM$alphaRec
       NB_params[,,1:Kprev] = NBRCM$NB_params
-      NB_params_noLab[,1:Kprev] = NBRCM$NB_params_noLab
+      if(envGradEst == "LR") {NB_params_noLab[,1:Kprev] = NBRCM$NB_params_noLab}
     }
 
     #Number of lambda parameters for centering
@@ -439,17 +442,17 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2)) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
 
-        NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)
+        if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat)$x
+    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
             alpha[,KK] = AlphaTmp[seq_len(d)]
             lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
         } else {
           if (verbose) cat("\n Estimating response function \n")
           nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, psi = psis[KK])
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat)
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha = AlphaTmp$lambda
         }
@@ -482,7 +485,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
                       alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab,
                       libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds),
-                      confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun=nonParamRespFun)
+                      confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun=nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst)
   }
   if(!all(convergence)){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
