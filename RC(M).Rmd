@@ -1298,7 +1298,7 @@ save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonPara
 } else {load("zellerSphyRCMconstr.RData")}  #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 ```
 
-```{r zeller liks, purl = FALSE}
+```{r zeller liks, purl = FALSE, eval= FALSE}
 liksZeller = sapply(list(zellerSphyRCM, zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam), liks)
 colnames(liksZeller) = c("unconstrained","linear","quadratic","nonparametric")
 liksZellerMelt = melt(liksZeller, varnames = c("Dimension", "responseFun"), value.name = "logLik")
@@ -1405,7 +1405,7 @@ save(kostic, file = "Kostic.RData")
 } else {load("Kostic.RData")}
 ```
 
-```{r KosticRCM}, purl = FALSE}
+```{r KosticRCM}, purl = FALSE, eval = FALSE}
 if(!file.exists("kosticRCM.RData")){
 kosticRCM = RCM(kostic, k = 3)
 save(kosticRCM, file = "kosticRCM.RData")
@@ -1529,7 +1529,7 @@ if(!file.exists(file = "CMETRCM.RData")){
 
 No convergence for quadratic case. That one seems hard to fit.
 
-```{r CMETliks, purl = FALSE}
+```{r CMETliks, purl = FALSE, eval = FALSE}
 liksCMET = sapply(list("unconstrained" = CMETRCM, "linear" = CMETRCMlin,"quadratic" = CMETRCMquad, "nonParametric" = CMETRCMnonParam), liks)
 #The comparison is complicated here because we trimmed the linear case.
 liksCMERmelt = melt(liksCMET, varnames = c("Dimension","responseFun"),value.name = "logLik")
@@ -1955,7 +1955,8 @@ mclapply(mc.cores = cores, RCMlist, function(x){
     BCrelNMDS = ordinate(otuTabRel, method = "NMDS", distance = "bray", k=3),
     Hellinger = svd(diag(1/sqrt(R)) %*% (sqrt(tmp)-sqrt(E))),
     UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL, 
-    wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL
+    wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL,
+    DPCoA = if(unifrac) DPCoA(x$physeq) else NULL
     )
 })
 } #JSD works on relative abundances by default
@@ -1975,6 +1976,7 @@ tmpList = with(x, list(
     BCrelNMDS = BCrelNMDS$points,
     UniFrac = if(is.null(UniFrac)) NULL else UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
     wUniFrac = if(is.null(wUniFrac)) NULL else wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
+    DPCoA = if(is.null(DPCoA)) NULL else DPCoA$li,
     Hellinger = diag(sqrt(1/rowSums(RCM$X))) %*% Hellinger$u %*% diag(Hellinger$d)
     ))
 tmpList = tmpList[!sapply(tmpList, is.null)]
@@ -1997,6 +1999,7 @@ extractCols = function(x, row){
     BCrel = weightedTaxonScores(RCM$X, row$BCrel),
     UniFrac = if(!is.null(UniFrac))  {weightedTaxonScores(RCM$X, row$UniFrac)} ,
     wUniFrac = if(!is.null(wUniFrac)) {weightedTaxonScores(RCM$X, row$wUniFrac)} ,
+    DPCoA = if(is.null(DPCoA)) NULL else DPCoA$dls,
     BCrelNMDS = BCrelNMDS$species,
     Hellinger = diag(1/diag((crossprod(sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)), diag(rowSums(RCM$X))) %*% (sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)))))) %*% Hellinger$v
     ))
