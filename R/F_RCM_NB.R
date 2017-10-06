@@ -77,7 +77,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       n=NROW(X)
       p=NCOL(X)
       thetas = NBRCM$thetas
-      thetasMat = matrix(thetas, byrow = TRUE, n, p)
+      thetasMat = matrix(thetas[,Kprev+1], byrow = TRUE, n, p)
       rowWeights = NBRCM$rowWeights
       colWeights = NBRCM$colWeights
       libSizesMLE = NBRCM$libSizes
@@ -98,12 +98,13 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         if(record){
           rowRec = array(0, dim = c(n,k,maxItOut))
           rowRec[,1:Kprev,] = NBRCM$rowRec
-        }
+        } else {rowRec =  NULL}
         lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
         svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
         rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
         cMat = rbind(cMat, t(svdX$v[,newK, drop=FALSE]))
         psis = c(psis, svdX$d[newK])
+        thetas = cbind(thetas, matrix(0,p,k-Kprev))
       }
       muMarg = outer(libSizesMLE, abundsMLE)
       if(record){
@@ -113,7 +114,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         thetaRec[1:Kprev,,] = NBRCM$thetaRec
         psiRec = array(0, dim = c(k,maxItOut))
         psiRec[1:Kprev,] = NBRCM$psiRec
-      }
+      } else {colRec = psiRec = thetaRec = NULL}
       lambdaCol = lambdaRow = rep(0, k*(2+(k-1)/2))
       lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
       convergence = c(NBRCM$converged, rep(FALSE, k-Kprev))
@@ -130,6 +131,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
     n=NROW(X)
     p=NCOL(X)
+
+    thetas = matrix(0,p,k+1) #Track the overdispersions, also the one associated to the independence model
 
     #Initialize some parameters
     abunds = colSums(X)/sum(X)
@@ -151,8 +154,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         logLibsOld = logLibSizesMLE
         logAbsOld = logAbundsMLE
 
-        thetas = estDisp(X = X, rMat = as.matrix(rep(0,n)), cMat = t(as.matrix(rep(0,p))),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, prior.df = prior.df, trended.dispersion = trended.dispersion)
-        thetasMat = matrix(thetas, n, p, byrow=TRUE)
+        thetas[,1] = estDisp(X = X, rMat = as.matrix(rep(0,n)), cMat = t(as.matrix(rep(0,p))),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, prior.df = prior.df, trended.dispersion = trended.dispersion)
+        thetasMat = matrix(thetas[,1], n, p, byrow=TRUE)
 
         logLibSizesMLE = nleqslv(fn = dNBlibSizes, x = logLibSizesMLE, theta = thetasMat, X = X, reg=logAbundsMLE, global=global, control = nleqslv.control, jac=NBjacobianLibSizes, method=jacMethod)$x
         logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = X, reg=logLibSizesMLE, global=global, control = nleqslv.control, jac=NBjacobianAbunds, method=jacMethod)$x
@@ -195,9 +198,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     iterOut = rep(1,k)
     if(!is.null(confounders[[1]])){
       ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
-      filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas, nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
+      filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas[,1], nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
       muMarg = filtObj$muMarg
-      thetas = filtObj$thetas
+      thetas[,1] = filtObj$thetas
       confParams = filtObj$NB_params
     } else {
       confParams=NULL
@@ -280,8 +283,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Overdispersions (not at every iterations to speed things up, the estimates do not change a lot anyway)
         if((iterOut[KK] %% dispFrec) ==0 || (iterOut[KK]==1)){
           if (verbose) cat("Estimating overdispersions \n")
-          thetas = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
-          thetasMat = matrix(thetas, n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
+          thetas[,KK+1] = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
+          thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
           preFabMat = 1+X/thetasMat # Another matrix that can be pre-calculated
         }
         #Psis
@@ -318,7 +321,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           #Store intermediate estimates
           rowRec[,KK, iterOut[KK]] = rMat[,KK]
           colRec[KK,, iterOut[KK]] = cMat[KK,]
-          thetaRec [KK,, iterOut[KK]] = thetas
+          thetaRec [KK,, iterOut[KK]] = thetas[,KK+1]
           psiRec[KK, iterOut[KK]] = psis[KK]
         }
 
@@ -422,8 +425,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
         if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
           if (verbose) cat("Estimating overdispersions \n")
-          thetas = estDisp(X = X, muMarg = muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
-          thetasMat = matrix(thetas, n, p, byrow=TRUE)
+          thetas[,KK+1] = estDisp(X = X, muMarg = muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
+          thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE)
           preFabMat = 1+X/thetasMat
         }
 
@@ -433,7 +436,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         if(responseFun %in% c("linear","quadratic", "dynamic")){
           if (verbose) cat("\n Estimating response function \n")
-        NB_params[,,KK] = estNBparams(design = design, thetas = thetas, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
+        NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2)) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
 
         NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)
@@ -454,7 +457,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Store intermediate estimates
         if(record){
           alphaRec[,KK, iterOut[KK]] = alpha[,KK]
-          thetaRec [KK,, iterOut[KK]] = thetas
+          thetaRec [KK,, iterOut[KK]] = thetas[,KK+1]
           psiRec[KK, iterOut[KK]] = psis[KK]
         }
         ## Change iterator
