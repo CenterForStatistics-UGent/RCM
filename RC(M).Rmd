@@ -464,7 +464,11 @@ Deviance (in relation to the saturated model) would be one option. The deviance 
 
 ###### Identifying influential observations
 
-Since we have explicitly expressed all score functions, we can easily identify influential observations using _influence functions_. They represent the influence a certain observation has on parameter, keeping the other sorts of parameters fixed
+Since we have explicitly expressed all score functions, we can easily identify influential observations using _influence functions_. They represent the influence a certain observation has on parameter, keeping the other sorts of parameters fixed. Because of the iterative algorithm this assumption is incorrect, maybe the influence functions cannot always be trusted. The long fitting times also exclude (leave-one-out) refitting procedures.
+
+For the unconstrained case in a scenario without outliers the influence functions may not yield very surprising results on the level of the plot, observations mainly have influence on their own row and column scores. Coupling through the constraints is rather weak. It may however help to identify outlying abundances in case of outlying row- or column scores.
+
+For the constrained case it may be enlightning to see which samples (and taxa) affect the estimation of the environmental gradient most.
 
 ### One-by-one (1B1)
 
@@ -983,31 +987,6 @@ caSVD = function(X, Y = NULL, Z = NULL, version = "Pearson"){
 ### Negative binomial
 
 ```{r NBauxFuns, purl=TRUE}
-# The influence function for the column scores
-NBcolInfl = function(X, psis, cMat, rMat, thetas, colWeights, k, lambdaCol){
-  reg = psis[k] *rMat[,k]
-  muMarg = outer(rowSums(X), colSums(X)/sum(X)) * exp(rMat[,1:k, drop=FALSE] %*% (cMat[1:k,, drop=FALSE]*psis[1:k]))
-  p=ncol(X)
-  n = nrow(X)
-  lambdaCol = lambdaCol[seq_k(k)]
-  cMatK = cMat[1:(k-1),,drop=FALSE]
-  nLambda = length(lambdaCol)
-  tmp = if(k>1) lambdaCol[-(1:2)] %*% cMatK else 0
-  
-  score= t(t(reg*((X-muMarg)/(1+t(t(muMarg)/thetas)))) + c(colWeights*(lambdaCol[1] + lambdaCol[2]*2*cMat[k,] + tmp)))
-
-  JacobianInv = solve(NBjacobianCol(beta = c(cMat[k,], lambdaCol), X = X, reg= reg, thetas = thetas, muMarg = muMarg, k = k, p = p, n=n ,colWeights = colWeights , nLambda = nLambda, cMatK = cMatK)) #Inverse Jacobian
-  
-  #After a long thought: The X's do not affect the estimation of the lambda parameters!
-  #Matrix becomes too large: return score and inverse jacobian
-  return(list(score=score, InvJac = JacobianInv[1:p,1:p]))
-}
-#-------------------------------------------#
-
-#A function to extract the influence for a given parameter index
-getInflCol = function(score, InvJac, parIndex){
-  t(t(score)* InvJac[, parIndex])
-}
 #--------------------------------------#
 # The influence function for the row scores
 NBrowInfl = function(X, psis, cMat, rMat, thetas, rowWeights, k, lambdaRow){
