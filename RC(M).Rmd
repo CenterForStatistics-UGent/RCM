@@ -428,10 +428,15 @@ It would be interesting to assess the goodness of fit of our models. Questions t
  - How do the different dimensions of the fit relate to one another in terms of importance? How well does our lower dimensional solution represent high-dimensional departures from independence?
  - How much better are quadratic or nonparametric response functions compared to the linear response functions?
  - Which samples and/or taxa are poorly represented in the low-dimensional solution? Which ones exhibit lack of fit to the negative binomial distribution?
+ - Which samples/taxa have a strong influence on the final model fit?
  
 ###### Relative importance of dimensions
 
+Mean
+
 The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
+
+Likelihood
 
 Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions.
 
@@ -439,9 +444,13 @@ We can decompose the difference in log-likelihood between the independence and t
 
 $$(LL_K - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1) + ... + (LL_K - LL_{K-1})$$
 
-with $LL_k$ the log-likelihoods of RC(k) model, $LL_0$ being the independence model. Scaling by $(LL_{sat} - LL_0)$ with $LL-sat$ the log-likelihood of the saturated model, will provide interpretable fractions of the log-likelihood explained(for fitting the saturated model, we need to set the means of the observed zeroes to a very small number to avoid overflow). This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
+with $LL_k$ the log-likelihoods of RC(k) model, $LL_0$ being the independence model. Scaling by $(LL_{sat} - LL_0)$ with $LL-sat$ the log-likelihood of the saturated model, will provide interpretable fractions of the log-likelihood explained. The trouble is how to estimate the log likelihood of a saturated model, especially the overdispersion. We just use the likelihood of the Poisson distribution here, since the dispersions will be zero.
+
+This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
 
 This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
+
+All in all the psis are the most interpretable measure of importance of each dimension. Means are more interpretable than likelihoods.
 
 ###### Comparison of response functions
 
@@ -451,9 +460,11 @@ In case the models are fitted on exactly the same dataset, we can compare the li
 
 In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
 
-Deviance (in relation to the saturated model) would be one option. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of how which ones are worst.
+Deviance (in relation to the saturated model) would be one option. The deviance is porportional to the difference in log-likelihoods of a certain model and the saturated model. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of which ones are worst.
 
+###### Identifying influential observations
 
+Since we have explicitly expressed all score functions, we can easily identify influential observations using _influence functions_. They represent the influence a certain observation has on parameter, keeping the other sorts of parameters fixed
 
 ### One-by-one (1B1)
 
@@ -972,13 +983,6 @@ caSVD = function(X, Y = NULL, Z = NULL, version = "Pearson"){
 ### Negative binomial
 
 ```{r NBauxFuns, purl=TRUE}
-#-------------------------------------# 
-#The influence function for the psis
-NBpsiInfl = function(psi, X, cMat, rMat, muMarg, theta){
-  reg = rMat %*% cMat
-  mu = muMarg * exp(reg* psi)
-  -((X-mu)*(theta+mu))/(reg*(theta+X)*mu)
-}
 # The influence function for the column scores
 NBcolInfl = function(X, psis, cMat, rMat, thetas, colWeights, k, lambdaCol){
   reg = psis[k] *rMat[,k]

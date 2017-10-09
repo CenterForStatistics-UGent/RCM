@@ -6,9 +6,5 @@
 #'
 #' @return a matrix of dispersions
 extractDisp = function(rcm, E, k = rcm$k){
- if(k==rcm$k) {
-    matrix(rcm$thetas, byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X))
-  } else {
     matrix(estDisp(X = rcm$X, muMarg = E), byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X))
-  }
 }

@@ -15,6 +15,8 @@
 #' @param plotEllipse a boolean, whether to add the ellipses
 #' @param taxaScale a scalar, by which to scale the rectangles of the quadratic taxon plot
 #' @param Palette the colour palette
+#' @param taxLabels a boolean, shoudl taxon labels be plotted
+#' @param taxCol the taxon colour
 #' @param arrowCol a character string: the colour of the arrows of the environmental gradient.
 #' @param nudge_y a scalar, the offet for the taxon labels
 #' @param square A boolean, should the plot be square? This is highly preferred to honestly represent differences
@@ -25,8 +27,8 @@
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
-                    taxNum = 10, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3,...) {
+                    taxNum = if(all(plotType=="species")) ncol(RCMfit$X) else 10, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates)
@@ -39,12 +41,12 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   names(dataSam)=paste0("Dim", Dim)
 
   #Get the colours
-  if(!is.null(samColour) && !is.factor(samColour)){
+  if(length(samColour)==1){
     dataSam$colourPlot = get_variable(RCMfit$physeq, samColour)
     if(is.character(dataSam$colourPlot)) dataSam$colourPlot  = factor(dataSam$colourPlot )
-
-  } else if(is.factor(samColour)){
-    dataSam$colourPlot = samColour} else {dataSam$colourPlot=factor(rep(1, nrow(dataSam)))}
+  } else if(!is.null(samColour)){
+    dataSam$colourPlot = samColour
+    } else {dataSam$colourPlot=factor(rep(1, nrow(dataSam)))}
 
   #     #Set colour palette
   if(is.null(Palette)){
@@ -168,23 +170,30 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     plot = plot + scale_shape_discrete(name = shapeLegend)
   }
 
-  #Add arrows or labels
-  if(length(arrowCol)>1){
-    arrowCol = Palette[c(arrowCol[id])]
-  }
   } else {plot = ggplot()}
   if("species" %in% plotType){
-    if(!constrained || RCMfit$responseFun=="linear"){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2"), arrow=arrow(length=unit(0.2,"cm")), alpha=0.75, color=arrowCol, show.legend=FALSE)
+    #Add arrows or labels
+    if(length(taxCol)>1 && length(unique(taxCol))<10){
+      taxCol = Palette[c(taxCol[id])]
+    }
+    dataTax$taxCol = taxCol[id]
+    if((!constrained || RCMfit$responseFun=="linear") && ("samples" %in% plotType)){
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = 0.75, colour = "taxCol"), arrow=arrow(length=unit(0.2,"cm")), show.legend=FALSE)
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
       plot <- plot +
         geom_tile(data=dataTax, aes_string(x='end1', y='end2', fill="colour", width = "peak1", height = "peak2" ), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
         if(plotEllipse) {geom_path(inherit.aes = FALSE, data = dataEllipse, mapping = aes_string(x = "x", y = "y", group = "taxon"), colour = "grey50", show.legend = FALSE)}
     } else {
-      plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="colour"), pch = 21, show.legend=FALSE, inherit.aes = FALSE)
+      plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="taxCol"), pch = 21, show.legend = length(taxCol)!=1, inherit.aes = FALSE)
+      if(!is.null(colLegend) & is.factor(dataTax$taxCol) ){
+        plot = plot + scale_fill_manual(name = colLegend, values = Palette)
+      }    else if(!is.null(colLegend) & !is.factor(dataTax$taxCol) ){
+        plot = plot + scale_fill_continuous(name = colLegend)
+      }
     }
-
-    plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=arrowCol, show.legend=FALSE, nudge_y = nudge_y, size = labSize)
+if(taxLabels){
+    plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=taxCol, show.legend=FALSE, nudge_y = nudge_y, size = labSize)
+}
   } else {}
   if("variables" %in% plotType){
     #Add variable labels

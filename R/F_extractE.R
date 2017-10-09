@@ -9,10 +9,6 @@ extractE = function(rcm, Dim = seq_len(rcm$k)){
   Eind = outer(rcm$libSizes, rcm$abunds) #Expected values under independence
   if (Dim[1]==0){
     Eind
-  } else if(Dim[1]==Inf){
-  E = rcm$X
-  E[E==0] = 1e-300
-  E
   } else if(is.null(rcm$covariates)){
       Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))
   } else if(rcm$responseFun == "nonparametric"){
