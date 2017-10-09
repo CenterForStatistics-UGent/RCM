@@ -1,20 +1,23 @@
 #' Calculate the log-likelihoods of the indepence and saturated models and all fitted submodels
 #'
 #'@param rcm an object of the RCM class
+#'@param Sum a boolean, should likelihoods be summed?
 #'
 #'Dispersions are re-estimated for every dimension of the model.
 #'
-#'@return a named vector of length rcm$k+1 containing the log-likelihoods of the independence model and all models with dimension 1 to k
+#'@return a named array log-likelihoods of the independence model and all models with dimension 1 to k, or a vector with summed log-likelihoods
 liks = function(rcm){
-  arrayOut =array("numeric",c(dim(rcm$X), rcm$k+2))
-
-  arrayOut[,,-(rcm$k+2)] = sapply(c(0,seq_len(rcm$k)), function(k){
-    exList = extractE(rcm, k)
-   dnbinom(x = rcm$X, mu = exList$E, size = exList$thetaMat, log = TRUE)
+  outnames = c("independence", paste0("Dim ", 1:rcm$k),"saturated")
+  if(Sum) {
+    tmp = sapply(c(0:rcm$k, Inf), FUN = function(i){
+      sum(getLogLik(rcm, i))
+    })
+    names(tmp) = outnames
+  } else {
+  tmp = vapply(c(0:rcm$k, Inf), FUN.VALUE = as.numeric(rcm$X), FUN = function(i){
+getLogLik(rcm, i)
   })
-  Esat = rcm$X
-  Esat[Esat==0] = 1e-300 #For a saturated model, set zero values to 1e-300
-  arrayOut[,,rcm$k+2] = dnbinom(x = rcm$X, mu = rcm$X, size = matrix(estDisp(X = rcm$X, muMarg = Esat), byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X)), log = TRUE) #
-  dimnames(arrayOut)[[3]] = c("independence", paste0("Dim ", 1:rcm$k),"saturated")
-  arrayOut
+  dimnames(tmp)[[3]] = outnames
+  tmp
+  }
 }

@@ -7,3 +7,6 @@
 #' Standard dimensions used are only first and second, since these are also plotted
 #'
 #'@return A matrix with deviances of the same size as the original data matrix
+getDeviance = function(RCM, Dim = c(1,2)){
+2*(getLogLik(RCM, Inf) - getLogLik(RCM, Dim))
+}

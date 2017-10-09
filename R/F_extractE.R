@@ -1,36 +1,23 @@
-#' A function to extract a matrix of expected values for any dimension of the fit, along with a matrix of dispersions.
+#' A function to extract a matrix of expected values for any dimension of the fit
 #'
 #' @param rcm an object of class RCM
-#' @param k the desired dimension. Defaults to the maximum of the fit. Choose 0 for the independence model
+#' @param Dim the desired dimensions. Defaults to the maximum of the fit. Choose 0 for the independence model
 #'
-#' The dispersions of each dimension are extracted if possible, fitted if necessary
-#'
-#' @return A list with components
-#' \item{E}{The matrix of expected values}
-#' \item{thetaMat}{The corresponding matrix of overdispersions}
-extractE = function(rcm, k = rcm$k){
+#' @return The matrix of expected values
+extractE = function(rcm, Dim = seq_len(rcm$k)){
   #Expectations
   Eind = outer(rcm$libSizes, rcm$abunds) #Expected values under independence
-  E = if (k==0){
+  if (Dim[1]==0){
     Eind
+  } else if(Dim[1]==Inf){
+  E = rcm$X
+  E[E==0] = 1e-300
+  E
+  } else if(is.null(rcm$covariates)){
+      Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))
+  } else if(rcm$responseFun == "nonparametric"){
+      Eind*exp(apply(vapply(Dim,FUN.VALUE = Eind, function(j){rcm$psis[j]*rcm$nonParamRespFun[[j]]$taxonWise}),c(1,2),sum))
   } else {
-    if(is.null(rcm$covariates)){
-      Eind *exp(rcm$rMat[,1:k, drop = FALSE] %*% (rcm$cMat[1:k,, drop = FALSE]* rcm$psis[1:k]))
-    } else if(rcm$responseFun == "nonparametric"){
-      Eind*exp(apply(vapply(1:k,FUN.VALUE = Eind, function(j){rcm$psis[j]*rcm$nonParamRespFun[[j]]$taxonWise}),c(1,2),sum))
-    } else {
-      Eind*exp(apply(vapply(1:k, FUN.VALUE = Eind, function(j){rcm$psis[j]*getRowMat(sampleScore = rcm$covariates %*% rcm$alpha[,j], responseFun = rcm$responseFun, NB_params = rcm$NB_params[,,j])}),c(1,2),sum))
+      Eind*exp(apply(vapply(Dim, FUN.VALUE = Eind, function(j){rcm$psis[j]*getRowMat(sampleScore = rcm$covariates %*% rcm$alpha[,j], responseFun = rcm$responseFun, NB_params = rcm$NB_params[,,j])}),c(1,2),sum))
     }
   }
-
-  #Overdispersions
-  thetaMat = if(is.matrix(rcm$thetas)){
-    matrix(rcm$thetas[,k], byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X))
-    } else if(k==rcm$k) {
-    matrix(rcm$thetas, byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X))
-  } else {
-    matrix(estDisp(X = rcm$X, muMarg = E), byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X))
-  }
-
-  list(E = E, thetaMat = thetaMat)
-}
