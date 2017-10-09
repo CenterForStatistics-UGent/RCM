@@ -453,9 +453,7 @@ In our 2D or 3D representation, some samples and taxa may be very well represent
 
 Deviance (in relation to the saturated model) would be one option. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of how which ones are worst.
 
-Since we are not in a full likelihood framework, we cannot use formal tests. Therefore I propose to use the number and extent of outlying values as a measure of lack of fit. In our setting outliers will always be values larger than expected, a zero is practically never outlying.
 
-If we look at the quantile functions, we could consider all observations of a sample from the $1-\frac{1}{n}$th quantile or higher as possible outliers. The ratio of $1-\frac{1}{n}$ to the geometric mean of all quantiles of observations above the $1-\frac{1}{n}$th quantile is then a measure of the severity of the outliers.
 
 ### One-by-one (1B1)
 
@@ -631,6 +629,8 @@ whereby
  - $m_{jk}$ is the tolerance, it determines how fast the expected value decreases as $\mathbf{c}_{i.}$ moves away from its optimal values $\boldsymbol{\alpha}_k^{-t}h_{ik}$
  
  The scales of $h_{ik}$, $q_{jk}$ and $m_{jk}$ are undefined, so we need an additional restriction to render the model identifiable. Zhu _et al._, 2005 propose setting $\sum_{j=1}^p m_{jk}^2/p=1$. Note that $a_{jk}$, $q_{jk}$ and $m_{jk}$ are species specific parameters whereas $\boldsymbol{\alpha}_k$ is specific for the dimension but common to all species.
+ 
+ Does the environmental score really need to be a result of a _linear_ projection vector? From the modelling perspective perhaps not, but it does really ease the interpretation of course, which is hard enough already.
  
 ##### Triplot
 
@@ -1032,22 +1032,6 @@ getInflRow = function(score, InvJac, parIndex){
 }
 ```
 
-
-## Auxiliary functions
-
-```{r auxFuns}
-#-------------------------------------------#
-# A function to drop the recorded parameter estimates throughout the iterations to save space
-dropArrayRec = function(RCM){
-  class(RCM)= "list"
- tmp =  within(RCM, {
-    rowRec = colRec = psiRec = thetaRec = NULL
-  })
- class(tmp)= "RCM"
- tmp
-}
-```
-
 #### Test the software
 
 Some preliminary test to make sure everything runs without errors
@@ -1301,9 +1285,11 @@ with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
 ```{r zellerConstrained, purl =FALSE}
 if(!file.exists("zellerSphyRCMconstr.RData")){
 zellerSphyRCMconstrLin = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear") # Use smallest possible cndtol!
+zellerSphyRCMconstrLinML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear", envGradEst = "ML")
 zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
 zellerSphyRCMconstrNonParam = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
-save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam,file="zellerSphyRCMconstr.RData")
+zellerSphyRCMconstrNonParamML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric", envGradEst = "ML")
+save(zellerSphyRCMconstrLin, zellerSphyRCMconstrLinML, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam,file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")}  #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
 ```
 
@@ -1377,8 +1363,9 @@ rm(turntwinsRCm)
 if(!file.exists("turnMiceRCM.RData")){
   load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 HumMiceRCM = RCM(HumMicePhy, k=3)
-HumMiceRCM = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DTS"))
-save(HumMiceRCM, file = "turnMiceRCM.RData")
+HumMiceRCMlin = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DGS"))
+HumMiceRCMlinML = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DGS"), envGradEst = "ML")
+save(HumMiceRCM, HumMiceRCMlin, HumMiceRCMlinML, file = "turnMiceRCM.RData")
 } else {load("turnMiceRCM.RData")}
 ```
 
@@ -1502,7 +1489,7 @@ rm(armpitRCMconstrNonParam)
 
 This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing cell concentrations from flow cytometry from the same samples as used for the 16S sequencing. We could use this information to alleviate the compositional effect. This is relatively new in the literature, and no standard way exists of incorporating this information. In general, the cell concentratios and library sizes correlate poorly.
 
-1) In a first approach we thought of was to normalize the 16S sequencing data to relative abundances through division by the library sizes, and then multiply them by the cell concentrations, and round to the nearest integer to achieve the counts. This is several drawbacks however. Firstly the information on the variance of the relative abundances is lost. Secondly the unit in which the concentration is expressed is arbitrary but will affect the analysis because of the assumed mean-variance analysis of count data.
+See separate document for extended discussion.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
 if(!file.exists(file = "CMETdata.RData")){
@@ -1535,6 +1522,7 @@ if(!file.exists(file = "CMETRCM.RData")){
   CMETRCM = RCM(CMETwater, k = 3, prevCutOff = 0.05)
   envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "Reactor.cycle")
   CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
+  CMETRCMlinML = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05, envGradEst = "ML")
   CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET, prevCutOff = 0.05)
   CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET, prevCutOff = 0.05)
   save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")

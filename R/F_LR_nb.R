@@ -18,7 +18,7 @@
 #' DON'T USE "p" as variable name, partial matching in the grad-function in the numDeriv package
 #'
 #' @return: a scalar, the evaluation of the log-likelihood ratio at the given alpha
-LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric","dynamic"), muMarg, psi, nleqslv.control = list(trace=FALSE), n, NB_params, NB_params_noLab, thetaMat, ncols, nonParamRespFun,...){
+LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparametric","dynamic"), muMarg, psi, nleqslv.control = list(trace=FALSE), n, NB_params, NB_params_noLab, thetaMat, ncols, nonParamRespFun, envGradEst,...){
 
   sampleScore = CC %*% Alpha #A linear combination of the environmental variables yields the environmental score
   if(responseFun %in% c("linear","quadratic","dynamic")){
