@@ -494,6 +494,14 @@ with $e_{il}$ the value of covariate $l$ in sample $i$ and $\zeta_{jl}$ the inte
 
 Filtering out the effect of confounders brings the problems of the zeroes to the fore again. If a taxon has only zero counts in one of the subgroups defined by the confounding variables, the model will fail to fit, since the parameters $\zeta_{jl}$ would need to equal minus infinity. For continuous confounders this is of course not an issue. Maybe there exists a more efficient solution, but for now we will have to trim the taxa for which this occurs from further analysis in order to render the model identifiable. This trimming occurs already before fitting the independence model.
 
+#### Weaknesses
+
+The main drawback of our method is of course its strong reliance on the assumption of counts following the negative binomial distribution. The robustness to the violation of this assumption will need to be investigated. 
+
+Also our method does not take taxon-interaction networks into account. It assumes independence between taxon counts. However, this is something we could still add to the method.
+
+Finally also phylogenetic relation ships between taxa are not used, but this need not be a problem. Our method is a real compositional method: it reveals differences in taxon compositions between samples, and need not be influenced by "prior" information such as evolutionary relationships. After all taxa in the same body site are not guaranteed to be evolutionarily related, and vice versa distinct body sites can harbour closely related taxa.
+
 #### Implementation
 
 For the filtering based on the prevalence and abundance, we need a confounder matrix
@@ -987,26 +995,6 @@ caSVD = function(X, Y = NULL, Z = NULL, version = "Pearson"){
 ### Negative binomial
 
 ```{r NBauxFuns, purl=TRUE}
-#--------------------------------------#
-# The influence function for the row scores
-NBrowInfl = function(X, psis, cMat, rMat, thetas, rowWeights, k, lambdaRow){
-  reg = psis[k] *cMat[k,]
-  muMarg = outer(rowSums(X), colSums(X)/sum(X)) * exp(rMat[,1:k, drop=FALSE] %*% (cMat[1:k,, drop=FALSE]*psis[1:k]))
-  p=ncol(X)
-  n = nrow(X)
-  lambdaRow = lambdaRow[seq_k(k)]
-  rMatK = rMat[,1:(k-1),drop=FALSE]
-  nLambda = length(lambdaRow)
-  tmp = if(k>1) rMatK %*% lambdaRow[-(1:2)] else 0
-  
-  score= reg*(X-muMarg)/(1+t(t(muMarg)/thetas)) + c(rowWeights*(lambdaRow[1] + lambdaRow[2]*2*rMat[,k] + tmp))
-
-  JacobianInv = solve(NBjacobianRow(beta = c(rMat[,k], lambdaRow), X = X, reg= reg, thetas = thetas, muMarg = muMarg, k = k, p = p, n=n, rowWeights = rowWeights , nLambda = nLambda, rMatK = rMatK)) #Inverse Jacobian
-  
-  #After a long thought: The X's do not affect the estimation of the lambda parameters!
-  #Matrix becomes too large: return score and inverse jacobian
-  return(list(score=score, InvJac = JacobianInv[1:n,1:n]))
-}
 #-------------------------------------------#
 
 #A function to extract the influence for a given parameter index
