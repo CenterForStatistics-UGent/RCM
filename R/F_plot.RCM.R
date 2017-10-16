@@ -23,12 +23,14 @@
 #' @param xInd a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side
 #' @param yInd a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side
 #' @param labSize the size of the variable labels
+#' @param taxRegExp a character vector indicating which taxa to plot
+#' @param varNum an integer, number of variable arrows to draw
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
-                    taxNum = if(all(plotType=="species")) ncol(RCMfit$X) else 10, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3,...) {
+                    taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3, taxRegExp = NULL, varNum = 20,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates)
@@ -52,10 +54,14 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   if(is.null(Palette)){
     Palette = rainbow(length(unique(dataSam$colourPlot)))
   }
-  taxFrac = taxNum/ncol(RCMfit$X)
+
+  idTaxRegExp = if(!is.null(taxRegExp)){  #Filter out certain taxa
+    apply(sapply(taxRegExp, grepl, ignore.case = TRUE, x = colnames(RCMfit$X)),1,any) #Display only required taxa
+  } else {rep(TRUE, ncol(RCMfit$X))}
+  if(!any(idTaxRegExp)) {stop("Species not found! \n Check the dimnames of your RCMfit$X slot! \n")}
+  taxFrac = min(taxNum/sum(idTaxRegExp),1)
 
   #Construct dataframe for taxa
-
   if(constrained) {
     if(RCMfit$responseFun=="linear"){
       dataTax = data.frame(
@@ -64,7 +70,9 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
         slope1 = RCMfit$NB_params[2,,Dim[1]] * RCMfit$psis[Dim[1]], #The gradient
         slope2 = RCMfit$NB_params[2,,Dim[2]] * RCMfit$psis[Dim[2]]
       )
-      dataTax = within(dataTax, {
+      rownames(dataTax) = colnames(RCMfit$X)
+      dataTax = dataTax[idTaxRegExp,] #Keep only selected taxa
+            dataTax = within(dataTax, {
         end1 = origin1 + slope1
         end2 = origin2 + slope2
       })
@@ -116,6 +124,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
         dataTax
       )
       envScores = RCMfit$covariates %*% RCMfit$alpha
+      rownames(dataTax) = colnames(RCMfit$X)
+      dataTax = dataTax[idTaxRegExp,] #Keep only selected taxa
       id = dataID[with(dataID,
                        order(end1 > max(envScores[,Dim[1]]) | end1 < min(envScores[,Dim[1]]),
                              end2 > max(envScores[,Dim[2]]) | end2 < min(envScores[,Dim[2]]),
@@ -137,6 +147,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   } else { #If not constrained
     dataTax = data.frame(cbind(t(RCMfit$cMat[Dim,]),0,0))
     names(dataTax) = c("end1","end2", "origin1","origin2")
+    rownames(dataTax) = colnames(RCMfit$X)
+    dataTax = dataTax[idTaxRegExp,] #Keep only selected taxa
   }
   if(!constrained){ #Scaling needed
     arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
@@ -151,7 +163,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       end2 = end2 * scalingFactor
     })
   } # End scaling needed
-  if("species" %in% plotType) dataTax$labels = sub(" ", "\n", colnames(RCMfit$X)[id])
+  if("species" %in% plotType) dataTax$labels = sub(" ", "\n", rownames(dataTax))
 
   if("samples" %in% plotType){
   plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList)) +
@@ -176,7 +188,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     if(length(taxCol)>1 && length(unique(taxCol))<10){
       taxCol = Palette[c(taxCol[id])]
     }
-    if((!constrained || RCMfit$responseFun=="linear") && ("samples" %in% plotType)){
+    if((!constrained || RCMfit$responseFun=="linear")){
       plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = 0.75), colour = taxCol, arrow=arrow(length=unit(0.2,"cm")), show.legend=FALSE, inherit.aes = FALSE)
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
       plot <- plot +
@@ -196,8 +208,14 @@ if(taxLabels){
   } else {}
   if("variables" %in% plotType){
     #Add variable labels
+    arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2)
+    varFrac = varNum/nrow(RCMfit$alpha)
+    idVar = arrowLenghtsVar >= quantile(arrowLenghtsVar, 1 - varFrac)
     varData = data.frame(RCMfit$alpha)
-    varData$label = rownames(RCMfit$alpha)
+    varData$label = rownames(RCMfit$alpha) #Fix me!
+    varNames = names(attr(RCMfit$cova, "contrasts"))[attr(RCMfit$cova, "assign")[attr(RCMfit$cova, "assign") %in% attr(RCMfit$cova, "assign")[idVar]]]
+ #Include all levels from important factors, not just the long arrows
+    varData = varData[varNames,]
     scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
     varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
     plot = plot + geom_text(data = varData, mapping = aes_string(x = names(dataSam)[1], y = names(dataSam)[2], label = "label"), inherit.aes = FALSE, size = labSize)

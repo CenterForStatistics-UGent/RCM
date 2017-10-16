@@ -1410,7 +1410,10 @@ if(!file.exists(file = "armpitRCM.RData")){
   armpitRCMconstrLin = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "linear")
   armpitRCMconstrQuad = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "quadratic")
   armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric")
-  save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, armpitRCMconstrNonParam, file = "armpitRCM.RData")
+  lessVariablesArmpit = c("BMI", "Fastfood", "Meat", "Vegetables", "gender")
+  armpitRCMconstrLinLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "linear")
+  armpitRCMconstrNonParamLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "nonparametric")
+    save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, armpitRCMconstrNonParam, armpitRCMconstrLinLess, armpitRCMconstrNonParamLess, file = "armpitRCM.RData")
 } else {load(file = "armpitRCM.RData")}
 ```
 
