@@ -1815,128 +1815,9 @@ For the methods that do yield taxon scores, we can also verify if the correct ta
 $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
 with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal. Because the mean is very sensitive to outliers, we also include the median, whcih makes our method come out as best. it is very important to mention this in a publication and show both results!
 
-```{r contrTaxa}
-contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3, upDown = FALSE, centerFun = median){
-  #FIX ME! Hellinger!
-  rowMatPsi = rowMatPsi[,Dim]
-  colMat = t(colMat)[Dim,]
-  if(upDown){
-  idTaxNum = matrix(-1,nrow(idTax) , ncol(idTax))
-  idTaxNum[idTax=="up"] = 1
-  }
-  centroids = matrix(unlist(tapply(seq_len(nrow(rowMatPsi)), groupFactor, function(i){
-    colMeans(rowMatPsi[i,])
-  })), nrow = ncol(rowMatPsi)) #The group centroids
-  colnames(centroids) = levels(groupFactor)
-  overalCenterSam = colMeans(rowMatPsi) # The overall sample centroid(not always c(0,0,0)!!)
-  overalCenterTax = colMeans(colMat)
-  contrib = sapply(seq_along(levels(groupFactor)), function(i){
-        crossprod(colMat, centroids[, i])
-  }) # The inner product of all species' arrows with the vectors locating the centroids
-  sigContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun(contrib[match(rownames(idTax[[i]]), colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
-  })} else {
-    sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun(contrib[match(idTax[[i]], colnames(colMat), nomatch = 0),i])
-  })
-  } # The mean/median contribution of the taxa with signal
-  allContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun(
-      apply(contrib[!colnames(colMat) %in% rownames(idTax[[i]]),],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
-  })} else {
-    sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun( apply(contrib[!colnames(colMat) %in% idTax[[i]],],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
-  })
-  } # The mean/median contribution of the 50% taxa with highest contribution among non-significant taxa
-  ratios = sigContr/allContr # The ratio of these mean contributions
-  mean(ratios) # Mean ratio
-}
-```
-
 ## Auxiliary functions
 
 ```{r extract row vectors}
-# A function to perform all analyses except for RC(M)
-otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
-    if(unifrac) {
-      RCMlist = mapply(SIMPLIFY = FALSE,RCMlist, treeList, FUN = function(x,tree){
-        x$physeq = phyloseq(otu_table(x$X, taxa_are_rows = FALSE), tree)
-        sample_names(x$physeq) = seq_len(nsamples(x$physeq))
-        x
-      })
-  }
-mclapply(mc.cores = cores, RCMlist, function(x){
-  tmp = x$X; rownames(tmp) = seq_len(nrow(tmp))
-  R = rowSums(tmp)
-  E = outer(R, colSums(tmp)/sum(tmp))
-  otuTab = otu_table(tmp, taxa_are_rows = FALSE)
-  otuTabRel = otu_table(tmp/R, taxa_are_rows = FALSE)
-  otuTabLog = otu_table(log(tmp+1), taxa_are_rows = FALSE)
-  list(
-    RCM = x, CA = caSVD(tmp), DCA = ordinate(otuTab, method = "DCA"), CoDa = CoDa(tmp),
-    BC = ordinate(otuTab, method = "PCoA", distance = "bray"),
-    BClog = ordinate(otuTabLog, method = "PCoA", distance = "bray"),
-    JSD = ordinate(otuTab, method = "PCoA", distance = "jsd"),
-    BCrel = ordinate(otuTabRel, method = "PCoA", distance = "bray"),
-    BCrelNMDS = ordinate(otuTabRel, method = "NMDS", distance = "bray", k=3),
-    Hellinger = svd(diag(1/sqrt(R)) %*% (sqrt(tmp)-sqrt(E))),
-    UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL, 
-    wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL,
-    DPCoA = if(unifrac) DPCoA(x$physeq) else NULL
-    )
-})
-} #JSD works on relative abundances by default
-#---------------------------------------#
-#A function to extract the row vectors multiplied by importance elements
-extractRows = function(x){
-tmpList = with(x, list(
-    RCM = RCM$rMat %*% diag(RCM$psis),
-    CApearson = CA$u %*% diag(CA$d),
-    CAcontRat = diag(1/sqrt(rowSums(RCM$X))) %*% CA$u %*% diag(CA$d),
-    CAchisq  = diag(1/sqrt(rowSums(RCM$X))) %*% CA$u %*% diag(CA$d),
-    DCA = DCA$rproj,
-    CoDa = CoDa$rowScores,
-    BC = BC$vectors %*% diag(BC$values$Eigenvalues[seq_len(ncol(BC$vectors))]),
-    JSD = JSD$vectors %*% diag(JSD$values$Eigenvalues[seq_len(ncol(JSD$vectors))]),
-    BCrel = BCrel$vectors %*% diag(BCrel$values$Eigenvalues[seq_len(ncol(BCrel$vectors))]),
-    BCrelNMDS = BCrelNMDS$points,
-    UniFrac = if(is.null(UniFrac)) NULL else UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
-    wUniFrac = if(is.null(wUniFrac)) NULL else wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
-    DPCoA = if(is.null(DPCoA)) NULL else DPCoA$li,
-    Hellinger = diag(sqrt(1/rowSums(RCM$X))) %*% Hellinger$u %*% diag(Hellinger$d)
-    ))
-tmpList = tmpList[!sapply(tmpList, is.null)]
-lapply(tmpList, function(y){
-  colnames(y) = NULL; y
-})
-}
-#---------------------------------------#
-#A function to extract the column vectors. For PCoA and CoDa this uses weighted averaging
-extractCols = function(x, row){
-  tmpList = with(x, list(
-    RCM = t(RCM$cMat),
-    CApearson = CA$v,
-    CAchisq = CA$v,
-    CAcontRat = diag(1/sqrt(colSums(RCM$X))) %*% CA$v,
-    DCA = DCA$cproj,
-    CoDa = CoDa$colScores,
-    BC = weightedTaxonScores(RCM$X, row$BC),
-    JSD = weightedTaxonScores(RCM$X, row$JSD),
-    BCrel = weightedTaxonScores(RCM$X, row$BCrel),
-    UniFrac = if(!is.null(UniFrac))  {weightedTaxonScores(RCM$X, row$UniFrac)} ,
-    wUniFrac = if(!is.null(wUniFrac)) {weightedTaxonScores(RCM$X, row$wUniFrac)} ,
-    DPCoA = if(is.null(DPCoA)) NULL else DPCoA$dls,
-    BCrelNMDS = BCrelNMDS$species,
-    Hellinger = diag(1/diag((crossprod(sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)), diag(rowSums(RCM$X))) %*% (sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)))))) %*% Hellinger$v
-    ))
-  tmpList = tmpList[!sapply(tmpList, is.null)]
-  rowNames = rownames(tmpList$RCM)
-  lapply(tmpList, function(x){
-    colnames(x) = NULL
-    if(nrow(x)==length(rowNames)) rownames(x) = rowNames
-    x
-  })
-}
 #---------------------------------------#
 # An auxiliary function to get weighted taxon scores
 weightedTaxonScores = function(X, rowScores){
@@ -2042,20 +1923,6 @@ dat = mapply(resListRows, resListCols, IDlist, SIMPLIFY = TRUE, FUN = function(r
   mapply(row, col, SIMPLIFY = TRUE, MoreArgs = list(idTax = id, groupFactor = groupFactor, upDown = upDown, centerFun = centerFun), FUN = contrTaxa)
 })
 as.data.frame(t(dat))
-}
-#-----------------------------#
-# A function to plot the result of this as boxplots. Horizontal boxplots have been tried but the overview over the best methods is a bit lost
-contrPlot = function(contr, method = NULL, las = 2, expFac = 1.2, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(contr)]),...) {
-moltenContr = orderDF(melt(contr, variable.name = "Method", value.name = "contrRatio", id.vars = NULL))
-if(!is.null(method)){
-  moltenContr = subset(moltenContr, moltenContr$Method %in% method)
-}
-meansDist = tapply(moltenContr$contrRatio, moltenContr$Method, mean, na.rm = TRUE)
-at = seq_along(meansDist)*expFac
-boxplot(contrRatio~Method, main = "Mean ratios of contribution of DA taxa \n relative to 50% most contributing non-DA taxa by method", data = moltenContr, ylab = "Mean contribution ratio", col = groupMeth, las = las, at = at,...)
-points(y = meansDist, x = at, col="red", pch=18, cex = 1.6)
-abline(h=1, lty = "dashed")
-addLegend(groupMeth = groupMeth, expFac = expFac)
 }
 #-----------------------------#
 # A function to calculate correlation with the starting values
@@ -2378,6 +2245,7 @@ distRatioPlot(resList2Rows, groupFactor2)
 RCM comes out as best, CA as worst
 
 ```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Red diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{fig:libCor2}"}
+
 plotCor(resList2Rows, datList2, dataMat = TRUE)
 ```
 

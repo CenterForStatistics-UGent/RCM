@@ -50,7 +50,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
 
   #     #Set colour palette
   if(is.null(Palette)){
-    Palette=rainbow(length(unique(dataSam$colourPlot)))
+    Palette = rainbow(length(unique(dataSam$colourPlot)))
   }
   taxFrac = taxNum/ncol(RCMfit$X)
 
@@ -176,9 +176,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     if(length(taxCol)>1 && length(unique(taxCol))<10){
       taxCol = Palette[c(taxCol[id])]
     }
-    dataTax$taxCol = taxCol[id]
     if((!constrained || RCMfit$responseFun=="linear") && ("samples" %in% plotType)){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = 0.75, colour = "taxCol"), arrow=arrow(length=unit(0.2,"cm")), show.legend=FALSE)
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = 0.75), colour = taxCol, arrow=arrow(length=unit(0.2,"cm")), show.legend=FALSE, inherit.aes = FALSE)
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
       plot <- plot +
         geom_tile(data=dataTax, aes_string(x='end1', y='end2', fill="colour", width = "peak1", height = "peak2" ), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
