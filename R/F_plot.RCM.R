@@ -29,9 +29,9 @@
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
-                    samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
+                    samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3, taxRegExp = NULL, varNum = 5, alpha = TRUE,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 2.5, taxRegExp = NULL, varNum = 5, alpha = TRUE,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates)
@@ -190,7 +190,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       taxCol = Palette[c(taxCol[id])]
     }
     if((!constrained || RCMfit$responseFun=="linear")){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = "arrowLength"), colour = taxCol, arrow=arrow(length=unit(0.2,"cm")), show.legend=FALSE, inherit.aes = FALSE) + if(alpha) scale_alpha_continuous(range = c(0,1))
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = "arrowLength"), colour = taxCol, arrow=arrow(length=unit(0.1,"cm")), show.legend=FALSE, inherit.aes = FALSE) + if(alpha) scale_alpha_continuous(range = c(0,1))
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
       plot <- plot +
         geom_tile(data=dataTax, aes_string(x='end1', y='end2', fill="colour", width = "peak1", height = "peak2" ), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers

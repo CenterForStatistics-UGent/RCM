@@ -1224,7 +1224,7 @@ palette(cols)
 ```{r zellerOldPlots, purl = FALSE, eval = FALSE, echo = FALSE}
 par(mfcol = c(2,3))
 sapply(c("Country","Diagnosis","Gender"), function(y){
-sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samColour = y, main=paste(x,y, collapse="_"))})
+sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samColour = y, main = paste(x,y, collapse = "_"))})
 })
 ```
 
