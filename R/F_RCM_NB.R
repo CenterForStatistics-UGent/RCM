@@ -58,7 +58,7 @@
 #' \item{confounders}{(if provided) the confounder matrix}
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000, Psitol = 1e-3, verbose = TRUE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR"){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR"){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -200,7 +200,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
       initIter = 1
 
-      cat("Estimating the independence model \n")
+      if(verbose) cat("Estimating the independence model \n")
 
       while((initIter ==1) || ((initIter <= maxItOut) && (!convergenceInit))){
         logLibsOld = logLibSizesMLE
@@ -295,7 +295,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     minK = ifelse(is.null(NBRCM),1,Kprev+1)
     for (KK in minK:k){
 
-      cat("Dimension" ,KK, "is being esimated \n")
+      if(verbose) cat("Dimension" ,KK, "is being esimated \n")
 
       #Modify offset if needed
       if(KK>1 && (if(!is.null(NBRCM)) {Kprev != (KK-1)} else {TRUE})){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
@@ -349,7 +349,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         regCol = rMat[,KK, drop=FALSE]*psis[KK]
         tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,], lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], preFabMat = preFabMat, Jac = JacC)
 
-        cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
+        if(verbose) cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
         cMat[KK,] = tmpCol$x[1:p]
         lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
 
@@ -437,7 +437,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       lambdasAlpha = rep(0,nLambda1s +KK)
       lambdaResp = rep(0,v)
 
-      cat("Dimension" ,KK, "is being esimated \n")
+      if(verbose) cat("Dimension" ,KK, "is being esimated \n")
 
       #Modify offset if needed
       if(KK>1){

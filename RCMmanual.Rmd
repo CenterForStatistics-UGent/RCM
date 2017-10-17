@@ -5,8 +5,8 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 ---
 
-```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width=9, fig.height=6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
+```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=TRUE, purl=TRUE}
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "ggplot2", "alabama", "reshape2", "tensor", "locfit", "flux", "vegan")
 # Load all required packages and show version
@@ -190,6 +190,8 @@ plot(ZellerRCM2constrNonParam, plotType = "samples", samColour = "Diagnosis")
 
 Show the variables
 
-```{r plotnonParamVar}
+```{r plotnonParamCol3}
 plot(ZellerRCM2constrNonParam, plotType = "variables")
 ```
+
+The envrionmental gradients are quite different from the case with the linear response functions. Especially age is an important driver of the environmental gradient here. Still the results for cancer diagnosis , country and gender are similar to before.
