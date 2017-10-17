@@ -84,8 +84,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       rowWeights = NBRCM$rowWeights
       colWeights = NBRCM$colWeights
       libSizesMLE = NBRCM$libSizes
-      logLibSizesMLE  =log(libSizesMLE)
+      logLibSizesMLE = log(libSizesMLE)
       abundsMLE = NBRCM$abunds
+      muMarg = outer(libSizesMLE, abundsMLE)
       lambdaRow = NBRCM$lambdaRow
       lambdaCol = NBRCM$lambdaCol
       logAbundsMLE = log(abundsMLE)
@@ -109,7 +110,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         psis = c(psis, svdX$d[newK])
         thetas = cbind(thetas, matrix(0,p,k-Kprev))
       }
-      muMarg = outer(libSizesMLE, abundsMLE)
       if(record){
         colRec = array(0, dim = c(k,p,maxItOut))
         colRec[1:Kprev,,] = NBRCM$colRec
