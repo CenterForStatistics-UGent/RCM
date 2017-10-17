@@ -30,7 +30,7 @@
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3, taxRegExp = NULL, varNum = 20,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3, taxRegExp = NULL, varNum = 5,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates)
@@ -208,14 +208,17 @@ if(taxLabels){
   } else {}
   if("variables" %in% plotType){
     #Add variable labels
-    arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2)
-    varFrac = varNum/nrow(RCMfit$alpha)
-    idVar = arrowLenghtsVar >= quantile(arrowLenghtsVar, 1 - varFrac)
+    arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2) #All arrow lenghts
+    attribs = attr(RCMfit$covariates, "assign")
+    arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
+    # CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
+    # varID = colnames(RCMfit$covariates)[as.numeric(names(CumSum)[CumSum])]
+    idVar = arrowLenghtsPerVar >= quantile(arrowLenghtsPerVar, 1 - varNum/length(unique(attribs)))
     varData = data.frame(RCMfit$alpha)
-    varData$label = rownames(RCMfit$alpha) #Fix me!
-    varNames = names(attr(RCMfit$cova, "contrasts"))[attr(RCMfit$cova, "assign")[attr(RCMfit$cova, "assign") %in% attr(RCMfit$cova, "assign")[idVar]]]
+    varData$label = rownames(RCMfit$alpha)
+    varID = attribs %in% unique(attribs)[idVar]
  #Include all levels from important factors, not just the long arrows
-    varData = varData[varNames,]
+    varData = varData[varID,]
     scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
     varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
     plot = plot + geom_text(data = varData, mapping = aes_string(x = names(dataSam)[1], y = names(dataSam)[2], label = "label"), inherit.aes = FALSE, size = labSize)
