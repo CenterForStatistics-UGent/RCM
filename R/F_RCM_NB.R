@@ -76,7 +76,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       psis = NBRCM$psis
       Kprev = NBRCM$k
       if(!all(X == NBRCM$X)){ stop("Different count matrix provided from original fit! \n")
-      } else {X = NBRCM$X}
+      } else {}
       n=NROW(X)
       p=NCOL(X)
       thetas = NBRCM$thetas
@@ -86,9 +86,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       libSizesMLE = NBRCM$libSizes
       logLibSizesMLE = log(libSizesMLE)
       abundsMLE = NBRCM$abunds
-      muMarg = outer(libSizesMLE, abundsMLE)
       lambdaRow = NBRCM$lambdaRow
       lambdaCol = NBRCM$lambdaCol
+      muMarg = outer(libSizesMLE, abundsMLE)
       logAbundsMLE = log(abundsMLE)
       if(record){
         #Extend the record matrices, force same number of outer iterations as previous fit
@@ -105,6 +105,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         } else {rowRec =  NULL}
         lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
         svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
+        muMarg = muMarg * exp(rMat %*% (cMat*psis))
         rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
         cMat = rbind(cMat, t(svdX$v[,newK, drop=FALSE]))
         psis = c(psis, svdX$d[newK])
@@ -214,32 +215,32 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     cMat = t(svdX$v[,1:k, drop=FALSE])
     psis = svdX$d[1:k]
 
-    #Center
-    cMat = t(apply(cMat, 1, function(colS){
-      colS-sum(colS*colWeights)/sum(colWeights)
-    }))
-    rMat = apply(rMat, 2, function(rowS){
-      rowS-sum(rowS*rowWeights)/sum(rowWeights)
-    })
-
-    #Redistribute some weight to fit the constraints
-    psis = c(psis *t(apply(cMat, 1, function(colS){
-      sqrt(sum(colWeights * colS^2))
-    })) * apply(rMat, 2, function(rowS){
-      sqrt(sum(rowWeights * rowS^2))
-    }))
-
-    #Normalize
-    cMat = t(apply(cMat, 1, function(colS){
-      colS/sqrt(sum(colWeights * colS^2))
-    }))
-
-    rMat = apply(rMat, 2, function(rowS){
-      rowS/sqrt(sum(rowWeights * rowS^2))
-    })
     lambdaRow =  rep.int(0,nLambda)
-    lambdaCol =  rep.int(0,nLambda )
+    lambdaCol =  rep.int(0,nLambda)
   } # END if-else: no previous fit provided
+  #Center
+  cMat = t(apply(cMat, 1, function(colS){
+    colS-sum(colS*colWeights)/sum(colWeights)
+  }))
+  rMat = apply(rMat, 2, function(rowS){
+    rowS-sum(rowS*rowWeights)/sum(rowWeights)
+  })
+
+  #Redistribute some weight to fit the constraints
+  psis = c(psis *t(apply(cMat, 1, function(colS){
+    sqrt(sum(colWeights * colS^2))
+  })) * apply(rMat, 2, function(rowS){
+    sqrt(sum(rowWeights * rowS^2))
+  }))
+
+  #Normalize
+  cMat = t(apply(cMat, 1, function(colS){
+    colS/sqrt(sum(colWeights * colS^2))
+  }))
+
+  rMat = apply(rMat, 2, function(rowS){
+    rowS/sqrt(sum(rowWeights * rowS^2))
+  })
 
   if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
 
@@ -249,7 +250,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       cat("Dimension" ,KK, "is being esimated \n")
 
       #Modify offset if needed
-      if(KK>1){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
+      if(KK>1 && (if(!is.null(NBRCM)) {Kprev != (KK-1)} else {TRUE})){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
       idK = seq_k(KK) #prepare an index
 
       JacR = matrix(0, nrow = n+KK+1, ncol = n+KK+1) #Prepare sparse Jacobians, and prefill what we can
