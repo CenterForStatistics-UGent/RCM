@@ -114,7 +114,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
         stop("Providing covariates through variable names is only allowed if phyloseq object is provided! \n")
       }
       if(covariates[[1]]=="all"){covariates = sample_variables(dat)} #Enable the "all" option if phyloseq object is provided
-      datFrame = data.frame(sample_data(dat))[,covariates] # The dataframe with the covariates
+      datFrame = data.frame(sample_data(dat))[,covariates, drop=FALSE] # The dataframe with the covariates
       covariatesNames = covariates
     } else{
       stop("Please provide the covariates either as matrix, dataframe, or character string! \n")
