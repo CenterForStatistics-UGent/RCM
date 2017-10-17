@@ -25,12 +25,13 @@
 #' @param labSize the size of the variable labels
 #' @param taxRegExp a character vector indicating which taxa to plot
 #' @param varNum an integer, number of variable arrows to draw
+#' @param alpha a boolean, should small arrows be made transparent?
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 3,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3, taxRegExp = NULL, varNum = 5,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 3, taxRegExp = NULL, varNum = 5, alpha = TRUE,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates)
@@ -76,8 +77,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
         end1 = origin1 + slope1
         end2 = origin2 + slope2
       })
-      arrowLengths = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
-      id = arrowLengths >= quantile(arrowLengths,1-taxFrac)
+      dataTax$arrowLength = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
+      id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1-taxFrac)
       #Filter out small arrows
       dataTax = dataTax[id,]
       if(is.null(scalingFactor)){
@@ -151,8 +152,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     dataTax = dataTax[idTaxRegExp,] #Keep only selected taxa
   }
   if(!constrained){ #Scaling needed
-    arrowLengths = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
-    id = arrowLengths >= quantile(arrowLengths,1 - taxFrac)
+    dataTax$arrowLength = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
+    id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1 - taxFrac)
     #Filter out small arrows
     dataTax = dataTax[id,]
     if(is.null(scalingFactor)){
@@ -189,7 +190,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       taxCol = Palette[c(taxCol[id])]
     }
     if((!constrained || RCMfit$responseFun=="linear")){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = 0.75), colour = taxCol, arrow=arrow(length=unit(0.2,"cm")), show.legend=FALSE, inherit.aes = FALSE)
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = "arrowLength"), colour = taxCol, arrow=arrow(length=unit(0.2,"cm")), show.legend=FALSE, inherit.aes = FALSE) + if(alpha) scale_alpha_continuous(range = c(0,1))
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
       plot <- plot +
         geom_tile(data=dataTax, aes_string(x='end1', y='end2', fill="colour", width = "peak1", height = "peak2" ), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
