@@ -110,6 +110,54 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         cMat = rbind(cMat, t(svdX$v[,newK, drop=FALSE]))
         psis = c(psis, svdX$d[newK])
         thetas = cbind(thetas, matrix(0,p,k-Kprev))
+        #Center
+        if(length(newK)==1){
+          cMat[newK,] = c(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+            colS-sum(colS*colWeights)/sum(colWeights)
+          }))
+          rMat[,newK] = c(apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+            rowS-sum(rowS*rowWeights)/sum(rowWeights)
+          }))
+
+          #Redistribute some weight to fit the constraints
+          psis[newK] = c(psis[newK] *t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+            sqrt(sum(colWeights * colS^2))
+          })) * apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+            sqrt(sum(rowWeights * rowS^2))
+          }))
+
+          #Normalize
+          cMat[newK,] = c(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+            colS/sqrt(sum(colWeights * colS^2))
+          }))
+
+          rMat[,newK] = c(apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+            rowS/sqrt(sum(rowWeights * rowS^2))
+          }))
+        } else {
+        cMat[newK,, drop=FALSE] = t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+          colS-sum(colS*colWeights)/sum(colWeights)
+        }))
+        rMat[,newK, drop=FALSE] = apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+          rowS-sum(rowS*rowWeights)/sum(rowWeights)
+        })
+
+        #Redistribute some weight to fit the constraints
+        psis[newK] = c(psis[newK] *t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+          sqrt(sum(colWeights * colS^2))
+        })) * apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+          sqrt(sum(rowWeights * rowS^2))
+        }))
+
+        #Normalize
+        cMat[newK,, drop=FALSE] = t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+          colS/sqrt(sum(colWeights * colS^2))
+        }))
+
+        rMat[,newK, drop=FALSE] = apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+          rowS/sqrt(sum(rowWeights * rowS^2))
+        })
+        }
       }
       if(record){
         colRec = array(0, dim = c(k,p,maxItOut))
@@ -216,8 +264,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     psis = svdX$d[1:k]
 
     lambdaRow =  rep.int(0,nLambda)
-    lambdaCol =  rep.int(0,nLambda)
-  } # END if-else: no previous fit provided
+    lambdaCol =  rep.int(0,nLambda )
   #Center
   cMat = t(apply(cMat, 1, function(colS){
     colS-sum(colS*colWeights)/sum(colWeights)
@@ -241,6 +288,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   rMat = apply(rMat, 2, function(rowS){
     rowS/sqrt(sum(rowWeights * rowS^2))
   })
+  } # END if-else: no previous fit provided
 
   if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
 

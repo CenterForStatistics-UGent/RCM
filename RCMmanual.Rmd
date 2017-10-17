@@ -16,7 +16,6 @@ for(i in reqpkg)
   print(packageVersion(i))
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
-par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = palette()
 funFiles = dir("R")
 for (i in funFiles) {source(file.path("R",i))} # Run all fitting functions
@@ -72,6 +71,14 @@ Next we plot only the species.
 plot(ZellerRCM2, plotType = "species")
 ```
 
+The researchers found that species from the Fusobacteria genus are associated with cancer. We can plot only these species using a regular expression.
+
+```{r plotUnconstrainedRCMspec2}
+plot(ZellerRCM2, plotType = "species", taxRegExp = "Fusobacter", taxLabels = TRUE)
+```
+
+It is clear that these Fusobacterium species behave very differently between the species.
+
 Finally we can combine both plots into an interpretable biplot, which is the default for unconstrained RC(M). To avoid overplotting we only show the taxa with the 10 most important departures from independence.
 
 ```{r plotUnconstrainedRCMall}
@@ -96,143 +103,93 @@ Since the model is fitted dimension per dimension, we only have information on t
 ZellerRCM3 = RCM(zellerSphy, prevFit = ZellerRCM2, k = 3)
 ```
 
-The total runtime for all dimensions combined was `r round(GPrcmUnconstr3$runtime,1)`. We can then plot any combination of two dimensions we want, e.g. the first and the third.
+The total runtime for all dimensions combined was `r round(ZellerRCM3$runtime,1)`. We can then plot any combination of two dimensions we want, e.g. the first and the third.
 
 ```{r plotAddedDimension}
-plot(GPrcmUnconstr3, Dim = c(1,3), samColour = "Diagnosis")
+plot(ZellerRCM3, Dim = c(1,3), samColour = "Diagnosis", taxNum = 6)
 ```
 
-The third dimension serves to separate freshwater from ocean samples, and remarkably also separates the soil samples. Note also that the third dimension gets a higher importance parameter than the second one.
+The third dimension also correlates with a separation of cancer patients vs. healthy and small adenoma patients.
 
 ## Constrained analysis
 
-In this second step we look for the variability in the dataset explained by linear combinations of covariates that maximally separate the niches of the species. This should be done in a second step, and preferably only with variables that are believed to have an impact on the species' abundances. Here we only use the sample type as environmental variable.
+In this second step we look for the variability in the dataset explained by linear combinations of covariates that maximally separate the niches of the species. This should be done in a second step, and preferably only with variables that are believed to have an impact on the species' abundances. Here we used the variables age, gender, BMI, country and diagnosis in the gradient.
 In this analysis all covariates values of a sample are projected onto a single scalar, the environmental score of this sample. The projection vector is called the environmental gradient, the magnitude of its components reveals the importance of each variable. The taxon-wise response functions then describe how the logged mean abundance depends on the environmental score.
 
 ### Linear response functions
 
 Even though these response functions may be too simplistic, they have the advantage of being easy to interpret (and plot).
 
-```{r GPconstrLin}
-GPrcmConstr2 = RCM(GP, k = 2, covariates = c("Diagnosis"))
+```{r constrLin}
+ZellerRCM2constr = RCM(zellerSphy, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear")
 ```
 
-```{r GPconstrLinPlot}
-plot(GPrcmConstr2, plotType = c("samples"))
+First we plot the samples
+
+```{r constrLinPlot}
+plot(ZellerRCM2constr, plotType = c("samples"))
 ```
 
-The taxa that react most strongly to the environmental gradient are the Corynebacteria. The interpretation of this plot is the same as for the unconstrained case. Note however that the species scores are no longer centered at the origin. Each species' vector has its own origin, representing the value of the environmental score for which there is no departure from independence explained by the covariates.
+In the constrained analysis we clearly see three groups of samples appearing.
 
-Say we plot only the Corynebacteria for now
-
-```{r plotCMETlin2cor, purl = FALSE}
-plot(armpitRCMconstrLin, plotType = c("species"), taxRegExp = "Coryne", taxLabels = FALSE)
+```{r constrLinPlot2}
+plot(ZellerRCM2constr, plotType = c("samples"), samColour = "Diagnosis")
 ```
 
-Most Corynebacteria point in bottom left direction. look at only Staphylococci.
+One group are the healthy patients, the other two are cancer patients.
 
-```{r plotCMETlin2staph, purl = FALSE}
-plot(armpitRCMconstrLin, plotType = c("species"), taxRegExp = "Staph", taxLabels = FALSE)
+```{r constrLinPlot3}
+plot(ZellerRCM2constr, plotType = c("samples"), samColour = "Country")
 ```
 
-The staphylococci increase abundance as going ot the right
+The cancer patients are separated by country. Note that from Germany there are only cancer patients in this dataset.
 
-Let's look at the variables that matter for the environmental gradient.
+Now we add the species to make a biplot
 
-```{r plotCMETlin3, purl = FALSE}
-plot(armpitRCMconstrLin, plotType =c("variables", "species"), labSize = 3, varNum = 4)
+```{r plotlin2cor}
+plot(ZellerRCM2constr, plotType = c("species", "samples"))
 ```
 
-Here the orthogonal projection of species vectors on variable vectors represents the sensitivity of this taxon to changes in this variable.
+The interpretation is similar as before: the orthogonal projection of a taxon's arrow on a sample represents the departure from independence for that taxon in that sample, _explained by environmental variables_. New is also that the taxa arrows do not strt from the origin, but all have their own starting point. This starting point represents the environmental scores for which there is no departure from independence. The direction of the arrow then represents how its expected abundance increases.
 
-No variables stand out from the rest in terms of environmental gradient. We should try to fit a model with less covariates. Care should be taken when comparing the coefficients of continuous and dummy variables in this plot. E.g. the fact that "age" and "Milkproductsevery_few_days" are close together means that one standard deviation of age away from the average age has a similar effect as consuming milk products every few days. Note also that there is no reference level for the categorical variables, all levels are plotted.
+Next we can make a biplot of taxa and environmental variabless.
 
-To finish we also show the triplot, which unites all the information of the plot:
-
-```{r plotCMETlin4, purl = FALSE}
-plot(armpitRCMconstrLin, labSize = 2, varNum = 4)
+```{r plotlin3}
+plot(ZellerRCM2constr, plotType = c("species", "variables"))
 ```
 
-In this case a bit overplotted. Samples and variable vectors cannot be related to one another.
+The projection of species arrows on environmental variables (starting from the origin) represents the sensitivity of this taxon to changes in this variables. Note that the fact that the arrows of BMI and gender are of similar lenght indicates that one _standard deviation_ in BMI has a similar effect to gender.
 
-```{r linDev, purl = FALSE, include = FALSE, eval = FALSE}
-linDev = getDeviance(armpitRCMconstrLin)
-plot(armpitRCMconstrLin, plotType = c("samples"), samColour = rowMeans(linDev), colLegend = "Deviance")
+We observe that country and diagnosis are the main drivers of the environmental gradient. We also see that healthy patients are very similar to small adenoma patients, but that they are very different from cancer patients.
+
+To finish we also show the triplot, which unites all the information of the ordination:
+
+```{r plotlin3Triplot}
+plot(ZellerRCM2constr)
 ```
 
-```{r linDev2, purl = FALSE, eval = FALSE}
-plot(armpitRCMconstrLin, plotType = c("species"), arrowCol = colMeans(linDev), colLegend = "Deviance")
-#Deviances increase with abundance, but not with library sizes.
-```
-
-### Quadratic response functions
-
-These response functions may be more realistic, but their graphs are harder to interpret. Also for this dataset it simply won't converge.
-
-```{r plotCMETquad, purl = FALSE, eval = FALSE, echo = FALSE}
-plot(armpitRCMconstrQuad, plotType = c("samples","variables"))
-```
+Note that the samples and the environmental variables cannot be related to each other.
 
 ### Non-parametric response functions
 
 These response functions are very data driven, but have the drawback that they do not allow to visualize the role of the taxa in the ordination.
 
-```{r plotCMETnonParam, purl = FALSE}
-plot(armpitRCMconstrNonParam, plotType = "samples")
+```{r fitNonParam}
+ZellerRCM2constrNonParam = RCM(zellerSphy, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
 ```
 
-Also with non-parametric response functions there are no clear clusters, but then again this is an observational setup. We do see two outlying samples though, namely samples `r names(which(((armpitRCMconstrNonParam$covariates %*% armpitRCMconstrNonParam$alpha)[,1] * armpitRCMconstrNonParam$psis[1]) >1.5))` 
-
-```{r plotCMETnonParam2, purl = FALSE}
-plot(armpitRCMconstrNonParam, plotType = c("variables", "samples"))
+```{r plotnonParam}
+plot(ZellerRCM2constrNonParam, plotType = "samples")
 ```
 
-Deo use, washing and odor_panel seem to be driving variables of the environmental gradient. But should a "resulting variable" such as odour be part of the fit? The environmental gradients are very different from linear response functions. This is likely due to the high number of variables.
+Using non-parametric response functions we do not find the same clear clusters
 
-```{r corVars, purl = FALSE, include = FALSE}
-cor(armpitRCMconstrLin$alpha, armpitRCMconstrNonParam$alpha)
-plot(armpitRCMconstrLin$alpha[,1], armpitRCMconstrNonParam$alpha[,1], type = "n")
-text(armpitRCMconstrLin$alpha[,1], armpitRCMconstrNonParam$alpha[,1], labels = rownames(armpitRCMconstrNonParam$alpha), cex = 0.3)
-abline(0,1, lty = "dotted")
+```{r plotnonParamCol}
+plot(ZellerRCM2constrNonParam, plotType = "samples", samColour = "Diagnosis")
 ```
 
-```{r plotCMETnonParamDeo, purl = FALSE}
-plot(armpitRCMconstrNonParam, plotType = c("variables", "samples"), samColour = "deo_p_week")
-```
+Show the variables
 
-The most extreme outlier seems to be due to excessive deo use. The fact that it only shows up in this graph indicates it might be an abberation of the model rather than a true biological outlier. The model fit is based on low values of deo use, for >60 it merely extrapolates. Let's see if this sample indeed displays poor fit. Herefore we look at the average deviance of the samples.
-
-```{r CMETnonParamDev, purl = FALSE, eval = FALSE}
-devNonParam = getDeviance(armpitRCMconstrNonParam)
-plot(armpitRCMconstrNonParam, plotType = c( "samples"), samColour = rowMeans(devNonParam), colLegend = "Deviance")
-```
-
-The outliers have low deviances, but is this because they pull the fit towards them? For this purpose we check the influence functions.
-
-The results with less variables
-
-### Linear response function
-
-These constrained models were fitted with as only variables:
-
- * Gender
- * BMI
- * Fastfood
- * Meat
- * Vegetables
-
-```{r plotCMETLinLess, purl = FALSE}
-plot(armpitRCMconstrLinLess, plotType = c("species","variables"))
-```
-
-With 
-
-```{r plotCMETLinLess2, purl = FALSE}
-plot(armpitRCMconstrLinLess)
-```
-
-### Nonparametric response function
-
-```{r plotCMETnonParamLess, purl = FALSE}
-plot(armpitRCMconstrNonParamLess)
+```{r plotnonParamVar}
+plot(ZellerRCM2constrNonParam, plotType = "variables")
 ```
