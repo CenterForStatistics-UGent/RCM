@@ -545,7 +545,16 @@ Newton-Raphson would be incredibly complicated here, the derivatives of the log-
 
 ### Gomms
 
-Our method bears some resemblance to the GOMMS-method proposed by Sohn and Li (2017). The aim of their method is to identify latent factors that optimally represent the microbiome count data in a low dimensional subspace. Still they only use the sample factors estimated this way, and do not go into making
+Our method bears some resemblance to the GOMMS-method proposed by Sohn and Li (2017). The aim of their method is to identify latent factors that optimally represent the microbiome count data in a low dimensional subspace. The advantage is that you do not need to model the covariance between the true underlying covariates. A number of factors $k$ is prespecified, and then the expected count is modelled as:
+
+$$log(\mu_{ij}) = u_i + \sum_{k=1}^Kr_{ik}s_{jk} $$
+
+whereby $r_{ik}$ represents the latent factor of sample $i$. For identifiability, they set
+
+$$\mathbf{r}^t_k\mathbf{r}_k' = \delta_{kk'} $$
+
+The GLM is augmented with a Zero-inflated quasi-Poisson. For numerical reasons they could not estimate taxon-wise dispersion parameters, pretty much like the numerical problems we encounterd with the ZIP and ZINB. Therefor they do with an
+Still they only use the sample factors estimated this way, and do not go into making. A Hotelling's $T^2$ statistic can be used to test for significant division of clusters.
 
 ## Constrained analysis
 
