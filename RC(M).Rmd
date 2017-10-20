@@ -543,6 +543,10 @@ Unlike the RC(2)NB model, $f_j$ has to be estimated as well, there is no obvious
 
 Newton-Raphson would be incredibly complicated here, the derivatives of the log-likelihood functions barely fit on a page!
 
+### Gomms
+
+Our method bears some resemblance to the GOMMS-method proposed by Sohn and Li (2017). The aim of their method is to identify latent factors that optimally represent the microbiome count data in a low dimensional subspace. Still they only use the sample factors estimated this way, and do not go into making
+
 ## Constrained analysis
 
 So far we have been doing unconstrained or unsupervised explorative visualization, or _indirect_ gradient analysis. We just visualized the strongest signals in the data, independent of sample covariates. Only then did we use the covariate information to try to correlate the covariates with the latent variables formed by the row and column scores. We usually do this by adding a colour code for the samples in our biplots.

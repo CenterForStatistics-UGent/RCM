@@ -190,7 +190,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       taxCol = Palette[c(taxCol[id])]
     }
     if((!constrained || RCMfit$responseFun=="linear")){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = "arrowLength"), colour = taxCol, arrow=arrow(length=unit(0.1,"cm")), show.legend=FALSE, inherit.aes = FALSE) + if(alpha) scale_alpha_continuous(range = c(0,1))
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = "arrowLength"), colour = taxCol, arrow=arrow(length=unit(0.1,"cm")), show.legend=FALSE, inherit.aes = FALSE) + if(alpha) scale_alpha_continuous(range = c(0.25,1))
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
       plot <- plot +
         geom_tile(data=dataTax, aes_string(x='end1', y='end2', fill="colour", width = "peak1", height = "peak2" ), pch = 21, show.legend=FALSE, inherit.aes = FALSE) + #The centers
@@ -212,6 +212,7 @@ if(taxLabels){
     arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2) #All arrow lenghts
     attribs = attr(RCMfit$covariates, "assign")
     arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
+    #Fix me! Number of variables
     # CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
     # varID = colnames(RCMfit$covariates)[as.numeric(names(CumSum)[CumSum])]
     idVar = arrowLenghtsPerVar >= quantile(arrowLenghtsPerVar, 1 - varNum/length(unique(attribs)))
