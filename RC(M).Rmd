@@ -460,7 +460,24 @@ In case the models are fitted on exactly the same dataset, we can compare the li
 
 In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
 
+####### Deviance
+
 Deviance (in relation to the saturated model) would be one option. The deviance is porportional to the difference in log-likelihoods of a certain model and the saturated model. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of which ones are worst.
+
+####### Deviance residuals
+
+The deviance residuals $d_{ij}$ of the negative binomial distribution are defined as (see M. L. Zwilling, “Negative Binomial Regression,” The Mathematica Journal, 2013):
+
+\[
+d_{ij} = 
+\begin{cases}
+sgn(X_{ij}-\mu_{ij})\sqrt{2\Big(X_{ij}ln(\frac{X_{ij}}{\mu_{ij}})-(X_{ij}+\frac{1}{\phi_j})ln(\frac{1+X_{ij}\phi_j}{1+\mu_{ij}\phi_j})\Big)} \text{ if } X_{ij} > 0\\
+sgn(X_{ij}-\mu_{ij})\sqrt{\frac{2}{\phi_j}ln(1+\phi_j\mu_{ij})} \text{ if } X_{ij} = 0
+\end{cases}
+\]
+
+Their sum of squares equals the total deviance per sample or taxon. Plotting the deviances in function of the environmental gradient can reveal patterns and thus lack of fit to the linearity assumption.
+
 
 ###### Identifying influential observations
 
