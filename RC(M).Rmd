@@ -806,14 +806,16 @@ We again have $g$ degrees of freedom. It is this $\boldsymbol{\alpha}_k'$ that w
 
 The parameters of the response functions are restricted as follows (for linear and quadratic response functions):
 
-$$\boldsymbol{\beta}_1^t\boldsymbol{\beta}_1 = \boldsymbol{\beta}_0^t\boldsymbol{\beta}_0 = 1$$
+$$\boldsymbol{\beta}_1^t\mathbf{Z}\boldsymbol{\beta}_1 = \boldsymbol{\beta}_0^t\mathbf{Z}\boldsymbol{\beta}_0 = 1$$
 and for quadratic response functions:
 
-$$\boldsymbol{\beta}_2^t\boldsymbol{\beta}_2 = 1$$
+$$\boldsymbol{\beta}_2^t\mathbf{Z}\boldsymbol{\beta}_2 = 1$$
+
+with $\mathbf{Z}$ a diagonal matrix with the column weights $\mathbf{z}$ on hte diagonal, i.e. $Z_{ab} = \delta_{ab}z_a$. Since the parameters of the response functions are species specific, they should undergo weighted normalization, following the same argumant as for the species scores in the unconstrained case.
 
 Again, only the $\psi$ parameters can grow in size to reflect the importance of the dimension, other paramters are normalized.
 
-Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the response functions without offsets (all $\beta_{0j} = 0$)? This means that if the environmental scores equals zero, there is no departure from independence. However, this does not give species fully the chance to react in a different way to the environmental gradient. For a certain value, some species might depart from independence while others might not. Therefore we leave $\beta_{0j}$ to be freely estimated, under the variance 1 restriction.
+Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the response functions without offsets (all $\beta_{0j} = 0$)? This means that if the environmental scores equals zero, there is no departure from independence. However, this does not give species fully the chance to react in a different way to the environmental gradient. For a certain value, some species might depart from independence while others might not. Therefore we leave $\beta_{0j}$ to be freely estimated, under the weighted variance 1 restriction.
 
 #### Scaling
 
