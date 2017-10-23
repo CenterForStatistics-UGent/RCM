@@ -35,22 +35,16 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates)
-  if(constrained){
-    dataSam <- data.frame(RCMfit$covariates %*% RCMfit$alpha[,Dim] %*% diag(RCMfit$psis[Dim]))
-  } else {
-    dataSam <- data.frame(RCMfit$rMat[, Dim] %*% diag(RCMfit$psis[Dim]))
-    plotType = plotType[plotType!="variables"]
-  }
-  names(dataSam)=paste0("Dim", Dim)
+  coords = extractCoords(RCMfit, Dim)
 
-  #Get the colours
+  #Get the sample colours
   if(length(samColour)==1){
     dataSam$colourPlot = get_variable(RCMfit$physeq, samColour)
     if(is.character(dataSam$colourPlot)) dataSam$colourPlot  = factor(dataSam$colourPlot )
   } else if(!is.null(samColour)){
     dataSam$colourPlot = samColour
   } else {dataSam$colourPlot=factor(rep(1, nrow(dataSam)))}
-  #Get the shapes
+  #Get the sample shapes
   if(length(samShape)==1){
     dataSam$shapePlot = get_variable(RCMfit$physeq, samShape)
     if(is.character(dataSam$shapePlot)) dataSam$shapePlot  = factor(dataSam$shapePlot )
@@ -58,54 +52,27 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     dataSam$shapePlot = samShape
   } else {dataSam$shapePlot=factor(rep(1, nrow(dataSam)))}
 
-  #     #Set colour palette
+  #Set colour palette
   if(is.null(Palette)){
     Palette = rainbow(length(unique(dataSam$colourPlot)))
   }
 
   idTaxRegExp = if(!is.null(taxRegExp)){  #Filter out certain taxa
-    apply(sapply(taxRegExp, grepl, ignore.case = TRUE, x = colnames(RCMfit$X)),1,any) #Display only required taxa
-  } else {rep(TRUE, ncol(RCMfit$X))}
+    apply(sapply(taxRegExp, grepl, ignore.case = TRUE, x = colnames(coords$species)),1,any) #Display only required taxa
+  } else {rep(TRUE, ncol(coords$species))}
   if(!any(idTaxRegExp)) {stop("Species not found! \n Check the dimnames of your RCMfit$X slot! \n")}
   taxFrac = min(taxNum/sum(idTaxRegExp),1)
 
   #Construct dataframe for taxa
-  if(constrained) {
+    if(constrained) {
     if(RCMfit$responseFun=="linear"){
-      dataTax = data.frame(
-        origin1 = -RCMfit$NB_params[1,,Dim[1]]/RCMfit$NB_params[2,,Dim[1]] ,
-        origin2 = -RCMfit$NB_params[1,,Dim[2]]/RCMfit$NB_params[2,,Dim[2]] ,
-        slope1 = RCMfit$NB_params[2,,Dim[1]] * RCMfit$psis[Dim[1]], #The gradient
-        slope2 = RCMfit$NB_params[2,,Dim[2]] * RCMfit$psis[Dim[2]]
-      )
-      rownames(dataTax) = colnames(RCMfit$X)
-      dataTax = dataTax[idTaxRegExp,] #Keep only selected taxa
-            dataTax = within(dataTax, {
-        end1 = origin1 + slope1
-        end2 = origin2 + slope2
-      })
+      dataTax = coords$species
       dataTax$arrowLength = apply(dataTax[, c("slope1","slope2")],1,function(x){sqrt(sum(x^2))})
       id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1-taxFrac)
       #Filter out small arrows
       dataTax = dataTax[id,]
-      if(is.null(scalingFactor)){
-        # scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("slope1","slope2")]))*0.925
-        scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
-        scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
-
-      }
-      dataTax = within(dataTax, { #Scale the arrows
-        end1 = origin1 + slope1 * scalingFactor
-        end2 = origin2 + slope2 * scalingFactor
-      })
     } else if (RCMfit$responseFun == "quadratic"){
-      dataTax = data.frame(
-        apply(RCMfit$NB_params[c(2,3),,Dim],c(2,3), function(x){
-          a = x[2]; b=x[1]
-          -b/(2*a)
-        })) #The location of the extrema
-      names(dataTax) = c("end1","end2")
-      dataTax$colour = apply(RCMfit$NB_params[3,,Dim],1, function(x){
+      dataTax$colour = apply(coords$species[, paste0("a",Dim)],1, function(x){
         if(all(x>0)) {
           return("green")
         } else if (all(x<0)){
@@ -121,11 +88,6 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
         cbind(ellipseCoord(a = x[3,] * RCMfit$psis[Dim], b = x[2,] * RCMfit$psis[Dim], c = x[3,] * RCMfit$psis[Dim], quadDrop = quadDrop, nPoints = nPoints), taxon = tax)
       })
 
-      peakHeights = apply(RCMfit$NB_params[,,Dim],2, function(x){
-        A = x[3,]; B = x[2,]; C = x[1,];
-        sapply(exp(B^2 * RCMfit$psis[Dim]-4*A*C)/(4*A), function(y){max(y,1/y)}) #select largest relative departure
-      })
-      rownames(peakHeights) = c("peak1","peak2")
       meanPeakHeights = colMeans(peakHeights)
       dataTax = cbind(dataTax, t(peakHeights))
       #Pick taxa with largest extrema, within observed values of the envrionmental scores (otherwise it is almost extrapolation)
@@ -156,24 +118,11 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       stop("No valid response function present in this RCM object!")
     }
   } else { #If not constrained
-    dataTax = data.frame(cbind(t(RCMfit$cMat[Dim,]),0,0))
-    names(dataTax) = c("end1","end2", "origin1","origin2")
-    rownames(dataTax) = colnames(RCMfit$X)
-    dataTax = dataTax[idTaxRegExp,] #Keep only selected taxa
+    dataTax = coords$species[idTaxRegExp,] #Keep only selected taxa
     dataTax$arrowLength = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
     id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1 - taxFrac)
     #Filter out small arrows
     dataTax = dataTax[id,]
-    if(is.null(scalingFactor)){
-      # scalingFactor = min(abs(apply(dataSam[, paste0("Dim", Dim)],2,range)))/max(abs(dataTax[, c("end1","end2")]))*0.925
-      scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
-      scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
-      #The scaling factor is the minimum of the ratios between the longest longest arrow and the longest species arrow in every direction of every dimension
-    }
-    dataTax = within(dataTax, { #Scale the arrows
-      end1 = end1 * scalingFactor
-      end2 = end2 * scalingFactor
-    })
   } # End scaling needed
   if("species" %in% plotType) dataTax$labels = sub(" ", "\n", rownames(dataTax))
 
