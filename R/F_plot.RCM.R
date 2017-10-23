@@ -10,7 +10,6 @@
 #' @param taxNum an integer, the number of taxa to be plotted
 #' @param scalingFactor a scalar, a user supplied scaling factor for the taxon arrows If not supplied it will be calculated to make sample and taxon plots on the same scale
 #' @param plotType a character string: which components to plots
-#' @param quadDrop a scalar, the value at which the response function has dropped to this fraction of its maximum on the count scale to be plotted as a halo
 #' @param nPoints an integer, number of points to evaluate for the ellipse
 #' @param plotEllipse a boolean, whether to add the ellipses
 #' @param taxaScale a scalar, by which to scale the rectangles of the quadratic taxon plot
