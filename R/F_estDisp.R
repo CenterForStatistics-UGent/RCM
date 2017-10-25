@@ -13,15 +13,13 @@
 #' @return A vector of length p with dispersion estimates
 estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersion = NULL, prior.df = 10, dispWeights = NULL, rowMat = NULL)
 {
-
   require(edgeR)
   logMeansMat =
-    if(is.null(cMat) && is.null(rMat)){
-      t(log(muMarg))
-    }
-    else if(!is.null(rMat)){ #Unconstrained
+   if(!is.null(rMat)){ #Unconstrained
       t(rMat %*% (cMat * psis) + log(muMarg))
-    } else { #Constrained
+    } else if(is.null(rowMat)){
+      t(log(muMarg)) #Non-parametric
+      } else {#Constrained
       t(log(muMarg) + psis* rowMat)
     }
   trended.dispersion = if(is.null(trended.dispersion)){

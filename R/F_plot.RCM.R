@@ -178,7 +178,7 @@ if(taxLabels){
     plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=taxCol, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
 }
   } else {}
-  if("variables" %in% plotType){
+  if("variables" %in% plotType && constrained){
     #Add variable labels
     arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2) #All arrow lenghts
     attribs = attr(RCMfit$covariates, "assign")

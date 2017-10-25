@@ -418,7 +418,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
     NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
-    nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWise = matrix(0,n,p), overall = rep(0,n))})} else {NULL}
+    nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWiseFitted = muMarg, taxonCoef = rep(0,p), overallFitted = matrix(0,n,p), overallCoef = 0)})} else {NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
@@ -441,12 +441,11 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
       #Modify offset if needed
       if(KK>1){
-        modMat = if(responseFun %in% c("linear","quadratic", "dynamic")){
-          exp(getRowMat(responseFun = responseFun, sampleScore = covariates %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,KK-1])*psis[KK-1])
+        muMarg = if(responseFun %in% c("linear","quadratic", "dynamic")){
+          exp(getRowMat(responseFun = responseFun, sampleScore = covariates %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,KK-1])*psis[KK-1])*muMarg
         } else {
-          exp(nonParamRespFun[[KK]]$taxonWise*psis[KK-1])
+          nonParamRespFun[[KK-1]]$taxonWiseFitted
         }
-        muMarg = muMarg * modMat
       }
 
       idK = seq_k(KK)
@@ -472,39 +471,49 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           design = buildDesign(sampleScore, responseFun)
           rowMat = design %*% NB_params[,,KK]
         } else{
-          rowMat = nonParamRespFun[[KK]]$taxonWise
+          rowMat = NULL
         }
         #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
         if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
-          if (verbose) cat("Estimating overdispersions \n")
-          thetas[,KK+1] = estDisp(X = X, muMarg = muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
+          if (verbose) cat("\n Estimating overdispersions \n")
+          thetas[,KK+1] = estDisp(X = X, muMarg = if(responseFun == "nonparametric") nonParamRespFun[[KK]]$taxonWiseFitted else muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
           thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE)
           preFabMat = 1+X/thetasMat
         }
 
+        if(responseFun %in% c("linear","quadratic", "dynamic")){
         #Psis
         if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
         psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod, preFabMat = preFabMat)$x)
 
-        if(responseFun %in% c("linear","quadratic", "dynamic")){
-          if (verbose) cat("\n Estimating response function \n")
+        if (verbose) cat("\n Estimating response function \n")
         NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(rowMultiply(NB_params[,,KK]^2,colWeights))) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
 
         if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-        # save(alpha, NB_params, file = "alphaFile.RData")
-    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
-            alpha[,KK] = AlphaTmp[seq_len(d)]
-            lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
+    AlphaTmp = try(nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x, outFile = "alphaTry")
+    if(class(AlphaTmp)=="try-error"){
+      return(list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
+           alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab,
+           libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds),
+           confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun=nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst))
+      AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat, envGradEst = envGradEst)
+      alpha[,KK] = AlphaTmp$par
+      lambdasAlpha = AlphaTmp$lambda
+    } else {
+      alpha[,KK] = AlphaTmp[seq_len(d)]
+      lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
+    }
         } else {
           if (verbose) cat("\n Estimating response function \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, psi = psis[KK])
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef)
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat, envGradEst = envGradEst)
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha = AlphaTmp$lambda
+          psis[KK] = sqrt(sum(colWeights * nonParamRespFun[[KK]]$taxonCoef^2))
         }
 
         #Store intermediate estimates
@@ -525,7 +534,12 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       } # END while-loop until convergence
 
     }# END for-loop over dimensions
-
+    if(responseFun == "nonparametric") {nonParamRespFun = mapply(nonParamRespFun,psis, SIMPLIFY = FALSE, FUN = function(x,psi){
+x$taxonCoef = x$taxonCoef/psi
+x
+    })
+    names(nonParamRespFun) = paste0("Dim",1:k)
+    } # Normalize the taxon coefficients
     ## 3) Termination
 
     rownames(alpha) = colnames(covariates)

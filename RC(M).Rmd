@@ -935,7 +935,23 @@ All other second order derivatives equal zero.
 
 ###### Non-parametric response function
 
-The response function $f(\boldsymbol{\alpha}^t\mathbf{C})$ need not have a parametric form. We can also estimate it non-parametrically as in Zhu and Hastie (2005). Like these authross, we use the locfit library. We regress $\frac{X}{exp(\lambda_i+\lambda_j)}$ on $\boldsymbol{\alpha}^t\mathbf{C}$ with a log-link. We limit the surface between this curve and the x-axis to sum to one as a means of normalization, only the importance parameter $\psi$ can differ in size between the different dimensions.
+The response function $f(\boldsymbol{\alpha}^t\mathbf{C})$ need not have a parametric form. We can also estimate it non-parametrically as in Zhu and Hastie (2005). These authors use the locfit library, which does not result in a ML solution.
+
+Instead we use cubic smoothing splines in a generalized additive model (GAM) to obtain flexible response functions without yielding to a perfect fit. Cubic splines are piecewise polynomials in certain intervals that are continuous and have continuous first and second order derivatives. The knots that define the intervals are normally simply the observations x, although this may differ in the softwares when there are a large number of points. This makes them look very smooth. Their shape is a trade-off between goodness of fit and cumulative value of the second order derivative on the whole interval. The cubic smoothing spline minimizes
+
+$$\sum_{i=1}^n(y_i - \hat{f}(x_i))^2 + \lambda \int \hat{f}''(x)^2 dx $$
+
+This second term can be seen as a penalty for bumpiness of the fit (with smoothing parameter $\lambda$), and ensures smoothness.
+
+The constrained model then looks like:
+
+$$log(E(X_{ij})) = u_i + u_j + \sum_{k=1}^K\psi_k\hat{f}_j(\boldsymbol{\alpha}_k^tC_i)$$
+
+In practice we fit the following model
+
+$$log(E(X_{ij})) = u_i + u_j + \sum_{k=1}^K\beta_{jk}\hat{f}_j(\boldsymbol{\alpha}_k^tC_i)$$
+
+and calculate the $\psi_k$'s afterwards as $\psi_k = \sqrt{\sum_{j=1}^p z_j \beta_{jk}^2}$, so that only the importance parameter $\psi$ can differ in size between the different dimensions.
 
 ##### Estimation of the parameters of the parametric response functions
 
