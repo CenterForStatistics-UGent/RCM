@@ -29,6 +29,9 @@
 #' @param control.outer a list of control options for the outer loop constrOptim.nl function
 #' @param control.optim a list of control options for the optim() function
 #' @param envGradEst a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution
+#' @param dfSpline a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see ?VGAM::s()
+#' @param vgamMaxit an integer, the maximum number of iteration in the vgam() function
+#' @param bs the type of spline, see ?mgcv::s
 #'
 #' Not intended to be called directly but only through the RCM() function
 #'
@@ -58,7 +61,7 @@
 #' \item{confounders}{(if provided) the confounder matrix}
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR"){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 4, vgamMaxit = 100L, bs = "cr"){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -334,7 +337,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         #Overdispersions (not at every iterations to speed things up, the estimates do not change a lot anyway)
         if((iterOut[KK] %% dispFrec) ==0 || (iterOut[KK]==1)){
-          if (verbose) cat("Estimating overdispersions \n")
+          if (verbose) cat(" Estimating overdispersions \n")
           thetas[,KK+1] = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
           thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
           preFabMat = 1+X/thetasMat # Another matrix that can be pre-calculated
@@ -418,7 +421,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
     NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
-    nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWiseFitted = muMarg, taxonCoef = rep(0,p), overallFitted = matrix(0,n,p), overallCoef = 0)})} else {NULL}
+    nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWiseFitted = muMarg, taxonCoef = NULL, overallFitted = matrix(0,n,p), overallCoef = NULL)})} else {NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
@@ -475,7 +478,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         }
         #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
         if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
-          if (verbose) cat("\n Estimating overdispersions \n")
+          if (verbose) cat(" Estimating overdispersions \n")
           thetas[,KK+1] = estDisp(X = X, muMarg = if(responseFun == "nonparametric") nonParamRespFun[[KK]]$taxonWiseFitted else muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
           thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE)
           preFabMat = 1+X/thetasMat
@@ -508,7 +511,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     }
         } else {
           if (verbose) cat("\n Estimating response function \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef)
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, bs = bs)
           if (verbose) cat("\n Estimating environmental gradient \n")
           AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
