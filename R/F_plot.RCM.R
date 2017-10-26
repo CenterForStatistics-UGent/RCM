@@ -140,7 +140,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     geom_point(size = samSize) + #point size
     xlab(paste0(names(dataSam)[1],": ", paste0("psi",Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
     ylab(paste0(names(dataSam)[2],": ", paste0("psi",Dim[2]), " = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
-    if(is.null(samColour)) {guides(color=FALSE, shape=FALSE)} #Legend
+    if(is.null(samColour)) {guides(color=FALSE)}  #Legend
 
   #add legend names
   if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
@@ -150,7 +150,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   }
   if(!is.null(shapeLegend)){
     plot = plot + scale_shape_discrete(name = shapeLegend)
-  }
+  } else {plot = plot + guides(shape=FALSE)}
 
   } else {plot = ggplot()}
   if("species" %in% plotType){

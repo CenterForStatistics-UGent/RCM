@@ -421,7 +421,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
     NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
-    nonParamRespFun = if(responseFun == "nonparametric") {lapply(1:k,function(x){list(taxonWiseFitted = muMarg, taxonCoef = NULL, overallFitted = matrix(0,n,p), overallCoef = NULL)})} else {NULL}
+    if(responseFun == "nonparametric") {nonParamRespFun =lapply(1:k,function(x){list(taxonWiseFitted = muMarg, taxonCoef = NULL, overallFitted = matrix(0,n,p), overallCoef = NULL)}); names(nonParamRespFun) = paste0("Dim",1:k)} else {nonParamRespFun =NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
@@ -496,27 +496,18 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-    AlphaTmp = try(nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x, outFile = "alphaTry")
-    if(class(AlphaTmp)=="try-error"){
-      return(list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
-           alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab,
-           libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds),
-           confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun=nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst))
-      AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], psi = psis[KK], thetaMat = thetasMat, envGradEst = envGradEst)
-      alpha[,KK] = AlphaTmp$par
-      lambdasAlpha = AlphaTmp$lambda
-    } else {
+    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
       alpha[,KK] = AlphaTmp[seq_len(d)]
       lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
-    }
+
         } else {
-          if (verbose) cat("\n Estimating response function \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, bs = bs)
+          if (verbose) cat("\n Estimating response functions \n")
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, degreeSpline = dfSpline, colWeights = colWeights)
           if (verbose) cat("\n Estimating environmental gradient \n")
           AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha = AlphaTmp$lambda
-          psis[KK] = sqrt(sum(colWeights * nonParamRespFun[[KK]]$taxonCoef^2))
+          psis[KK] = nonParamRespFun[[KK]]$psi #Get the psis based on the integrals
         }
 
         #Store intermediate estimates
@@ -537,12 +528,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       } # END while-loop until convergence
 
     }# END for-loop over dimensions
-    if(responseFun == "nonparametric") {nonParamRespFun = mapply(nonParamRespFun,psis, SIMPLIFY = FALSE, FUN = function(x,psi){
-x$taxonCoef = x$taxonCoef/psi
-x
-    })
-    names(nonParamRespFun) = paste0("Dim",1:k)
-    } # Normalize the taxon coefficients
     ## 3) Termination
 
     rownames(alpha) = colnames(covariates)
