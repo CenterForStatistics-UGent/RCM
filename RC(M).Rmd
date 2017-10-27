@@ -458,11 +458,11 @@ In case the models are fitted on exactly the same dataset, we can compare the li
 
 ###### Detecting lack of fit
 
-In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
+In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. Anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
 
 ####### Deviance
 
-Deviance (in relation to the saturated model) would be one option. The deviance is porportional to the difference in log-likelihoods of a certain model and the saturated model. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of which ones are worst.
+Deviance (in relation to the saturated model) would be one option. The deviance is proportional to the difference in log-likelihoods of a certain model and the saturated model. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of which ones are worst.
 
 ####### Deviance residuals
 

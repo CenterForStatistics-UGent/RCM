@@ -2,9 +2,8 @@
 #'
 #' @param rcm an RCM object
 #' @param E a matrix of expectations
-#' @param k an integer, the required dimensions
 #'
 #' @return a matrix of dispersions
-extractDisp = function(rcm, E, k = rcm$k){
+extractDisp = function(rcm, E){
     matrix(estDisp(X = rcm$X, muMarg = E), byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X))
 }

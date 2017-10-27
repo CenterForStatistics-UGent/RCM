@@ -8,7 +8,7 @@ output: html_document
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=TRUE, purl=TRUE}
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "ggplot2", "alabama", "reshape2", "tensor", "locfit", "flux", "vegan")
+reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "ggplot2", "alabama", "reshape2", "tensor", "VGAM", "vegan")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -27,7 +27,7 @@ As example data we use a study on the microbiome of colorectal cancer patients "
 
 ```{r downLoad Data}
 #Download the necessary files
-dir.create("data")
+for (i in c("data", "results")){if(!dir.exists(i)) dir.create(i)}
 download.file("http://users.ugent.be/~shawinke/data/species.txt", destfile = "./data/species.txt")
 download.file("http://users.ugent.be/~shawinke/data/cancer_metadata.txt", destfile = "./data/cancer_metadata.txt")
 zellerMeta = read.table("./data/cancer_metadata.txt", header=TRUE, sep="") #Read in the patient metadata
@@ -48,7 +48,10 @@ zellerSphy = phyloseq(Smeta, Sotu) #Create the phyloseq object
 The unconstrained RC(M) method represents all variability present in the data, regardless of covariate information. It should be used as a first step in an exploratory analysis. We fit a model with two dimensions, which takes a few minutes.
 
 ```{r fitUnconstrainedRCM}
+if(!file.exists(file = "./results/ZellerRCM2.RData")){
 ZellerRCM2 = RCM(zellerSphy, k=2)
+save(ZellerRCM2, file = "./results/ZellerRCM2.RData")
+} else {load(file = "./results/ZellerRCM2.RData")}
 ```
 
 The runtime was `r round(ZellerRCM2$runtime,1)` minutes to be exact. We plot the result of this ordination in a biplot, beginning with the samples.
@@ -100,7 +103,10 @@ Distances between endpoints of taxon vectors are meaningless.
 Since the model is fitted dimension per dimension, we only have information on the first two dimension. If we want to add a third dimension, we do not have to start from scratch but can use the previously fitted model in two dimension as a starting point and additionally estimate the third dimension.
 
 ```{r addDimension}
+if(!file.exists(file = "./results/ZellerRCM3.RData")){
 ZellerRCM3 = RCM(zellerSphy, prevFit = ZellerRCM2, k = 3)
+save(ZellerRCM3, file = "./results/ZellerRCM3.RData")
+} else {load(file = "./results/ZellerRCM3.RData")}
 ```
 
 The total runtime for all dimensions combined was `r round(ZellerRCM3$runtime,1)`. We can then plot any combination of two dimensions we want, e.g. the first and the third.
@@ -110,6 +116,40 @@ plot(ZellerRCM3, Dim = c(1,3), samColour = "Diagnosis", taxNum = 6)
 ```
 
 The third dimension also correlates with a separation of cancer patients vs. healthy and small adenoma patients.
+
+### Assessing the goodness of fit
+
+Some taxa (or samples) may not follow a negative binomial distribution, or their departures from independence may not be appropriately represented in low dimensions. We visualize these taxa and samples through their deviances, which are the squared sums of their deviance residuals. This allows us to graphically identify taxa and samples that are poorly represented in the current ordination.
+
+The deviance residuals can be extracted manually
+
+```{r getDeviances}
+devResiduals = getDevianceRes(ZellerRCM2, Dim = c(1,2))
+```
+
+but you can also just supply the argument "Deviance" to samColour
+
+```{r plotUnconstrainedRCMsamColDev}
+plot(ZellerRCM2, plotType = "samples", samColour = "Deviance", samSize = 2.5)
+```
+
+Samples with the largest scores exhibit the poorest fit. This may indicate that samples with strong departures from independence acquire large scores, but still are not well represented in lower dimensions. Especially the one bottom right may be a problematic case.
+
+We again also use the third dimension, maybe this sample is fitted well there?
+
+```{r plotUnconstrainedRCMsamColDev13}
+plot(ZellerRCM3, plotType = "samples", samColour = "Deviance", samSize = 2.5, Dim = c(1,3))
+```
+
+No the problem persists there.
+
+The same principle can be applied to the taxa
+
+```{r plotUnconstrainedRCMtaxDev}
+plot(ZellerRCM3, plotType = "species", taxCol = "Deviance", samSize = 2.5, Dim = c(1,2), arrowSize = 0.5)
+```
+
+For the taxa it appears to be the taxa with smaller scores are the more poorly fitted ones. Note that since the count table is not square, we cannot compare sample and taxon deviances. They have not been calculated based on the same number of taxa. Also, one cannot do chi-squared tests based on the deviances since this is not a classical regression model, but an overparametrized one.
 
 ## Constrained analysis
 
@@ -121,7 +161,10 @@ In this analysis all covariates values of a sample are projected onto a single s
 Even though these response functions may be too simplistic, they have the advantage of being easy to interpret (and plot).
 
 ```{r constrLin}
+if(!file.exists(file = "./results/ZellerRCM2constr.RData")){
 ZellerRCM2constr = RCM(zellerSphy, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear")
+save(ZellerRCM2constr, file = "./results/ZellerRCM2constr.RData")
+} else {load(file = "./results/ZellerRCM2constr.RData")}
 ```
 
 First we plot the samples
@@ -170,12 +213,33 @@ plot(ZellerRCM2constr)
 
 Note that the samples and the environmental variables cannot be related to each other.
 
+#### Assessing the goodness of fit
+
+Also for constrained ordination it can be interesting to use the deviance residuals. We can use them in the unconstrained case by summing over taxa or samples, or plot them versus the environmental gradient to detect lack of fit for the shape of the response function. For this latter goal we provide two procedures: a diagnostic plot of the taxa with the strongest response to the environmental gradient, or an automatic trend detection using the run statistic.
+
+A deviance residual plot for the strongest responders
+
+```{r plotDevResp}
+residualPlot(zellerSphyRCMconstrLin, whichTaxa ="response")
+```
+
+The same taxa but with Pearson residuals 
+
+```{r plotPearResp}
+residualPlot(zellerSphyRCMconstrLin, whichTaxa = "response", resid = "Pearson")
+```
+
+Most species do not exhibit any obvious pattern, although departures seem to increase with environmental scores.
+
 ### Non-parametric response functions
 
 These response functions are very data driven, but have the drawback that they do not allow to visualize the role of the taxa in the ordination.
 
 ```{r fitNonParam}
+if(!file.exists(file = "./results/ZellerRCM2constrnonParam.RData")){
 ZellerRCM2constrNonParam = RCM(zellerSphy, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
+save(ZellerRCM2constrNonParam, file = "./results/ZellerRCM2constrNonParam.RData")
+} else {load(file = "./results/ZellerRCM2constrNonParam.RData")}
 ```
 
 ```{r plotnonParam}
