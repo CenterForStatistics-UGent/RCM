@@ -215,7 +215,7 @@ Note that the samples and the environmental variables cannot be related to each 
 
 #### Assessing the goodness of fit
 
-Also for constrained ordination it can be interesting to use the deviance residuals. We can use them in the unconstrained case by summing over taxa or samples, or plot them versus the environmental gradient to detect lack of fit for the shape of the response function. For this latter goal we provide two procedures: a diagnostic plot of the taxa with the strongest response to the environmental gradient, or an automatic trend detection using the run statistic.
+Also for constrained ordination it can be interesting to use the deviance residuals. We can use them in the unconstrained case by summing over taxa or samples, or plot them versus the environmental gradient to detect lack of fit for the shape of the response function. For this latter goal we provide two procedures: a diagnostic plot of the taxa with the strongest response to the environmental gradient, or an automatic trend detection using the runs test statistic by Ward and Wolfowitz. Checking the linearity (or Gaussian) assumption of the response function is crucial: excessive departure invalidate the interpretation of the ordination plot.
 
 A deviance residual plot for the strongest responders
 
@@ -230,6 +230,18 @@ residualPlot(zellerSphyRCMconstrLin, whichTaxa = "response", resid = "Pearson")
 ```
 
 Most species do not exhibit any obvious pattern, although departures seem to increase with environmental scores.
+
+The runs test is a test that automatically attempts to detect non randomness in the sequence of positive and negative residuals. We plot the residual plots for the taxa with the largest run statistic (since the sample sizes and null distributions are equal this corresponds with the smallest p-values, but we do not do inference here because of the non-classical framework). 
+
+```{r plotDevRuns}
+residualPlot(zellerSphyRCMconstrLin, whichTaxa = "runs", resid = "Deviance")
+```
+
+```{r plotPearRuns}
+residualPlot(zellerSphyRCMconstrLin, whichTaxa = "runs", resid = "Pearson")
+```
+
+For these taxa we see no signal at all. The runs test statistic may be dominated by the number of zero counts, and not be informative at all.
 
 ### Non-parametric response functions
 
