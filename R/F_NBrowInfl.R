@@ -6,7 +6,7 @@
 #' @return A list with components
 #' \item{score}{a matrix with components of the score function}
 #' \item{InvJac}{A square matrix of dimension n with the components of the Jacobian related to the row scores}
-NBrowInfl = function(rcm, Dim){
+NBrowInfl = function(rcm, Dim = 1){
   reg = rcm$psis[Dim] * rcm$cMat[Dim,]
   mu = extractE(rcm, seq_len(Dim)) #Take also lower dimensions into account here
   thetaMat = extractDisp(rcm, mu, Dim)
@@ -19,6 +19,6 @@ NBrowInfl = function(rcm, Dim){
   JacobianInv = solve(NBjacobianRow(beta = c(rcm$rMat[,Dim], lambdaRow), X = X, reg= reg, thetas = thetaMat, muMarg = muMarg, k = k, p = p, n=n, rowWeights = rowWeights , nLambda = nLambda, rMatK = rMatK)) #Inverse Jacobian
 
   #After a long thought: The X's do not affect the estimation of the lambda parameters!
-  #Matrix becomes too large: return score and inverse jacobian
+  #Matrix of all influences becomes too large: return score and inverse jacobian
   return(list(score=score, InvJac = JacobianInv[1:n,1:n]))
 }

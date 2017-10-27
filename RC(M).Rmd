@@ -478,6 +478,7 @@ sgn(X_{ij}-\mu_{ij})\sqrt{\frac{2}{\phi_j}ln(1+\phi_j\mu_{ij})} \text{ if } X_{i
 
 Their sum of squares equals the total deviance per sample or taxon. Plotting the deviances in function of the environmental gradient can reveal patterns and thus lack of fit to the linearity assumption.
 
+We can do this for the taxa that respond strongest to the environmental gradient, and make residual plots with deviance or Pearson residuals. An alternative is to try to detect systematic trends through series of positive or negative residuals using Ward and Wolfowitz' runs test, and plot the taxa with the largest test statistic. The drawback of this approach is that these runs statistic are very sensitive to the number of zeroes, since zeroes always have negative residuals. Therefore I prefer the first approach, more so because for these strong responders receive most attention so their assumptions should be verified.  
 
 ###### Identifying influential observations
 
@@ -1006,50 +1007,6 @@ It is clear that the triplot is not trivial to interpret, but then again: neithe
 Contrary to most other methods to make biplots for microbiome data, the RC(M)-method is a truly statistical method that explicitly models the mean. This renders it very easy to interpret. It's main weaknesses are the reliance on a parametric distribution (which may be incorrect), and it's relatively long running times. However, many other biplot methods, such as CA ot PCoA with Hellinger distances, also make distributional assumptions, mostly without stating them explicitly.
 
 \newpage
-
-# Implementation
-
-## Correspondence analysis
-
-```{r Auxfuns Correspondence analysis, purl=TRUE}
-## A function to perform correspondence analysis
-# The unconstrained approach is the approximation to the Pearson's chi-squared, as defined by Gower _et al._ in their book "Understanding Biplots". The constrained approach is the one implemented in vegan, based on a weighted regression of the departure matrix on the environmental scores. We cannot reproduce its results by the code given by ter Braak based on eigenvlaue or singular value decompositions.
-caSVD = function(X, Y = NULL, Z = NULL, version = "Pearson"){
-# @param X: the nxp count matrix
-# @param Y(optional): a nxd matrix of covariates, or a vector of variable names if X is a phyloseq object. If null regular CA is performed
-# @param Z(optional): a nxz matrix of variables to condition on, or a vector of variable names if X is a phyloseq object.
-  
-# @return: the singular value decomposition of the matrix of pearson residuals
-  if(class(X)=="phyloseq"){
-  if(!is.null(Y)){Y = model.matrix(data = data.frame(sample_data(object = X))[,Y], ~.)}
-  if(!is.null(Z)){Z = model.matrix(data = sample_data(object = X)[,Z], ~.)} 
-  X = if (taxa_are_rows(X)) t(otu_table(X)@.Data) else otu_table(X)@.Data
-  }
-  C = colSums(X)
-  R = rowSums(X)
-  E = outer(R,C)/sum(X) #Expected counts under independence
-  if(is.null(Y) & is.null(Z)){ #Unconstrained analysis
-  Goal = diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C))
-  dimnames(Goal) = dimnames(X)
-  svd(Goal)
-  } else { #Constrained analysis
-  vegan:::cca(X = X, Y=Y, Z=Z)
-  }
-}
-```
-
-## Unconstrained RC(M)
-
-### Negative binomial
-
-```{r NBauxFuns, purl=TRUE}
-#-------------------------------------------#
-
-#A function to extract the influence for a given parameter index
-getInflRow = function(score, InvJac, parIndex){
-  score* InvJac[, parIndex]
-}
-```
 
 #### Test the software
 

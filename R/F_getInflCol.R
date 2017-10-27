@@ -4,7 +4,7 @@
 #' @param InvJac The inverted jacobian
 #' @param taxon The taxon name or index
 #'
-#' @return
+#' @return A matrix with all observations' influence on the given taxon
 getInflCol = function(score, InvJac, taxon){
   rowMultiply(score* InvJac[, taxon])
 }
