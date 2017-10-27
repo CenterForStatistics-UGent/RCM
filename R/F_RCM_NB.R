@@ -362,7 +362,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Row scores
         if (verbose) cat("\n Estimating row scores \n")
         regRow = cMat[KK,,drop=FALSE]*psis[KK]
-        tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg=muMarg, k=KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianRow, method=jacMethod, rowWeights=rowWeights, nLambda=(KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE], preFabMat = preFabMat, Jac = JacR)
+        tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n = n, p = p, jac = NBjacobianRow, method = jacMethod, rowWeights = rowWeights, nLambda = (KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE], preFabMat = preFabMat, Jac = JacR)
 
         if(verbose) cat(ifelse(tmpRow$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
         rMat[,KK] = tmpRow$x[1:n]
@@ -534,10 +534,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     colnames(cMat) = colnames(X)
     rownames(cMat) = colnames(alpha) = paste0("Dim",1:k)
 
-    returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
-                      alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab,
-                      libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds),
-                      confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun=nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst)
+    returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, centMat = centMat)
   }
   if(!all(convergence)){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
