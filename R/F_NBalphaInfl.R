@@ -38,7 +38,8 @@ NBalphaInfl = function(rcm, Dim){
     mu0 = muMarg * c(exp(buildDesign(sampleScore, responseFun) %*% NB_params_noLab*psi))
     tmp0 = (X-mu0)/(1+mu0/thetaMat)
   }
-  lag = switch(responseFun, #The lagrangian depends on the shape of the response function
+  # score = array(0, dim = c(n,p,d + nLambda1s + Dim +1))
+  score = switch(responseFun, #A n-by-p-by-d array
                "linear" = if(envGradEst == "LR"){psi * (vapply(seq_len(d), FUN.VALUE = tmp, function(i){tmp2*CC[,i]}) - NB_params_noLab[2]*vapply(seq_len(d), FUN.VALUE = tmp0, function(i){tmp0*CC[,i]}))
                  } else {
                    psi * (vapply(seq_len(d), FUN.VALUE = tmp, function(i){tmp2*CC[,i]}))
@@ -53,9 +54,7 @@ NBalphaInfl = function(rcm, Dim){
                             NB_params_noLab[2]*vapply(seq_len(d), FUN.VALUE = tmp0, function(i){tmp0*CC[,i]}))
                    },
                stop("Unknown response function provided! \n")) + #Restrictions do not depend on response function
-    c(lambda1s %*% centMat) +
-    lambda2 * 2 * alpha +
-    if(Dim>1) rcm$alpha[, seq_len(Dim-1)] %*% lambda3 else 0
+    rep(c(lambda1s %*% centMat) + lambda2 * 2 * alpha + if(Dim>1) rcm$alpha[, seq_len(Dim-1)] %*% lambda3 else 0, each = n*p)
 
   JacobianInv = solve(LR_nb_Jac(Alpha = c(alpha, lambda1s, lambda2, lambda3), X = X, CC = CC, responseFun = responseFun, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, d = d, k = Dim, centMat = centMat, nLambda = nLambda1s + Dim, nLambda1s = nLambda1s, thetaMat = thetaMat, muMarg = extractE(rcm, seq_len(Dim-1)), n = n, ncols = p, envGradEst = envGradEst, preFabMat = 1+X/thetaMat))
 

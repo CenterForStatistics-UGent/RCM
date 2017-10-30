@@ -26,3 +26,4 @@ if(is.data.frame(object)){
   centMat = if(all(rowSums(centMat)==0)) {matrix(0, 1,sum(nFactorLevels))} else {centMat[rowSums(centMat)>0,, drop = FALSE]} #Remove zero rows, corresponding to the non-factors
   if(is.data.frame(object)) return(list(centMat = centMat, datFrame  = object)) else return(centMat)
 }
+## Add option not to drop the zeroe rows and/or columns!
