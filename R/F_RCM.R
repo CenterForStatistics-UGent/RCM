@@ -16,7 +16,6 @@
 #'@export
 RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
 
-
   classDat = class(dat) #The class provided
 
   ##The count data##
@@ -157,15 +156,20 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
       data = datFrame,
       contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor)],
                              contrasts, contrasts=FALSE))
-    #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
-    centMat  = t(sapply(seq_along(nFactorLevels), function(i){
-      c(rep.int(0, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
-        rep.int(if(nFactorLevels[i]==1) 0 else 1, nFactorLevels[i]), #Ones within the categorical variable
-        rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #Zeroes after
-    }))
 
-    centMat = if(all(rowSums(centMat)==0)) {matrix(0, 1,sum(nFactorLevels))} else {centMat[rowSums(centMat)>0,, drop = FALSE]} #Remove zero rows, corresponding to the non-factors
-    #centMat = rbind(1, centMat) # Add a row of ones for the overal sum. This turned out to be a bad idea!
+    # centMat  = t(sapply(seq_along(nFactorLevels), function(i){
+    #   c(rep.int(0, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
+    #     rep.int(if(nFactorLevels[i]==1) 0 else 1, nFactorLevels[i]), #Ones within the categorical variable
+    #     rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #Zeroes after
+    # }))
+    #
+    # centMat = if(all(rowSums(centMat)==0)) {matrix(0, 1,sum(nFactorLevels))} else {centMat[rowSums(centMat)>0,, drop = FALSE]} #Remove zero rows, corresponding to the non-factors
+
+    #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
+    tmp = buildCentMat(datFrame)
+    centMat = tmp$centMat
+    datFrame = tmp$datFrame
+
   } else {
     covModelMat = centMat = NULL
   }

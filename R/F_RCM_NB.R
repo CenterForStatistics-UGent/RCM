@@ -435,11 +435,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     nLambda1s = NROW(centMat)
 
     minK = ifelse(is.null(NBRCM),1,Kprev+1) #Next dimension to fit
+    lambdasAlpha = c(NBRCM$lambdasAlpha, rep(0, (k*(1+nLambda1s+(k-1)/2) - (minK-1)*(1+nLambda1s+(minK-2)/2))))
     for (KK in minK:k){
-
-      lambdasAlpha = rep(0,nLambda1s +KK)
-      lambdaResp = rep(0,v)
-
       if(verbose) cat("Dimension" ,KK, "is being esimated \n")
 
       #Modify offset if needed
@@ -495,10 +492,10 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 
-          if (verbose) cat("\n Estimating environmental gradient \n")
-    AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
+        if (verbose) cat("\n Estimating environmental gradient \n")
+      AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha[seq_k(KK, nLambda1s)]), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
       alpha[,KK] = AlphaTmp[seq_len(d)]
-      lambdasAlpha = AlphaTmp[d+seq_along(lambdasAlpha)]
+      lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp[-seq_len(d)]
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")
@@ -506,7 +503,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           if (verbose) cat("\n Estimating environmental gradient \n")
           AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
-          lambdasAlpha = AlphaTmp$lambda
+          lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
           psis[KK] = nonParamRespFun[[KK]]$psi #Get the psis based on the integrals
         }
 
@@ -534,7 +531,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     colnames(cMat) = colnames(X)
     rownames(cMat) = colnames(alpha) = paste0("Dim",1:k)
 
-    returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, centMat = centMat)
+    returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha)
   }
   if(!all(convergence)){
     warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")

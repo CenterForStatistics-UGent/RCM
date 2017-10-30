@@ -488,6 +488,11 @@ For the unconstrained case in a scenario without outliers the influence function
 
 For the constrained case it may be enlightning to see which samples (and taxa) affect the estimation of the environmental gradient most.
 
+For maximum likelihood estimation the influence function $\psi(\theta| f, x)$ of a parameter $\theta$ for a distribution $f$ and data x is defined as:
+
+$$\psi(\theta| f, x) = -S_f(\theta|x) E\big(I(\theta, \theta|x)\big)^{-1}  $$
+ with $S_f(\theta|x)$ the score function and $E\big(I(\theta, \theta|x)\big)$ the expected Fisher information matrix.
+ 
 ### One-by-one (1B1)
 
 Initially all dimension were estimated jointly, but for reasons of speed we moved to a one-by-one approach estimating first the first dimension, then the second given the first, then the third given the first two and so on. By splitting the estimation procedures into smaller parts like this the estimation speeds up considerably, presumably because the systems are easier to solve.
@@ -697,32 +702,6 @@ whereby
 The estimation iterates between estimating $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_{jk} = \big(a_{jk}, q_{jk}, m_{jk})$.
 
 Note that this model is fitted without an intercept
-
-<!---This model was designed with the ecological context in mind, whereby (continuous) environmental variables such as pH, temperature, sunlight intensity, ion concentrations, distance to landscape elements etc. were measured. However for microbiome data, we usually do not have direct measurements of variables in the ecosystem, but rather characterstics of the patient, which are very often categorical variables.
-
-Let's take a look at the nature of the covariate data.
-
-#```{r Nature of the covariates, eval=TRUE, purl=FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-load("/home/stijn/PhD/Simulations/data/physeqList4Trim.RData")
-load("/home/stijn/PhD/Simulations/data/zellerData.RData")
-load("/home/stijn/PhD/Biplots/Kostic_data/phyloD.RData")
-tableSamVar = function(x){
-  table(sapply(sample_data(x), class))
-}
-phyList = list("American gut"=AGphylo, "Kostic"=phyloD, "HMP" = physeqList4Trim[["Throat"]], "zeller16S" = zellerSphy, "zellerMetagenomics" = zellerMphy)
-sapply(phyList, tableSamVar)
-#```
-
-Most variables are factors or booleans. Below are the names of the variables shown:
-
-#```{r covariate names, purl=FALSE}
-sapply(phyList, sample_variables)
-#```
-
-I wonder how realistic the Gaussian response model still is with so many categorical variables and so many species. I guess we would best seek some expert advice of microbiome scientists.
-
---->
 
 #### RC(M) approach to gradient analysis
 

@@ -1,6 +1,6 @@
 #' A function to extract the influence of all observations on a given row score
 #'
-#' @param score the vector of row scores
+#' @param score the score function evaluated for every observation
 #' @param InvJac The inverse jacobian
 #' @param sample the row score or  sample index
 #'

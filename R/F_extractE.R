@@ -7,7 +7,7 @@
 extractE = function(rcm, Dim = seq_len(rcm$k)){
   #Expectations
   Eind = outer(rcm$libSizes, rcm$abunds) #Expected values under independence
-  if (Dim[1]==0){
+  if (Dim[1] %in% c(0,NA)){
     Eind
   } else if(is.null(rcm$covariates)){
       Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))
