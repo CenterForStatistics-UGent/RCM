@@ -52,7 +52,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpara
     lambda2 * 2 * alpha +
     if(k>1) alphaK %*% lambda3 else 0
 
-  centerFactors = centMat %*% alpha #Includes overal centering
+  centerFactors = centMat %*% alpha
   size = sum(alpha^2)-1
   if(k==1) { return(c(lag, centerFactors, size))}
   ortho = crossprod(alphaK ,alpha)

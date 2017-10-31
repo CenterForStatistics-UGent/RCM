@@ -11,19 +11,18 @@ if(is.data.frame(object)){
   oneLevelID = sapply(object, function(x){length(unique(x))==1})
   object[,oneLevelID] = NULL #Drop factors with one level
   if(any(!oneLevelID)){
-    warning("The following variables were not included in the analyses because they have only one value: \n", paste(covariates[oneLevelID], sep = " \n"),immediate. = TRUE)
+    warning("The following variables were not included in the analyses because they have only one value: \n", paste(object[oneLevelID], sep = " \n"),immediate. = TRUE)
   }
 } else if(class(object) == "RCM"){
-  nFactorLevels = sapply(attr(object$covariates, "assign"), function(x){sum(attr(object$covariates, "assign") == x)}) #Number of levels per factor
+  nFactorLevels = sapply(unique(attr(object$covariates, "assign")), function(x){sum(attr(object$covariates, "assign") == x)}) #Number of levels per factor
 
 } else {stop("Invalid object supplied! \n")}
   #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
   centMat  = t(sapply(seq_along(nFactorLevels), function(i){
-    c(rep.int(0, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
-      rep.int(if(nFactorLevels[i]==1) 0 else 1, nFactorLevels[i]), #Ones within the categorical variable
-      rep.int(0, sum(nFactorLevels[-seq(1,i)]))) #Zeroes after
+    c(rep.int(0L, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
+      rep.int(if(nFactorLevels[i]==1) 0L else 1L, nFactorLevels[i]), #Ones within the categorical variable
+      rep.int(0L, sum(nFactorLevels[-seq(1,i)]))) #Zeroes after
   }))
-  centMat = if(all(rowSums(centMat)==0)) {matrix(0, 1,sum(nFactorLevels))} else {centMat[rowSums(centMat)>0,, drop = FALSE]} #Remove zero rows, corresponding to the non-factors
+  centMat = if(all(rowSums(centMat)==0)) {matrix(0L, 1,sum(nFactorLevels))} else  {centMat[rowSums(centMat)>0,, drop = FALSE]}
   if(is.data.frame(object)) return(list(centMat = centMat, datFrame  = object)) else return(centMat)
 }
-## Add option not to drop the zeroe rows and/or columns!

@@ -3,9 +3,7 @@
 #' @param rcm an rcm object
 #' @param Dim the required dimension
 #'
-#' @return A list with components
-#' \item{score}{a matrix with components of the score function}
-#' \item{InvJac}{A square matrix of dimension n with the components of the Jacobian related to the alphas}
+#' @return An n-by-p-by-d array with the influence of every observation on every alpha parameter
 NBalphaInfl = function(rcm, Dim){
   if(length(Dim)>1) {stop("Influence of only one dimension at the time can be extratced! \n")}
   #Extract the parameters
@@ -56,7 +54,7 @@ NBalphaInfl = function(rcm, Dim){
                stop("Unknown response function provided! \n")) + #Restrictions do not depend on response function
     rep(c(lambda1s %*% centMat) + lambda2 * 2 * alpha + if(Dim>1) rcm$alpha[, seq_len(Dim-1)] %*% lambda3 else 0, each = n*p)
 
-  JacobianInv = solve(LR_nb_Jac(Alpha = c(alpha, lambda1s, lambda2, lambda3), X = X, CC = CC, responseFun = responseFun, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, d = d, k = Dim, centMat = centMat, nLambda = nLambda1s + Dim, nLambda1s = nLambda1s, thetaMat = thetaMat, muMarg = extractE(rcm, seq_len(Dim-1)), n = n, ncols = p, envGradEst = envGradEst, preFabMat = 1+X/thetaMat))
-
-  list(score = score, InvJac = JacobianInv)
+  JacobianInv = solve(LR_nb_Jac(Alpha = c(alpha, lambda1s, lambda2, lambda3), X = X, CC = CC, responseFun = responseFun, psi = psi, NB_params = NB_params, NB_params_noLab = NB_params_noLab, d = d, k = Dim, centMat = centMat, nLambda = nLambda1s + Dim, nLambda1s = nLambda1s, thetaMat = thetaMat, muMarg = extractE(rcm, seq_len(Dim-1)), n = n, ncols = p, envGradEst = envGradEst, preFabMat = 1+X/thetaMat))[seq_len(d), seq_len(d)] #Return only alpha indices
+rownames(JacobianInv) = colnames(JacobianInv) = names(alpha)
+  tensor(score, JacobianInv, 3,1)
 }

@@ -243,6 +243,16 @@ residualPlot(zellerSphyRCMconstrLin, whichTaxa = "runs", resid = "Pearson")
 
 For these taxa we see no signal at all. The runs test statistic may be dominated by the number of zero counts, and not be informative at all.
 
+#### Identifying influential observations
+
+It can also be interesting to see which samples have the strongest influence on the environmental gradient.
+
+```{r inflCalc}
+inflArr = NBalphaInfl(ZellerRCM2constr, Dim = 1)
+```
+
+Say we want to know which samples have on average the largest influence on the estimation of the age parameter.
+
 ### Non-parametric response functions
 
 These response functions are very data driven, but have the drawback that they do not allow to visualize the role of the taxa in the ordination.
