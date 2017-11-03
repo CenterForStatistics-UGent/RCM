@@ -247,7 +247,7 @@ residualPlot(ZellerRCM2constr, whichTaxa = "runs", resid = "Deviance")
 residualPlot(ZellerRCM2constr, whichTaxa = "runs", resid = "Pearson")
 ```
 
-For these taxa we see no signal at all. The runs test statistic may be dominated by the number of zero counts, and not be informative at all.
+For these taxa we see no signal at all.
 
 #### Identifying influential observations
 

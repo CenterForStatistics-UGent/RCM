@@ -478,7 +478,7 @@ sgn(X_{ij}-\mu_{ij})\sqrt{\frac{2}{\phi_j}ln(1+\phi_j\mu_{ij})} \text{ if } X_{i
 
 Their sum of squares equals the total deviance per sample or taxon. Plotting the deviances in function of the environmental gradient can reveal patterns and thus lack of fit to the linearity assumption.
 
-We can do this for the taxa that respond strongest to the environmental gradient, and make residual plots with deviance or Pearson residuals. An alternative is to try to detect systematic trends through series of positive or negative residuals using Ward and Wolfowitz' runs test, and plot the taxa with the largest test statistic. The drawback of this approach is that these runs statistic are very sensitive to the number of zeroes, since zeroes always have negative residuals. Therefore I prefer the first approach, more so because for these strong responders receive most attention so their assumptions should be verified.  
+We can do this for the taxa that respond strongest to the environmental gradient, and make residual plots with deviance or Pearson residuals. An alternative is to try to detect systematic trends through series of positive or negative residuals using Ward and Wolfowitz' runs test, and plot the taxa with the largest test statistic.
 
 ###### Identifying influential observations
 
