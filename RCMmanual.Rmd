@@ -68,6 +68,12 @@ plot(ZellerRCM2, plotType = "samples", samColour = "Diagnosis")
 
 It is clear that some of the variability of the samples is explained by the cancer status of the patients.
 
+We can also add a richness measure as a colur, see ?phyloseq::estimate_richness for a list of available richness measures. Here we plot the Shannon diversity
+
+```{r plotUnconstrainedRCMsamColShannon}
+plot(ZellerRCM2, plotType = "samples", samColour = "Shannon")
+```
+
 Next we plot only the species.
 
 ```{r plotUnconstrainedRCMspec}

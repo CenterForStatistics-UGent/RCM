@@ -29,12 +29,13 @@
 #' @param arrowSize a scalar, the size of the arrows
 #' @param Influence a boolean, should the influence of the observation on the variable be plotted
 #' @param inflDim an integer, the dimension for which the influence should be calculated
+#' @param richSupported A character vector of supported richness measures
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"),...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -48,7 +49,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
    dataSam = coords$samples
   #Get the sample colours
   if(length(samColour)==1){
-    dataSam$colourPlot = if(Influence) rowSums(NBalphaInfl(RCMfit, inflDim)[,,samColour]) else if(samColour == "Deviance") rowSums(getDevianceRes(RCMfit, Dim)^2) else get_variable(RCMfit$physeq, samColour)
+    dataSam$colourPlot = if(Influence) rowSums(NBalphaInfl(RCMfit, inflDim)[,,samColour]) else if(samColour == "Deviance") rowSums(getDevianceRes(RCMfit, Dim)^2) else if(samColour %in% richSupported) estimate_richness(RCMfit$physeq, measures = samColour) else get_variable(RCMfit$physeq, samColour)
   } else if(!is.null(samColour)){
     dataSam$colourPlot = samColour
   } else {dataSam$colourPlot = factor(rep(1, nrow(dataSam)))}
