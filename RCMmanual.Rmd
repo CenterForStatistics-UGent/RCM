@@ -220,13 +220,13 @@ Also for constrained ordination it can be interesting to use the deviance residu
 A deviance residual plot for the strongest responders
 
 ```{r plotDevResp}
-residualPlot(zellerSphyRCMconstrLin, whichTaxa ="response")
+residualPlot(ZellerRCM2constr, whichTaxa ="response")
 ```
 
 The same taxa but with Pearson residuals 
 
 ```{r plotPearResp}
-residualPlot(zellerSphyRCMconstrLin, whichTaxa = "response", resid = "Pearson")
+residualPlot(ZellerRCM2constr, whichTaxa = "response", resid = "Pearson")
 ```
 
 Most species do not exhibit any obvious pattern, although departures seem to increase with environmental scores.
@@ -234,11 +234,11 @@ Most species do not exhibit any obvious pattern, although departures seem to inc
 The runs test is a test that automatically attempts to detect non randomness in the sequence of positive and negative residuals. We plot the residual plots for the taxa with the largest run statistic (since the sample sizes and null distributions are equal this corresponds with the smallest p-values, but we do not do inference here because of the non-classical framework). 
 
 ```{r plotDevRuns}
-residualPlot(zellerSphyRCMconstrLin, whichTaxa = "runs", resid = "Deviance")
+residualPlot(ZellerRCM2constr, whichTaxa = "runs", resid = "Deviance")
 ```
 
 ```{r plotPearRuns}
-residualPlot(zellerSphyRCMconstrLin, whichTaxa = "runs", resid = "Pearson")
+residualPlot(ZellerRCM2constr, whichTaxa = "runs", resid = "Pearson")
 ```
 
 For these taxa we see no signal at all. The runs test statistic may be dominated by the number of zero counts, and not be informative at all.
@@ -252,6 +252,38 @@ inflArr = NBalphaInfl(ZellerRCM2constr, Dim = 1)
 ```
 
 Say we want to know which samples have on average the largest influence on the estimation of the age parameter.
+
+```{r inflAge}
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = rowSums(inflArr[,,"Age"]), colLegend = "Influence on Age parameter in dimension 1")
+```
+
+Below we see a couple of very influential observations. They may be very young?
+
+```{r inflAgeCol}
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age")
+```
+
+Indeed, a few young subjects affect the estimation of the age parameter most. One should always be wary of these kind of "outliers" that strongly affect the ordination.
+
+We can achieve the same plots by using the "influence" flag in the plotting function. 
+
+```{r inflAgeFast}
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age", Influence = TRUE)
+```
+
+The age coefficient is largest in the second dimension actually, let's look at the influence on that component
+
+```{r inflAgeFast2}
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age", Influence = TRUE, inflDim = 2)
+```
+
+One last illustration: which samples have the strongest impact on the "DiagnosisCancer" parameter
+
+```{r inflDiagFast}
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "DiagnosisCancer", Influence = TRUE, samShape = "Diagnosis", samSize = 2)
+```
+
+French cancer patients appear to have the strongest impact.
 
 ### Non-parametric response functions
 

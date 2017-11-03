@@ -488,7 +488,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         if (verbose) cat("\n Estimating response function \n")
         NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
-        NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(rowMultiply(NB_params[,,KK]^2,colWeights))) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
+        #NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(rowMultiply(NB_params[,,KK]^2,colWeights))) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
+        NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2))
 
         if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 

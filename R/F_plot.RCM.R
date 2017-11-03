@@ -16,7 +16,7 @@
 #' @param Palette the colour palette
 #' @param taxLabels a boolean, shoudl taxon labels be plotted
 #' @param taxCol the taxon colour
-#' @param arrowCol a character string: the colour of the arrows of the environmental gradient.
+#' @param taxColSingle the taxon colour if there is only one
 #' @param nudge_y a scalar, the offet for the taxon labels
 #' @param square A boolean, should the plot be square? This is highly preferred to honestly represent differences
 #' @param xInd a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side
@@ -27,25 +27,31 @@
 #' @param alpha a boolean, should small arrows be made transparent?
 #' @param alphaRange The range of transparency
 #' @param arrowSize a scalar, the size of the arrows
+#' @param Influence a boolean, should the influence of the observation on the variable be plotted
+#' @param inflDim an integer, the dimension for which the influence should be calculated
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
-                    samColour = NULL, colLegend = samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
+                    samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", arrowCol = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75,0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
-  constrained = !is.null(RCMfit$covariates)
+  constrained = !is.null(RCMfit$covariates) #Constrained plot?
+  #Extract the coordinates
   coords = extractCoord(RCMfit, Dim)
-  dataSam = coords$samples
-  dataTax = coords$species
+  if(constrained && RCMfit$responseFun  == "nonparametric") plotType = plotType[plotType!="species"] #For non-parametric response function we cannot plot the taxa
+
+## SAMPLES
+  if("samples" %in% plotType){
+  # taxCol = NULL #No species colours if samples are plotted
+   dataSam = coords$samples
   #Get the sample colours
   if(length(samColour)==1){
-    dataSam$colourPlot = if(samColour == "Deviance") rowSums(getDevianceRes(RCMfit, Dim)^2) else get_variable(RCMfit$physeq, samColour)
-    if(is.character(dataSam$colourPlot)) dataSam$colourPlot  = factor(dataSam$colourPlot )
+    dataSam$colourPlot = if(Influence) rowSums(NBalphaInfl(RCMfit, inflDim)[,,samColour]) else if(samColour == "Deviance") rowSums(getDevianceRes(RCMfit, Dim)^2) else get_variable(RCMfit$physeq, samColour)
   } else if(!is.null(samColour)){
     dataSam$colourPlot = samColour
-  } else {dataSam$colourPlot=factor(rep(1, nrow(dataSam)))}
+  } else {dataSam$colourPlot = factor(rep(1, nrow(dataSam)))}
   #Get the sample shapes
   if(length(samShape)==1){
     dataSam$shapePlot = get_variable(RCMfit$physeq, samShape)
@@ -58,13 +64,31 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   if(is.null(Palette)){
     Palette = rainbow(length(unique(dataSam$colourPlot)))
   }
+   plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], dotList, col = "colourPlot", shape = "shapePlot")) +
+     geom_point(size = samSize ) + #point size
+     xlab(paste0(names(dataSam)[1],": ", paste0("psi",Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
+     ylab(paste0(names(dataSam)[2],": ", paste0("psi",Dim[2]), " = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
+     if(is.null(samColour)) {guides(colour=FALSE)}  #Legend
 
+   #add legend names
+   if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
+     plot = plot + scale_colour_manual(name = colLegend, values = Palette)
+   }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
+     plot = plot + scale_colour_continuous(name = colLegend)
+   }
+   if(!is.null(shapeLegend)){
+     plot = plot + scale_shape_discrete(name = shapeLegend)
+   } else {plot = plot + guides(shape=FALSE)}
+} else {plot = ggplot()}# END if samples %in% plotType
+
+  ## TAXA
+  if("species" %in% plotType){
   idTaxRegExp = if(!is.null(taxRegExp)){  #Filter out certain taxa
     apply(sapply(taxRegExp, grepl, ignore.case = TRUE, x = rownames(coords$species)),1,any) #Display only required taxa
   } else {rep(TRUE, ncol(RCMfit$X))}
   if(!any(idTaxRegExp)) {stop("Species not found! \n Check the dimnames of your RCMfit$X slot! \n")}
   taxFrac = min(taxNum/sum(idTaxRegExp),1)
-
+  dataTax = coords$species[idTaxRegExp,] #Keep only selected taxa
   #Construct dataframe for taxa
     if(constrained) {
     if(RCMfit$responseFun=="linear"){
@@ -72,12 +96,14 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1-taxFrac)
       #Filter out small arrows
       dataTax = dataTax[id,]
+      if("samples" %in% plotType){
       scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
       scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
       dataTax = within(dataTax, { #Scale the arrows
         end1 = origin1 + slope1 * scalingFactor
         end2 = origin2 + slope2 * scalingFactor
       })
+      }
     } else if (RCMfit$responseFun == "quadratic"){
       dataTax$colour = apply(coords$species[, paste0("a",Dim)],1, function(x){
         if(all(x>0)) {
@@ -94,7 +120,6 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
         x = coords$species[tax,]
         cbind(ellipseCoord(a = unlist(x[paste0("a", Dim)]) * RCMfit$psis[Dim], b = unlist(x[paste0("b", Dim)]) * RCMfit$psis[Dim], c = unlist(x[paste0("a", Dim)]) * RCMfit$psis[Dim], quadDrop = quadDrop, nPoints = nPoints), taxon = tax)
       })
-
       #Pick taxa with largest extrema, within observed values of the envrionmental scores (otherwise it is almost extrapolation)
       dataID = data.frame(
         meanPeakHeights = rowMeans(dataTax[,paste0("peak",Dim)]),
@@ -115,17 +140,15 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       dataEllipse = data.frame(
         apply(dataEllipseTmp[,,id], 2, c), colour = as.character(dataTax$colour)
       )
-    } else if(RCMfit$responseFun  == "nonparametric"){ #For non-parametric response function we cannot plot the taxa
-      plotType = plotType[plotType!="species"]
     } else {
       stop("No valid response function present in this RCM object!")
     }
-  } else { #If not constrained
-    dataTax = coords$species[idTaxRegExp,] #Keep only selected taxa
+  }else {
     dataTax$arrowLength = apply(dataTax[, c("end1","end2")],1,function(x){sqrt(sum(x^2))})
-    id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1 - taxFrac)
+    id = dataTax$arrowLength >= quantile(dataTax$arrowLength, 1 - taxFrac)
     #Filter out small arrows
     dataTax = dataTax[id,]
+    if("samples" %in% plotType){
     scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
     scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
     #The scaling factor is the minimum of the ratios between the longest longest arrow and the longest species arrow in every direction of every dimension
@@ -134,28 +157,9 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       end2 = end2 * scalingFactor
     })
   } # End scaling needed
-  if("species" %in% plotType) dataTax$labels = sub(" ", "\n", rownames(dataTax))
-
-  if("samples" %in% plotType){
-  plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], col = "colourPlot", dotList, shape = "shapePlot")) +
-    geom_point(size = samSize) + #point size
-    xlab(paste0(names(dataSam)[1],": ", paste0("psi",Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
-    ylab(paste0(names(dataSam)[2],": ", paste0("psi",Dim[2]), " = ",round(RCMfit$psis[Dim[2]],1))) + #ylabel
-    if(is.null(samColour)) {guides(color=FALSE)}  #Legend
-
-  #add legend names
-  if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
-    plot = plot + scale_colour_manual(name = colLegend, values = Palette)
-  }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
-    plot = plot + scale_colour_continuous(name = colLegend)
   }
-  if(!is.null(shapeLegend)){
-    plot = plot + scale_shape_discrete(name = shapeLegend)
-  } else {plot = plot + guides(shape=FALSE)}
-
-  } else {plot = ggplot()}
-  if("species" %in% plotType){
-    if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
+  dataTax$labels = sub(" ", "\n", rownames(dataTax))
+if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     #Add arrows or labels
     if(length(taxCol)>1 && length(unique(taxCol))<10){
       dataTax$taxCol = Palette[c(taxCol[id])]
@@ -164,8 +168,10 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     }
     if((!constrained || RCMfit$responseFun=="linear") ){
       if(arrowSize > 0){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y='origin2', xend="end1", yend = "end2", alpha = "arrowLength", colour = "taxCol"),  arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = "arrowLength", colour = if("species" %in% plotType) NULL else  "taxCol"), colour = taxColSingle, arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
+      if(!"species" %in% plotType){
       plot = plot + if(is.factor(taxCol)) scale_colour_discrete(name = colLegend) else scale_colour_continuous(name = colLegend)
+      }
       plot = plot +  if(alpha) scale_alpha_continuous(range = alphaRange)
       }
     } else if(RCMfit$responseFun=="quadratic"){ #quadratic response functions
@@ -181,9 +187,16 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       plot = plot + scale_fill_continuous(name = colLegend)
     }
 if(taxLabels){
-    plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=taxCol, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+    plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=taxColSingle, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
 }
-  } else {}
+  if(!"samples" %in% plotType){
+    plot = plot +
+      xlab(paste("Dim",Dim[1])) + #xlabel
+      ylab(paste("Dim",Dim[2]))
+  }
+  } #END if "species" %in% plotType
+
+  ## VARIABLES
   if("variables" %in% plotType && constrained){
     #Add variable labels
     arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2) #All arrow lenghts
@@ -198,11 +211,12 @@ if(taxLabels){
  #Include all levels from important factors, not just the long arrows
     varData = varData[varID,]
     # scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
-    scalingFactorAlphaTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
+if(!all(plotType == "variables")){
+    scalingFactorAlphaTmp = apply((if("samples" %in% plotType){dataSam[, paste0("Dim", Dim)]} else {dataTax[, paste0("end", Dim)]}),2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
     scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
-
     varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
-    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(dataSam)[1], y = names(dataSam)[2], label = "label"), inherit.aes = FALSE, size = labSize)
+    }
+    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = labSize)
   }
   #Add cross in the centre
   plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3)
