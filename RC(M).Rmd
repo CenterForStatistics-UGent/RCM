@@ -31,6 +31,8 @@ funFiles = dir("R")
 funFilesPub = dir("pubFun")
 for (i in funFiles) {source(file.path("R",i))}
 for (i in funFilesPub) {source(file.path("pubFun",i))};rm(i)
+load("/home/stijn/PhD/American Gut/AGphylo.RData")
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 ```
 
 \setcounter{tocdepth}{2}
@@ -1066,8 +1068,6 @@ con2DmatNon$alpha
 Finally we also apply the method to real datasets. First the AGP and HMP datasets
 
 ```{r RC(M)_NB real datasets, purl = FALSE}
-load("/home/stijn/PhD/American Gut/AGphylo.RData")
-load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
 realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate" )
 if(!file.exists(file = "resListRCMagphmp.RData")){
 fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
@@ -1828,6 +1828,108 @@ names(moltStart) = c("correlation", "scores","run")
 boxplot(correlation ~ scores, data = moltStart, las=2)
 abline(h=0, col ="red", lty = "dashed")
 #Squared weighing clearly gives the best results, although no fantastic correlations.
+```
+
+##### Null setting, different library sizes
+
+In this setting we simulate all distributions from the same template, but with ten-fold differences in library sizes. Stiill there is thus no signal in this dataset.
+
+```{r NBnullb, purl = FALSE}
+if(!file.exists(file = "RCMsim/resList0b.RData")){
+  if(!file.exists(file = "RCMsim/datList0b.RData")){
+datList0b = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+libSizesSampled[seq_len(n/2)] = libSizesSampled[seq_len(n/2)]*10 #Apply the ten-fold change in library sizes
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList0b,  file = "RCMsim/datList0b.RData")
+} else {load(file = "RCMsim/datList0b.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList0RCMb.RData")){
+RCMresList0b = mclapply(mc.cores=4, datList0b, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList0b, file = "RCMsim/resList0RCMb.RData")
+} else { load("RCMsim/resList0RCMb.RData")}
+resList0b = otherAnalyses(RCMresList0)
+resList0bRows = lapply(resList0b, extractRows)
+resList0bCols = mapply(resList0b, resList0bRows, FUN=extractCols, SIMPLIFY=FALSE)
+save(resList0b, resList0bRows,resList0bCols,  file = "RCMsim/resList0b.RData")
+} else {load(file = "RCMsim/resList0b.RData")}
+```
+
+```{r resList0b sampleBiplot, purl = FALSE, include=FALSE}
+#A sample biplot
+randomScatter(resList0bRows)
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
+#randomScatter(resList0bRows, Dim = c(1,3))
+```
+
+```{r libSizeCorr0b, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 10b0b simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+datList0b = lapply(resList0b, function(x){x$RCM$X})
+plotCor(resList0bRows, datList0b, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
+```
+
+Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations with library sizes.
+
+The taxa
+
+```{r resList0bcols sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resList0bCols)
+# CA has outliers, CoDa and Hellinger reveal weird patterns
+#randomScatter(resList0bCols, Dim = c(1,3))
+```
+
+```{r AbsCorr0b, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 10b0b simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
+plotCor(resList0bCols, datList = datList0b,scoreDim = "columns", dataMat = TRUE)
+rm(resList0bRows, resList0b, datList0b)
+```
+
+##### Null setting, differences in dispersions
+
+In this setting we simulate all distributions from the same template, but with group differences in dispersion. The group factor (e.g. sequencing center) may not act on the mean, but on the dispersion. Ordination techniques should be immune to this effect.
+
+```{r NBnullc, purl = FALSE}
+if(!file.exists(file = "RCMsim/resList0b.RData")){
+  if(!file.exists(file = "RCMsim/datList0b.RData")){
+datList0b = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+libSizesSampled[seq_len(n/2)] = libSizesSampled[seq_len(n/2)]*10 #Apply the ten-fold change in library sizes
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList0b,  file = "RCMsim/datList0b.RData")
+} else {load(file = "RCMsim/datList0b.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList0RCMb.RData")){
+RCMresList0b = mclapply(mc.cores=4, datList0b, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList0b, file = "RCMsim/resList0RCMb.RData")
+} else { load("RCMsim/resList0RCMb.RData")}
+resList0b = otherAnalyses(RCMresList0)
+resList0bRows = lapply(resList0b, extractRows)
+resList0bCols = mapply(resList0b, resList0bRows, FUN=extractCols, SIMPLIFY=FALSE)
+save(resList0b, resList0bRows,resList0bCols,  file = "RCMsim/resList0b.RData")
+} else {load(file = "RCMsim/resList0b.RData")}
 ```
 
 \clearpage
