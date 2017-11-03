@@ -1682,22 +1682,6 @@ Theoretical concerns I have about this method are the following:
 
 (Ren _et al._ (2016))
 
-```{r nonparametricBayesian}
-# A bayesian approach, this is quite slow
-#data(JRphylo) # A vaginal dataset
-nonParamBayes = function(dat, hyper = list( nv = 3, a.er = 1, b.er = 0.3, a1 = 3, a2 = 4, m = 10, alpha = 10, beta = 0 )){
-  require(DirFactor)
-  classDat = class(dat) #The class provided
-  ##The count data##
-  if (classDat=="matrix"){
-  X = dat
-  }else  if(classDat=="phyloseq"){
-  X = if (taxa_are_rows(dat)) t(otu_table(dat)@.Data) else otu_table(dat)@.Data
-  } else {stop("Please provide a matrix or a phyloseq object! \n")}
-  DirFactor(t(X), hyper, step = 100)
-}
-```
-   
 # Method evaluation
 
 After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way. For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
@@ -1710,39 +1694,6 @@ We could perhaps look for the distance based method that maximizes $\frac{d_{m, 
 
 This approach can only be applied to the row scores (samples), since there the importance parameters are multiplied and thus distances are represented correctly.
 
-```{r within vs. between distances}
-# A function to calculate these within and overall distances
-distanceFun = function(coord, clusters, Dim = c(1,2)){
-  # @param coord: an nxk matrix of coordinates
-  # @param clusters: a factor of length n with cluster memberships
-  # @param Dim: The dimensions to look at, defaults to the first two
-  
-  # @return: a list with
-    # -withinDist: within distances
-    # -overalDist: the n overal distances
-    # -ratio: 
-  
-  coord = coord[,Dim, drop=FALSE]
-  
-  withinDist = tapply(seq_len(nrow(coord)), clusters, function(x){
-    coordsX = coord[x,]
-    centerX = colMeans(coordsX)
-    dists = apply(coordsX, 1, function(y){
-      dist(rbind(y, centerX))
-    })
-    return(dists)
-  })
-  
-  overalCenter = colMeans(coord)
-  overalDist = apply(coord, 1, function(y){
-    dist(rbind(y, overalCenter))
-  })
-  
-  ratio = mean(unlist(sapply(unique(clusters), function(x){overalDist[clusters==x]/withinDist[[x]]})))
-  list(withinDist = withinDist, overalDist =  overalDist, ratio = ratio)
-  }
-```
-
 ## Silhouette
 
 See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
@@ -1751,45 +1702,11 @@ $$s(i) = \frac{b(i) - a(i)}{max\big(a(i), b(i)\big)}$$
 
 The silhouette can take values between +1 for optimal separation and -1 for wrong classification. If a poin i close to the centroid of its own cluster but very far from all the others the methods has performed well and is rewarded with a high silhouette. We can average the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
 
-```{r silhouette}
-silhouette = function(coord, clusters, Dim = c(1,2)){
-  # @param coord: an nxk matrix of coordinates
-  # @param clusters: a factor of length n with cluster memberships
-  # @param Dim: The dimensions to look at, defaults to the first two
- 
-  # @return a vector of n silhouettes
-  
-  coord = coord[,Dim, drop=FALSE]
-  
-  distMat = as.matrix(dist(coord)) # all distances
-  avDists = apply(distMat, 1 , function(x){
-    tapply(x[x!=0], clusters[x!=0], mean) #Exclude observation itself
-  }) # Average distances within clusters
-  ais = sapply(seq_along(clusters), function(i){
-    avDists[clusters[i], i]
-  }) #Average distance to own cluster
-  bis = sapply(seq_along(clusters), function(i){
-    min(avDists[clusters[i]!=levels(clusters), i])
-  }) #Average distance to nearest cluster
-  
-  silhouette = mapply(ais, bis, FUN = function(a,b){(b-a)/max(a,b)}) #The silhouette
-  
-  return(silhouette)
-}
-```
-
 ## Correlation with library sizes and abundances
 
 The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
 
 Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot. Equivalently correlations with average relative abundance can be investigated.
-
-```{r libSizeCorrelation}
-libCor = function(coord, margins, Dim = c(1,2)){
-  if(length(margins)!=nrow(coord)) {return(rep(NA, length(Dim)))}
-  apply(coord[, Dim, drop=FALSE], 2, cor, margins)
-}
-```
 
 <!---
 The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance.
@@ -1801,153 +1718,6 @@ For the methods that do yield taxon scores, we can also verify if the correct ta
 
 $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
 with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal. Because the mean is very sensitive to outliers, we also include the median, whcih makes our method come out as best. it is very important to mention this in a publication and show both results!
-
-## Auxiliary functions
-
-```{r extract row vectors}
-#---------------------------------------#
-# An auxiliary function to get weighted taxon scores
-weightedTaxonScores = function(X, rowScores){
-  crossprod(X %*% diag(1/colSums(X)),rowScores)
-}
-#-----------------------------------------#
-# A functions to plot the correlations of the library sizes with the row scores, or of the abundances with the column scores
-plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE, yloc = 0.2, groupMeth = factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control"))){
-if(!dataMat){
-  datList = lapply(datList, function(x){x$dataMat})
-}
-  margins = switch(scoreDim, "rows" = rowSums(datList[[1]]), "columns" = colSums(datList[[1]]))
-cor0 = lapply(Dims, function(Dim){
-  rbind(
-  mapply(scores, datList, FUN = function(x,z){
-  margins = switch(scoreDim, "rows" = rowSums(z), "columns" = colSums(z))
-  sapply(x, function(y){libCor(y, margins = margins, Dim = Dim)}) 
- }, SIMPLIFY = TRUE),
- "Control" = replicate(length(datList),cor(rnorm(length(margins)), margins)))}) #Include a control
-
-cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
-par(mfrow = c(1,max(Dims)))
-for (i in Dims){
-  if(i==max(Dims)){
-  parTmp = par(no.readonly = TRUE)
-  par(mar = c(4,4,4,5))
-}
-data = orderDF(cor0df[[i]])
-boxplot(Correl ~ Method, main = paste(
-  switch(scoreDim, "rows" = "Correlations of library sizes \n with row scores of dimension",
-         "columns" = "Correlations of species abundances \n with column scores of dimension"
-           ),i), 
-  data = data, ylim = c(-1,1), ylab = "Pearson correlation", col = groupMeth, las = 2)
-meansCor = tapply(data$Correl, data$Method, mean)
-points(meansCor, col="red", pch=18, cex = 1.6)
-abline(h=0, lty = "dashed")
-if(i==max(Dims)){
-  par(parTmp)
-}
-}
-addLegend(groupMeth = groupMeth, x = length(groupMeth), cex = 0.6)
-par(mfrow = c(1,1))
-
-}
-#----------------------------------#
-# A function to plot the silhouettes
-plotSil = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]),las = 2,...){
-  parTmp = par(no.readonly = TRUE)
-  par(mfrow=  c(1,1))
-sil1  = lapply(resListRows, function(x){
-  sapply(x, silhouette, clusters = groupFactor)
-})
-meanSil1 = sapply(sil1, function(x){
-  colMeans(x)
-})
-meanSil1df = orderDF(melt(meanSil1, value.name = "Silhouette", varnames = c("Method")))
-
-if(!is.null(method)){
-  meanSil1df = subset(meanSil1df, meanSil1df$Method %in% method)
-  }
-boxplot(Silhouette~Method, main = "Mean silhouettes per Monte Carlo simulation by method", data = meanSil1df, col = groupMeth,las = las, ...)
-meansSil = tapply(meanSil1df$Silhouette, meanSil1df$Method, mean)
-points(meansSil, col="red", pch=18, cex = 1.6)
-abline(h=0, lty = "dashed")
-addLegend(groupMeth = groupMeth)
-par(parTmp)
-}
-#---------------------------------#
-distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]),log = FALSE, las = 2,...) {
-dist = sapply(resListRows, function(x){
-  sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
-})
-meanDist1df = orderDF(melt(dist, value.name = "DistanceRatio", varnames = c("Method")))
-if(!is.null(method)){
-  meanDist1df = subset(meanDist1df, meanDist1df$Method %in% method)
-}
-boxplot(DistanceRatio~Method, main = "Mean ratios of overal to within distance by method", data = meanDist1df, col = groupMeth, ylim = if(log) NULL else c(0, ceiling(max(meanDist1df$DistanceRatio))), las = las,log = ifelse(log,"y",""),...)
-meansDist = tapply(meanDist1df$DistanceRatio, meanDist1df$Method, mean)
-points(meansDist, col="red", pch=18, cex = 1.6)
-abline(h=1, lty = "dashed")
-addLegend(groupMeth = groupMeth, yloc = 5)
-}
-#---------------------------#
-#A function to make a scatterplot of a randomly selected MC isntance
-randomScatter = function(list, Dim = c(1,2), col = "black"){
-  parTmp = par(no.readonly = TRUE)
-  if(length(list)<=9) {
-    par(mfrow = c(3,3), mar = c(3,3,3,3))
-  } else if(length(list)<=12){
-     par(mfrow = c(3,4), mar = c(3,3,3,3))
-  } else {
-    par(mfrow = c(4,4), mar = c(3,3,3,3))
-  }
-ID = sample(size=1, seq_along(list))
-obj = list[[ID]]
-lapply(names(obj),function(x){plot(obj[[x]][,Dim], main=x, col = col, xlab = paste("Dim", Dim[1]),ylab = paste("Dim", Dim[2]), pty = "s")})
-par(parTmp)
-}
-#------------------------------#
-#A function to wrap the calculation of the contribution of the taxa
-contrTaxaWrap = function(resListRows, resListCols, IDlist, groupFactor, upDown = FALSE, centerFun = median){
-dat = mapply(resListRows, resListCols, IDlist, SIMPLIFY = TRUE, FUN = function(row, col, id){
-  mapply(row, col, SIMPLIFY = TRUE, MoreArgs = list(idTax = id, groupFactor = groupFactor, upDown = upDown, centerFun = centerFun), FUN = contrTaxa)
-})
-as.data.frame(t(dat))
-}
-#-----------------------------#
-# A function to calculate correlation with the starting values
-startFun = function(list){
-  X = list$RCM$X
-  R = rowSums(X)
-  C = colSums(X)
-  E = outer(R, C)/sum(R)
-  cMat = list$RCM$cMat
-  rMat = list$RCM$rMat
-  trended.dispersion.ind  <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess",offset=t(log(E)))
-  thetas = estDisp(X = X, muMarg = E, cMat = cMat, rMat = rMat, psis = rep(0, ncol(rMat)), trended.dispersion = trended.dispersion.ind)
-  svd1 = svd(diag(1/sqrt(R)) %*% (X-E) %*% diag(1/sqrt(C)))
-  svd2 = svd(diag(1/R) %*% (X-E) %*% diag(1/C))
-  svd3 = svd(diag(R^(-3/2)) %*% (X-E) %*% diag(C^(-3/2)))
-  svd4 = svd(diag(R^(-3)) %*% (X-E) %*% diag(C^(-3)))
-  svd5 = svd(diag(1/R^2) %*% (X-E) %*% diag(1/C^2))
-  svd6 =  svd((X-E)/((outer(R,C)+rowMultiply(outer(R^2, C^2), 1/thetas))/sum(R)))
-  list(corRows1 = getCor(svd1$u, rMat), corRows2 = getCor(svd2$u, rMat), corRows3 = getCor(svd3$u, rMat), corRows4 = getCor(svd4$u, rMat), corRows5 = getCor(svd5$u, rMat), corRows6 = getCor(svd6$u, rMat) ,corCols1 = getCor(svd1$v, t(cMat)), corCols2 = getCor(svd2$v, t(cMat)), corCols3 = getCor(svd3$v, t(cMat)), corCols4 = getCor(svd4$v, t(cMat)), corCols5 = getCor(svd5$v, t(cMat)), corCols6 = getCor(svd6$v, t(cMat)))
-} 
-getCor = function(a,b){
-  sapply(1:ncol(b), function(x){
-    cor(a[,x], b[,x])
-  })
-}
-#--------------------------------#
-# A function to reorder the methods
-orderDF = function(df){
-  df$Method = factor(df$Method, labels = labelsMeth, levels = levelsMeth, ordered = TRUE)
-  df$groupMethod = groupsMeth[match(df$Method, levelsMeth)]
-  droplevels(df)
-}
-#-------------------------------#
-#A function to add the legend
-addLegend = function(yloc = 0.2, groupMeth, x = length(groupMeth)+1, expFac = 1,...){
-legend(legend = levels(groupMeth), col = factor(levels(groupMeth), levels = levels(groupMeth), ordered=TRUE),pch = 16, x = x*expFac, y = yloc, xpd = TRUE,...)
-}
-```
 
 # Simulations
 
@@ -2887,54 +2657,6 @@ We generate data as follows
 4. Sample DA taxa from all taxa with weights equal to 1-lfdr
 5. Sample counts from non DA taxa from samples with the most frequent covariate level
 6. Sample counts from DA taxa from the samples with other covariate levels, and correct for differences in library sizes. This maintains the same distribution of covariate levels and overal daat matrix size as the original dataset. 
-
-```{r simSeqFunctions}
-# A wrapper function for phyloseq objects for the testing, yields the lfdr's of the taxa. We extend the original code to allow for Kruskal-Wallis test
-testSimSeq = function(physeq, variable, filterTaxa = FALSE){
-  countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
-  treatment = get_variable(physeq, variable)
-  if(filterTaxa){
-  # Filter physeq to no all-zeroes in either of the groups
-  physeq = prune_taxa(x = physeq, taxa = apply(countMat, 2, function(y){
-    !any(tapply(y, treatment, function(z){
-      all(z==0)
-    }))
-  }))
-  }
-  #Filter physeq for NA's in variables
-  physeq = prune_samples(x = physeq, !is.na(treatment))
-  treatment = factor(get_variable(physeq, variable))
-  countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
-  pvals = apply(countMat, 2, function(x){kruskal.test(x, g=treatment)$p.value})
-  result = apply(countMat, 2, function(x){
-    avRank = length(x)/2 + 0.5
-    rankX = rank(x)
-    sapply(levels(treatment),avRank = avRank, function(y, avRank){
-    ifelse(mean(rankX[treatment==y])>avRank, "up","down")
-        })}) #Was taxon up or down regulated in group 1 (first level of treatment?
-  lfdr = fdrtool(pvals, statistic = "pvalue", plot=FALSE, verbose=FALSE)$lfdr
-  list(lfdr = lfdr, physeq = physeq, variable = variable, result = result)
-}
-genSimSeq = function(testres, Ntaxa = ntaxa(testres$physeq), fracTaxa = 0.2){
-  physeq = testres$physeq
-  weights = 1-testres$lfdr
-  weights = weights/sum(weights) #Normalize sampling weights
-  normFactors = sample_sums(physeq)
-  treatment = get_variable(physeq, testres$variable)
-  DEtaxa = sample(taxa_names(physeq), round(Ntaxa*fracTaxa), prob = weights) # The DE taxa
-  whichTrt = names(sort(table(treatment),decreasing=TRUE)[1]) # The most frequent treatment group, frow which we will sample the EE taxa
-  trtLeft = unique(treatment)[unique(treatment) != whichTrt]
-  countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
-  samIDee = sample(which(treatment == whichTrt),nrow(countMat), replace = TRUE)
-  dataSimSeq = countMat[samIDee,] #EE taxa
-  for (i in trtLeft){
-  rowInd = which(treatment==i)
-  dataSimSeq[rowInd,DEtaxa] = round(countMat[rowInd, DEtaxa] * normFactors[samIDee][rowInd]/normFactors[rowInd])
-  }
-  keepID = colSums(dataSimSeq)>0
-  list(data = dataSimSeq[, keepID], treatment = treatment, DEtaxa = DEtaxa[DEtaxa %in% colnames(dataSimSeq[, keepID])])
-}
-```
 
 ```{r SimSeqTests, purl = FALSE}
 if(!file.exists(file = "SimSeqTests.RData")){
