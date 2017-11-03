@@ -10,7 +10,7 @@ if(is.data.frame(object)){
   nFactorLevels = sapply(object, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
   oneLevelID = sapply(object, function(x){length(unique(x))==1})
   object[,oneLevelID] = NULL #Drop factors with one level
-  if(any(!oneLevelID)){
+  if(any(oneLevelID)){
     warning("The following variables were not included in the analyses because they have only one value: \n", paste(object[oneLevelID], sep = " \n"),immediate. = TRUE)
   }
 } else if(class(object) == "RCM"){
