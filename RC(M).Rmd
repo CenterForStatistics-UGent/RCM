@@ -1063,483 +1063,6 @@ con2DmatQuad$alpha
 con2DmatNon$alpha
 ```
 
-#### Real data examples
-
-Finally we also apply the method to real datasets. First the AGP and HMP datasets
-
-```{r RC(M)_NB real datasets, purl = FALSE}
-realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate" )
-if(!file.exists(file = "resListRCMagphmp.RData")){
-fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
-resListRCM = mapply(fileNames, c(AGphylo, physeqListV13[realNames[-1]]),  SIMPLIFY = FALSE, FUN=function(x,y){
-  load(x)
-  RCMres$physeq=y
-  RCMres
-})
-names(resListRCM) = realNames
-save(resListRCM, file = "resListRCMagphmp.RData")
-} else {load(file = "resListRCMagphmp.RData")}
-```
-
-##### The HMP dataset: sample plots
-
-```{r HMPplot, purl = FALSE, include = FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate gender. \\label{fig:samHMP}"}
-SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
-  levels(get_variable("RUNCENTER",physeq=x))
-}))))
-#Give similar colours for the same sequencing center
-cols = c("cadetblue","cyan", "darkblue","blue","magenta","orange","yellow","brown","black",  "grey80","grey70","pink") 
-palette(cols)
-physeqListV13_SC = lapply(physeqListV13, function(x){
-  sample_data(x)[["RUNCENTER"]] = factor(sample_data(x)[["RUNCENTER"]], levels = SClevels, labels = SClevels)
-  x
-})
-phyList = c(AGP = AGphylo, physeqListV13_SC)
-resListRCM2 = lapply(realNames, function(x){
-  tmp = resListRCM[[x]]
-  tmp$physeq = prune_samples(rownames(tmp$X),prune_taxa(colnames(tmp$X), phyList[[x]]))
-  tmp
-}) 
-
-names(resListRCM2) = realNames
-
-par(mfrow = c(3,4))
-lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "sex", main=x)})
-```
-
-```{r HMPsamRuncenter, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate sequencing center. it is clear that there is a strong effect of sequencing center \\label{fig:samHMP}", purl = FALSE}
-par(mfrow = c(3,4))
-foo = lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(1.1,-0.1))})
-rm(resListRCM, resListRCM2)
-```
-
-\clearpage
-
-##### The HMP dataset: sample plots after conditioning
-
-Now let's filter out the impact of this variable using conditioning
-
-```{r HMP filter out variable effect, purl=FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset after conditioning. Colours indicate sequencing center. Even when fitted with a rough grouping of sequencing centers, it is clear that we have conditioned out its effect. \\label{fig:samHMP}"}
-# antNarJob = mcparallel(  RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2"))
-# antNar = mccollect(antNarJob, wait=FALSE)[[1]]
-# save(antNar, file="antNarConfounders.RData")
-
-if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
-  K=2
-nleqslv.control = list()
-#Group the runcenters together
-
-RCMhmpFilt = lapply(physeqListV13, function(x){
-  runcenters = data.frame(sample_data(x))[ "RUNCENTER"]
-runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("BCM","BI,BCM","BCM,BI","BCM,WUGC", "BCM,JCVI")] = "BCM"
-runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("JCVI","JCVI,BI","JCVI,WUGC")] = "JCVI"
-runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("WUGC,JCVI","WUGC","WUGC,BCM")] = "WUGC"
-sample_data(x) = data.frame(sample_data(x) ,RUNCENTER2 = runcenters[[1]])
-x})
-filtResJob = mcparallel(lapply(RCMhmpFilt, function(x){
-  RCM(x, distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2")
-  }))
-filtRes = mccollect(filtResJob, wait=FALSE)[[1]]
-save(filtRes, file="/home/stijn/PhD/Biplots/filtResHMP.RData")
-} else {load(file="/home/stijn/PhD/Biplots/filtResHMP.RData")}
-par(mfrow = c(3,3))
-foo = lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
-# lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
-par(mfrow = c(1,1))
-rm(filtRes, physeqListV13_SC, phyList)
-```
-
-
-```{r filterTwoConfounders, purl = FALSE, eval = FALSE}
-#With two confounders
-confTestJob = mcparallel(RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = c("sex","RUNCENTER2")))
-confTest = mccollect(confTestJob, wait=FALSE)[[1]]
-save(confTest, file="/home/stijn/PhD/Biplots/confTestHMP.RData")
-```
-
-\clearpage
-
-##### The AGP dataset: sample plots
-
-```{r AGPplots, purl = FALSE, eval = FALSE}
-par(mfrow = c(3,3))
-AGPvars = c("IBD","SEX","PREGNANT","LACTOSE","ASTHMA","DIABETES", "DIET_TYPE","COUNTRY")
-sapply(AGPvars, function(x){
-plotRCM(resListRCM[["AGP"]], biplot=FALSE, samColour = x, main=x, libInset = c(-3.9,-0.1), libLeg=TRUE)
-})
-```
-
-The AGP dataset is presumably too noisy to find much of a signal
-
-```{r fitting process, purl = FALSE, eval = FALSE}
-lapply(names(resListRCM), function(x){with(resListRCM[[x]],{ plot(main=x, rowRec[2,1,1:iter[1]])})})
-```
-
-##### The Zeller data: sample plots
-
-```{r load zeller RC(M) NB results, purl = FALSE, include = FALSE}
-load("/home/stijn/PhD/Simulations/data/zellerData.RData")
-zellers = c("zellerMeta","zeller16S")
-# zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
-#   load(x)
-#   RCMres
-# })
-if(!file.exists("zellerSphyRCM.RData")){
-zellerSphyRCM = RCM(zellerSphy, k=2, round = TRUE) # Less than one minute!
-save(zellerSphyRCM, file="zellerSphyRCM.RData")
-} else {load("zellerSphyRCM.RData")}
-
-if(!file.exists("zellerMphyRCM.RData")){
-zellerMphyRCM = RCM(zellerMphy, k=2, round = TRUE, prevCutOff = 0.05, minFraction = 0.15) # Less than one minute! More trimming needed here
-save(zellerMphyRCM, file="zellerMphyRCM.RData")
-} else {load("zellerMphyRCM.RData")}
-
-zellerRCM  =list(zellerMphyRCM, zellerSphyRCM)
-names(zellerRCM) = zellers
-
-sapply(zellerRCM,function(x){x$converged}) # All converged
-sapply(zellerRCM,function(x){x$runtime})
-sapply(zellerRCM,function(x){x$iter})
-
-cols = c("darkblue","orange","darkgreen", "brown","black", "blue","magenta","cadetblue","cyan", "yellow", "grey80","grey70","pink") 
-palette(cols)
-```
-
-```{r zellerOldPlots, purl = FALSE, eval = FALSE, echo = FALSE}
-par(mfcol = c(2,3))
-sapply(c("Country","Diagnosis","Gender"), function(y){
-sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samColour = y, main = paste(x,y, collapse = "_"))})
-})
-```
-
-For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups. 
-
-```{r plotZellerSphy, purl = FALSE, eval = FALSE}
-lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
-  plot.RCM(zellerSphyRCM, colour = x)
-})
-```
-
-```{r plotZellerSphyExec, purl = FALSE}
-lapply(c("Country","Diagnosis"), function(x){
-  plot.RCM(zellerSphyRCM, samColour = x)
-})
-rm(zellerRCM, zellerSphyRCM, zellerMphyRCM)
-```
-
-```{r zeller country vs diagnosis, purl = FALSE, eval = FALSE}
-#Are country and diagnosis related?
-with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
-#Yes, only cancer patients from Germany!
-```
-
-\clearpage
-
-##### The Zeller data: Constrained RC(M)
-
-```{r zellerConstrained, purl =FALSE}
-if(!file.exists("zellerSphyRCMconstr.RData")){
-zellerSphyRCMconstrLin = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear") # Use smallest possible cndtol!
-zellerSphyRCMconstrLinML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear", envGradEst = "ML")
-zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
-zellerSphyRCMconstrNonParam = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
-zellerSphyRCMconstrNonParamML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric", envGradEst = "ML")
-save(zellerSphyRCMconstrLin, zellerSphyRCMconstrLinML, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam,file="zellerSphyRCMconstr.RData")
-} else {load("zellerSphyRCMconstr.RData")}  #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
-```
-
-```{r zeller liks, purl = FALSE, eval= FALSE}
-liksZeller = lapply(list(zellerSphyRCM, zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam), liks)
-names(liksZeller) = c("unconstrained","linear","quadratic","nonparametric")
-
-liksZeller2 = rbind(liksZeller, (liksZeller[c("Dim 1", "Dim 2"),]-liksZeller[c("independence", "Dim 1"),])/matrix(liksZeller["saturated",]-liksZeller["independence",], byrow = TRUE, nrow = 2, ncol = 4))
-rownames(liksZeller2)[5:6] = c("Dim 1 rel", "Dim 2 rel")
-liksZellerMelt = melt(liksZeller2, varnames = c("Dimension", "responseFun"), value.name = "logLik")
-ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksZellerMelt[!grepl("rel",liksZellerMelt$Dimension),]) + geom_point() +geom_line(aes(group = responseFun))
-```
-
-The "fraction of likelihood explained" appears to be very small.
-
-```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
-plot.RCM(zellerSphyRCMconstrLin)
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis")
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Gender")
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Country")
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Age")
-#apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
-
-plot.RCM(zellerSphyRCMconstrQuad, samColour = "Diagnosis", Palette = rainbow(5))
-```
-
-```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", plotTaxa = TRUE)
-```
-
-```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Age", plotTaxa = TRUE)
-rm(zellerSphyRCMconstrLin)
-```
-
-Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
-
-```{r AGPconstr, eval=FALSE}
-##### Constrained analysis of the AGP data
-AGPconstr = RCM(AGphylo, k=2, round = TRUE, covariates = "all")
-```
-
-##### Turnbaugh et al. (2008)
-
-Also try the Turnbaugh (2008) dataset: lean and obese twins
-
-```{r turnTwins, eval = FALSE, purl = FALSE}
-if(!file.exists("turntwinsRCm.RData")){
-  load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
-turntwinsRCm = RCM(TurnTwins, k=3)
-#turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
-save(turntwinsRCm, file = "turntwinsRCm.RData")
-} else {load("turntwinsRCm.RData")}
-plot.RCM(turntwinsRCm, colour = "Family_p")
-plot.RCM(turntwinsRCm, colour = "twin")
-plot.RCM(turntwinsRCm, colour = "Status_p")
-rm(turntwinsRCm)
-```
-
-##### Turnbaugh et al. (2009)
-
-15 gnotobiotic mice were inoculated with human feces, and for one group the diet was switched to a Western diet after one month. Then a second generation of mice was inoculated with cecal samples from the previous groups, and here also diet was varied.
-
-- Diet: current diet
-- Generation_p: "Recipient1" if second generation, otherwise diet of cecal samples with which they were inoculated
-- Time: age of mouse at sampling
-- DGS: Diet and previous diet
-- DTG: combines sampling diet, time, and previous generation (if any) 
-
-```{r turnmice, purl = FALSE}
-if(!file.exists("turnMiceRCM.RData")){
-  load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
-HumMiceRCM = RCM(HumMicePhy, k=3)
-HumMiceRCMlin = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DGS"))
-HumMiceRCMlinML = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DGS"), envGradEst = "ML")
-save(HumMiceRCM, HumMiceRCMlin, HumMiceRCMlinML, file = "turnMiceRCM.RData")
-} else {load("turnMiceRCM.RData")}
-```
-
-```{r humMicePlot, purl = FALSE, eval = FALSE}
-plot.RCM(HumMiceRCM) # Two or three distinct groups
-plot.RCM(HumMiceRCM, samColour = "Diet") #Diet is a main factor
-plot.RCM(HumMiceRCM, samColour = "Individual") #Individuals play less of a role
-plot.RCM(HumMiceRCM, samColour = "Generation_p") #Microbiome changes quickly with feed pattern
-plot.RCM(HumMiceRCM, samColour = "Time") #Later samples also form a cluster
-```
-
-```{r humMicePlotExec, purl = FALSE}
-plot.RCM(HumMiceRCM, samColour = "Diet", main =  "Humanized mice") #Diet is a main factor
-plot.RCM(HumMiceRCM, samColour = "Time", main =  "Humanized mice") #Later samples also form a cluster
-rm(HumMiceRCM)
-```
-
-```{r humMicePlot13D, purl = FALSE, eval = FALSE}
-plot.RCM(HumMiceRCM, samColour = "Diet", Dim = c(1,3)) #Diet is a main factor
-plot.RCM(HumMiceRCM, samColour = "Individual", Dim = c(1,3)) #Individuals play less of a role
-plot.RCM(HumMiceRCM, samColour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
-plot.RCM(HumMiceRCM, samColour = "Time", Dim = c(1,3)) #Later samples also form a cluster
-plot.RCM(HumMiceRCM, samColour = "DTG", Dim = c(1,3))
-plot.RCM(HumMiceRCM, samColour = "DGS", Dim = c(1,3))
-```
-
-##### Kostic colorectal cancer
-
-This is a study on the microbiome of colorectal cancer in humans. Nine tumor patients were matched with 9 healthy patients, samples were taken repeatedly. The researchers find a enrichment of Fusobacteria in the tumor and a depletion of Bacteroidetes and Firmicutes.
-
-```{r load Kostic, purl=FALSE}
-if(!file.exists("Kostic.RData")){
-filepath = system.file("extdata", "study_1457_split_library_seqs_and_mapping.zip", package="phyloseq")
-kostic = microbio_me_qiime(filepath)
-save(kostic, file = "Kostic.RData")
-} else {load("Kostic.RData")}
-```
-
-```{r KosticRCM}, purl = FALSE, eval = FALSE}
-if(!file.exists("kosticRCM.RData")){
-kosticRCM = RCM(kostic, k = 3)
-save(kosticRCM, file = "kosticRCM.RData")
-} else {load("kosticRCM.RData")}
-plot(kosticRCM)
-plot(kosticRCM, samColour = "DIAGNOSIS")
-plot(kosticRCM, samColour = "OSH_DIAGNOSIS")
-```
-
-##### Dr. armpit data
-
-The dataset contains 16S sequencing data from armpit swabs of volunteers.
-
-```{r ArmPit, purl =  FALSE}
-if(!file.exists("armpit.RData")){
-load("Armpit/okseldata.rda") 
-load("Armpit/div.rda") 
-load("Armpit/odor.rda")
-db<-data.frame(odor,info,food,washing)
-db$subject = db$subject.1
-db$subject.2 = db$subject.1 = NULL
-load("Armpit/okseldata_20160229.rda") # data in object counts
-Counts<-counts[,-903]
-rownames(Counts) = rownames(db) = db$subject
-OTUa = Counts[,-903]
-armpit = phyloseq(otu_table(apply(as.matrix(OTUa), 1:2, as.numeric), taxa_are_rows =FALSE), sample_data(data.frame(db)))
-save(armpit, file = "armpit.RData")
-} else {load(file = "armpit.RData")}
-
-if(!file.exists(file = "armpitRCM.RData")){
-  armpitRCM = RCM(armpit, k=3)
-  armpitRCMconstrLin = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "linear")
-  armpitRCMconstrQuad = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "quadratic")
-  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric")
-  lessVariablesArmpit = c("BMI", "Fastfood", "Meat", "Vegetables", "gender")
-  armpitRCMconstrLinLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "linear")
-  armpitRCMconstrNonParamLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "nonparametric")
-    save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, armpitRCMconstrNonParam, armpitRCMconstrLinLess, armpitRCMconstrNonParamLess, file = "armpitRCM.RData")
-} else {load(file = "armpitRCM.RData")}
-```
-
-```{r ArmpitPlot1, purl = FALSE}
-plot(armpitRCM)
-plot(armpitRCM, samColour = "shaving")
-plot(armpitRCM, samColour = "odor_panel")
-plot(armpitRCM, samColour = "gender")
-plot(armpitRCM, samColour = "age")
-plot(armpitRCM, samColour = "antimicrobial")
-rm(armpitRCM)
-```
-
-```{r ArmpitPlot2, purl = FALSE}
-plot(armpitRCMconstrLin, plotType = "samples")
-plot(armpitRCMconstrLin, plotType = "variables")
-plot(armpitRCMconstrLin, plotType = c("samples", "species"), taxNum = 6)
-plot(armpitRCMconstrLin, plotType = c("variables", "species"), taxNum = 6)
-plot(armpitRCMconstrLin, samColour = "shaving", plotType = "samples")
-plot(armpitRCMconstrLin, samColour = "odor_panel", plotType = "samples")
-plot(armpitRCMconstrLin, samColour = "gender", plotType = "samples")
-rm(armpitRCMconstrLin)
-```
-
-Corynebacteria react most strongly to the environmental gradient. Note how different the results of the constrained and unconstrained analyses are.
-
-```{r ArmpitPlotNonParam, purl = FALSE}
-plot(armpitRCMconstrNonParam, plotType = "samples")
-plot(armpitRCMconstrNonParam, plotType = "variables")
-plot(armpitRCMconstrNonParam, samColour = "gender", plotType = "samples")
-plot(armpitRCMconstrNonParam, samColour = "shaving")
-plot(armpitRCMconstrNonParam, samColour = "odor_panel")
-plot(armpitRCMconstrNonParam, samColour = "gender")
-plot(armpitRCMconstrNonParam, samColour = "age")
-plot(armpitRCMconstrNonParam, samColour = "wash_p_week")
-plot(armpitRCMconstrNonParam, samColour = "deo_p_week")
-```
-
-Gender is clearly associated with the microbiome composition, but also correlated with other variables such as shaving and deodorant use.
-
-```{r armPitplotNonParamsVaribales, purl = FALSE}
-plot(armpitRCMconstrNonParam, plotType = "variables")
-rm(armpitRCMconstrNonParam)
-```
-
-##### CMET data
-
-This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing cell concentrations from flow cytometry from the same samples as used for the 16S sequencing. We could use this information to alleviate the compositional effect. This is relatively new in the literature, and no standard way exists of incorporating this information. In general, the cell concentratios and library sizes correlate poorly.
-
-See separate document for extended discussion.
-
-```{r readInCMET, purl = FALSE, eval = FALSE}
-if(!file.exists(file = "CMETdata.RData")){
-  library(openxlsx)
-  samData = read.xlsx("/home/stijn/PhD/Datasets/CMET/Metadata.xlsx")
-  rownames(samData) = samData$sample_title
-  samData$Reactor.cycle = as.character(samData$Reactor.cycle)
-  samData$cellDensity = samData$`Cell.density.(cells/mL)`
-  samData$`Cell.density.(cells/mL)` = NULL
-  otuTab = read.csv("/home/stijn/PhD/Datasets/CMET/OTU_table_raw.csv", sep = ";")
-  rownames(otuTab) = otuTab$Sample_ID
-  otuTab$Sample_ID = NULL
-  #Select only samples present in samData
-  otuTab = otuTab[as.character(samData$sample_title),]
-  #Multiply relative abundances by cell counts in samData
-  otuTab = round(as.matrix(otuTab)/rowSums(as.matrix(otuTab))*samData$cellDensity)
-  taxTab = read.csv("/home/stijn/PhD/Datasets/CMET/tax_table_raw.csv", sep = ";")
-  rownames(taxTab) = taxTab$X
-  taxTab$X = NULL
-  samData = samData[rowSums(otuTab)>0,]
-  taxTab = taxTab[ colSums(otuTab)>0,]
-  otuTab = otuTab[rowSums(otuTab)>0, colSums(otuTab)>0] #Number of zeroes is not related to rounding
-  CMETwater = phyloseq(otu_table(otuTab, taxa_are_rows = FALSE), sample_data(samData), tax_table(as.matrix(taxTab)))
-  save(CMETwater, file = "CMETdata.RData")
-}else {load(file = "CMETdata.RData")}
-```
-
-```{r analysCMET, purl = FALSE}
-if(!file.exists(file = "CMETRCM.RData")){
-  CMETRCM = RCM(CMETwater, k = 3, prevCutOff = 0.05)
-  envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "Reactor.cycle")
-  CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
-  CMETRCMlinML = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05, envGradEst = "ML")
-  CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET, prevCutOff = 0.05)
-  CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET, prevCutOff = 0.05)
-  save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
-} else {load(file = "CMETRCM.RData")}
-```
-
-No convergence for quadratic case. That one seems hard to fit.
-
-```{r CMETliks, purl = FALSE, eval = FALSE}
-liksCMET = sapply(list("unconstrained" = CMETRCM, "linear" = CMETRCMlin,"quadratic" = CMETRCMquad, "nonParametric" = CMETRCMnonParam), liks)
-#The comparison is complicated here because we trimmed the linear case.
-liksCMERmelt = melt(liksCMET, varnames = c("Dimension","responseFun"),value.name = "logLik")
-ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksCMERmelt) + geom_point() +geom_line(aes(group = responseFun))
-```
-
-```{r plotCMET, purl = FALSE}
-plot(CMETRCM)
-plot(CMETRCM, samColour = "ph")
-plot(CMETRCM, samColour = "temp")
-plot(CMETRCM, samColour = "Conductivity")
-plot(CMETRCM, samColour = "cellDensity")
-plot(CMETRCM, samColour = "Reactor.phase")
-plot(CMETRCM, samColour = "Timepoint")
-plot(CMETRCM, samColour = "collection_date")
-plot(CMETRCM, samColour = "Reactor.cycle")
-```
-
-We clearly have two groups in the second dimension, partly explained by the _Reactor.phase_ and _collection.date_ variables. Still feels as if we're missing a confounder here. In the first dimension we have a strong time signal.
-
-```{r plotCMETlin, purl = FALSE}
-plot(CMETRCMlin, plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, plotTaxa = FALSE, square = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "ph", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "temp", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Conductivity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMlin, samColour = "cellDensity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Reactor.phase", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Timepoint", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMlin, samColour = "collection_date", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Reactor.cycle", plotTaxa = FALSE, Dim = c(2,1))
-```
-
-Reactor phase clearly explains most of the variation in the data
-
-```{r plotCMETquad, purl = FALSE}
-plot(CMETRCMquad, plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, plotTaxa = FALSE, square = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "ph", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "temp", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Conductivity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMquad, samColour = "cellDensity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Reactor.phase", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Timepoint", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMquad, samColour = "collection_date", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Reactor.cycle", plotTaxa = FALSE, Dim = c(2,1))
-```
-
-The control phase seems to be very different from the others, also conductivity plays a role. Also the second dimension is the most important. Should we reorder the dimensions? Also the quadratic graph differs quite a lot from the linear one.
-
 # Competing methods
 
 ## Unconstrained RC(M)
@@ -1860,7 +1383,7 @@ RCMresList0b = mclapply(mc.cores=4, datList0b, function(y){
   })
 save(RCMresList0b, file = "RCMsim/resList0RCMb.RData")
 } else { load("RCMsim/resList0RCMb.RData")}
-resList0b = otherAnalyses(RCMresList0)
+resList0b = otherAnalyses(RCMresList0b)
 resList0bRows = lapply(resList0b, extractRows)
 resList0bCols = mapply(resList0b, resList0bRows, FUN=extractCols, SIMPLIFY=FALSE)
 save(resList0b, resList0bRows,resList0bCols,  file = "RCMsim/resList0b.RData")
@@ -1900,36 +1423,38 @@ rm(resList0bRows, resList0b, datList0b)
 In this setting we simulate all distributions from the same template, but with group differences in dispersion. The group factor (e.g. sequencing center) may not act on the mean, but on the dispersion. Ordination techniques should be immune to this effect.
 
 ```{r NBnullc, purl = FALSE}
-if(!file.exists(file = "RCMsim/resList0b.RData")){
-  if(!file.exists(file = "RCMsim/datList0b.RData")){
-datList0b = mclapply(mc.cores=1, 1:reps, function(i){
+if(!file.exists(file = "RCMsim/resList0c.RData")){
+  if(!file.exists(file = "RCMsim/datList0c.RData")){
+datList0c = mclapply(mc.cores=1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled = sample(rhoEst, p)
-thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+thetasSampled = sample(thetaEst, p) #Sampled dispersions differ between some groups with equal means
+thetasSampled2 = thetasSampled/10 # A ten-fold increase in dispersion
 libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
-libSizesSampled[seq_len(n/2)] = libSizesSampled[seq_len(n/2)]*10 #Apply the ten-fold change in library sizes
 
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
-dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+dataMat1 = matrix(rnbinom(prod(dim(meanMat))/2, mu = meanMat[seq_len(n/2),], size = matrix(thetasSampled,n/2,p,byrow = TRUE)),n/2,p)
+dataMat2 = matrix(rnbinom(prod(dim(meanMat))/2, mu = meanMat[seq_len(n/2),], size = matrix(thetasSampled2,n/2,p,byrow = TRUE)),n/2,p)
+dataMat = rbind(dataMat1, dataMat2)
 dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
 list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
 })
-save(datList0b,  file = "RCMsim/datList0b.RData")
-} else {load(file = "RCMsim/datList0b.RData")}
+save(datList0c,  file = "RCMsim/datList0c.RData")
+} else {load(file = "RCMsim/datList0c.RData")}
 
 # Results
-  if(!file.exists("RCMsim/resList0RCMb.RData")){
-RCMresList0b = mclapply(mc.cores=4, datList0b, function(y){
+  if(!file.exists("RCMsim/resList0RCMc.RData")){
+RCMresList0c = mclapply(mc.cores=4, datList0b, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
   })
-save(RCMresList0b, file = "RCMsim/resList0RCMb.RData")
-} else { load("RCMsim/resList0RCMb.RData")}
-resList0b = otherAnalyses(RCMresList0)
-resList0bRows = lapply(resList0b, extractRows)
-resList0bCols = mapply(resList0b, resList0bRows, FUN=extractCols, SIMPLIFY=FALSE)
-save(resList0b, resList0bRows,resList0bCols,  file = "RCMsim/resList0b.RData")
-} else {load(file = "RCMsim/resList0b.RData")}
+save(RCMresList0c, file = "RCMsim/resList0RCMc.RData")
+} else { load("RCMsim/resList0RCMc.RData")}
+resList0c = otherAnalyses(RCMresList0c)
+resList0cRows = lapply(resList0c, extractRows)
+resList0cCols = mapply(resList0c, resList0cRows, FUN = extractCols, SIMPLIFY=FALSE)
+save(resList0c, resList0cRows,resList0cCols,  file = "RCMsim/resList0c.RData")
+} else {load(file = "RCMsim/resList0c.RData")}
 ```
 
 \clearpage
@@ -2931,6 +2456,483 @@ CA suffers from correlation with relative abundances, but not on average.
 contrZeller = contrTaxaWrap(resListSimSeqZellerRows, resListSimSeqZellerCols, IDlistZeller, groupFactorZeller, upDown = TRUE)
 contrPlot(contrZeller)
 ```
+
+#### Real data examples
+
+Finally we also apply the method to real datasets. First the AGP and HMP datasets
+
+```{r RC(M)_NB real datasets, purl = FALSE}
+realNames = c("AGP", "Hard.palate","Buccal.mucosa","Anterior.nares","Left.Antecubital.fossa", "Posterior.fornix", "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate" )
+if(!file.exists(file = "resListRCMagphmp.RData")){
+fileNames = paste(realNames, "RCM.RData")#"Kostic", "zeller16S", "zellerMeta",
+resListRCM = mapply(fileNames, c(AGphylo, physeqListV13[realNames[-1]]),  SIMPLIFY = FALSE, FUN=function(x,y){
+  load(x)
+  RCMres$physeq=y
+  RCMres
+})
+names(resListRCM) = realNames
+save(resListRCM, file = "resListRCMagphmp.RData")
+} else {load(file = "resListRCMagphmp.RData")}
+```
+
+##### The HMP dataset: sample plots
+
+```{r HMPplot, purl = FALSE, include = FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate gender. \\label{fig:samHMP}"}
+SClevels  = unique(c(unlist(sapply(physeqListV13, function(x){
+  levels(get_variable("RUNCENTER",physeq=x))
+}))))
+#Give similar colours for the same sequencing center
+cols = c("cadetblue","cyan", "darkblue","blue","magenta","orange","yellow","brown","black",  "grey80","grey70","pink") 
+palette(cols)
+physeqListV13_SC = lapply(physeqListV13, function(x){
+  sample_data(x)[["RUNCENTER"]] = factor(sample_data(x)[["RUNCENTER"]], levels = SClevels, labels = SClevels)
+  x
+})
+phyList = c(AGP = AGphylo, physeqListV13_SC)
+resListRCM2 = lapply(realNames, function(x){
+  tmp = resListRCM[[x]]
+  tmp$physeq = prune_samples(rownames(tmp$X),prune_taxa(colnames(tmp$X), phyList[[x]]))
+  tmp
+}) 
+
+names(resListRCM2) = realNames
+
+par(mfrow = c(3,4))
+lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "sex", main=x)})
+```
+
+```{r HMPsamRuncenter, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset. Colours indicate sequencing center. it is clear that there is a strong effect of sequencing center \\label{fig:samHMP}", purl = FALSE}
+par(mfrow = c(3,4))
+foo = lapply(names(resListRCM2)[-1], function(x){plotRCM(resListRCM2[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(1.1,-0.1))})
+rm(resListRCM, resListRCM2)
+```
+
+\clearpage
+
+##### The HMP dataset: sample plots after conditioning
+
+Now let's filter out the impact of this variable using conditioning
+
+```{r HMP filter out variable effect, purl=FALSE, fig.cap="Sample plots of the RC(M) ordination of the HMP dataset after conditioning. Colours indicate sequencing center. Even when fitted with a rough grouping of sequencing centers, it is clear that we have conditioned out its effect. \\label{fig:samHMP}"}
+# antNarJob = mcparallel(  RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2"))
+# antNar = mccollect(antNarJob, wait=FALSE)[[1]]
+# save(antNar, file="antNarConfounders.RData")
+
+if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
+  K=2
+nleqslv.control = list()
+#Group the runcenters together
+
+RCMhmpFilt = lapply(physeqListV13, function(x){
+  runcenters = data.frame(sample_data(x))[ "RUNCENTER"]
+runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("BCM","BI,BCM","BCM,BI","BCM,WUGC", "BCM,JCVI")] = "BCM"
+runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("JCVI","JCVI,BI","JCVI,WUGC")] = "JCVI"
+runcenters[["RUNCENTER"]][runcenters[["RUNCENTER"]] %in% c("WUGC,JCVI","WUGC","WUGC,BCM")] = "WUGC"
+sample_data(x) = data.frame(sample_data(x) ,RUNCENTER2 = runcenters[[1]])
+x})
+filtResJob = mcparallel(lapply(RCMhmpFilt, function(x){
+  RCM(x, distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = "RUNCENTER2")
+  }))
+filtRes = mccollect(filtResJob, wait=FALSE)[[1]]
+save(filtRes, file="/home/stijn/PhD/Biplots/filtResHMP.RData")
+} else {load(file="/home/stijn/PhD/Biplots/filtResHMP.RData")}
+par(mfrow = c(3,3))
+foo = lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER", main=x, libInset = c(-1.9,-0.1))})
+# lapply(names(filtRes), function(x){plotRCM(filtRes[[x]], biplot=FALSE, samColour = "RUNCENTER2", main=x, libInset = c(-0.9,-0.1))})
+par(mfrow = c(1,1))
+rm(filtRes, physeqListV13_SC, phyList)
+```
+
+
+```{r filterTwoConfounders, purl = FALSE, eval = FALSE}
+#With two confounders
+confTestJob = mcparallel(RCM(RCMhmpFilt[["Anterior.nares"]], distribution="NB", k = K, nleqslv.control= nleqslv.control, maxItOut=5e3, prevCutOff=0.01, colWeights="marginal", rowWeights = "uniform", marginEst = "MLE", round=TRUE, confounders = c("sex","RUNCENTER2")))
+confTest = mccollect(confTestJob, wait=FALSE)[[1]]
+save(confTest, file="/home/stijn/PhD/Biplots/confTestHMP.RData")
+```
+
+\clearpage
+
+##### The AGP dataset: sample plots
+
+```{r AGPplots, purl = FALSE, eval = FALSE}
+par(mfrow = c(3,3))
+AGPvars = c("IBD","SEX","PREGNANT","LACTOSE","ASTHMA","DIABETES", "DIET_TYPE","COUNTRY")
+sapply(AGPvars, function(x){
+plotRCM(resListRCM[["AGP"]], biplot=FALSE, samColour = x, main=x, libInset = c(-3.9,-0.1), libLeg=TRUE)
+})
+```
+
+The AGP dataset is presumably too noisy to find much of a signal
+
+```{r fitting process, purl = FALSE, eval = FALSE}
+lapply(names(resListRCM), function(x){with(resListRCM[[x]],{ plot(main=x, rowRec[2,1,1:iter[1]])})})
+```
+
+##### The Zeller data: sample plots
+
+```{r load zeller RC(M) NB results, purl = FALSE, include = FALSE}
+load("/home/stijn/PhD/Simulations/data/zellerData.RData")
+zellers = c("zellerMeta","zeller16S")
+# zellerRCM  = lapply(paste(zellers, "RCM.RData"), function(x){
+#   load(x)
+#   RCMres
+# })
+if(!file.exists("zellerSphyRCM.RData")){
+zellerSphyRCM = RCM(zellerSphy, k=2, round = TRUE) # Less than one minute!
+save(zellerSphyRCM, file="zellerSphyRCM.RData")
+} else {load("zellerSphyRCM.RData")}
+
+if(!file.exists("zellerMphyRCM.RData")){
+zellerMphyRCM = RCM(zellerMphy, k=2, round = TRUE, prevCutOff = 0.05, minFraction = 0.15) # Less than one minute! More trimming needed here
+save(zellerMphyRCM, file="zellerMphyRCM.RData")
+} else {load("zellerMphyRCM.RData")}
+
+zellerRCM  =list(zellerMphyRCM, zellerSphyRCM)
+names(zellerRCM) = zellers
+
+sapply(zellerRCM,function(x){x$converged}) # All converged
+sapply(zellerRCM,function(x){x$runtime})
+sapply(zellerRCM,function(x){x$iter})
+
+cols = c("darkblue","orange","darkgreen", "brown","black", "blue","magenta","cadetblue","cyan", "yellow", "grey80","grey70","pink") 
+palette(cols)
+```
+
+```{r zellerOldPlots, purl = FALSE, eval = FALSE, echo = FALSE}
+par(mfcol = c(2,3))
+sapply(c("Country","Diagnosis","Gender"), function(y){
+sapply(names(zellerRCM), function(x){plotRCM(zellerRCM[[x]], biplot=FALSE, samColour = y, main = paste(x,y, collapse = "_"))})
+})
+```
+
+For the 16S data we see signals for Country and Cancer diagnosis. For the metagenomics data we do not see a trend. Notice we are doing indirect gradient analysis again, but this is just to look for confirmation that the unconstrained analysis is detecting true groups. 
+
+```{r plotZellerSphy, purl = FALSE, eval = FALSE}
+lapply(c("Country","Diagnosis","Gender", "BMI","Age"), function(x){
+  plot.RCM(zellerSphyRCM, colour = x)
+})
+```
+
+```{r plotZellerSphyExec, purl = FALSE}
+lapply(c("Country","Diagnosis"), function(x){
+  plot.RCM(zellerSphyRCM, samColour = x)
+})
+rm(zellerRCM, zellerSphyRCM, zellerMphyRCM)
+```
+
+```{r zeller country vs diagnosis, purl = FALSE, eval = FALSE}
+#Are country and diagnosis related?
+with(sample_data(zellerMphyRCM$physeq),table(Country, Diagnosis))
+#Yes, only cancer patients from Germany!
+```
+
+\clearpage
+
+##### The Zeller data: Constrained RC(M)
+
+```{r zellerConstrained, purl =FALSE}
+if(!file.exists("zellerSphyRCMconstr.RData")){
+zellerSphyRCMconstrLin = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear") # Use smallest possible cndtol!
+zellerSphyRCMconstrLinML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear", envGradEst = "ML")
+zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
+zellerSphyRCMconstrNonParam = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
+zellerSphyRCMconstrNonParamML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric", envGradEst = "ML")
+save(zellerSphyRCMconstrLin, zellerSphyRCMconstrLinML, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam,file="zellerSphyRCMconstr.RData")
+} else {load("zellerSphyRCMconstr.RData")}  #It looks like we have to drop the centering restriction on the alphas. It forces one continuous variable to be 0, two to be each others opposite
+```
+
+```{r zeller liks, purl = FALSE, eval= FALSE}
+liksZeller = lapply(list(zellerSphyRCM, zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam), liks)
+names(liksZeller) = c("unconstrained","linear","quadratic","nonparametric")
+
+liksZeller2 = rbind(liksZeller, (liksZeller[c("Dim 1", "Dim 2"),]-liksZeller[c("independence", "Dim 1"),])/matrix(liksZeller["saturated",]-liksZeller["independence",], byrow = TRUE, nrow = 2, ncol = 4))
+rownames(liksZeller2)[5:6] = c("Dim 1 rel", "Dim 2 rel")
+liksZellerMelt = melt(liksZeller2, varnames = c("Dimension", "responseFun"), value.name = "logLik")
+ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksZellerMelt[!grepl("rel",liksZellerMelt$Dimension),]) + geom_point() +geom_line(aes(group = responseFun))
+```
+
+The "fraction of likelihood explained" appears to be very small.
+
+```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE}
+plot.RCM(zellerSphyRCMconstrLin)
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis")
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Gender")
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Country")
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Age")
+#apply(zellerSphyRCMconstr$NB_params^2, c(1,3) ,sum)
+
+plot.RCM(zellerSphyRCMconstrQuad, samColour = "Diagnosis", Palette = rainbow(5))
+```
+
+```{r ZellerConstrainedBiplotExec, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerDiagnosis}"}
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", plotTaxa = TRUE)
+```
+
+```{r ZellerConstrainedBiplotExec2, purl=FALSE, fig.cap="Constrained RC(M) analysis on zeller data with linear response functions. Origins of species arrows indicate points of no departure from independence. \\label{fig:triZellerAge}"}
+plot.RCM(zellerSphyRCMconstrLin, samColour = "Age", plotTaxa = TRUE)
+rm(zellerSphyRCMconstrLin)
+```
+
+Cancer turns out to be the main driver of explained variability in the first dimension, country in the second
+
+```{r AGPconstr, eval=FALSE}
+##### Constrained analysis of the AGP data
+AGPconstr = RCM(AGphylo, k=2, round = TRUE, covariates = "all")
+```
+
+##### Turnbaugh et al. (2008)
+
+Also try the Turnbaugh (2008) dataset: lean and obese twins
+
+```{r turnTwins, eval = FALSE, purl = FALSE}
+if(!file.exists("turntwinsRCm.RData")){
+  load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
+turntwinsRCm = RCM(TurnTwins, k=3)
+#turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
+save(turntwinsRCm, file = "turntwinsRCm.RData")
+} else {load("turntwinsRCm.RData")}
+plot.RCM(turntwinsRCm, colour = "Family_p")
+plot.RCM(turntwinsRCm, colour = "twin")
+plot.RCM(turntwinsRCm, colour = "Status_p")
+rm(turntwinsRCm)
+```
+
+##### Turnbaugh et al. (2009)
+
+15 gnotobiotic mice were inoculated with human feces, and for one group the diet was switched to a Western diet after one month. Then a second generation of mice was inoculated with cecal samples from the previous groups, and here also diet was varied.
+
+- Diet: current diet
+- Generation_p: "Recipient1" if second generation, otherwise diet of cecal samples with which they were inoculated
+- Time: age of mouse at sampling
+- DGS: Diet and previous diet
+- DTG: combines sampling diet, time, and previous generation (if any) 
+
+```{r turnmice, purl = FALSE}
+if(!file.exists("turnMiceRCM.RData")){
+  load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
+HumMiceRCM = RCM(HumMicePhy, k=3)
+HumMiceRCMlin = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DGS"))
+HumMiceRCMlinML = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","DTG","DGS"), envGradEst = "ML")
+save(HumMiceRCM, HumMiceRCMlin, HumMiceRCMlinML, file = "turnMiceRCM.RData")
+} else {load("turnMiceRCM.RData")}
+```
+
+```{r humMicePlot, purl = FALSE, eval = FALSE}
+plot.RCM(HumMiceRCM) # Two or three distinct groups
+plot.RCM(HumMiceRCM, samColour = "Diet") #Diet is a main factor
+plot.RCM(HumMiceRCM, samColour = "Individual") #Individuals play less of a role
+plot.RCM(HumMiceRCM, samColour = "Generation_p") #Microbiome changes quickly with feed pattern
+plot.RCM(HumMiceRCM, samColour = "Time") #Later samples also form a cluster
+```
+
+```{r humMicePlotExec, purl = FALSE}
+plot.RCM(HumMiceRCM, samColour = "Diet", main =  "Humanized mice") #Diet is a main factor
+plot.RCM(HumMiceRCM, samColour = "Time", main =  "Humanized mice") #Later samples also form a cluster
+rm(HumMiceRCM)
+```
+
+```{r humMicePlot13D, purl = FALSE, eval = FALSE}
+plot.RCM(HumMiceRCM, samColour = "Diet", Dim = c(1,3)) #Diet is a main factor
+plot.RCM(HumMiceRCM, samColour = "Individual", Dim = c(1,3)) #Individuals play less of a role
+plot.RCM(HumMiceRCM, samColour = "Generation_p", Dim = c(1,3)) #Microbiome changes quickly with feed pattern
+plot.RCM(HumMiceRCM, samColour = "Time", Dim = c(1,3)) #Later samples also form a cluster
+plot.RCM(HumMiceRCM, samColour = "DTG", Dim = c(1,3))
+plot.RCM(HumMiceRCM, samColour = "DGS", Dim = c(1,3))
+```
+
+##### Kostic colorectal cancer
+
+This is a study on the microbiome of colorectal cancer in humans. Nine tumor patients were matched with 9 healthy patients, samples were taken repeatedly. The researchers find a enrichment of Fusobacteria in the tumor and a depletion of Bacteroidetes and Firmicutes.
+
+```{r load Kostic, purl=FALSE}
+if(!file.exists("Kostic.RData")){
+filepath = system.file("extdata", "study_1457_split_library_seqs_and_mapping.zip", package="phyloseq")
+kostic = microbio_me_qiime(filepath)
+save(kostic, file = "Kostic.RData")
+} else {load("Kostic.RData")}
+```
+
+```{r KosticRCM}, purl = FALSE, eval = FALSE}
+if(!file.exists("kosticRCM.RData")){
+kosticRCM = RCM(kostic, k = 3)
+save(kosticRCM, file = "kosticRCM.RData")
+} else {load("kosticRCM.RData")}
+plot(kosticRCM)
+plot(kosticRCM, samColour = "DIAGNOSIS")
+plot(kosticRCM, samColour = "OSH_DIAGNOSIS")
+```
+
+##### Dr. armpit data
+
+The dataset contains 16S sequencing data from armpit swabs of volunteers.
+
+```{r ArmPit, purl =  FALSE}
+if(!file.exists("armpit.RData")){
+load("Armpit/okseldata.rda") 
+load("Armpit/div.rda") 
+load("Armpit/odor.rda")
+db<-data.frame(odor,info,food,washing)
+db$subject = db$subject.1
+db$subject.2 = db$subject.1 = NULL
+load("Armpit/okseldata_20160229.rda") # data in object counts
+Counts<-counts[,-903]
+rownames(Counts) = rownames(db) = db$subject
+OTUa = Counts[,-903]
+armpit = phyloseq(otu_table(apply(as.matrix(OTUa), 1:2, as.numeric), taxa_are_rows =FALSE), sample_data(data.frame(db)))
+save(armpit, file = "armpit.RData")
+} else {load(file = "armpit.RData")}
+
+if(!file.exists(file = "armpitRCM.RData")){
+  armpitRCM = RCM(armpit, k=3)
+  armpitRCMconstrLin = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "linear")
+  armpitRCMconstrQuad = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "quadratic")
+  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric")
+  lessVariablesArmpit = c("BMI", "Fastfood", "Meat", "Vegetables", "gender")
+  armpitRCMconstrLinLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "linear")
+  armpitRCMconstrNonParamLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "nonparametric")
+    save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, armpitRCMconstrNonParam, armpitRCMconstrLinLess, armpitRCMconstrNonParamLess, file = "armpitRCM.RData")
+} else {load(file = "armpitRCM.RData")}
+```
+
+```{r ArmpitPlot1, purl = FALSE}
+plot(armpitRCM)
+plot(armpitRCM, samColour = "shaving")
+plot(armpitRCM, samColour = "odor_panel")
+plot(armpitRCM, samColour = "gender")
+plot(armpitRCM, samColour = "age")
+plot(armpitRCM, samColour = "antimicrobial")
+rm(armpitRCM)
+```
+
+```{r ArmpitPlot2, purl = FALSE}
+plot(armpitRCMconstrLin, plotType = "samples")
+plot(armpitRCMconstrLin, plotType = "variables")
+plot(armpitRCMconstrLin, plotType = c("samples", "species"), taxNum = 6)
+plot(armpitRCMconstrLin, plotType = c("variables", "species"), taxNum = 6)
+plot(armpitRCMconstrLin, samColour = "shaving", plotType = "samples")
+plot(armpitRCMconstrLin, samColour = "odor_panel", plotType = "samples")
+plot(armpitRCMconstrLin, samColour = "gender", plotType = "samples")
+rm(armpitRCMconstrLin)
+```
+
+Corynebacteria react most strongly to the environmental gradient. Note how different the results of the constrained and unconstrained analyses are.
+
+```{r ArmpitPlotNonParam, purl = FALSE}
+plot(armpitRCMconstrNonParam, plotType = "samples")
+plot(armpitRCMconstrNonParam, plotType = "variables")
+plot(armpitRCMconstrNonParam, samColour = "gender", plotType = "samples")
+plot(armpitRCMconstrNonParam, samColour = "shaving")
+plot(armpitRCMconstrNonParam, samColour = "odor_panel")
+plot(armpitRCMconstrNonParam, samColour = "gender")
+plot(armpitRCMconstrNonParam, samColour = "age")
+plot(armpitRCMconstrNonParam, samColour = "wash_p_week")
+plot(armpitRCMconstrNonParam, samColour = "deo_p_week")
+```
+
+Gender is clearly associated with the microbiome composition, but also correlated with other variables such as shaving and deodorant use.
+
+```{r armPitplotNonParamsVaribales, purl = FALSE}
+plot(armpitRCMconstrNonParam, plotType = "variables")
+rm(armpitRCMconstrNonParam)
+```
+
+##### CMET data
+
+This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing cell concentrations from flow cytometry from the same samples as used for the 16S sequencing. We could use this information to alleviate the compositional effect. This is relatively new in the literature, and no standard way exists of incorporating this information. In general, the cell concentratios and library sizes correlate poorly.
+
+See separate document for extended discussion.
+
+```{r readInCMET, purl = FALSE, eval = FALSE}
+if(!file.exists(file = "CMETdata.RData")){
+  library(openxlsx)
+  samData = read.xlsx("/home/stijn/PhD/Datasets/CMET/Metadata.xlsx")
+  rownames(samData) = samData$sample_title
+  samData$Reactor.cycle = as.character(samData$Reactor.cycle)
+  samData$cellDensity = samData$`Cell.density.(cells/mL)`
+  samData$`Cell.density.(cells/mL)` = NULL
+  otuTab = read.csv("/home/stijn/PhD/Datasets/CMET/OTU_table_raw.csv", sep = ";")
+  rownames(otuTab) = otuTab$Sample_ID
+  otuTab$Sample_ID = NULL
+  #Select only samples present in samData
+  otuTab = otuTab[as.character(samData$sample_title),]
+  #Multiply relative abundances by cell counts in samData
+  otuTab = round(as.matrix(otuTab)/rowSums(as.matrix(otuTab))*samData$cellDensity)
+  taxTab = read.csv("/home/stijn/PhD/Datasets/CMET/tax_table_raw.csv", sep = ";")
+  rownames(taxTab) = taxTab$X
+  taxTab$X = NULL
+  samData = samData[rowSums(otuTab)>0,]
+  taxTab = taxTab[ colSums(otuTab)>0,]
+  otuTab = otuTab[rowSums(otuTab)>0, colSums(otuTab)>0] #Number of zeroes is not related to rounding
+  CMETwater = phyloseq(otu_table(otuTab, taxa_are_rows = FALSE), sample_data(samData), tax_table(as.matrix(taxTab)))
+  save(CMETwater, file = "CMETdata.RData")
+}else {load(file = "CMETdata.RData")}
+```
+
+```{r analysCMET, purl = FALSE}
+if(!file.exists(file = "CMETRCM.RData")){
+  CMETRCM = RCM(CMETwater, k = 3, prevCutOff = 0.05)
+  envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "Reactor.cycle")
+  CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
+  CMETRCMlinML = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05, envGradEst = "ML")
+  CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET, prevCutOff = 0.05)
+  CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET, prevCutOff = 0.05)
+  save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
+} else {load(file = "CMETRCM.RData")}
+```
+
+No convergence for quadratic case. That one seems hard to fit.
+
+```{r CMETliks, purl = FALSE, eval = FALSE}
+liksCMET = sapply(list("unconstrained" = CMETRCM, "linear" = CMETRCMlin,"quadratic" = CMETRCMquad, "nonParametric" = CMETRCMnonParam), liks)
+#The comparison is complicated here because we trimmed the linear case.
+liksCMERmelt = melt(liksCMET, varnames = c("Dimension","responseFun"),value.name = "logLik")
+ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksCMERmelt) + geom_point() +geom_line(aes(group = responseFun))
+```
+
+```{r plotCMET, purl = FALSE}
+plot(CMETRCM)
+plot(CMETRCM, samColour = "ph")
+plot(CMETRCM, samColour = "temp")
+plot(CMETRCM, samColour = "Conductivity")
+plot(CMETRCM, samColour = "cellDensity")
+plot(CMETRCM, samColour = "Reactor.phase")
+plot(CMETRCM, samColour = "Timepoint")
+plot(CMETRCM, samColour = "collection_date")
+plot(CMETRCM, samColour = "Reactor.cycle")
+```
+
+We clearly have two groups in the second dimension, partly explained by the _Reactor.phase_ and _collection.date_ variables. Still feels as if we're missing a confounder here. In the first dimension we have a strong time signal.
+
+```{r plotCMETlin, purl = FALSE}
+plot(CMETRCMlin, plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMlin, plotTaxa = FALSE, square = FALSE, Dim = c(2,1))
+plot(CMETRCMlin, samColour = "ph", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMlin, samColour = "temp", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMlin, samColour = "Conductivity", plotTaxa = FALSE,  Dim = c(2,1))
+plot(CMETRCMlin, samColour = "cellDensity", plotTaxa = FALSE,  Dim = c(2,1))
+plot(CMETRCMlin, samColour = "Reactor.phase", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMlin, samColour = "Timepoint", plotTaxa = FALSE,  Dim = c(2,1))
+plot(CMETRCMlin, samColour = "collection_date", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMlin, samColour = "Reactor.cycle", plotTaxa = FALSE, Dim = c(2,1))
+```
+
+Reactor phase clearly explains most of the variation in the data
+
+```{r plotCMETquad, purl = FALSE}
+plot(CMETRCMquad, plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMquad, plotTaxa = FALSE, square = FALSE, Dim = c(2,1))
+plot(CMETRCMquad, samColour = "ph", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMquad, samColour = "temp", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMquad, samColour = "Conductivity", plotTaxa = FALSE,  Dim = c(2,1))
+plot(CMETRCMquad, samColour = "cellDensity", plotTaxa = FALSE,  Dim = c(2,1))
+plot(CMETRCMquad, samColour = "Reactor.phase", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMquad, samColour = "Timepoint", plotTaxa = FALSE,  Dim = c(2,1))
+plot(CMETRCMquad, samColour = "collection_date", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMquad, samColour = "Reactor.cycle", plotTaxa = FALSE, Dim = c(2,1))
+```
+
+The control phase seems to be very different from the others, also conductivity plays a role. Also the second dimension is the most important. Should we reorder the dimensions? Also the quadratic graph differs quite a lot from the linear one.
 
 ## Constrained RC(M)
 

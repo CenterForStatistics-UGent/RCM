@@ -7,6 +7,8 @@
 #' @return See the gomms() function
 gommsPhy = function(physeq, k = 3,...){
   require(gomms)
-  otuTab = otu_table(physeq)@.Data
-  if(taxa_are_rows(physeq)) gomms(t(otuTab),...) else gomms(otuTab,...)
+  otuTab = if(class(physeq) == "phyloseq") {
+    if(taxa_are_rows(physeq)) t(otu_table(physeq)@.Data) else otu_table(physeq)@.Data
+    } else {otuTab}
+  gomms(otuTab,...)
   }
