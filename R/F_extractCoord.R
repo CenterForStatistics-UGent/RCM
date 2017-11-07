@@ -66,7 +66,7 @@ extractCoord = function(RCM, Dim = c(1,2)){
     dataTax = data.frame(cbind(t(RCM$cMat[Dim,]),0,0))
     names(dataTax) = c("end1","end2", "origin1","origin2")
   }
-  # rownames(dataTax) = colnames(RCM$X)
+rownames(dataTax) = colnames(RCM$X)
 
   #Variables
   if(!constrained) {dataVar =NULL

@@ -27,6 +27,7 @@ levelsMeth = c("CApearson","CAcontRat","CAchisq","DCA", "Hellinger","BC","BCrel"
 labelsMeth = c("CApearson","CAcontRat","CAchisq","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
 groupsMeth = factor(c("Independence","Independence","Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM"), ordered = TRUE)
 names(groupsMeth) = grep(levelsMeth, value  = TRUE, pattern ="Control", invert = TRUE)
+factorMeth = factor(levelsMeth, levels = levelsMeth, labels = labelsMeth)
 funFiles = dir("R")
 funFilesPub = dir("pubFun")
 for (i in funFiles) {source(file.path("R",i))}

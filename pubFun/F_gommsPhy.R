@@ -9,6 +9,6 @@ gommsPhy = function(physeq, k = 3,...){
   require(gomms)
   otuTab = if(class(physeq) == "phyloseq") {
     if(taxa_are_rows(physeq)) t(otu_table(physeq)@.Data) else otu_table(physeq)@.Data
-    } else {otuTab}
-  gomms(otuTab,...)
+    } else {physeq}
+  gomms(otuTab, n.factors = k,...)
   }

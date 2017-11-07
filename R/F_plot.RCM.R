@@ -30,12 +30,13 @@
 #' @param Influence a boolean, should the influence of the observation on the variable be plotted
 #' @param inflDim an integer, the dimension for which the influence should be calculated
 #' @param richSupported A character vector of supported richness measures
+#' @param returnCoords a boolea, should final coordinates be returned?
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"),...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -218,9 +219,12 @@ if(!all(plotType == "variables")){
     varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
     }
     plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = labSize)
-  }
+  } else {varData = NULL}
   #Add cross in the centre
   plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3)
   #Expand limits to show all text
-  if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
+  plot = if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
+  if(returnCoords){
+  list(plot = plot, samples = dataSam, species = dataTax, variables  = varData)
+  } else {plot}
 }
