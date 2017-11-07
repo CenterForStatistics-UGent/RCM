@@ -104,6 +104,15 @@ Valid interpretatations are the following:
  
 Distances between endpoints of taxon vectors are meaningless.
 
+We can also graphically highlight the departure from independence for a particular taxon and sample as follows:
+
+```{r plotUnconstrainedRCMhighlight}
+tmpPlot = plot(ZellerRCM2, taxNum = 10, samColour = "Diagnosis", returnCoords = TRUE)
+addOrthProjection(tmpPlot, species = "Alloprevotella tannerae", sample = c(-1.2,1.5))
+```
+
+The projection of the species vector is graphically shown here, the orange bar representing the extent of the departure from independence. Note that we providid the exact taxon name, and approximate sample coordinates visually derived from the graph, but any combination of both is possible.
+
 ### Adding dimensions
 
 Since the model is fitted dimension per dimension, we only have information on the first two dimension. If we want to add a third dimension, we do not have to start from scratch but can use the previously fitted model in two dimension as a starting point and additionally estimate the third dimension.
@@ -199,7 +208,14 @@ Now we add the species to make a biplot
 plot(ZellerRCM2constr, plotType = c("species", "samples"))
 ```
 
-The interpretation is similar as before: the orthogonal projection of a taxon's arrow on a sample represents the departure from independence for that taxon in that sample, _explained by environmental variables_. New is also that the taxa arrows do not strt from the origin, but all have their own starting point. This starting point represents the environmental scores for which there is no departure from independence. The direction of the arrow then represents how its expected abundance increases.
+The interpretation is similar as before: the orthogonal projection of a taxon's arrow on a sample represents the departure from independence for that taxon in that sample, _explained by environmental variables_. New is also that the taxa arrows do not start from the origin, but all have their own starting point. This starting point represents the environmental scores for which there is no departure from independence. The direction of the arrow then represents how its expected abundance increases. Again we can show this visually:
+
+```{r plotlin2corVis}
+tmpPlot2 = plot(ZellerRCM2constr, plotType = c("species", "samples"), returnCoords = TRUE)
+addOrthProjection(tmpPlot2, species = "Pseudomonas fluorescens", sample = c(-12,7))
+```
+
+Note that the projection bar does not start from the origin in this case either.
 
 Next we can make a biplot of taxa and environmental variabless.
 
