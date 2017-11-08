@@ -31,12 +31,13 @@
 #' @param inflDim an integer, the dimension for which the influence should be calculated
 #' @param richSupported A character vector of supported richness measures
 #' @param returnCoords a boolea, should final coordinates be returned?
+#' @param varExpFactor a scalar, the factor by which to expand the variable coordinates
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -91,7 +92,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
     CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
     varID = attr(RCMfit$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
-    varData = data.frame(RCMfit$alpha * if("samples" %in% plotType) 1 else 10)
+    varData = data.frame(RCMfit$alpha * if(!all(plotType=="variables")) 1 else varExpFactor)
     varData$label = rownames(RCMfit$alpha)
     # varID = attribs %in% unique(attribs)[idVar]
     #Include all levels from important factors, not just the long arrows

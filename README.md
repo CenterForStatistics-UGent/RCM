@@ -112,7 +112,7 @@ The runtime was 0.8 minutes to be exact. We plot the result of this ordination i
 plot(ZellerRCM2, plotType = "samples")
 ```
 
-![plot of chunk plotUnconstrainedRCMsam](README_figs/README-plotUnconstrainedRCMsam-1.png)
+![plot of chunk plotUnconstrainedRCMsam](figure/plotUnconstrainedRCMsam-1.png)
 
 No clear signal is present at first sight. Note also that the plot is rectangular according to the values of the importance parameters $\psi$. In order to truthfully represent the distances between samples all axis must be on the same scale. We can add a colour code for the cancer diagnosis contained in the phyloseq object.
 
@@ -121,7 +121,7 @@ No clear signal is present at first sight. Note also that the plot is rectangula
 plot(ZellerRCM2, plotType = "samples", samColour = "Diagnosis")
 ```
 
-![plot of chunk plotUnconstrainedRCMsamCol](README_figs/README-plotUnconstrainedRCMsamCol-1.png)
+![plot of chunk plotUnconstrainedRCMsamCol](figure/plotUnconstrainedRCMsamCol-1.png)
 
 It is clear that some of the variability of the samples is explained by the cancer status of the patients.
 
@@ -132,7 +132,7 @@ We can also add a richness measure as a colur, see ?phyloseq::estimate_richness 
 plot(ZellerRCM2, plotType = "samples", samColour = "Shannon")
 ```
 
-![plot of chunk plotUnconstrainedRCMsamColShannon](README_figs/README-plotUnconstrainedRCMsamColShannon-1.png)
+![plot of chunk plotUnconstrainedRCMsamColShannon](figure/plotUnconstrainedRCMsamColShannon-1.png)
 
 Next we plot only the species.
 
@@ -141,7 +141,7 @@ Next we plot only the species.
 plot(ZellerRCM2, plotType = "species")
 ```
 
-![plot of chunk plotUnconstrainedRCMspec](README_figs/README-plotUnconstrainedRCMspec-1.png)
+![plot of chunk plotUnconstrainedRCMspec](figure/plotUnconstrainedRCMspec-1.png)
 
 The researchers found that species from the Fusobacteria genus are associated with cancer. We can plot only these species using a regular expression.
 
@@ -150,7 +150,7 @@ The researchers found that species from the Fusobacteria genus are associated wi
 plot(ZellerRCM2, plotType = "species", taxRegExp = "Fusobacter", taxLabels = TRUE)
 ```
 
-![plot of chunk plotUnconstrainedRCMspec2](README_figs/README-plotUnconstrainedRCMspec2-1.png)
+![plot of chunk plotUnconstrainedRCMspec2](figure/plotUnconstrainedRCMspec2-1.png)
 
 It is clear that these Fusobacterium species behave very differently between the species.
 
@@ -161,7 +161,7 @@ Finally we can combine both plots into an interpretable biplot, which is the def
 plot(ZellerRCM2, taxNum = 10, samColour = "Diagnosis")
 ```
 
-![plot of chunk plotUnconstrainedRCMall](README_figs/README-plotUnconstrainedRCMall-1.png)
+![plot of chunk plotUnconstrainedRCMall](figure/plotUnconstrainedRCMall-1.png)
 
 Samples are represented by dots, taxa by arrows. Both represent vectors with the origin as starting point.
 
@@ -182,7 +182,7 @@ addOrthProjection(tmpPlot, species = "Alloprevotella tannerae", sample = c(-1.2,
     1.5))
 ```
 
-![plot of chunk plotUnconstrainedRCMhighlight](README_figs/README-plotUnconstrainedRCMhighlight-1.png)
+![plot of chunk plotUnconstrainedRCMhighlight](figure/plotUnconstrainedRCMhighlight-1.png)
 
 The projection of the species vector is graphically shown here, the orange bar representing the extent of the departure from independence. Note that we providid the exact taxon name, and approximate sample coordinates visually derived from the graph, but any combination of both is possible.
 
@@ -207,7 +207,7 @@ The total runtime for all dimensions combined was 2.3. We can then plot any comb
 plot(ZellerRCM3, Dim = c(1, 3), samColour = "Diagnosis", taxNum = 6)
 ```
 
-![plot of chunk plotAddedDimension](README_figs/README-plotAddedDimension-1.png)
+![plot of chunk plotAddedDimension](figure/plotAddedDimension-1.png)
 
 The third dimension also correlates with a separation of cancer patients vs. healthy and small adenoma patients.
 
@@ -229,7 +229,7 @@ but you can also just supply the argument "Deviance" to samColour
 plot(ZellerRCM2, plotType = "samples", samColour = "Deviance", samSize = 2.5)
 ```
 
-![plot of chunk plotUnconstrainedRCMsamColDev](README_figs/README-plotUnconstrainedRCMsamColDev-1.png)
+![plot of chunk plotUnconstrainedRCMsamColDev](figure/plotUnconstrainedRCMsamColDev-1.png)
 
 Samples with the largest scores exhibit the poorest fit. This may indicate that samples with strong departures from independence acquire large scores, but still are not well represented in lower dimensions. Especially the one bottom right may be a problematic case.
 
@@ -241,7 +241,7 @@ plot(ZellerRCM3, plotType = "samples", samColour = "Deviance", samSize = 2.5,
     Dim = c(1, 3))
 ```
 
-![plot of chunk plotUnconstrainedRCMsamColDev13](README_figs/README-plotUnconstrainedRCMsamColDev13-1.png)
+![plot of chunk plotUnconstrainedRCMsamColDev13](figure/plotUnconstrainedRCMsamColDev13-1.png)
 
 No the problem persists there.
 
@@ -253,7 +253,7 @@ plot(ZellerRCM3, plotType = "species", taxCol = "Deviance", samSize = 2.5, Dim =
     2), arrowSize = 0.5)
 ```
 
-![plot of chunk plotUnconstrainedRCMtaxDev](README_figs/README-plotUnconstrainedRCMtaxDev-1.png)
+![plot of chunk plotUnconstrainedRCMtaxDev](figure/plotUnconstrainedRCMtaxDev-1.png)
 
 For the taxa it appears to be the taxa with smaller scores are the more poorly fitted ones. Note that since the count table is not square, we cannot compare sample and taxon deviances. They have not been calculated based on the same number of taxa. Also, one cannot do chi-squared tests based on the deviances since this is not a classical regression model, but an overparametrized one.
 
@@ -284,7 +284,7 @@ First we plot the samples
 plot(ZellerRCM2constr, plotType = c("samples"))
 ```
 
-![plot of chunk constrLinPlot](README_figs/README-constrLinPlot-1.png)
+![plot of chunk constrLinPlot](figure/constrLinPlot-1.png)
 
 In the constrained analysis we clearly see three groups of samples appearing.
 
@@ -293,7 +293,7 @@ In the constrained analysis we clearly see three groups of samples appearing.
 plot(ZellerRCM2constr, plotType = c("samples"), samColour = "Diagnosis")
 ```
 
-![plot of chunk constrLinPlot2](README_figs/README-constrLinPlot2-1.png)
+![plot of chunk constrLinPlot2](figure/constrLinPlot2-1.png)
 
 One group are the healthy patients, the other two are cancer patients.
 
@@ -302,7 +302,7 @@ One group are the healthy patients, the other two are cancer patients.
 plot(ZellerRCM2constr, plotType = c("samples"), samColour = "Country")
 ```
 
-![plot of chunk constrLinPlot3](README_figs/README-constrLinPlot3-1.png)
+![plot of chunk constrLinPlot3](figure/constrLinPlot3-1.png)
 
 The cancer patients are separated by country. Note that from Germany there are only cancer patients in this dataset.
 
@@ -313,7 +313,7 @@ Now we add the species to make a biplot
 plot(ZellerRCM2constr, plotType = c("species", "samples"))
 ```
 
-![plot of chunk plotlin2cor](README_figs/README-plotlin2cor-1.png)
+![plot of chunk plotlin2cor](figure/plotlin2cor-1.png)
 
 The interpretation is similar as before: the orthogonal projection of a taxon's arrow on a sample represents the departure from independence for that taxon in that sample, _explained by environmental variables_. New is also that the taxa arrows do not start from the origin, but all have their own starting point. This starting point represents the environmental scores for which there is no departure from independence. The direction of the arrow then represents how its expected abundance increases. Again we can show this visually:
 
@@ -324,7 +324,7 @@ addOrthProjection(tmpPlot2, species = "Pseudomonas fluorescens", sample = c(-12,
     7))
 ```
 
-![plot of chunk plotlin2corVis](README_figs/README-plotlin2corVis-1.png)
+![plot of chunk plotlin2corVis](figure/plotlin2corVis-1.png)
 
 Note that the projection bar does not start from the origin in this case either.
 
@@ -335,7 +335,7 @@ Next we can make a biplot of taxa and environmental variabless.
 plot(ZellerRCM2constr, plotType = c("species", "variables"))
 ```
 
-![plot of chunk plotlin3](README_figs/README-plotlin3-1.png)
+![plot of chunk plotlin3](figure/plotlin3-1.png)
 
 The projection of species arrows on environmental variables (starting from the origin) represents the sensitivity of this taxon to changes in this variables. Note that the fact that the arrows of BMI and gender are of similar length indicates that one _standard deviation_ in BMI has a similar effect to gender.
 
@@ -347,7 +347,7 @@ tmpPlot3 = plot(ZellerRCM2constr, plotType = c("species", "variables"), returnCo
 addOrthProjection(tmpPlot3, species = "Pseudomonas fluorescens", variable = "DiagnosisSmall_adenoma")
 ```
 
-![plot of chunk plotlin3Vis](README_figs/README-plotlin3Vis-1.png)
+![plot of chunk plotlin3Vis](figure/plotlin3Vis-1.png)
 
 We observe that country and diagnosis are the main drivers of the environmental gradient. We also see that healthy patients are very similar to small adenoma patients, but that they are very different from cancer patients.
 
@@ -358,7 +358,7 @@ To finish we also show the triplot, which unites all the information of the ordi
 plot(ZellerRCM2constr)
 ```
 
-![plot of chunk plotlin3Triplot](README_figs/README-plotlin3Triplot-1.png)
+![plot of chunk plotlin3Triplot](figure/plotlin3Triplot-1.png)
 
 Note that the samples and the environmental variables cannot be related to each other.
 
@@ -373,7 +373,7 @@ A deviance residual plot for the strongest responders
 residualPlot(ZellerRCM2constr, whichTaxa = "response")
 ```
 
-![plot of chunk plotDevResp](README_figs/README-plotDevResp-1.png)
+![plot of chunk plotDevResp](figure/plotDevResp-1.png)
 
 The same taxa but with Pearson residuals 
 
@@ -382,7 +382,7 @@ The same taxa but with Pearson residuals
 residualPlot(ZellerRCM2constr, whichTaxa = "response", resid = "Pearson")
 ```
 
-![plot of chunk plotPearResp](README_figs/README-plotPearResp-1.png)
+![plot of chunk plotPearResp](figure/plotPearResp-1.png)
 
 Most species do not exhibit any obvious pattern, although departures seem to increase with environmental scores.
 
@@ -393,14 +393,14 @@ The runs test is a test that automatically attempts to detect non randomness in 
 residualPlot(ZellerRCM2constr, whichTaxa = "runs", resid = "Deviance")
 ```
 
-![plot of chunk plotDevRuns](README_figs/README-plotDevRuns-1.png)
+![plot of chunk plotDevRuns](figure/plotDevRuns-1.png)
 
 
 ```r
 residualPlot(ZellerRCM2constr, whichTaxa = "runs", resid = "Pearson")
 ```
 
-![plot of chunk plotPearRuns](README_figs/README-plotPearRuns-1.png)
+![plot of chunk plotPearRuns](figure/plotPearRuns-1.png)
 
 For these taxa we see no signal at all.
 
@@ -421,7 +421,7 @@ plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = rowSums
     , "Age"]), colLegend = "Influence on Age parameter in dimension 1")
 ```
 
-![plot of chunk inflAge](README_figs/README-inflAge-1.png)
+![plot of chunk inflAge](figure/inflAge-1.png)
 
 Below we see a couple of very influential observations. They may be very young?
 
@@ -430,7 +430,7 @@ Below we see a couple of very influential observations. They may be very young?
 plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age")
 ```
 
-![plot of chunk inflAgeCol](README_figs/README-inflAgeCol-1.png)
+![plot of chunk inflAgeCol](figure/inflAgeCol-1.png)
 
 Indeed, a few young subjects affect the estimation of the age parameter most. One should always be wary of these kind of "outliers" that strongly affect the ordination.
 
@@ -442,7 +442,7 @@ plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age",
     Influence = TRUE)
 ```
 
-![plot of chunk inflAgeFast](README_figs/README-inflAgeFast-1.png)
+![plot of chunk inflAgeFast](figure/inflAgeFast-1.png)
 
 The age coefficient is largest in the second dimension actually, let's look at the influence on that component
 
@@ -452,7 +452,7 @@ plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age",
     Influence = TRUE, inflDim = 2)
 ```
 
-![plot of chunk inflAgeFast2](README_figs/README-inflAgeFast2-1.png)
+![plot of chunk inflAgeFast2](figure/inflAgeFast2-1.png)
 
 One last illustration: which samples have the strongest impact on the "DiagnosisCancer" parameter
 
@@ -462,7 +462,7 @@ plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Diagno
     Influence = TRUE, samShape = "Diagnosis", samSize = 2)
 ```
 
-![plot of chunk inflDiagFast](README_figs/README-inflDiagFast-1.png)
+![plot of chunk inflDiagFast](figure/inflDiagFast-1.png)
 
 French cancer patients appear to have the strongest impact.
 
@@ -486,7 +486,7 @@ if (!file.exists(file = "./results/ZellerRCM2constrnonParam.RData")) {
 plot(ZellerRCM2constrNonParam, plotType = "samples")
 ```
 
-![plot of chunk plotnonParam](README_figs/README-plotnonParam-1.png)
+![plot of chunk plotnonParam](figure/plotnonParam-1.png)
 
 Using non-parametric response functions we do not find the same clear clusters
 
@@ -495,7 +495,7 @@ Using non-parametric response functions we do not find the same clear clusters
 plot(ZellerRCM2constrNonParam, plotType = "samples", samColour = "Diagnosis")
 ```
 
-![plot of chunk plotnonParamCol](README_figs/README-plotnonParamCol-1.png)
+![plot of chunk plotnonParamCol](figure/plotnonParamCol-1.png)
 
 Show the variables
 
@@ -504,6 +504,6 @@ Show the variables
 plot(ZellerRCM2constrNonParam, plotType = "variables")
 ```
 
-![plot of chunk plotnonParamCol3](README_figs/README-plotnonParamCol3-1.png)
+![plot of chunk plotnonParamCol3](figure/plotnonParamCol3-1.png)
 
 The envrionmental gradients are quite different from the case with the linear response functions. Especially age is an important driver of the environmental gradient here. Still the results for cancer diagnosis , country and gender are similar to before.
