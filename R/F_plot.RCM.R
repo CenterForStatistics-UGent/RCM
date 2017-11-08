@@ -32,12 +32,13 @@
 #' @param richSupported A character vector of supported richness measures
 #' @param returnCoords a boolea, should final coordinates be returned?
 #' @param varExpFactor a scalar, the factor by which to expand the variable coordinates
+#' @param manExpFactorTaxa a manual expansion factor for the taxa Setting it to a high value allows you to plot the taxa around the samples
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975,...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -55,6 +56,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   } else if(!is.null(samColour)){
     dataSam$colourPlot = samColour
   } else {dataSam$colourPlot = factor(rep(1, nrow(dataSam)))}
+   if(is.character(dataSam$colourPlot)) dataSam$colourPlot = factor(dataSam$colourPlot)
   #Get the sample shapes
   if(length(samShape)==1){
     dataSam$shapePlot = get_variable(RCMfit$physeq, samShape)
@@ -62,6 +64,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   } else if(!is.null(samShape)){
     dataSam$shapePlot = samShape
   } else {dataSam$shapePlot=factor(rep(1, nrow(dataSam)))}
+   if(is.character(dataSam$shapePlot)) dataSam$shapePlot = factor(dataSam$shapePlot)
 
   #Set colour palette
   if(is.null(Palette)){
@@ -175,7 +178,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
     dataTax = dataTax[id,]
     if("samples" %in% plotType){
     scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
-    scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
+    scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*manExpFactorTaxa
     #The scaling factor is the minimum of the ratios between the longest longest arrow and the longest species arrow in every direction of every dimension
     dataTax = within(dataTax, { #Scale the arrows
       end1 = end1 * scalingFactor
@@ -190,10 +193,12 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
       dataTax$taxCol = Palette[c(taxCol[id])]
     } else if(taxCol=="Deviance"){
       dataTax$taxCol = colSums(getDevianceRes(RCMfit, Dim)^2)
+    } else if(taxCol %in% colnames(tax_table(RCMfit$physeq))){
+      dataTax$taxCol = factor(tax_table(RCMfit$physeq)[, taxCol])
     }
     if((!constrained || RCMfit$responseFun=="linear") ){
       if(arrowSize > 0){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = "arrowLength", colour = if("species" %in% plotType) NULL else  "taxCol"), colour = taxColSingle, arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = "arrowLength", colour = if("samples" %in% plotType) NULL else  "taxCol"), colour = taxColSingle, arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
       if(!"species" %in% plotType){
       plot = plot + if(is.factor(taxCol)) scale_colour_discrete(name = colLegend) else scale_colour_continuous(name = colLegend)
       }
@@ -212,7 +217,10 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
       plot = plot + scale_fill_continuous(name = colLegend)
     }
 if(taxLabels){
-    plot <- plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels"),  alpha=0.75, color=taxColSingle, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+    plot <- plot +  if(is.null(dataTax$taxCol)){geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), color =  taxColSingle, alpha=0.75, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+    } else {
+      geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), alpha=0.75, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+    }
 }
   if(!"samples" %in% plotType){
     plot = plot +

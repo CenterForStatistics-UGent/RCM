@@ -17,6 +17,9 @@
 #'@export
 RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
 
+  reqpkg <- c("phyloseq","MASS", "nleqslv", "edgeR", "VGAM","alabama",  "tensor", "locfit")
+  for (i in reqpkg){require(i, character.only = TRUE)}
+
   classDat = class(dat) #The class provided
 
   ##The count data##
@@ -60,9 +63,7 @@ rm(tmp)
     centMat = tmp$centMat
     datFrame = tmp$datFrame
     rm(tmp)
-  } else {
-    covModelMat = centMat = NULL
-  }
+
   #Remove rows with NA's, we might want to find something better or leave it to the end user
   if(anyNA(datFrame)){
     NArows = apply(datFrame, 1, anyNA)
@@ -77,6 +78,9 @@ rm(tmp)
       covModelMat = confModelMat[!NArows,]
     }
     warning(paste("Some covariates contain missing values. We removed samples \n", paste(which(NArows), collapse = ", "), "\n prior to analysis." ),immediate. = TRUE)
+    }
+  } else {
+    covModelMat = centMat = NULL
   }
 
   tic = proc.time() #Time the calculation
