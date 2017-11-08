@@ -223,7 +223,14 @@ Next we can make a biplot of taxa and environmental variabless.
 plot(ZellerRCM2constr, plotType = c("species", "variables"))
 ```
 
-The projection of species arrows on environmental variables (starting from the origin) represents the sensitivity of this taxon to changes in this variables. Note that the fact that the arrows of BMI and gender are of similar lenght indicates that one _standard deviation_ in BMI has a similar effect to gender.
+The projection of species arrows on environmental variables (starting from the origin) represents the sensitivity of this taxon to changes in this variables. Note that the fact that the arrows of BMI and gender are of similar length indicates that one _standard deviation_ in BMI has a similar effect to gender.
+
+Also this interpretation we can show visually on the graph
+
+```{r plotlin3Vis}
+tmpPlot3 = plot(ZellerRCM2constr, plotType = c("species", "variables"), returnCoords = TRUE)
+addOrthProjection(tmpPlot3, species = "Pseudomonas fluorescens", variable = "DiagnosisSmall_adenoma")
+```
 
 We observe that country and diagnosis are the main drivers of the environmental gradient. We also see that healthy patients are very similar to small adenoma patients, but that they are very different from cancer patients.
 

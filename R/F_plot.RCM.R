@@ -81,7 +81,29 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
    if(!is.null(shapeLegend)){
      plot = plot + scale_shape_discrete(name = shapeLegend)
    } else {plot = plot + guides(shape=FALSE)}
-} else {plot = ggplot()}# END if samples %in% plotType
+} else {dataSam=NULL;plot = ggplot()}# END if samples %in% plotType
+
+  ## VARIABLES
+  if("variables" %in% plotType && constrained){
+    #Add variable labels
+    arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2) #All arrow lenghts
+    attribs = attr(RCMfit$covariates, "assign")
+    arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
+    CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
+    varID = attr(RCMfit$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
+    varData = data.frame(RCMfit$alpha * if("samples" %in% plotType) 1 else 10)
+    varData$label = rownames(RCMfit$alpha)
+    # varID = attribs %in% unique(attribs)[idVar]
+    #Include all levels from important factors, not just the long arrows
+    varData = varData[varID,]
+    # scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
+    if("samples" %in% plotType){
+      scalingFactorAlphaTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
+      scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
+      varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
+    }
+    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = labSize)
+  } else {varData = NULL}
 
   ## TAXA
   if("species" %in% plotType){
@@ -98,8 +120,8 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1-taxFrac)
       #Filter out small arrows
       dataTax = dataTax[id,]
-      if("samples" %in% plotType){
-      scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
+      if(!all(plotType=="species")){
+      scalingFactorTmp = apply(if("samples" %in% plotType) dataSam[, paste0("Dim", Dim)] else varData[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
       scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
       dataTax = within(dataTax, { #Scale the arrows
         end1 = origin1 + slope1 * scalingFactor
@@ -198,28 +220,6 @@ if(taxLabels){
   }
   } #END if "species" %in% plotType
 
-  ## VARIABLES
-  if("variables" %in% plotType && constrained){
-    #Add variable labels
-    arrowLenghtsVar = rowSums(RCMfit$alpha[,Dim]^2) #All arrow lenghts
-    attribs = attr(RCMfit$covariates, "assign")
-    arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
-    CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
-    varID = attr(RCMfit$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
-    # idVar = arrowLenghtsPerVar >= quantile(arrowLenghtsPerVar, 1 - varNum/length(unique(attribs)))
-    varData = data.frame(RCMfit$alpha)
-    varData$label = rownames(RCMfit$alpha)
-    # varID = attribs %in% unique(attribs)[idVar]
- #Include all levels from important factors, not just the long arrows
-    varData = varData[varID,]
-    # scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
-if(!all(plotType == "variables")){
-    scalingFactorAlphaTmp = apply((if("samples" %in% plotType){dataSam[, paste0("Dim", Dim)]} else {dataTax[, paste0("end", Dim)]}),2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
-    scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
-    varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
-    }
-    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = labSize)
-  } else {varData = NULL}
   #Add cross in the centre
   plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3)
   #Expand limits to show all text
