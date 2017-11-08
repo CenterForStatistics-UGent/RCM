@@ -1,6 +1,7 @@
 #' A function to build the covariate matrix of the constraints
 #'
 #' @param covariates the covariates, either as dataframe or as character string
+#' @param n the number of samples
 #' @param dat the phyloseq object
 #'
 #' In this case we will 1) Include dummy's for every level of the categorical variable, and force them to sum to zero. This is needed for plotting and required for reference level indepenent normalization. 2) Exclude an intercept. The density function f() will provide this already. See introduction.
@@ -8,7 +9,7 @@
 #' @return a list with components
 #' \item{covModelMat}{The model matrix}
 #' \item{datFrame}{The dataframe used to construct the model matrix}
-buildCovMat = function(covariates, dat){
+buildCovMat = function(covariates, n,  dat){
   if(class(covariates) == "data.frame"){
     datFrame = covariates
     covariatesNames = names(covariates)

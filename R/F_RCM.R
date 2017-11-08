@@ -53,7 +53,7 @@ rm(tmp)
 
   ##Build covariate matrix if applicable##
   if(!is.null(covariates)){
-    tmp = buildCovMat(covariates, dat)
+    tmp = buildCovMat(covariates, n, dat)
     covModelMat = tmp$covModelMat
     #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
     tmp = buildCentMat(tmp$datFrame)
