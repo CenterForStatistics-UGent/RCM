@@ -2,7 +2,7 @@
 title: "A manual for the use of the RCM functions"
 author: "Stijn Hawinkel"
 date: "November 08, 2017"
-output: html_document
+output: rmarkdown::github_document
 ---
 
 # RCM
