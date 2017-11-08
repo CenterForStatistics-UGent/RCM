@@ -16,7 +16,7 @@ The "ZIandSimCode.Rmd" file contains code to fit the ZI components as well and o
 Here follows a short tutorial on fitting and plotting the RCM model.
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=TRUE, purl=TRUE}
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE, fig.path = "README_figs/README-")
 # The required package list:
 reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "ggplot2", "alabama", "reshape2", "tensor", "VGAM", "vegan")
 # Load all required packages and show version
