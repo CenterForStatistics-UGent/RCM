@@ -31,7 +31,6 @@
 #' @param envGradEst a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution
 #' @param dfSpline a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see ?VGAM::s()
 #' @param vgamMaxit an integer, the maximum number of iteration in the vgam() function
-#' @param bs the type of spline, see ?mgcv::s
 #'
 #' Not intended to be called directly but only through the RCM() function
 #'
@@ -61,7 +60,7 @@
 #' \item{confounders}{(if provided) the confounder matrix}
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 4, vgamMaxit = 100L, bs = "cr"){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 4, vgamMaxit = 100L){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]

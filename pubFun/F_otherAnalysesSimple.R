@@ -29,6 +29,6 @@ otherAnalysesSimple = function(x, unifrac){
     Hellinger = svd(diag(1/sqrt(R)) %*% (sqrt(tmp)-sqrt(E))),
     UniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "unifrac") else NULL,
     wUniFrac = if(unifrac) ordinate(x$physeq, method = "PCoA", distance = "wunifrac") else NULL,
-    DPCoA = if(unifrac) DPCoA(x$physeq) else NULL
+    DPCOA = if(unifrac) DPCoA(x$physeq) else NULL
   )
 }

@@ -17,7 +17,7 @@ extractCols = function(x, row){
     BCrel = weightedTaxonScores(RCM$X, row$BCrel),
     UniFrac = if(!is.null(UniFrac))  {weightedTaxonScores(RCM$X, row$UniFrac)} ,
     wUniFrac = if(!is.null(wUniFrac)) {weightedTaxonScores(RCM$X, row$wUniFrac)} ,
-    DPCoA = if(is.null(DPCoA)) NULL else DPCoA$dls,
+    DPCOA = if(is.null(DPCOA)) NULL else DPCOA$dls,
     BCrelNMDS = BCrelNMDS$species,
     Hellinger = diag(1/diag((crossprod(sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)), diag(rowSums(RCM$X))) %*% (sqrt(RCM$X/rowSums(RCM$X))-sqrt(colSums(RCM$X)/sum(RCM$X)))))) %*% Hellinger$v
   ))

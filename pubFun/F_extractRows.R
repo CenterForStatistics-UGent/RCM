@@ -17,7 +17,7 @@ extractRows = function(x){
     BCrelNMDS = BCrelNMDS$points,
     UniFrac = if(is.null(UniFrac)) NULL else UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
     wUniFrac = if(is.null(wUniFrac)) NULL else wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
-    DPCoA = if(is.null(DPCoA)) NULL else DPCoA$li,
+    DPCOA = if(is.null(DPCOA)) NULL else DPCOA$li,
     Hellinger = diag(sqrt(1/rowSums(RCM$X))) %*% Hellinger$u %*% diag(Hellinger$d)
   ))
   tmpList = tmpList[!sapply(tmpList, is.null)]
