@@ -15,6 +15,7 @@
 #' @param taxaScale a scalar, by which to scale the rectangles of the quadratic taxon plot
 #' @param Palette the colour palette
 #' @param taxLabels a boolean, shoudl taxon labels be plotted
+#' @param taxDots a boolean, should taxa be plotted as dots?
 #' @param taxCol the taxon colour
 #' @param taxColSingle the taxon colour if there is only one
 #' @param nudge_y a scalar, the offet for the taxon labels
@@ -33,12 +34,14 @@
 #' @param returnCoords a boolea, should final coordinates be returned?
 #' @param varExpFactor a scalar, the factor by which to expand the variable coordinates
 #' @param manExpFactorTaxa a manual expansion factor for the taxa Setting it to a high value allows you to plot the taxa around the samples
+#' @param nPhyl an integer, number of phylogenetic levels to show
+#' @param legendSize a size for the coloured dots in the legend
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975,...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975, nPhyl = 15, legendSize = samSize, ...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -194,7 +197,10 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     } else if(taxCol=="Deviance"){
       dataTax$taxCol = colSums(getDevianceRes(RCMfit, Dim)^2)
     } else if(taxCol %in% colnames(tax_table(RCMfit$physeq))){
-      dataTax$taxCol = factor(tax_table(RCMfit$physeq)[, taxCol])
+      dataTax$taxCol = tax_table(RCMfit$physeq)[, taxCol]
+      mostCommon = names(sort(table(dataTax$taxCol), decreasing = TRUE)[seq_len(nPhyl)])
+      dataTax$taxCol[!dataTax$taxCol %in% mostCommon] = "Other"
+      dataTax$taxCol = factor(dataTax$taxCol)
     }
     if((!constrained || RCMfit$responseFun=="linear") ){
       if(arrowSize > 0){
@@ -219,8 +225,13 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
 if(taxLabels){
     plot <- plot +  if(is.null(dataTax$taxCol)){geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), color =  taxColSingle, alpha=0.75, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
     } else {
-      geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), alpha=0.75, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+      geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), alpha=0.75, show.legend=TRUE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
     }
+} else if(taxDots){
+  if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, alpha = 0.75, show.legend = FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+  } else {
+    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), alpha = 0.75, show.legend = TRUE, size = labSize, inherit.aes = FALSE) + scale_colour_discrete(name = taxCol)
+  }
 }
   if(!"samples" %in% plotType){
     plot = plot +
@@ -229,8 +240,8 @@ if(taxLabels){
   }
   } #END if "species" %in% plotType
 
-  #Add cross in the centre
-  plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3)
+  #Add cross in the centre, and enlarge legend sizes
+  plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3) + guides(colour = guide_legend(override.aes = list(size=legendSize)))
   #Expand limits to show all text
   plot = if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
   if(returnCoords){
