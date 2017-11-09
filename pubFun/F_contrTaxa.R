@@ -13,7 +13,8 @@
 #'
 #' @return the mean of the ratios of median contributions of signal to the sigFrac most contributing non-signal taxa
 contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim = 1:3, upDown = FALSE, centerFun = median){
-  #FIX ME! Hellinger!
+  isList = is.list(idTax)
+  namesID = if(isList) names(idTax) else rownames(idTax)
   rowMatPsi = rowMatPsi[,Dim]
   colMat = t(colMat)[Dim,]
   if(upDown){
@@ -30,20 +31,20 @@ contrTaxa = function(rowMatPsi, colMat, groupFactor, idTax, sigFrac = 0.5, Dim =
     crossprod(colMat, centroids[, i])
   }) # The inner product of all species' arrows with the vectors locating the centroids
   sigContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
-    centerFun(contrib[match(rownames(idTax), colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
+    centerFun(contrib[match(namesID, colnames(colMat), nomatch = 0),i]*idTaxNum[,i])
   })} else {
     sapply(seq_along(levels(groupFactor)), function(i){
-      centerFun(contrib[match(idTax[,i], colnames(colMat), nomatch = 0),i])
+      centerFun(contrib[match(if(isList) idTax[[i]] else idTax[,i], colnames(colMat), nomatch = 0),i])
     })
   } # The mean/median contribution of the taxa with signal
   allContr = if(upDown) {sapply(seq_along(levels(groupFactor)), function(i){
     centerFun(
-      apply(contrib[!colnames(colMat) %in% rownames(idTax),],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
+      apply(contrib[!colnames(colMat) %in% namesID,],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
   })} else {
     sapply(seq_along(levels(groupFactor)), function(i){
-      centerFun( apply(contrib[!colnames(colMat) %in% idTax[,i],],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
+      centerFun( apply(contrib[!colnames(colMat) %in% if(isList) idTax[[i]] else idTax[,i],],2,sort, decreasing = TRUE)[seq_len(round(sigFrac*(ncol(colMat)-length(idTax[[i]])))), ])
     })
   } # The mean/median contribution of the 50% taxa with highest contribution among non-significant taxa
   ratios = sigContr/allContr # The ratio of these mean contributions
-  mean(ratios) # mean ratio
+  mean(ratios, na.rm = TRUE) # mean ratio
 }

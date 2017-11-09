@@ -14,15 +14,15 @@ genSimSeq = function(testres, Ntaxa = ntaxa(testres$physeq), fracTaxa = 0.2){
   weights = weights/sum(weights) #Normalize sampling weights
   normFactors = sample_sums(physeq)
   treatment = get_variable(physeq, testres$variable)
-  DEtaxa = sample(taxa_names(physeq), round(Ntaxa*fracTaxa), prob = weights) # The DE taxa
+  DEtaxa = sample(taxa_names(physeq), round(Ntaxa*fracTaxa), prob = weights) # The DE taxa are sampled
   whichTrt = names(sort(table(treatment),decreasing=TRUE)[1]) # The most frequent treatment group, frow which we will sample the EE taxa
-  trtLeft = unique(treatment)[unique(treatment) != whichTrt]
+  trtLeft = unique(treatment)[unique(treatment) != whichTrt] #The remaining treatment groups
   countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
-  samIDee = sample(which(treatment == whichTrt),nrow(countMat), replace = TRUE)
+  samIDee = sample(which(treatment == whichTrt),nrow(countMat), replace = TRUE) #NDA taxa are taken from the first group
   dataSimSeq = countMat[samIDee,] #EE taxa
   for (i in trtLeft){
     rowInd = which(treatment==i)
-    dataSimSeq[rowInd,DEtaxa] = round(countMat[rowInd, DEtaxa] * normFactors[samIDee][rowInd]/normFactors[rowInd])
+    dataSimSeq[rowInd,DEtaxa] = round(countMat[rowInd, DEtaxa] * normFactors[samIDee][rowInd]/normFactors[rowInd]) #DA taxa are taken from the other groups, adapting the sequencing depth to the most frequent one
   }
   keepID = colSums(dataSimSeq)>0
   list(data = dataSimSeq[, keepID], treatment = treatment, DEtaxa = DEtaxa[DEtaxa %in% colnames(dataSimSeq[, keepID])])
