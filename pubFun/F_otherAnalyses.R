@@ -8,7 +8,7 @@
 #' @return a list of with results of the otherAnalysesSimple() function
 otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
   if(unifrac) {
-    RCMlist = mapply(SIMPLIFY = FALSE,RCMlist, treeList, FUN = function(x,tree){
+    RCMlist = mcmapply(mc.cores = cores, SIMPLIFY = FALSE,RCMlist, treeList, FUN = function(x,tree){
       x$physeq = phyloseq(otu_table(x$X, taxa_are_rows = FALSE), tree)
       sample_names(x$physeq) = seq_len(nsamples(x$physeq))
       x

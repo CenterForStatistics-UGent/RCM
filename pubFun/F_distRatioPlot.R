@@ -5,11 +5,11 @@
 #' @param method a character vector to subset the methods plotted
 #' @param groupMeth a factor defining groups of the methods provided, based on their ordination paradigms
 #' @param log,las,... see ?boxplot
-distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]),log = FALSE, las = 2,...) {
+distRatioPlot = function(resListRows, groupFactor, method = NULL, groupMeth = droplevels(factor(as.character(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]), levels = levels(groupsMeth))), log = FALSE, las = 2,...) {
   dist = sapply(resListRows, function(x){
     sapply(x, function(y){distanceFun(y, clusters = groupFactor)$ratio})
   })
-  meanDist1df = orderDF(melt(dist, value.name = "DistanceRatio", varnames = c("Method")))
+  meanDist1df = orderDF(melt(dist, value.name = "DistanceRatio", varnames = c("Method")), groupsMeth = groupMeth)
   if(!is.null(method)){
     meanDist1df = subset(meanDist1df, meanDist1df$Method %in% method)
   }

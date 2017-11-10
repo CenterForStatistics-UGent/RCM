@@ -13,7 +13,7 @@ WD = "/home/stijn/PhD/Biplots"
 knitr::opts_knit$set(root.dir = WD)
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
-reqpkg <- c("phyloseq", "MASS", "parallel", "nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor", "alabama", "reshape2", "tensor", "locfit", "cluster", "SpiecEasi")
+reqpkg <- c("phyloseq", "MASS", "parallel", "nleqslv", "edgeR", "VGAM", "HMP", "ggplot2", "pscl", "vegan", "zCompositions", "DirFactor", "alabama", "reshape2", "tensor", "locfit", "cluster", "SpiecEasi", "ape")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -23,18 +23,21 @@ for(i in reqpkg)
 } 
 if(detectCores()==4) setwd(WD)
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
-palStore = palette()
-levelsMeth = c("CApearson","CAcontRat","CAchisq","DCA", "Hellinger","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
-labelsMeth = c("CApearson","CAcontRat","CAchisq","DCA","Hellinger","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
-groupsMeth = factor(c("Independence","Independence","Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence","Distance","CoDa","RCM"), ordered = TRUE)
+palStore = grep("black",palette(), value =TRUE, invert = TRUE)
+palette(palStore)
+levelsMeth = c("CApearson","CAcontRat","CAchisq","DCA", "Hellinger","DPCOA","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
+labelsMeth = c("CApearson","CAcontRat","CAchisq","DCA","Hellinger","DPCOA","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
+groupsMeth = factor(c("Independence","Independence","Independence","Independence","Independence","DPCOA","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence", "Distance", "CoDa", "DPCOA", "RCM"), ordered = TRUE)
 names(groupsMeth) = grep(levelsMeth, value  = TRUE, pattern ="Control", invert = TRUE)
 factorMeth = factor(levelsMeth, levels = levelsMeth, labels = labelsMeth)
+borderCol = "black"
 funFiles = dir("R")
 funFilesPub = dir("pubFun")
 for (i in funFiles) {source(file.path("R",i))}
 for (i in funFilesPub) {source(file.path("pubFun",i))};rm(i)
 # load("/home/stijn/PhD/American Gut/AGphylo.RData")
-# load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
 ```
 
 \setcounter{tocdepth}{2}
@@ -1170,7 +1173,7 @@ Double principal coordinates analysis (DPCoA) intends to include dissimilarities
 We have given a n-by-p data matrix __X__ and a p-by-p symmetric dissimilarity matrix between the species $\Sigma$.
 
 1) Use PCoA to find the optimal _n-1_th dimensional representation of the the dissimilarity matrix $\Sigma$
-2) Add the samples points at the barycentres (weighted averages) of the species points. In this representations Euclidean distances between samples equal the square roots of their Rao dissimilarity.
+2) Add the samples points at the barycentres (weighted averages) of the species points. In this representations Euclidean distances between samples on the plots equal the square roots of their Rao dissimilarity.
 3) Use PCA to find a lower dimensional representation of the samples.
 
 It is similar to Unifrac in the sense that it uses phylogenetic information. It is also reminiscent of PCoA, only that here distances between _species_ rather than samples are used. Also the dimension reduction is more complex.
@@ -1275,7 +1278,6 @@ nPop = 4 #Number of underlying populations
 nPerPop = n/nPop #Number of samples per population
 reps = 100 #replicates
 nDim  = 3 #Number of dimensions
-load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
 rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
 thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
 
@@ -1308,7 +1310,7 @@ save(RCMresList0, file = "RCMsim/resList0RCM.RData")
 resList0 = otherAnalyses(RCMresList0)
 resList0Rows = lapply(resList0, extractRows)
 resList0Cols = mapply(resList0, resList0Rows, FUN=extractCols, SIMPLIFY=FALSE)
-save(resList0, resList0Rows,resList0Cols,  file = "RCMsim/resList0.RData")
+save(resList0, resList0Rows, resList0Cols, file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
 ```
 
@@ -1325,7 +1327,7 @@ randomScatter(resList0Rows)
 
 ```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
 datList0 = lapply(resList0, function(x){x$RCM$X})
-plotCor(resList0Rows, datList0, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
+plotCor(resList0Rows, datList0, scoreDim = "rows", dataMat = TRUE)
 ```
 
 Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations with library sizes.
@@ -1340,7 +1342,7 @@ randomScatter(resList0Cols)
 ```
 
 ```{r AbsCorr0, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 100 simulations shown for first two dimensions. Red diamonds indicate means.\\label{fig:libCor1}"}
-plotCor(resList0Cols, datList = datList0,scoreDim = "columns", dataMat = TRUE)
+plotCor(resList0Cols, datList = datList0, scoreDim = "columns", dataMat = TRUE)
 rm(resList0Rows, resList0, datList0, resList0Cols)
 ```
 
@@ -1507,14 +1509,14 @@ RCMresList1 = mclapply(mc.cores = 4, datList1, function(y){
   })
 save(RCMresList1, file = "RCMsim/resList1RCM.RData")
 } else {load("RCMsim/resList1RCM.RData")}
-resList1 = otherAnalyses(RCMresList1)
+resList1 = otherAnalyses(RCMresList1, cores = 4)
 resList1Rows = lapply(resList1, extractRows)
 resList1Cols = mapply(resList1, resList1Rows,FUN = extractCols, SIMPLIFY = FALSE)
 save(resList1,resList1Rows, resList1Cols, groupFactor1, file = "RCMsim/resList1.RData")
 } else {load(file = "RCMsim/resList1.RData")}
 ```
 
-```{r resList1 sampleBiplotE, purl = FALSE}
+```{r resList1 sampleBiplotE, purl = FALSE, include = FALSE}
 #A sample biplot
 datList1 = lapply(resList1, function(x){x$RCM$X})
 randomScatter(resList1Rows)
@@ -1605,7 +1607,7 @@ save(datList2, resList2Rows, resList2Cols, IDlist2, groupFactor2, file = "RCMsim
 } else {load(file = "RCMsim/resList2.RData")}
 ```
 
-```{r resList2 sampleBiplot, purl = FALSE}
+```{r resList2 sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 randomScatter(resList2Rows, col = groupFactor2)
 # In this setting, the RCM really appears to outperform the other methods
@@ -1716,7 +1718,7 @@ save(resList3,resList3Rows, resList3Cols, IDlist3, groupFactor3, file = "RCMsim/
 } else {load(file = "RCMsim/resList3.RData")}
 ```
 
-```{r resList3 sampleBiplot, purl = FALSE}
+```{r resList3 sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 resList3Rows = lapply(resList3, extractRows)
 randomScatter(resList3Rows, col = groupFactor3)
@@ -1798,7 +1800,7 @@ save(resList4,resList4Rows, resList4Cols, groupFactor4, file = "RCMsim/resList4.
 } else {load(file = "RCMsim/resList4.RData")}
 ```
 
-```{r resList4 sampleBiplot, purl = FALSE}
+```{r resList4 sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 randomScatter(resList4Rows, col = groupFactor4)
 ```
@@ -1882,7 +1884,7 @@ save(resList5,resList5Rows, resList5Cols, IDlist5, groupFactor5, file = "RCMsim/
 } else {load(file = "RCMsim/resList5.RData")}
 ```
 
-```{r resList5 sampleBiplot, purl = FALSE}
+```{r resList5 sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 randomScatter(resList5Rows, col = groupFactor5)
 ```
@@ -1915,7 +1917,7 @@ rm(resList5Rows, resList5Cols, contr5, datList5, IDlist5)
 ##### Negative binomial with phylogenetic information
 
 In order to also include the very popular distance measures UniFrac and weighted UniFrac, we also generate data with the negative binomial and Dirichlet multinomial taking into account phylogenetic structure. We base our strategy on the second strategy described by Chen _et al._ ("Associating microbiome composition with environmental
-covariates using generalized UniFrac distances", 2012). We generate random trees for the template vector of relative abundances, and modify abundances within one of the 20 clusters
+covariates using generalized UniFrac distances", 2012). We generate random trees for the template vector of relative abundances, and modify abundances within one of the 20 clusters.
 
 ```{r UniFrac, purl = FALSE}
 p = 1000 #Number of taxa
@@ -1990,7 +1992,7 @@ save(resListPhy, resListPhyRows, resListPhyCols, groupFactorPhy, IDlistPhy, file
 } else {load(file = "RCMsim/resListPhy.RData")}
 ```
 
-```{r resListPhy sampleBiplot, purl = FALSE}
+```{r resListPhy sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 randomScatter(resListPhyRows, col = groupFactorPhy)
 ```
@@ -2101,7 +2103,7 @@ save(resListZINB,groupFactorZINB, IDlistZINB, file = "RCMsim/resListZINB.RData")
 } else {load(file = "RCMsim/resListZINB.RData")}
 ```
 
-```{r resListZINB sampleBiplot, purl = FALSE}
+```{r resListZINB sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 resListZINBRows = lapply(resListZINB, extractRows)
 randomScatter(resListZINBRows, col = groupFactorZINB)
@@ -2217,7 +2219,7 @@ save(resListDM, groupFactorDM,IDlistDM, file = "RCMsim/resListDM.RData")
 
 Only 68% fits
 
-```{r resListDM sampleBiplot, purl = FALSE}
+```{r resListDM sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 resListDMRows = lapply(resListDM, extractRows)
 randomScatter(resListDMRows, col = groupFactorDM)
@@ -2342,7 +2344,7 @@ save(datListHum, IDlistHum, groupFactorHum, resListSimSeqHumRows, resListSimSeqH
 } else {load("RCMsim/resListSimSeq.RData")}
 ```
 
-```{r resListSimSeqHum sampleBiplot, purl = FALSE}
+```{r resListSimSeqHum sampleBiplot, purl = FALSE, include = FALSE}
 #A sample biplot
 randomScatter(resListSimSeqHumRows, col = groupFactorHum)
 # Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?

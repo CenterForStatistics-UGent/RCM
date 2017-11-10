@@ -6,8 +6,10 @@
 #' @param scoreDim a character vector, "rows" or "columns": which margins to use to calculate the correlations
 #' @param dataMat a boolean, is datList a list of data matrices? Otherwise it is a list of lists
 #' @param groupMeth a factor defining groups of the methods provided, based on their ordination paradigms
+#' @param bordercol The colour of the borders of the boxplot
 #'
-plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE, groupMeth = factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control"))){
+plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE, groupMeth = droplevels(factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control"))), bordercol = borderCol){
+  parTmp = par(no.readonly = TRUE)
   if(!dataMat){
     datList = lapply(datList, function(x){x$dataMat})
   }
@@ -21,13 +23,12 @@ plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRU
       "Control" = replicate(length(datList),cor(rnorm(length(margins)), margins)))}) #Include a control
 
   cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
-  par(mfrow = c(1,max(Dims)))
+  par(mfrow = c(1,max(Dims)), oma = c(2,2,2,2), mar = c(6,1,3,5), pty = "m")
   for (i in Dims){
     if(i==max(Dims)){
-      parTmp = par(no.readonly = TRUE)
-      par(mar = c(4,4,4,5))
+
     }
-    data = orderDF(cor0df[[i]])
+    data = orderDF(cor0df[[i]], groupsMeth = groupMeth)
     boxplot(Correl ~ Method, main = paste(
       switch(scoreDim, "rows" = "Correlations of library sizes \n with row scores of dimension",
              "columns" = "Correlations of species abundances \n with column scores of dimension"
@@ -37,10 +38,10 @@ plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRU
     points(meansCor, col="red", pch=18, cex = 1.6)
     abline(h=0, lty = "dashed")
     if(i==max(Dims)){
-      par(parTmp)
+      addLegend(groupMeth = groupMeth, x = length(unique(data$Method))+1, cex = 0.6)
     }
   }
-  addLegend(groupMeth = groupMeth, x = length(groupMeth), cex = 0.6)
-  par(mfrow = c(1,1))
+
+  par(parTmp)
 
 }

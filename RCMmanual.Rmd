@@ -96,7 +96,11 @@ The researchers found that species from the Fusobacteria genus are associated wi
 plot(ZellerRCM2, plotType = "species", taxRegExp = "Fusobacter", taxLabels = TRUE)
 ```
 
-It is clear that these Fusobacterium species behave very differently between the species.
+It is clear that these Fusobacterium species behave very differently between the species. We can also colour the species plots by phylogenetic level, e.g. order level, if available in the dataset.
+
+```{r plotUnconstrainedRCMspec2, eval = FALSE}
+plot(ZellerRCM2, plotType = "species", taxLabels = TRUE, taxCol = "Order")
+```
 
 Finally we can combine both plots into an interpretable biplot, which is the default for unconstrained RC(M). To avoid overplotting we only show the taxa with the 10 most important departures from independence.
 
