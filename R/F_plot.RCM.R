@@ -35,13 +35,14 @@
 #' @param varExpFactor a scalar, the factor by which to expand the variable coordinates
 #' @param manExpFactorTaxa a manual expansion factor for the taxa Setting it to a high value allows you to plot the taxa around the samples
 #' @param nPhyl an integer, number of phylogenetic levels to show
+#' @param phylOther a character vector of phylogenetic levels to be included in the "other" group
 #' @param legendSize a size for the coloured dots in the legend
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975, nPhyl = 15, legendSize = samSize, ...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, ...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -199,7 +200,7 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     } else if(taxCol %in% colnames(tax_table(RCMfit$physeq))){
       dataTax$taxCol = tax_table(RCMfit$physeq)[, taxCol]
       mostCommon = names(sort(table(dataTax$taxCol), decreasing = TRUE)[seq_len(nPhyl)])
-      dataTax$taxCol[!dataTax$taxCol %in% mostCommon] = "Other"
+      dataTax$taxCol[(!dataTax$taxCol %in% mostCommon) && (dataTax$taxCol %in% phylOther)] = "Other"
       dataTax$taxCol = factor(dataTax$taxCol)
     }
     if((!constrained || RCMfit$responseFun=="linear") ){
