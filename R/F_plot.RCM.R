@@ -42,7 +42,7 @@
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, ...) {
+                    Palette = NULL, taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, ...) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -242,7 +242,7 @@ if(taxLabels){
   } #END if "species" %in% plotType
 
   #Add cross in the centre, and enlarge legend sizes
-  plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3) + guides(colour = guide_legend(override.aes = list(size=legendSize)))
+  plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size=5, inherit.aes = FALSE, shape=3) + guides(size=legendSize)
   #Expand limits to show all text
   plot = if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
   if(returnCoords){
