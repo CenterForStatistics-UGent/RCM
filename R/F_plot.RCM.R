@@ -42,13 +42,16 @@
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = NULL, taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, ...) {
+                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpfactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, ...) {
+  require(RColorBrewer)
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
   #Extract the coordinates
   coords = extractCoord(RCMfit, Dim)
   if(constrained && RCMfit$responseFun  == "nonparametric") plotType = plotType[plotType!="species"] #For non-parametric response function we cannot plot the taxa
+
+
 
 ## SAMPLES
   if("samples" %in% plotType){
@@ -70,10 +73,11 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
   } else {dataSam$shapePlot=factor(rep(1, nrow(dataSam)))}
    if(is.character(dataSam$shapePlot)) dataSam$shapePlot = factor(dataSam$shapePlot)
 
-  #Set colour palette
-  if(is.null(Palette)){
-    Palette = rainbow(length(unique(dataSam$colourPlot)))
-  }
+   #Set colour palette
+   if(is.null(Palette)){
+     Palette = rainbow(length(unique(dataSam$colourPlot)))
+   }
+
    plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], dotList, col = "colourPlot", shape = "shapePlot")) +
      geom_point(size = samSize ) + #point size
      xlab(paste0(names(dataSam)[1],": ", paste0("psi",Dim[1]), " = ",round(RCMfit$psis[Dim[1]],1))) + #xlabel
@@ -82,7 +86,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
 
    #add legend names
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
-     plot = plot + scale_colour_manual(name = colLegend, values = Palette)
+     plot = plot + scale_colour_manual(name = colLegend, values = brewer.pal(length(unique(dataSam$colourPlot)), Palette))
    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
      plot = plot + scale_colour_continuous(name = colLegend)
    }
@@ -200,7 +204,7 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     } else if(taxCol %in% colnames(tax_table(RCMfit$physeq))){
       dataTax$taxCol = tax_table(RCMfit$physeq)[, taxCol]
       mostCommon = names(sort(table(dataTax$taxCol), decreasing = TRUE)[seq_len(nPhyl)])
-      dataTax$taxCol[(!dataTax$taxCol %in% mostCommon) && (dataTax$taxCol %in% phylOther)] = "Other"
+      dataTax$taxCol[(!dataTax$taxCol %in% mostCommon) | (dataTax$taxCol %in% phylOther)] = "Other"
       dataTax$taxCol = factor(dataTax$taxCol)
     }
     if((!constrained || RCMfit$responseFun=="linear") ){
@@ -218,8 +222,8 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     } else {
       plot <- plot + geom_point(data=dataTax, aes_string(x='end1', y='end2', fill="taxCol"), pch = 21, show.legend = length(taxCol)!=1, inherit.aes = FALSE)
     }
-    if(!is.null(colLegend) & is.factor(dataTax$taxCol) ){
-      plot = plot + scale_fill_manual(name = colLegend, values = Palette)
+    if(!is.null(colLegend) & is.factor(dataTax$taxCol) & !taxDots ){
+      plot = plot + scale_colour_brewer(palette = Palette, name = colLegend)
     } else if(!is.null(colLegend) & !is.factor(dataTax$taxCol) ){
       plot = plot + scale_fill_continuous(name = colLegend)
     }
@@ -231,7 +235,7 @@ if(taxLabels){
 } else if(taxDots){
   if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, alpha = 0.75, show.legend = FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
   } else {
-    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), alpha = 0.75, show.legend = TRUE, size = labSize, inherit.aes = FALSE) + scale_colour_discrete(name = taxCol)
+    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), alpha = 0.75, show.legend = TRUE, size = labSize, inherit.aes = FALSE) + scale_colour_manual(values = c(brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) # "Other" is made grey
   }
 }
   if(!"samples" %in% plotType){

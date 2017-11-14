@@ -1,0 +1,1277 @@
+---
+title: "RCM simulations"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  pdf_document:
+    includes:
+      in_header: packagesRCM.sty
+---
+
+```{r setup, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
+WD = "/home/stijn/PhD/Biplots"
+knitr::opts_knit$set(root.dir = WD)
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
+# The required package list:
+reqpkg <- c("phyloseq", "parallel", "ggplot2", "vegan", "reshape2") #"DirFactor","MASS",
+# Load all required packages and show version
+for(i in reqpkg)
+{
+#   print(i) 
+#   print(packageVersion(i))
+  library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
+} 
+if(detectCores()==4) setwd(WD)
+par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
+palStore = grep("black",palette(), value =TRUE, invert = TRUE)
+palette(palStore)
+levelsMeth = c("CApearson","CAcontRat","CAchisq","DCA", "Hellinger","DPCOA","BC","BCrel","BCrelNMDS", "JSD","UniFrac","wUniFrac", "CoDa","RCM", "Control")
+labelsMeth = c("CApearson","CAcontRat","CAchisq","DCA","Hellinger","DPCOA","Bray-Curtis-Abs","Bray-Curtis","Bray-Curtis NMDS", "JSD","UniFrac","weighted UniFrac","CoDa","RCM", "Control")
+groupsMeth = factor(c("Independence","Independence","Independence","Independence","Independence","Distance","Distance","Distance","Distance","Distance","Distance","Distance", "CoDa", "RCM"), levels = c("Independence", "Distance", "CoDa", "RCM"), ordered = TRUE)
+names(groupsMeth) = grep(levelsMeth, value  = TRUE, pattern ="Control", invert = TRUE)
+factorMeth = factor(levelsMeth, levels = levelsMeth, labels = labelsMeth)
+borderCol = "black"
+funFiles = dir("R")
+funFilesPub = dir("pubFun")
+for (i in funFiles) {source(file.path("R",i))}
+for (i in funFilesPub) {source(file.path("pubFun",i))};rm(i)
+# load("/home/stijn/PhD/American Gut/AGphylo.RData")
+load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
+load("/home/stijn/PhD/Simulations/data/MLES.RData") #Load observed parameter values
+```
+
+# Simulations
+
+## Unconstrained RC(M)
+
+As ways of generating test datasets we see three different options
+
+  1) Parametric simulation with the negative binomial with known abundances. 
+  2) Non-parametric simulation with SimSeq
+  3) Real datasets with biological signal allegedly known
+  
+  Parametric simulation is needed as a first check but evidently favours our method (if we use the negative binomial distribution). SimSeq is a reasonably neutral tool, we will only use WMW to obtain the lfdr. Real datasets will need to complement our analysis but it may not be possible to evaluate them in a high-throughput way, this will need to happen empirically.
+  
+### Parametric simulations
+
+#### Negative binomial
+
+The negative binomial is the assumed distribution of our method. As a result we should outperform all other methods in this setting.
+
+\clearpage
+
+##### Null setting
+
+In this setting we simulate all distributions from the same template, thus there is no signal in this dataset
+
+```{r NBnull, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+rhoEst = unlist(rhoMLEs) #observed relative abundances, pooled
+thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
+
+#Library sizes
+libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
+if(!file.exists(file = "RCMsim/resList0.RData")){
+  if(!file.exists(file = "RCMsim/datList0.RData")){
+datList0 = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList0,  file = "RCMsim/datList0.RData")
+} else {load(file = "RCMsim/datList0.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList0RCM.RData")){
+RCMresList0 = mclapply(mc.cores=4, datList0, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList0, file = "RCMsim/resList0RCM.RData")
+} else { load("RCMsim/resList0RCM.RData")}
+resList0 = otherAnalyses(RCMresList0)
+resList0Rows = lapply(resList0, extractRows)
+resList0Cols = mapply(resList0, resList0Rows, FUN=extractCols, SIMPLIFY=FALSE)
+save(resList0, resList0Rows, resList0Cols, file = "RCMsim/resList0.RData")
+} else {load(file = "RCMsim/resList0.RData")}
+rm(physeqListV13);gc(verbose = FALSE)
+```
+
+```{r reslist0Runningtimes, purl = FALSE, eval = FALSE, fig.cap = "Boxplot of running times of the RC(M) method in minutes for 100 Monte Carlo simulations. \\label{supfig:runtimes}"}
+boxplot(sapply(resList0, function(x){x$RCM$runtimeInMins}))
+```
+
+```{r resList0 sampleBiplot, purl = FALSE, include=FALSE, eval = FALSE}
+#A sample biplot
+randomScatter(resList0Rows)
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
+#randomScatter(resList0Rows, Dim = c(1,3))
+```
+
+```{r libSizeCorr0, purl = FALSE, fig.cap = "Correlations of sample scores with library sizes, results of 100 simulations with the negative binomial under H0 in the first three dimensions. Orange diamonds indicate means.\\label{supfig:libCor0}"}
+datList0 = lapply(resList0, function(x){x$RCM$X})
+plotCor(resList0Rows, datList0, scoreDim = "rows", dataMat = TRUE)
+```
+
+Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations with library sizes.
+
+The taxa
+
+```{r resList0cols sampleBiplot, purl = FALSE, include = FALSE, eval = FALSE}
+#A sample biplot
+randomScatter(resList0Cols)
+# CA has outliers, CoDa and Hellinger reveal weird patterns
+#randomScatter(resList0Cols, Dim = c(1,3))
+```
+
+```{r AbsCorr0, purl = FALSE, fig.cap = "Correlations of taxon scores with average relative abundances, results of 100 simulations with the negative binomial under H0 in the first three dimensions. Orange diamonds indicate means.\\label{supfig:taxCor0}"}
+plotCor(resList0Cols, datList = datList0, scoreDim = "columns", dataMat = TRUE)
+rm(resList0Rows, resList0, datList0, resList0Cols)
+```
+
+Only our RC(M) method has correlations at the level of random noise.
+
+```{r Starting Values, purl = FALSE, eval = FALSE}
+startList= lapply(resList0, startFun)
+moltStart = melt(startList, value.name = "correlation")
+names(moltStart) = c("correlation", "scores","run")
+boxplot(correlation ~ scores, data = moltStart, las=2)
+abline(h=0, col ="red", lty = "dashed")
+#Squared weighing clearly gives the best results, although no fantastic correlations.
+```
+
+\clearpage
+
+##### Null setting, different library sizes
+
+In this setting we simulate all distributions from the same template, but with ten-fold differences in library sizes. Stiill there is thus no signal in this dataset.
+
+```{r NBnullb, purl = FALSE, eval =FALSE}
+if(!file.exists(file = "RCMsim/resList0b.RData")){
+  if(!file.exists(file = "RCMsim/datList0b.RData")){
+datList0b = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+libSizesSampled[seq_len(n/2)] = libSizesSampled[seq_len(n/2)]*10 #Apply the ten-fold change in library sizes
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList0b,  file = "RCMsim/datList0b.RData")
+} else {load(file = "RCMsim/datList0b.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList0RCMb.RData")){
+RCMresList0b = mclapply(mc.cores=4, datList0b, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList0b, file = "RCMsim/resList0RCMb.RData")
+} else { load("RCMsim/resList0RCMb.RData")}
+resList0b = otherAnalyses(RCMresList0b)
+resList0bRows = lapply(resList0b, extractRows)
+resList0bCols = mapply(resList0b, resList0bRows, FUN=extractCols, SIMPLIFY=FALSE)
+save(resList0b, resList0bRows,resList0bCols,  file = "RCMsim/resList0b.RData")
+} else {load(file = "RCMsim/resList0b.RData")}
+```
+
+```{r resList0b sampleBiplot, purl = FALSE, include=FALSE, eval =FALSE}
+#A sample biplot
+randomScatter(resList0bRows)
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
+#randomScatter(resList0bRows, Dim = c(1,3))
+```
+
+```{r libSizeCorr0b, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 10b0b simulations shown for first two dimensions. Orange diamonds indicate means.\\label{supfig:libCor1}", eval =FALSE}
+datList0b = lapply(resList0b, function(x){x$RCM$X})
+plotCor(resList0bRows, datList0b, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
+```
+
+Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations with library sizes.
+
+The taxa
+
+```{r resList0bcols sampleBiplot, purl = FALSE, include = FALSE, eval =FALSE}
+#A sample biplot
+randomScatter(resList0bCols)
+# CA has outliers, CoDa and Hellinger reveal weird patterns
+#randomScatter(resList0bCols, Dim = c(1,3))
+```
+
+```{r AbsCorr0b, purl = FALSE, fig.cap = "Correlations of taxon scores with average relative abundances, results of 100 simulations with the negative binomial under H0 with differing library sizes between the groups, in the first three dimensions. Orange diamonds indicate means.\\label{supfig:taxCor0b}", eval =FALSE}
+plotCor(resList0bCols, datList = datList0b,scoreDim = "columns", dataMat = TRUE)
+rm(resList0bRows, resList0b, datList0b);gc(verbose = FALSE)
+```
+
+\clearpage
+
+##### Null setting, differences in dispersions
+
+In this setting we simulate all distributions from the same template, but with group differences in dispersion. The group factor (e.g. sequencing center) may not act on the mean, but on the dispersion. Ordination techniques should be immune to this effect.
+
+```{r NBnullc, purl = FALSE, eval = FALSE}
+if(!file.exists(file = "RCMsim/resList0c.RData")){
+  if(!file.exists(file = "RCMsim/datList0c.RData")){
+datList0c = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) #Sampled dispersions differ between some groups with equal means
+thetasSampled2 = thetasSampled/10 # A ten-fold increase in dispersion
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat1 = matrix(rnbinom(prod(dim(meanMat))/2, mu = meanMat[seq_len(n/2),], size = matrix(thetasSampled,n/2,p,byrow = TRUE)),n/2,p)
+dataMat2 = matrix(rnbinom(prod(dim(meanMat))/2, mu = meanMat[seq_len(n/2),], size = matrix(thetasSampled2,n/2,p,byrow = TRUE)),n/2,p)
+dataMat = rbind(dataMat1, dataMat2)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList0c,  file = "RCMsim/datList0c.RData")
+} else {load(file = "RCMsim/datList0c.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList0RCMc.RData")){
+RCMresList0c = mclapply(mc.cores=4, datList0b, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList0c, file = "RCMsim/resList0RCMc.RData")
+} else { load("RCMsim/resList0RCMc.RData")}
+resList0c = otherAnalyses(RCMresList0c)
+resList0cRows = lapply(resList0c, extractRows)
+resList0cCols = mapply(resList0c, resList0cRows, FUN = extractCols, SIMPLIFY=FALSE)
+save(resList0c, resList0cRows,resList0cCols,  file = "RCMsim/resList0c.RData")
+} else {load(file = "RCMsim/resList0c.RData")}
+```
+
+\clearpage
+
+##### Simulate from different distributions
+
+In this setting we will simulate data from 4 unrelated negative binomial distributions. Because of this clustering should be very good.
+
+```{r NBunrelatedDistr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor1 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+if(!file.exists(file = "RCMsim/resList1.RData")){
+  if(!file.exists(file = "RCMsim/datList1.RData")){
+datList1 = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sapply(1:nPop, function(x){tmp=sample(rhoEst, p); tmp/sum(tmp)})[,groupInd]
+thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE)),n,p)
+list(dataMat = dataMat, group = groupFactor1, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+})
+save(datList1,groupFactor1,  file = "RCMsim/datList1.RData")
+} else {load(file = "RCMsim/datList1.RData")}
+
+# Results
+
+  if(!file.exists("RCMsim/resList1RCM.RData")){
+RCMresList1 = mclapply(mc.cores = 4, datList1, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList1, file = "RCMsim/resList1RCM.RData")
+} else {load("RCMsim/resList1RCM.RData")}
+resList1 = otherAnalyses(RCMresList1, cores = 4)
+resList1Rows = lapply(resList1, extractRows)
+resList1Cols = mapply(resList1, resList1Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList1,resList1Rows, resList1Cols, groupFactor1, file = "RCMsim/resList1.RData")
+} else {load(file = "RCMsim/resList1.RData")}
+```
+
+```{r resList1 sampleBiplotE, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resList1Rows)
+# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
+```
+
+```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of sample scores with library sizes, results of 100 parametric simulations with unrelated taxon distributions for 4 groups. Orange diamonds indicate means. The control group represents correlations of randomly drawn standard normal variables with the library sizes. \\label{supfig:libCor1}"}
+datList1 = lapply(resList1, function(x){x$RCM$X})
+plotCor(resList1Rows, datList1, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
+```
+
+```{r resList1Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette1}"}
+plotSil(resList1Rows, groupFactor1)
+```
+
+```{r resList1Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Orange diamonds indicate means. \\label{supfig:dist1}"}
+distRatioPlot(resList1Rows, groupFactor1)
+rm(resList1Rows, resList1, datList1, resList1Cols);gc(verbose = FALSE)
+```
+
+The library sizes of the CoDa approach do negatively correlate with the row scores, confirming our concern about the heteroscedasticity.
+
+\clearpage
+
+##### Simulate from related distributions
+
+In this setting we will simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances
+
+```{r NBrelatedDistr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor2 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+if(!file.exists(file = "RCMsim/resList2.RData")){
+  if(!file.exists(file = "RCMsim/datList2.RData")){
+datList2 = mclapply(mc.cores = 1, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactor2
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+})
+save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
+} else {load(file = "RCMsim/datList2.RData")}
+
+# Results
+
+  if(!file.exists("RCMsim/resList2RCM.RData")){
+RCMresList2 = mclapply(mc.cores=4, datList2, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList2, file = "RCMsim/resList2RCM.RData")
+} else {load("RCMsim/resList2RCM.RData")}
+resList2 = otherAnalyses(RCMresList2)
+IDlist2 = lapply(datList2, function(x){
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+   })
+resList2Rows = lapply(resList2, extractRows)
+resList2Cols = mapply(resList2, resList2Rows,FUN = extractCols, SIMPLIFY = FALSE)
+datList2 = lapply(resList2, function(x){x$RCM$X})
+save(datList2, resList2Rows, resList2Cols, IDlist2, groupFactor2, file = "RCMsim/resList2.RData")
+} else {load(file = "RCMsim/resList2.RData")}
+```
+
+```{r resList2 sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resList2Rows, col = groupFactor2)
+# In this setting, the RCM really appears to outperform the other methods
+# par(mfrow = c(2,4), mar = c(3,3,3,3))
+# ID = sample(size=1, seq_along(resList2))
+# obj = resList2Rows[[ID]]
+# lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactor2, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+# rm(ID, obj)
+# par(mfrow = c(1,1))
+```
+
+```{r resList2Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette2}"}
+plotSil(resList2Rows, groupFactor2)
+```
+
+The RC(M) method has the highest silhouettes, PCoA is second best but far below.
+
+```{r resList2Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:dist2}"}
+distRatioPlot(resList2Rows, groupFactor2)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorr2, purl = FALSE, fig.cap = "Correlations of sample scores with library sizes, results of 100 parametric simulations with related taxon distributions with 10% DA taxa for 4 groups. Orange diamonds indicate means. The control group represents correlations of randomly drawn standard normal variables with the library sizes. \\label{supfig:libCor2}"}
+plotCor(resList2Rows, datList2, dataMat = TRUE)
+```
+
+```{r AbCorr2, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCor2}"}
+plotCor(resList2Cols, datList2, dataMat = TRUE, scoreDim = "columns")
+```
+
+The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
+
+```{r taxRat2, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRat2}"}
+contr2 = contrTaxaWrap(resList2Rows, resList2Cols, IDlist2, groupFactor2)
+contrPlot(contr2)
+rm(resList2Rows, datList2, resList2Cols, contr2);gc(verbose = FALSE)
+```
+
+The RC(M) and CA methods are best at identifying taxa that contribute to the separation of the clusters. This is not surprising since they are the only ones that have genuine taxon scores, for CoDA and PCoA we have to rely on weighted sample scores for the taxa. Even though this is often used, our results reveal their poor performance. Hellinger does well because of outliers, it does not really paint a good picture.
+
+\clearpage
+
+##### Simulate from related distributions, confounded by library sizes
+
+In this setting we will again simulate data from 4 related negative binomial distributions, all obtained from the same mother distributions but 10\% of the taxa have modified abundances. In this case we will make the library sizes different in each group. Th initial library sizes are all sampled from the same pool of library sizes observed in real data. The first group has unmodified library sizes, the second group library sizes multiplied by 1.5, the third by 2 and the fourth by 3.
+
+```{r NBrelatedDistrConf, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor3 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+if(!file.exists(file = "RCMsim/resList3.RData")){
+  if(!file.exists(file = "RCMsim/datList3.RData")){
+datList3 = mclapply(mc.cores = 4, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes, confounded with group membership
+libSizesSampled[groupInd==2] = round(libSizesSampled[groupInd==2]*1.5)
+libSizesSampled[groupInd==3] = round(libSizesSampled[groupInd==3]*2)
+libSizesSampled[groupInd==4] = round(libSizesSampled[groupInd==4]*3)
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactor3
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+})
+save(datList3,groupFactor3,  file = "RCMsim/datList3.RData")
+} else {load(file = "RCMsim/datList3.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList3RCM.RData")){
+RCMresList3 = mclapply(mc.cores=4, datList3, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList3, file = "RCMsim/resList3RCM.RData")
+} else {load("RCMsim/resList3RCM.RData")}
+resList3 = otherAnalyses(RCMresList3)
+IDlist3 = lapply(datList3, function(x){
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+   })
+resList3Rows = lapply(resList3, extractRows)
+resList3Cols = mapply(resList3, resList3Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList3,resList3Rows, resList3Cols, IDlist3, groupFactor3, file = "RCMsim/resList3.RData")
+} else {load(file = "RCMsim/resList3.RData")}
+```
+
+```{r resList3 sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+resList3Rows = lapply(resList3, extractRows)
+randomScatter(resList3Rows, col = groupFactor3)
+```
+
+```{r resList3Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette3}"}
+plotSil(resList3Rows, groupFactor3)
+```
+
+The RC(M) method has the highest silhouettes, PCoA is second best but far below.
+
+```{r resList3Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:dist3}"}
+distRatioPlot(resList3Rows, groupFactor3)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorr3, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:libCor3}"}
+datList3 = lapply(resList3, function(x){x$RCM$X})
+plotCor(resList3Rows, datList3, dataMat = TRUE)
+```
+
+```{r AbCorr3, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCor3}"}
+plotCor(resList3Cols, datList3, dataMat = TRUE, scoreDim = "columns")
+```
+
+The CoDa method is clearly affected by the library sizes, as is CA and Bray-Curtis on absolute abundances.
+
+```{r taxRat3, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRat3}"}
+contr3 = contrTaxaWrap(resList3Rows, resList3Cols, IDlist3, groupFactor3)
+contrPlot(contr3)
+rm(resList3Rows, resList3, datList3, resList3Cols, contr3);gc(verbose = FALSE)
+```
+
+\clearpage
+
+##### Simulate under H0, but with differences in dispersion
+
+Inspired by Warton _et al._ (2012): "Distance-based multivariate analyses confound location and dispersion effects" we set up a simulation without any signal, but whereby the dispersions in the different groups are different, as a result of the group effect itself or related sampling effects. Note that this also violates the assumption of our RC(M) method of constant dispersions.
+
+```{r NBdispsersion, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor4 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+if(!file.exists(file = "RCMsim/resList4.RData")){
+  if(!file.exists(file = "RCMsim/datList4.RData")){
+datList4 = mclapply(mc.cores = 4, 1:reps, function(i){
+## Sample parameters
+rhosSampled = sample(rhoEst, p)
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+#Sampled dispersions differ between the population
+thetaMat = matrix(thetasSampled, n, p, byrow = TRUE) * c(rep(c(0.2,0.5,1,5), eac = nPerPop)) #Modify dispersions to 5 times, 2 times and 0.2 times the normal levels
+
+## Create dataset
+meanMat = outer(libSizesSampled, rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = thetaMat),n,p)
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetaMat = thetaMat, rhosSampled = rhosSampled)
+})
+save(datList4,groupFactor4,  file = "RCMsim/datList4.RData")
+} else {load(file = "RCMsim/datList4.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList4RCM.RData")){
+RCMresList4 = mclapply(mc.cores=4, datList4, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList4, file = "RCMsim/resList4RCM.RData")
+} else {load("RCMsim/resList4RCM.RData")}
+resList4 = otherAnalyses(RCMresList4)
+resList4Rows = lapply(resList4, extractRows)
+resList4Cols = mapply(resList4, resList4Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList4,resList4Rows, resList4Cols, groupFactor4, file = "RCMsim/resList4.RData")
+} else {load(file = "RCMsim/resList4.RData")}
+```
+
+```{r resList4 sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resList4Rows, col = groupFactor4)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorr4, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:libCor4}"}
+datList4 = lapply(resList4, function(x){x$RCM$X})
+plotCor(resList4Rows, datList4, dataMat = TRUE)
+```
+
+```{r AbCorr4, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCor4}"}
+plotCor(resList4Cols, datList4, dataMat = TRUE, scoreDim = "columns")
+rm(resList4Rows, resList4, datList4, resList4Cols);gc(verbose = FALSE)
+```
+
+\clearpage
+
+##### Simulate under H1, with correlated taxa
+
+We know that taxa living in the same niche are dependent on each other, and as a result their abundances are correlated. This phenomenon can affect the differentialn abundance detection, so it could also affect our visualization procedures. I would also expect it to have an effect on the CoDa method, which relies on ratios between taxa of the same sample. We'll use the correlation networks previously estimated from the HMP and AGP datasets.
+
+```{r NBrelatedDistrCorr, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor5 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+if(!file.exists(file = "RCMsim/resList5.RData")){
+  if(!file.exists(file = "RCMsim/datList5.RData")){
+    load("/home/stijn/PhD/Simulations/data/covList.RData")
+    require(SpiecEasi)
+datList5 = mclapply(mc.cores = 4, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes, confounded with group membership
+covMatName = sample(names(covList), 1)
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+
+dataMat = rmvnegbin(n = n,mu = meanMat, ks = thetasSampled, Sigma = as.matrix(covList[[covMatName]]))
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactor5
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, covMatName = covMatName)
+})
+save(datList5,groupFactor5,  file = "RCMsim/datList5.RData")
+rm(covList);gc(verbose = FALSE)
+} else {load(file = "RCMsim/datList5.RData")}
+
+# Results
+  if(!file.exists("RCMsim/resList5RCM.RData")){
+RCMresList5 = mclapply(mc.cores=4, datList5, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresList5, file = "RCMsim/resList5RCM.RData")
+} else {load("RCMsim/resList5RCM.RData")}
+resList5 = otherAnalyses(RCMresList5)
+IDlist5 = lapply(datList5, function(x){
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+   })
+resList5Rows = lapply(resList5, extractRows)
+resList5Cols = mapply(resList5, resList5Rows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resList5,resList5Rows, resList5Cols, IDlist5, groupFactor5, file = "RCMsim/resList5.RData")
+} else {load(file = "RCMsim/resList5.RData")}
+
+```
+
+```{r resList5 sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resList5Rows, col = groupFactor5)
+```
+
+```{r resList5Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette5}"}
+plotSil(resList5Rows, groupFactor5)
+```
+
+```{r resList5Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:dist5}"}
+distRatioPlot(resList5Rows, groupFactor5)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorr5, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:libCor5}"}
+datList5 = lapply(resList5, function(x){x$RCM$X})
+plotCor(resList5Rows, datList5, dataMat = TRUE)
+```
+
+```{r AbCorr5, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCor5}"}
+plotCor(resList5Cols, datList5, dataMat = TRUE, scoreDim = "columns")
+```
+
+```{r taxRat5, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRat5}"}
+contr5 = contrTaxaWrap(resList5Rows, resList5Cols, IDlist5, groupFactor5)
+contrPlot(contr5)
+rm(resList5Rows, resList5Cols, contr5, datList5, IDlist5);gc(verbose = FALSE)
+```
+
+\clearpage
+
+##### Negative binomial with phylogenetic information
+
+In order to also include the very popular distance measures UniFrac and weighted UniFrac, we also generate data with the negative binomial and Dirichlet multinomial taking into account phylogenetic structure. We base our strategy on the second strategy described by Chen _et al._ ("Associating microbiome composition with environmental
+covariates using generalized UniFrac distances", 2012). We generate random trees for the template vector of relative abundances, and modify abundances within one of the 20 clusters.
+
+```{r UniFrac, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+k = round(1/TPR) #Number of clusters
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactorPhy = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+clusters = seq_len(k)
+
+if(!file.exists(file = "RCMsim/resListPhy.RData")){
+  if(!file.exists(file = "RCMsim/datListPhy.RData")){
+    require(ape)
+    require(cluster)
+datListPhy = mclapply(mc.cores = 4, 1:reps, function(i){
+## Sample parameters
+cluSampled = sample(clusters, nPop) #Cluster to be made DA
+
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+
+randomTree = rcoal(n = p, tip.label = names(rhosSampled0)) # The random tree, use rcoal to make it ultrametric
+psclust = cutree(as.hclust(randomTree), k = k) #Split into clusters
+names(psclust) = randomTree$tip.label #Assign names
+psclust = psclust[names(rhosSampled0)] #Reorder according to the rhos
+
+#For each population, modify the abundances of a cluster of related taxa. Record the clusters that have been modified.
+rhosIDSampled = lapply(cluSampled, function(x, rhos){
+  id = x == psclust
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactorPhy
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, cluSampled = cluSampled, randomTree = randomTree)
+})
+save(datListPhy, groupFactorPhy, file = "RCMsim/datListPhy.RData")
+} else {load(file = "RCMsim/datListPhy.RData")}
+
+# Results
+ if(!file.exists("RCMsim/resListPhyRCM.RData")){
+RCMresListPhy = mclapply(mc.cores=4, datListPhy, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresListPhy, file = "RCMsim/resListPhyRCM.RData")
+  } else {load("RCMsim/resListPhyRCM.RData")}
+  listID = sapply(RCMresListPhy, is.list)
+resListPhy = otherAnalyses(RCMresListPhy[listID], unifrac = TRUE, treeList = lapply(datListPhy[listID], function(x){x$randomTree}), cores = 4 )
+IDlistPhy = lapply(datListPhy[listID], function(x){
+   taxa = lapply(seq_len(ncol(x$IDsampled)), function(y){rownames(x$rhosSampled)[as.logical(x$IDsampled[,y])]})
+   })
+resListPhyRows = lapply(resListPhy, extractRows)
+resListPhyCols = mapply(resListPhy, resListPhyRows,FUN = extractCols, SIMPLIFY = FALSE)
+save(resListPhy, resListPhyRows, resListPhyCols, groupFactorPhy, IDlistPhy, file = "RCMsim/resListPhy.RData")
+} else {load(file = "RCMsim/resListPhy.RData")}
+```
+
+```{r resListPhy sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resListPhyRows, col = groupFactorPhy)
+```
+
+```{r resListPhyEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouettePhy}"}
+plotSil(resListPhyRows, groupFactorPhy, las = 2)
+```
+
+The Unifrac distances do not seem to get any advantage from their phylogenetic distances
+
+```{r resListPhyEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:distPhy}"}
+distRatioPlot(resListPhyRows, groupFactorPhy, log = TRUE)
+```
+
+The distance ratio statistic does reveal an advantage for weighted UniFrac in this setting.
+
+```{r libSizeCorrPhy, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:libCorPhy}"}
+datListPhy = lapply(resListPhy, function(x){x$RCM$X})
+plotCor(resListPhyRows, datListPhy, dataMat = TRUE)
+```
+
+But weighted unifrac suffers from correlations with the library sizes
+
+```{r resListPhy taxaBiplot, purl = FALSE, eval = FALSE}
+#A taxon biplot
+randomScatter(resListPhyCols)
+```
+
+```{r AbCorrPhy, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCorPhy}"}
+plotCor(resListPhyCols, datListPhy, dataMat = TRUE, scoreDim = "columns")
+```
+
+```{r taxRatPhy, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRatPhy}"}
+contrPhy = contrTaxaWrap(resListPhyRows, resListPhyCols, IDlistPhy, groupFactorPhy)
+contrPlot(contrPhy, ylim = c(-4,4)) #Excluding outliers
+rm(resListPhyRows, resListPhy, datListPhy, resListPhyCols, contrPhy);gc(verbose = FALSE)
+```
+
+\clearpage
+
+#### Other distributions
+
+We also simulate datasets from other distributions than the negative binomial to see how the method behaves when its distributional assumptions are violated.
+
+##### Zero-inflated negative binomial distribution
+
+The zero-inflated negative binomial (ZINB) distribution was used by Zhang _et al._ (2016) for differential abundance testing. Our own goodness-of-fit tests indicate that for 14\% of the taxa, the ZINB provides a better fit than the regular NB
+
+```{r simZINB}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactorZINB = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+
+if(!file.exists(file = "RCMsim/resListZINB.RData")){
+load(file="/home/stijn/PhD/Biplots/Zicoef.RData")
+
+if(!file.exists(file = "RCMsim/datListZINB.RData")){
+  require(pscl)
+datListZINB = mclapply(mc.cores=1, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetasSampled = sample(thetaEst, p) 
+propSampled = expit(sample(ZIcoef, p))
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+meanMat = libSizesSampled * t(rhosSampled)
+dataMat = matrix(rzinegbin(prod(dim(meanMat)), munb = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE), pstr0 = matrix(propSampled,n,p,byrow = TRUE)),n,p)
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactorZINB
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, propSampled = propSampled)
+})
+save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
+} else {load(file = "RCMsim/datListZINB.RData")}
+
+# Results
+
+ if(!file.exists("RCMsim/resListZINBRCM.RData")){
+RCMresListZINB = mclapply(mc.cores=4, datListZINB, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresListZINB, file = "RCMsim/resListZINBRCM.RData")
+} else {load("RCMsim/resListZINBRCM.RData")}
+resListZINB = otherAnalyses(RCMresListZINB, cores = 4)
+IDlistZINB = lapply(datListZINB, function(x){
+  id = apply(x$IDsampled, 2, unique)
+  taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+  })
+save(resListZINB,groupFactorZINB, IDlistZINB, file = "RCMsim/resListZINB.RData")
+} else {load(file = "RCMsim/resListZINB.RData")}
+```
+
+```{r resListZINB sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+resListZINBRows = lapply(resListZINB, extractRows)
+randomScatter(resListZINBRows, col = groupFactorZINB)
+# In this setting, the RCM really appears to outperform the other methods
+
+# par(mfrow = c(ZINB,4), mar = c(3,3,3,3))
+# ID = sample(size=1, seq_along(resListZINB))
+# obj = resListZINBRows[[ID]]
+# lapply(names(obj),function(x){plot(obj[[x]][,c(1,3)], col = groupFactorZINB, main=x, xlab = "Dim 1",ylab = "Dim 3", pty = "s")})
+# rm(ID, obj)
+# par(mfrow = c(1,1))
+```
+
+```{r resListZINBEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette1}"}
+plotSil(resListZINBRows, groupFactorZINB)
+```
+
+The RC(M) method has the highest silhouettes, PCoA is second best but far below.
+
+```{r resListZINBEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:dist1}"}
+distRatioPlot(resListZINBRows, groupFactorZINB)
+```
+
+RCM comes out as best, CA as worst
+
+```{r libSizeCorrZINB, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:libCor1}"}
+datListZINB = lapply(resListZINB, function(x){x$RCM$X})
+plotCor(resListZINBRows, datListZINB)
+```
+
+```{r AbCorrZINB, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCorZINB}"}
+resListZINBCols = mapply(resListZINB, resListZINBRows,FUN = extractCols, SIMPLIFY = FALSE)
+plotCor(resListZINBCols, datListZINB, dataMat = TRUE, scoreDim = "columns")
+```
+
+CA suffers from correlation with relative abundances, but not on average.
+
+```{r taxRatZINB, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRatZINB}"}
+contrZINB = contrTaxaWrap(resListZINBRows, resListZINBCols, IDlistZINB, groupFactorZINB)
+contrPlot(contrZINB)
+rm(resListZINBRows, resListZINB, datListZINB, resListZINBCols, contrZINB);gc(verbose = FALSE)
+```
+
+Also here RCM and CA perform best in identifying taxa thanks to their explicit taxon scores.
+
+\clearpage
+
+##### Dirichlet-multinomial
+
+The use of the Dirichlet multinomial for microbiome data was proposed by La Rosa _et al._ (2012). Although it is very restrictive in terms of variance and covariance structures, we include it here because of its relative popularity. Also Chen _et al._ (2012) use it to simulate data for a visualization.
+
+```{r simDM, purl = FALSE}
+p = 1000 #Number of taxa
+n = 60 #Number of samples
+nPop = 4 #Number of underlying populations
+nPerPop = n/nPop #Number of samples per population
+reps = 100 #replicates
+nDim  = 3 #Number of dimensions
+TPR = 0.1
+FC = 5
+
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactorDM = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
+load("/home/stijn/PhD/American Gut/AGdm.RData")
+
+if(!file.exists(file = "RCMsim/datListDM.RData")){
+  require(HMP)
+datListDM = mclapply(mc.cores = 1, 1:reps, function(i){
+## Sample parameters
+rhosSampled0 = sample(rhoEst, p)
+rhosSampled0 = rhosSampled0/sum(rhosSampled0)
+#For each population, modify a fraction TPR of the abundances (compensation is not so badly needed here, we do not test individual species). Record the taxa that have been modified.
+rhosIDSampled = lapply(1:nPop, function(x, rhos){
+  id = sample(seq_len(p), round(TPR*p))
+  rhos[id] = rhos[id]*FC
+  cbind(rhos = rhos/sum(rhos), id = id) #renormalize
+}, rhos = rhosSampled0)
+
+rhosSampled00 = sapply(rhosIDSampled, function(x){x[, "rhos"]})
+rhosSampled = rhosSampled00[,groupInd]
+IDsampled = sapply(rhosIDSampled, function(x){x[, "id"]})
+
+thetaDM = AGdm$theta
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
+
+## Create dataset
+dataMat = t(sapply(seq_along(libSizesSampled),function(i){Dirichlet.multinomial(libSizesSampled[i], shape = rhosSampled[,i]*(1-thetaDM)/thetaDM)}))
+colnames(dataMat) = rownames(rhosSampled) 
+rownames(dataMat) = groupFactorDM
+dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+})
+save(datListDM,groupFactorDM, file = "RCMsim/datListDM.RData")
+} else {load(file = "RCMsim/datListDM.RData")}
+
+# Results
+if(!file.exists(file = "RCMsim/resListDM.RData")){
+  if(!file.exists("RCMsim/resListDMRCM.RData")){
+RCMresListDM = mclapply(mc.cores=4, datListDM, function(y){
+  RCM(y$dataMat, k = nDim, distribution = "NB")
+  })
+save(RCMresListDM, file = "RCMsim/resListDMRCM.RData")
+  } else {load("RCMsim/resListDMRCM.RData")}
+  listID = sapply(RCMresListDM, class)=="RCM"
+RCMresListDM = Filter(RCMresListDM, f = is.list)
+resListDM = otherAnalyses(RCMresListDM, cores = 4)
+IDlistDM = lapply( datListDM[listID], function(x){
+  id = apply(x$IDsampled, 2, unique)
+  taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
+  })
+resListDMRows = lapply(resListDM, extractRows)
+resListDMCols = mapply(resListDM, resListDMRows, FUN=extractCols, SIMPLIFY=FALSE)
+save(resListDM, resListDMRows, resListDMCols, groupFactorDM, IDlistDM, file = "RCMsim/resListDM.RData")
+} else {load(file = "RCMsim/resListDM.RData")}
+```
+
+Only 68% fits
+
+```{r resListDM sampleBiplot, purl = FALSE, include = FALSE, eval = FALSE}
+#A sample biplot
+
+randomScatter(resListDMRows, col = groupFactorDM)
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
+#randomScatter(resListDMRows, Dim = c(1,3))
+```
+
+```{r libSizeCorrDM, purl = FALSE, fig.cap = "Correlations of row scores with library sizes, results of 1DMDM simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:libCor1}"}
+gc(verbose = FALSE)
+datListDM = lapply(resListDM, function(x){x$RCM$X})
+plotCor(resListDMRows, datListDM, scoreDim = "rows")
+```
+
+Hellinger distance, CoDa ana Bray-Curtis on absolut abundances show correlations with library sizes.
+
+The taxa
+
+```{r resListDMcols sampleBiplot, purl = FALSE, include = FALSE, eval = FALSE}
+#A sample biplot
+randomScatter(resListDMCols)
+# CA has outliers, CoDa and Hellinger reveal weird patterns
+#randomScatter(resListDMCols, Dim = c(1,3))
+```
+
+CoDa and Hellinger distances have unacceptable correlatios with the library sizes
+
+```{r AbsCorrDM, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1DMDM simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:libCor1}"}
+plotCor(resListDMCols, lapply(resListDM, function(x){x$RCM$X}), scoreDim = "columns", dataMat = TRUE)
+```
+
+```{r resListDMEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette1}"}
+plotSil(resListDMRows, groupFactorDM)
+```
+
+JSD and Bray-Curtis have the best performance in this setting in terms of silhouette
+
+```{r resListDMEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means.  \\label{supfig:dist1}"}
+distRatioPlot(resListDMRows, groupFactorDM)
+```
+
+RCM comes out as best, together with JSD and Bray-Curtis
+
+```{r AbCorrDM, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCorDM}"}
+resListDMCols = mapply(resListDM, resListDMRows,FUN = extractCols, SIMPLIFY = FALSE)
+plotCor(resListDMCols, datListDM, dataMat = TRUE, scoreDim = "columns")
+```
+
+CA suffers from correlation with relative abundances, but not on average.
+
+```{r taxRatDM, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRatDM}"}
+contrDM = contrTaxaWrap(resListDMRows, resListDMCols, IDlistDM, groupFactorDM)
+contrPlot(contrDM)
+rm(resListDMRows, resListDM, datListDM, resListDMCols, contrDM);gc(verbose = FALSE)
+```
+
+In this setting none of the methods does really well at identifying causal taxa
+
+\clearpage
+
+##### Nonparametric simulation
+
+An objective simulation approach would be to use non-parametric resampling from a true dataset, as in _SimSeq_. For this we need microbiome datasets with covariates known to be related to bacterial abundance, preferably with more than two groups. The Zeller data is one such dataset, with the cancer variable expected to be related to relative abundance and having three levels (Normal, small adenoma and cancer). For the American Gut data we can use IBD. For the Turnbaugh lean and obese twins dataset we can use health status (lean, overweight or obese), even though we have only 18 samples. For the Turnbaugh humanized mouse dataset we could use "Diet", with levels "BK" and "Western".
+
+We generate data as follows
+
+1. Select a covariate and test for differential abundance using WMW/Kruskal-Wallis
+2. Calculate local false discovery rates (lfdr)
+3. Sample non DA taxa with equal weights from all taxa
+4. Sample DA taxa from all taxa with weights equal to 1-lfdr
+5. Sample counts from non DA taxa from samples with the most frequent covariate level
+6. Sample counts from DA taxa also from the samples with other covariate levels, and correct for differences in library sizes. This maintains the same distribution of covariate levels and overal data matrix size as the original dataset. 
+
+```{r simSeqAnalysis, purl = FALSE}
+if(!file.exists(file = "SimSeqTests.RData")){
+load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
+testHum = testSimSeq(HumMicePhy, "Diet")
+load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
+testTwins = testSimSeq(TurnTwins, "Status_p") # No significance
+testAG = testSimSeq(AGphylo, "IBD")
+testZeller = testSimSeq(zellerSphy, "Diagnosis")
+save(testHum, testTwins, testAG, testZeller, file = "SimSeqTests.RData")
+} else {load(file = "SimSeqTests.RData")}
+  
+  if(!file.exists(file = "SimSeqData.RData")){
+NsimSimSeq = 100
+HumSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
+  genSimSeq(testHum)
+})
+AGSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
+  genSimSeq(testAG)
+})
+ZellerSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
+  genSimSeq(testZeller)
+})
+save(HumSimSeqList, ZellerSimSeqList, AGSimSeqList, file = "SimSeqData")
+  } else {load(file = "SimSeqData.RData")}
+
+if(!file.exists("RCMsim/resListSimSeqRCM.RData")){
+RCMresListSimSeqHum = mclapply(mc.cores=4, HumSimSeqList, function(y){
+  RCM(y$data, k = nDim, distribution = "NB")
+  })
+RCMresListSimSeqAG = mclapply(mc.cores=4, AGSimSeqList, function(y){
+  RCM(y$data, k = nDim, distribution = "NB")
+  })
+RCMresListSimSeqZeller = mclapply(mc.cores=4, ZellerSimSeqList, function(y){
+  RCM(y$data, k = nDim, distribution = "NB", round = TRUE)
+  })
+save(RCMresListSimSeqHum, RCMresListSimSeqAG, RCMresListSimSeqZeller, file = "RCMsim/resListSimSeqRCM.RData")
+} else {load("RCMsim/resListSimSeqRCM.RData")}
+  
+if(!file.exists("RCMsim/resListSimSeq.RData")){
+
+    resListSimSeqHum = otherAnalyses(RCMresListSimSeqHum, cores = 4)
+  rm(RCMresListSimSeqHum);gc(verbose = FALSE)
+  IDlistHum = mapply(HumSimSeqList,resListSimSeqHum, FUN =  function(y,x, test){
+    taxa = y$DEtaxa[y$DEtaxa %in% colnames(x$RCM$X)]
+    test[taxa,]
+    }, SIMPLIFY = FALSE, MoreArgs = list(test = t(testHum$result)))
+  groupFactorHum = HumSimSeqList[[1]]$treatment
+  resListSimSeqHumRows = lapply(resListSimSeqHum, extractRows)
+  resListSimSeqHumCols = mapply(resListSimSeqHum, resListSimSeqHumRows, FUN=extractCols, SIMPLIFY=FALSE)
+  # Zeller
+  zellerID = sapply(RCMresListSimSeqZeller, class) == "RCM"
+  resListSimSeqZeller = otherAnalyses(RCMresListSimSeqZeller[zellerID], cores = 1)
+  IDlistZeller = mapply(ZellerSimSeqList[zellerID],resListSimSeqZeller, FUN =  function(y,x, test){
+    taxa = y$DEtaxa[y$DEtaxa %in% colnames(x$RCM$X)]
+    test[taxa,]
+    }, SIMPLIFY = FALSE, MoreArgs = list(test = t(testZeller$result)))
+  groupFactorZeller = ZellerSimSeqList[[1]]$treatment
+  resListSimSeqZellerRows = lapply(resListSimSeqZeller, extractRows)
+  resListSimSeqZellerCols = mapply(resListSimSeqZeller, resListSimSeqZellerRows, FUN=extractCols, SIMPLIFY=FALSE)
+save(IDlistHum, groupFactorHum, resListSimSeqHumRows, resListSimSeqHumCols, IDlistZeller, resListSimSeqZellerRows, resListSimSeqZellerCols, groupFactorZeller, file = "RCMsim/resListSimSeq.RData")
+} else {load("RCMsim/resListSimSeq.RData")}
+rm(HumSimSeqList, ZellerSimSeqList, AGSimSeqList, testHum, testTwins, testAG, testZeller);gc(verbose = FALSE)
+```
+
+```{r resListSimSeqHum sampleBiplot, purl = FALSE, include = FALSE, eval = FALSE}
+#A sample biplot
+randomScatter(resListSimSeqHumRows, col = groupFactorHum)
+# Our method and CoDa show only white noise, CA and PCoA show artificial clusters. Confounding mean and dispersion effects?
+#randomScatter(resListSimSeqHumRows, Dim = c(1,3))
+```
+
+Except for PCoA with Bray-Curtis distances and CA, all methods seem to separate the clusters rather well
+
+```{r libSizeCorrHum, purl = FALSE, fig.cap = "Correlations of sample scores with library sizes, results of non-parametric simulations based on the Turnbaugh data for the first three dimensions. Orange diamonds indicate means.\\label{supfig:libCorHum}"}
+datListHum = lapply(RCMresListSimSeqHum, function(x){x$X})
+plotCor(resListSimSeqHumRows, datListHum, scoreDim = "rows")
+```
+
+CoDa struggles with the library sizes, but also RC(M) and Hellinger seems to suffer from it slightly!
+
+The taxa
+
+```{r resListSimSeqHumcols sampleBiplot, purl = FALSE, include = FALSE, eval = FALSE}
+#A sample biplot
+randomScatter(resListSimSeqHumCols)
+```
+
+```{r AbsCorrHum, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1HumHum simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:libCor1}"}
+plotCor(resListSimSeqHumCols, datListHum, scoreDim = "columns", dataMat = TRUE)
+```
+
+Taxa scores of correspondence analysis tend to correlate with taxon abundances in some cases
+
+```{r resListSimSeqHumEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette1}"}
+plotSil(resListSimSeqHumRows, groupFactorHum)
+```
+
+In the non-parametric setting RCM achieves by far the highest silhouette!
+
+```{r resListSimSeqHumEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means.  \\label{supfig:dist1}"}
+distRatioPlot(resListSimSeqHumRows, groupFactorHum)
+```
+
+In the non-parametric setting, RCM achieves the lowest distance ratios, CA the highest
+
+```{r AbCorrHum, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCorHum}"}
+plotCor(resListSimSeqHumCols, datListHum, dataMat = TRUE, scoreDim = "columns")
+```
+
+CA suffers from correlation with relative abundances, but not on average.
+
+```{r taxRatHum, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRatHum}"}
+contrHum = contrTaxaWrap(resListSimSeqHumRows, resListSimSeqHumCols, IDlistHum, groupFactorHum, upDown = TRUE)
+contrPlot(contrHum)
+rm(resListSimSeqHumRows, RCMresListSimSeqHum, datListHum, resListSimSeqHumCols, contrHum);gc(verbose = FALSE)
+```
+
+\clearpage
+
+In the SimSeq setting neither method does really well, surprisingly here Hellinger distance and CoDa are the best performers
+
+```{r resListSimSeqZeller sampleBiplot, purl = FALSE, eval = FALSE}
+#A sample biplot
+randomScatter(resListSimSeqZellerRows, col = groupFactorZeller)
+# Clearly a tough job
+```
+
+Except for PCoA with Bray-Curtis distances and CA, all methods seem to separate the clusters rather well
+
+```{r libSizeCorrZeller, purl = FALSE, fig.cap = "Correlations of sample scores with library sizes, results of non-parametric simulations based on the Zeller data for the first three dimensions. Orange diamonds indicate means.\\label{supfig:libCorHum}"}
+datListZeller = lapply(RCMresListSimSeqZeller[sapply(RCMresListSimSeqZeller, class) == "RCM"], function(x){x$X})
+plotCor(resListSimSeqZellerRows, datListZeller, scoreDim = "rows")
+```
+
+CoDa struggles with the library sizes, but also RC(M) and Hellinger seems to suffer from it slightly!
+
+The taxa
+
+```{r resListSimSeqZellercols sampleBiplot, purl = FALSE, include = FALSE}
+#A sample biplot
+randomScatter(resListSimSeqZellerCols)
+```
+
+```{r AbsCorrZeller, purl = FALSE, fig.cap = "Correlations of column scores with average relative abundances, results of 1ZellerZeller simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:libCor1}"}
+plotCor(resListSimSeqZellerCols, datListZeller, scoreDim = "columns", dataMat = TRUE)
+```
+
+Taxa scores of correspondence analysis tend to correlate with taxon abundances in some cases
+
+```{r resListSimSeqZellerEvalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette1}"}
+plotSil(resListSimSeqZellerRows, groupFactorZeller)
+```
+
+In the non-parametric setting RCM achieves by far the highest silhouette!
+
+```{r resListSimSeqZellerEvaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions for simulation with the Dirichlet-multinomial distribution with 10% DA taxa. Orange diamonds indicate means.  \\label{supfig:dist1}"}
+distRatioPlot(resListSimSeqZellerRows, groupFactorZeller)
+```
+
+In the non-parametric setting, RCM achieves the lowest distance ratios, CA the highest
+
+```{r AbCorrZeller, purl = FALSE, fig.cap = "Correlations of column scores with abundances, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. 'Control' is a negative control setting of an independent standard normal variable. \\label{supfig:abCorZeller}"}
+plotCor(resListSimSeqZellerCols, datListZeller, dataMat = TRUE, scoreDim = "columns")
+```
+
+CA suffers from correlation with relative abundances, but not on average.
+
+```{r taxRatZeller, purl = FALSE, fig.cap = "Mean ratio of signal taxa to top 50% non-signal taxa in terms of contribution to cluster separation, results of 100 simulations shown for first two dimensions for simulation with the zero-inflated negative binomial distribution with 10% DA taxa. Orange diamonds indicate means. \\label{supfig:taxRatZeller}"}
+contrZeller = contrTaxaWrap(resListSimSeqZellerRows, resListSimSeqZellerCols, IDlistZeller, groupFactorZeller, upDown = TRUE)
+contrPlot(contrZeller)
+rm(resListSimSeqZellerRows, resListSimSeqZeller, datListZeller, resListSimSeqZellerCols, contrZeller);gc(verbose = FALSE)
+```
+
+

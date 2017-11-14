@@ -7,8 +7,10 @@
 #' @param dataMat a boolean, is datList a list of data matrices? Otherwise it is a list of lists
 #' @param groupMeth a factor defining groups of the methods provided, based on their ordination paradigms
 #' @param bordercol The colour of the borders of the boxplot
+#' @param cex an expansion factor for the legend
+#' @param diamCol The color of the diamond for the mean
 #'
-plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE, groupMeth = droplevels(factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control"))), bordercol = borderCol){
+plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE, groupMeth = droplevels(factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control"))), bordercol = borderCol, cex = 1, diamCol = "orange"){
   parTmp = par(no.readonly = TRUE)
   if(!dataMat){
     datList = lapply(datList, function(x){x$dataMat})
@@ -23,22 +25,21 @@ plotCor = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRU
       "Control" = replicate(length(datList),cor(rnorm(length(margins)), margins)))}) #Include a control
 
   cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
-  par(mfrow = c(1,max(Dims)), oma = c(2,2,2,2), mar = c(6,1,3,5), pty = "m")
+  par(mfrow = c(1,max(Dims)), oma = c(2,2,2,3), mar = c(7,1,3,7.5), pty = "m")
   for (i in Dims){
     if(i==max(Dims)){
-
     }
     data = orderDF(cor0df[[i]], groupsMeth = groupMeth)
     boxplot(Correl ~ Method, main = paste(
       switch(scoreDim, "rows" = "Correlations of library sizes \n with row scores of dimension",
              "columns" = "Correlations of species abundances \n with column scores of dimension"
       ),i),
-      data = data, ylim = c(-1,1), ylab = "Pearson correlation", col = groupMeth, las = 2)
+      data = data, ylim = c(-1,1), ylab = "Pearson correlation", col = groupMeth, las = 2, cex.main = 0.75)
     meansCor = tapply(data$Correl, data$Method, mean)
-    points(meansCor, col="red", pch=18, cex = 1.6)
+    points(meansCor, col = diamCol, pch=18, cex = 1.6)
     abline(h=0, lty = "dashed")
     if(i==max(Dims)){
-      addLegend(groupMeth = groupMeth, x = length(unique(data$Method))+1, cex = 0.6)
+      addLegend(groupMeth = groupMeth, x = length(unique(data$Method))+1, cex = cex)
     }
   }
 

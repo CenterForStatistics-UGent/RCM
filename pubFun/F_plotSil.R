@@ -12,7 +12,7 @@ plotSil = function(resListRows, groupFactor, method = NULL,
                    groupMeth = droplevels(factor(as.character(groupsMeth[names(groupsMeth) %in% names(resListRows[[1]])]), levels = levels(groupsMeth))),
                    las = 2, diamColor = "orange", bordercol = borderCol,...){
   parTmp = par(no.readonly = TRUE)
-  par(mfrow=  c(1,1))
+  par(mfrow=  c(1,1), mar = c(10,4,4,6))
   meanSil1 = sapply(resListRows, function(x){
     colMeans(sapply(x, silhouette, clusters = groupFactor))
   })
