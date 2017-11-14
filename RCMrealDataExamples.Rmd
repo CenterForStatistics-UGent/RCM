@@ -267,9 +267,9 @@ turntwinsRCm = RCM(TurnTwins, k=3)
 #turntwinsRCmConstr = RCM(TurnTwins, k=3, covariates = c("Family_p","Status_p")) #Not enough variables for constrained analysis
 save(turntwinsRCm, file = "turntwinsRCm.RData")
 } else {load("turntwinsRCm.RData")}
-plot.RCM(turntwinsRCm, colour = "Family_p")
-plot.RCM(turntwinsRCm, colour = "twin")
-plot.RCM(turntwinsRCm, colour = "Status_p")
+plot.RCM(turntwinsRCm, samColour = "Family_p")
+plot.RCM(turntwinsRCm, samColour = "twin")
+plot.RCM(turntwinsRCm, samColour = "Status_p")
 rm(turntwinsRCm)
 ```
 

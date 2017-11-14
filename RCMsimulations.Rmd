@@ -10,7 +10,7 @@ output:
 ```{r setup, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_knit$set(root.dir = WD)
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
+knitr::opts_chunk$set(cache = FALSE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 # The required package list:
 reqpkg <- c("phyloseq", "parallel", "ggplot2", "vegan", "reshape2") #"DirFactor","MASS",
 # Load all required packages and show version
@@ -302,28 +302,26 @@ save(RCMresList1, file = "RCMsim/resList1RCM.RData")
 resList1 = otherAnalyses(RCMresList1, cores = 4)
 resList1Rows = lapply(resList1, extractRows)
 resList1Cols = mapply(resList1, resList1Rows,FUN = extractCols, SIMPLIFY = FALSE)
-save(resList1,resList1Rows, resList1Cols, groupFactor1, file = "RCMsim/resList1.RData")
+SilDF1 = makeSilDf(resList1Rows, groupFactor1)
+datList1 = lapply(resList1, function(x){x$RCM$X})
+CorDF1 = makeCorDf(resList1Rows, datList1, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
+distDF1 = makeDistDf(resList1Rows, groupFactor1)
+rm(resList1Rows, resList1, datList1, resList1Cols);gc(verbose = FALSE)
+save(CorDF1, SilDF1, distDF1, file = "RCMsim/resList1.RData")
 } else {load(file = "RCMsim/resList1.RData")}
 ```
 
-```{r resList1 sampleBiplotE, purl = FALSE, include = FALSE}
-#A sample biplot
-randomScatter(resList1Rows)
-# It seems like our method performs better, only two groups do not get separated very well. But then again this is under the model assumption of the NB, although one might expect the other methods to indentify the clusters. Jensen Shannon divergence also performs rather well, separating all (but one) clusters in two dimensions. Look in first and third dimension. Our method gets outperformed by PCoA according to this statistic. Would this be because PCoA focusses explicitly on samplewise distances?
-```
-
 ```{r libSizeCorr1, purl = FALSE, fig.cap = "Correlations of sample scores with library sizes, results of 100 parametric simulations with unrelated taxon distributions for 4 groups. Orange diamonds indicate means. The control group represents correlations of randomly drawn standard normal variables with the library sizes. \\label{supfig:libCor1}"}
-datList1 = lapply(resList1, function(x){x$RCM$X})
-plotCor(resList1Rows, datList1, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
+plotCor(CorDF1)
 ```
 
 ```{r resList1Evalsil, purl = FALSE, fig.cap = "Mean silhouettes by method, results of 100 simulations shown for first two dimensions. Orange diamonds indicate means. A silhouette of 1 point to perfect classification, 0 to borderline cases, -1 to perfect wrong classification \\label{supfig:silhouette1}"}
-plotSil(resList1Rows, groupFactor1)
+plotSil(SilDF1)
 ```
 
 ```{r resList1Evaldist, purl = FALSE, fig.cap = "Mean ratios of within to overal distance by method, results of 100 simulations shown for first two dimensions. Orange diamonds indicate means. \\label{supfig:dist1}"}
-distRatioPlot(resList1Rows, groupFactor1)
-rm(resList1Rows, resList1, datList1, resList1Cols);gc(verbose = FALSE)
+distRatioPlot(distDF1)
+
 ```
 
 The library sizes of the CoDa approach do negatively correlate with the row scores, confirming our concern about the heteroscedasticity.
