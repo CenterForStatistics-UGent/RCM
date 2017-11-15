@@ -25,13 +25,17 @@ testSimSeq = function(physeq, variable, filterTaxa = FALSE){
   physeq = prune_samples(x = physeq, !is.na(treatment))
   treatment = factor(get_variable(physeq, variable))
   countMat = if(taxa_are_rows(physeq)){t(otu_table(physeq)@.Data)} else {otu_table(physeq)@.Data}
+  libSizes = rowSums(countMat)
+  overSum = sum(countMat)
   pvals = apply(countMat, 2, function(x){kruskal.test(x, g=treatment)$p.value})
   result = apply(countMat, 2, function(x){
-    avRank = length(x)/2 + 0.5
-    rankX = rank(x)
-    sapply(levels(treatment),avRank = avRank, function(y, avRank){
-      ifelse(mean(rankX[treatment==y])>avRank, "up","down")
-    })}) #Was taxon up or down regulated in group 1 (first level of treatment?
+    # avRank = length(x)/2 + 0.5
+    # rankX = rank(x)
+    relAbs = sum(x)/overSum
+    sapply(levels(treatment), function(y){
+      ifelse(sum(x[treatment==y])/sum(libSizes[treatment==y]) > relAbs, "up", "down")
+      #ifelse(mean(rankX[treatment==y]) > avRank, "up", "down")
+    })}) #Was taxon up or down regulated? Based on means rather than ranks
   lfdr = fdrtool(pvals, statistic = "pvalue", plot=FALSE, verbose=FALSE)$lfdr
   list(lfdr = lfdr, physeq = physeq, variable = variable, result = result)
 }
