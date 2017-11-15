@@ -35,7 +35,7 @@ testSimSeq = function(physeq, variable, filterTaxa = FALSE){
     sapply(levels(treatment), function(y){
       ifelse(sum(x[treatment==y])/sum(libSizes[treatment==y]) > relAbs, "up", "down")
       #ifelse(mean(rankX[treatment==y]) > avRank, "up", "down")
-    })}) #Was taxon up or down regulated? Based on means rather than ranks
+    })}) #Was taxon up or down regulated? Based on means rather than ranks. Otherwise silhouettes become negative for all methods for three level factors
   lfdr = fdrtool(pvals, statistic = "pvalue", plot=FALSE, verbose=FALSE)$lfdr
   list(lfdr = lfdr, physeq = physeq, variable = variable, result = result)
 }

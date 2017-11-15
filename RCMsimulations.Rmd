@@ -18,7 +18,7 @@ for(i in reqpkg)
 {
 #   print(i) 
 #   print(packageVersion(i))
-  library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
+  library(i, quietly = TRUE, verbose = FALSE, warn.conflicts = FALSE, character.only = TRUE)
 } 
 if(detectCores()==4) setwd(WD)
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
@@ -364,7 +364,7 @@ RCMresList2 = mclapply(mc.cores=4, datList2, function(y){
   })
 save(RCMresList2, file = "RCMsim/resList2RCM.RData")
 } else {load("RCMsim/resList2RCM.RData")}
-resList2 = otherAnalyses(RCMresList2)
+resList2 = otherAnalyses(RCMresList2, cores = 4)
 IDlist2 = lapply(datList2, function(x){
    id = apply(x$IDsampled, 2, unique)
    taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
@@ -378,7 +378,7 @@ CorDF2lib = makeCorDf(resList2Rows, datList2, scoreDim = "rows", dataMat = TRUE,
 CorDF2tax = makeCorDf(resList2Cols, datList2, scoreDim = "columns", dataMat = TRUE, groupMeth = groupsMeth)
 distDF2 = makeDistDf(resList2Rows, groupFactor2)
 contr2 = contrTaxaWrap(resList2Rows, resList2Cols, IDlist2, groupFactor2)
-rm(resList2Rows, resList2, datList2, resList2Cols);gc(verbose = FALSE)
+rm(resList2Rows, resList2, datList2, resList2Cols, IDlist2);gc(verbose = FALSE)
 save(CorDF2lib, CorDF2tax, SilDF2, distDF2, contr2, file = "RCMsim/resList2.RData")
 } else {load(file = "RCMsim/resList2.RData")}
 ```
@@ -804,6 +804,7 @@ We generate data as follows
 if(!file.exists("RCMsim/resListSimSeq.RData")){
   
   if(!file.exists(file = "SimSeqTests.RData")){
+load("/home/stijn/PhD/Simulations/data/zellerData.RData")
 load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 testHum = testSimSeq(HumMicePhy, "Diet")
 load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
@@ -824,7 +825,7 @@ AGSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
 ZellerSimSeqList = mclapply(mc.cores = 1, 1:NsimSimSeq, function(i){
   genSimSeq(testZeller)
 })
-save(HumSimSeqList, ZellerSimSeqList, AGSimSeqList, file = "SimSeqData")
+save(HumSimSeqList, ZellerSimSeqList, AGSimSeqList, file = "SimSeqData.RData")
   } else {load(file = "SimSeqData.RData")}
 
 if(!file.exists("RCMsim/resListSimSeqRCM.RData")){
@@ -855,14 +856,14 @@ SilDFHum = makeSilDf(resListSimSeqHumRows, groupFactorHum)
 CorDFHumlib = makeCorDf(resListSimSeqHumRows, datListHum, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
 CorDFHumtax = makeCorDf(resListSimSeqHumCols, datListHum, scoreDim = "columns", dataMat = TRUE, groupMeth = groupsMeth)
 distDFHum = makeDistDf(resListSimSeqHumRows, groupFactorHum)
-contrHum = contrTaxaWrap(resListSimSeqHumRows, resListSimSeqHumCols, IDlistHum, groupFactorHum)
+contrHum = contrTaxaWrap(resListSimSeqHumRows, resListSimSeqHumCols, IDlistHum, groupFactorHum, upDown = TRUE)
 rm(resListSimSeqHumRows, resListHum, datListHum, resListSimSeqHumCols);gc(verbose = FALSE)
 
 # Zeller
 zellerID = sapply(RCMresListSimSeqZeller, class) == "RCM"
 resListSimSeqZeller = otherAnalyses(RCMresListSimSeqZeller[zellerID], cores = 1)
-IDlistZeller = mapply(ZellerSimSeqList[zellerID],resListSimSeqZeller, FUN =  function(y,x, test){
-    taxa = y$DEtaxa[y$DEtaxa %in% colnames(x$RCM$X)]
+IDlistZeller = mapply(ZellerSimSeqList[zellerID],RCMresListSimSeqZeller[zellerID], FUN =  function(y,x, test){
+    taxa = y$DEtaxa[y$DEtaxa %in% colnames(x$X)]
     test[taxa,]
     }, SIMPLIFY = FALSE, MoreArgs = list(test = t(testZeller$result)))
 groupFactorZeller = ZellerSimSeqList[[1]]$treatment
@@ -873,7 +874,7 @@ SilDFZeller = makeSilDf(resListSimSeqZellerRows, groupFactorZeller)
 CorDFZellerlib = makeCorDf(resListSimSeqZellerRows, datListZeller, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
 CorDFZellertax = makeCorDf(resListSimSeqZellerCols, datListZeller, scoreDim = "columns", dataMat = TRUE, groupMeth = groupsMeth)
 distDFZeller = makeDistDf(resListSimSeqZellerRows, groupFactorZeller)
-contrZeller = contrTaxaWrap(resListSimSeqZellerRows, resListSimSeqZellerCols, IDlistZeller, groupFactorZeller)
+contrZeller = contrTaxaWrap(resListSimSeqZellerRows, resListSimSeqZellerCols, IDlistZeller, groupFactorZeller, upDown = TRUE)
 rm(resListSimSeqZellerRows, resListZeller, datListZeller, resListSimSeqZellerCols);gc(verbose = FALSE)
 
 save(SilDFHum, CorDFHumlib, CorDFHumtax, distDFHum, contrHum, SilDFZeller, CorDFZellerlib, CorDFZellertax, distDFZeller, contrZeller, file = "RCMsim/resListSimSeq.RData")
@@ -885,6 +886,8 @@ save(SilDFHum, CorDFHumlib, CorDFHumtax, distDFHum, contrHum, SilDFZeller, CorDF
 ## Correlations with library sizes
 
 Library sizes are considered to be technical artefacts, and thus should not affect the ordination, which is meant to display only biological signal. To verify this we calculate the correlations of the observed library sizes with every set of sample scores and compare this with the correlation with a random standard normal variable.
+
+### Parametric simulation
 
 ```{r libCor0, fig.cap = "Correlations of sample scores and random standard normal control variable with library sizes, results of 100 simulations with the negative binomial under H0 in the first three dimensions. Orange diamonds indicate means.\\label{supfig:libCor0}"}
 plotCor(CorDF0lib)
@@ -922,10 +925,150 @@ plotCor(CorDFDMlib)
 plotCor(CorDFZINBlib)
 ```
 
+\clearpage
+
+### Non-parametric simulation
+
 ```{r libCorHum, fig.cap = "Correlations of sample scores and random standard normal control variable with library sizes, results of 100 non-parametric simulations based on the Turnbaugh dataset in the first three dimensions. Orange diamonds indicate means.\\label{supfig:libCorHum}"}
 plotCor(CorDFHumlib)
 ```
 
 ```{r libCorZeller, fig.cap = "Correlations of sample scores and random standard normal control variable with library sizes, results of 100 non-parametric simulations based on the Zeller dataset in the first three dimensions. Orange diamonds indicate means.\\label{supfig:libCorZeller}"}
 plotCor(CorDFZellerlib)
+```
+
+\clearpage
+
+## Sample separatation
+
+### Silhouette
+
+#### Parametric simulation
+
+```{r sil1, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 unrelated sample groups. Orange diamonds indicate means.\\label{supfig:sil1}"}
+plotSil(SilDF1)
+```
+
+```{r sil2, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:sil2}"}
+plotSil(SilDF2)
+```
+
+```{r sil3, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and differences in library sizes in each group. Orange diamonds indicate means.\\label{supfig:sil3}"}
+plotSil(SilDF3)
+```
+
+```{r sil5, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa. Orange diamonds indicate means.\\label{supfig:sil5}"}
+plotSil(SilDF5)
+```
+
+```{r silPhy, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa. Orange diamonds indicate means.\\label{supfig:silPhy}"}
+plotSil(SilDFPhy)
+```
+
+```{r silDM, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the Dirichlet multinomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:silDM}"}
+plotSil(SilDFDM)
+```
+
+```{r silZINB, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the zero-inflated negative binomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:silZINB}"}
+plotSil(SilDFZINB)
+```
+
+\clearpage
+
+#### Non-parametric simulation
+
+```{r silHum, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 non-parametric simulations based on the Turnbaugh data. Orange diamonds indicate means.\\label{supfig:silHum}"}
+plotSil(SilDFHum)
+```
+
+```{r silZeller, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 non-parametric simulations based on the Zeller data. Orange diamonds indicate means.\\label{supfig:silZeller}"}
+plotSil(SilDFZeller)
+```
+
+\clearpage
+
+### Between-overall distance ratio
+
+#### Parametric simulation
+
+```{r dist1, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 unrelated sample groups. Orange diamonds indicate means.\\label{supfig:dist1}"}
+distRatioPlot(distDF1)
+```
+
+```{r dist2, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:dist2}"}
+distRatioPlot(distDF2)
+```
+
+```{r dist3, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and differences in library sizes in each group. Orange diamonds indicate means.\\label{supfig:dist3}"}
+distRatioPlot(distDF3)
+```
+
+```{r dist5, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa. Orange diamonds indicate means.\\label{supfig:dist5}"}
+distRatioPlot(distDF5)
+```
+
+```{r distPhy, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa. Orange diamonds indicate means. DPCoA and weighted Unifrac clearly profit from using the phylogenetic information\\label{supfig:distPhy}"}
+distRatioPlot(distDFPhy)
+```
+
+```{r distDM, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the Dirichlet multinomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:distDM}"}
+distRatioPlot(distDFDM)
+```
+
+```{r distZINB, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the zero-inflated negative binomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:distZINB}"}
+distRatioPlot(distDFZINB)
+```
+
+\clearpage
+
+#### Non-parametric simulation
+
+```{r distHum, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 non-parametric simulations based on the Turnbaugh data. Orange diamonds indicate means.\\label{supfig:distHum}"}
+distRatioPlot(distDFHum)
+```
+
+```{r distZeller, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 non-parametric simulations based on the Zeller data. Orange diamonds indicate means.\\label{supfig:distZeller}"}
+distRatioPlot(distDFZeller)
+```
+
+\clearpage
+
+## Taxon identification
+
+#### Parametric simulation
+
+```{r contr2, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:contr2}"}
+contrPlot(contr2)
+```
+
+```{r contr3, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and differences in library sizes in each group. Orange diamonds indicate means.\\label{supfig:contr3}"}
+contrPlot(contr3)
+```
+
+```{r contr5, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa. Orange diamonds indicate means.\\label{supfig:contr5}"}
+contrPlot(contr5)
+```
+
+```{r contrPhy, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa. Orange diamonds indicate means. DPCoA and weighted Unifrac clearly profit from using the phylogenetic information\\label{supfig:contrPhy}"}
+contrPlot(contrPhy)
+```
+
+```{r contrDM, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 simulations with the Dirichlet multinomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:contrDM}"}
+contrPlot(contrDM)
+```
+
+```{r contrZINB, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 simulations with the zero-inflated negative binomial under H1 with 4 related sample groups with 10% DA taxa. Orange diamonds indicate means.\\label{supfig:contrZINB}"}
+contrPlot(contrZINB)
+```
+
+\clearpage
+
+#### Non-parametric simulation
+
+```{r contrHum, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 non-parametric simulations based on the Turnbaugh data. Orange diamonds indicate means.\\label{supfig:contrHum}"}
+contrPlot(contrHum)
+```
+
+```{r contrZeller, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 non-parametric simulations based on the Zeller data. Orange diamonds indicate means.\\label{supfig:contrZeller}"}
+contrPlot(contrZeller)
 ```

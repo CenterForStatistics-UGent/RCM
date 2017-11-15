@@ -12,7 +12,7 @@ plotSil = function(silDF, groupMeth = droplevels(groupsMeth[factorMeth %in% leve
   par(mfrow=  c(1,1), mar = c(10,4,4,6))
   boxplot(Silhouette~Method, main = "Mean silhouettes per Monte Carlo simulation by method", data = silDF, col = groupMeth, las = las, border = bordercol, ...)
   meansSil = tapply(silDF$Silhouette, silDF$Method, mean)
-  points(meansSil, col=diamColor, pch=18, cex = 1.6)
+  points(meansSil, col = diamColor, pch = 18, cex = 1.6)
   abline(h=0, lty = "dashed")
   addLegend(groupMeth = groupMeth, x = length(unique(silDF$Method))+1, yloc = 0.5)
   par(parTmp)

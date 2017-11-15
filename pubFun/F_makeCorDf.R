@@ -13,14 +13,13 @@ makeCorDf = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = T
   if(!dataMat){
     datList = lapply(datList, function(x){x$dataMat})
   }
-  margins = switch(scoreDim, "rows" = rowSums(datList[[1]]), "columns" = colSums(datList[[1]]))
   cor0 = lapply(Dims, function(Dim){
-    rbind(
       mapply(scores, datList, FUN = function(x,z){
         margins = switch(scoreDim, "rows" = rowSums(z), "columns" = colSums(z))
-        sapply(x, function(y){libCor(y, margins = margins, Dim = Dim)})
-      }, SIMPLIFY = TRUE),
-      "Control" = replicate(length(datList),cor(rnorm(length(margins)), margins)))}) #Include a control
+        x$Control = matrix(rnorm(length(margins)), length(margins), length(Dims))
+        sapply(x , function(y){libCor(y, margins = margins, Dim = Dim)}) #Include a control
+      }, SIMPLIFY = TRUE)
+      })
 
   cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
   cor0df

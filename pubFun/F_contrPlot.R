@@ -9,17 +9,12 @@
 #' @param bordercol The colour of the borders of the boxplot
 #' @param yloc the y-coordinate for the legend
 #'
-#' @return invisible(), plots the boxplot
-contrPlot = function(contr, method = NULL, las = 2, expFac = 1.2, groupMeth = droplevels(factor(as.character(groupsMeth[names(groupsMeth) %in% names(contr)]))), ylim = c(0,max(sapply(contr, quantile, 0.95, na.rm = TRUE))), diamCol = "orange", bordercol = borderCol, yloc = 4,...) {
+contrPlot = function(contr, las = 2, expFac = 1.2, groupMeth = droplevels(groupsMeth[factorMeth %in% levels(contr$Method)]), ylim = c(0,max(quantile(contr$contrRatio, 0.95, na.rm = TRUE))), diamCol = "orange", bordercol = borderCol, yloc = 4,...) {
   parTmp = par(no.readonly = TRUE)
   par(mfrow=  c(1,1), mar = c(10,2,4,6))
-  moltenContr = orderDF(melt(contr, variable.name = "Method", value.name = "contrRatio", id.vars = NULL), groupsMeth = groupMeth)
-  if(!is.null(method)){
-    moltenContr = droplevels(subset(moltenContr, moltenContr$Method %in% method))
-  }
-  meansDist = tapply(moltenContr$contrRatio, moltenContr$Method, mean, na.rm = TRUE)
+  meansDist = tapply(contr$contrRatio, contr$Method, mean, na.rm = TRUE)
   at = seq_along(meansDist)*expFac
-  boxplot(contrRatio~Method, main = "Mean contribution of DA taxa relative to \n the 50% most contributing non-DA taxa by method", data = moltenContr, ylab = "Mean contribution ratio", col = groupMeth, las = las, at = at, ylim = ylim,border = bordercol,...)
+  boxplot(contrRatio~Method, main = "Mean contribution of DA taxa relative to \n the 50% most contributing non-DA taxa by method", data = contr, ylab = "Mean contribution ratio", col = groupMeth, las = las, at = at, ylim = ylim, border = bordercol,...)
   points(y = meansDist, x = at, col = diamCol, pch=18, cex = 1.6)
   abline(h=1, lty = "dashed")
   addLegend(groupMeth = groupMeth, expFac = expFac, yloc = quantile(meansDist, probs = 0.75))

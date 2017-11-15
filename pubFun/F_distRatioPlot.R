@@ -10,11 +10,10 @@
 distRatioPlot = function(distDF, groupMeth = droplevels(groupsMeth[factorMeth %in% levels(distDF$Method)]), log = FALSE, las = 2, diamCol = "orange",...) {
   parTmp = par(no.readonly = TRUE)
   par(mfrow=  c(1,1), mar = c(8,4,4,4))
-  boxplot(DistanceRatio~Method, main = "Mean ratios of overal to within distance by method", data = distDF, col = groupMeth, ylim = if(log) NULL else c(min(tapply(distDF$DistanceRatio, distDF$Method, quantile, 0.05, na.rm = TRUE)),max(tapply(distDF$DistanceRatio, distDF$Method, quantile, 0.95, na.rm = TRUE))), las = las,log = ifelse(log,"y",""),...)
+  boxplot(DistanceRatio~Method, main = "Mean ratios of overal to within distance by method", data = distDF, col = groupMeth, ylim = if(log) NULL else c(min(c(0.9,tapply(distDF$DistanceRatio, distDF$Method, quantile, 0.05, na.rm = TRUE))),max(tapply(distDF$DistanceRatio, distDF$Method, quantile, 0.95, na.rm = TRUE))), las = las,log = ifelse(log,"y",""),...)
   meansDist = tapply(distDF$DistanceRatio, distDF$Method, mean)
   points(meansDist, col = diamCol, pch = 18, cex = 1.6)
   abline(h=1, lty = "dashed")
-  addLegend(groupMeth = groupMeth, yloc = 5)
+  addLegend(groupMeth = groupMeth, yloc = quantile(distDF$DistanceRatio, 0.95))
   par(parTmp)
 }
-#factor(as.character(groupsMeth[names(groupsMeth) %in% levels(distDF$Method)]), levels = levels(groupsMeth))
