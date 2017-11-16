@@ -33,6 +33,7 @@ extractCoord = function(RCM, Dim = c(1,2)){
         end1 = origin1 + slope1
         end2 = origin2 + slope2
       })
+       rownames(dataTax) = colnames(RCM$X)
     } else if (RCM$responseFun == "quadratic"){
       dataTax = data.frame(
         apply(RCM$NB_params[c(2,3),,Dim],c(2,3), function(x){
@@ -56,6 +57,7 @@ extractCoord = function(RCM, Dim = c(1,2)){
       dataTax[, c("peak1","peak2")] = rowMultiply(dataTax[, c("peak1","peak2")], apply(dataTax[, c("end1","end2")],2,function(x){max(abs(x))})/apply(dataTax[, c("peak1","peak2")], 2,max))
       # dataTax[, c("peak1","peak2")] = apply(dataTax[, c("peak1","peak2")], c(1,2), max, 0.0075) # Make sure a line always appears
       dataTax = cbind(dataTax, dataEllipse)
+      rownames(dataTax) = colnames(RCM$X)
 
     } else if(RCM$responseFun  == "nonparametric"){ #For non-parametric response function we cannot plot the taxa
       dataTax = NULL
@@ -65,8 +67,9 @@ extractCoord = function(RCM, Dim = c(1,2)){
   } else { #If not constrained
     dataTax = data.frame(cbind(t(RCM$cMat[Dim,]),0,0))
     names(dataTax) = c("end1","end2", "origin1","origin2")
+    rownames(dataTax) = colnames(RCM$X)
   }
-rownames(dataTax) = colnames(RCM$X)
+
 
   #Variables
   if(!constrained) {dataVar =NULL

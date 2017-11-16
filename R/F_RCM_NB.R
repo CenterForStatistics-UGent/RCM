@@ -404,6 +404,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   } else { #If covariates provided, do a constrained analysis
 
     d = ncol(covariates)
+    require(vegan)
     CCA = cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
     alpha = matrix(0,d,k)
     alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,1:k] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm

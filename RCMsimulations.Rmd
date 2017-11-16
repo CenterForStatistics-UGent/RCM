@@ -442,10 +442,11 @@ RCMresList3 = mclapply(mc.cores=4, datList3, function(y){
   })
 save(RCMresList3, file = "RCMsim/resList3RCM.RData")
 } else {load("RCMsim/resList3RCM.RData")}
-resList3 = otherAnalyses(RCMresList3)
+resList3 = otherAnalyses(RCMresList3, cores = 4)
+
 IDlist3 = lapply(datList3, function(x){
-   id = apply(x$IDsampled, 3, unique)
-   taxa = apply(id, 3, function(y){rownames(x$rhosSampled)[y]})
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
    })
 resList3Rows = lapply(resList3, extractRows)
 resList3Cols = mapply(resList3, resList3Rows,FUN = extractCols, SIMPLIFY = FALSE)
@@ -522,8 +523,8 @@ save(RCMresList5, file = "RCMsim/resList5RCM.RData")
 } else {load("RCMsim/resList5RCM.RData")}
 resList5 = otherAnalyses(RCMresList5)
 IDlist5 = lapply(datList5, function(x){
-   id = apply(x$IDsampled, 5, unique)
-   taxa = apply(id, 5, function(y){rownames(x$rhosSampled)[y]})
+   id = apply(x$IDsampled, 2, unique)
+   taxa = apply(id, 2, function(y){rownames(x$rhosSampled)[y]})
    })
 resList5Rows = lapply(resList5, extractRows)
 resList5Cols = mapply(resList5, resList5Rows,FUN = extractCols, SIMPLIFY = FALSE)
@@ -1069,6 +1070,6 @@ contrPlot(contrZINB)
 contrPlot(contrHum)
 ```
 
-```{r contrZeller, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 non-parametric simulations based on the Zeller data. Orange diamonds indicate means.\\label{supfig:contrZeller}"}
+```{r contrZeller, fig.cap = "Boxplots of ratios of DA taxa and NDA taxa contributions to separations of the clusters in the first three dimensions by ordination method for 100 non-parametric simulations based on the Zeller data. Orange diamonds indicate means.\\label{supfig:contrZeller}", eval = FALSE}
 contrPlot(contrZeller)
 ```

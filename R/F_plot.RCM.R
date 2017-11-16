@@ -201,7 +201,7 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
       dataTax$taxCol = Palette[c(taxCol[id])]
     } else if(taxCol=="Deviance"){
       dataTax$taxCol = colSums(getDevianceRes(RCMfit, Dim)^2)
-    } else if(taxCol %in% colnames(tax_table(RCMfit$physeq))){
+    } else if(taxCol %in% colnames(tax_table(RCMfit$physeq, errorIfNULL = FALSE))){
       dataTax$taxCol = tax_table(RCMfit$physeq)[, taxCol]
       mostCommon = names(sort(table(dataTax$taxCol), decreasing = TRUE)[seq_len(nPhyl)])
       dataTax$taxCol[(!dataTax$taxCol %in% mostCommon) | (dataTax$taxCol %in% phylOther)] = "Other"
