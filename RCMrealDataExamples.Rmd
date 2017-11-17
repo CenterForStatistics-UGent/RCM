@@ -13,7 +13,7 @@ knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FA
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 # The required package list:
-reqpkg <- c("phyloseq", "ggplot2", "reshape2")
+reqpkg <- c("phyloseq", "ggplot2", "reshape2", "parallel")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -21,7 +21,6 @@ for(i in reqpkg)
 #   print(packageVersion(i))
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
-if(detectCores()==4) setwd(WD)
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = palette()
 funFiles = dir("R")
@@ -119,11 +118,11 @@ names(zellerRCM) = zellers
 # sapply(zellerRCM,function(x){x$iter})
 ```
 
-```{r plotZellerSphyDiagnosis, purl = FALSE, eval = FALSE}
+```{r plotZellerSphyDiagnosis, purl = FALSE}
 plot.RCM(zellerSphyRCM, samColour = "Diagnosis", samShape = "Country")
 ```
 
-```{r plotZellerMphy, purl = FALSE, eval = FALSE}
+```{r plotZellerMphy, purl = FALSE }
 plot.RCM(zellerMphyRCM, samColour = "Diagnosis")
 ```
 
@@ -207,9 +206,9 @@ plot.RCM(HumMiceRCM, samColour = "Time", samShape = "Generation_p")
 
 Also the older group of generation 1 mice is different, it separates in the second dimension.
 
-##### Kostic colorectal cancer
+# Kostic colorectal cancer
 
-This is a study on the microbiome of colorectal cancer in humans. Nine tumor patients were matched with 9 healthy patients, samples were taken repeatedly. The researchers find a enrichment of Fusobacteria in the tumor and a depletion of Bacteroidetes and Firmicutes.
+This is a study on the microbiome of colorectal cancer in humans \cite{Kostic2012}. Nine tumor patients were matched with 9 healthy patients, samples were taken repeatedly. The researchers find a enrichment of Fusobacteria in the tumor and a depletion of Bacteroidetes and Firmicutes.
 
 ```{r load Kostic, purl=FALSE}
 if(!file.exists("Kostic.RData")){
@@ -219,52 +218,96 @@ save(kostic, file = "Kostic.RData")
 } else {load("Kostic.RData")}
 ```
 
+For the constrained analysis we use the variables
+
+- NECROSIS_PERCENT
+- AGE
+- NORMAL_EQUIVALENT_PERCENT
+- FIBROBLAST_AND_VESSEL_PERCENT
+- TREATMENT
+- CEA (Carcinoembryonic antigen)
+- SEX
+- COUNTRY
+- CHEMOTHERAPY
+- HISTOLOGIC_GRADE
+- TUMOR_PERCENT
+- RADIATION_THERAPY
+- INFLAMMATION_PERCENT
+- PC3 (a prostate cancer cell line)
+
+For radiation therapy and chemotherapy, "None" and "No" were pooled. For Necrosis percent, normal equivalent percent, tumor percent, inflammation percent and CEA, "None" was set to 0, for age to the average age. Necrosis percent, age, normal equivalent, fibroblast and vessel percent, and cea were treated as continuous variables
+
 ```{r KosticRCM}, purl = FALSE, eval = FALSE}
 if(!file.exists("kosticRCM.RData")){
+sample_data(kostic) = within(sample_data(kostic),{
+  RADIATION_THERAPY_POOLED = RADIATION_THERAPY
+  RADIATION_THERAPY_POOLED[RADIATION_THERAPY_POOLED=="None"] = "No"
+  RADIATION_THERAPY_POOLED = droplevels(RADIATION_THERAPY_POOLED)
+  
+  CHEMOTHERAPY_POOLED = CHEMOTHERAPY
+  CHEMOTHERAPY_POOLED[CHEMOTHERAPY_POOLED=="None"] = "No"
+  CHEMOTHERAPY_POOLED = droplevels(CHEMOTHERAPY_POOLED) 
+  
+  NECROSIS_PERCENT_CONT = NECROSIS_PERCENT
+  NECROSIS_PERCENT_CONT[NECROSIS_PERCENT_CONT=="None"] = 0
+  NECROSIS_PERCENT_CONT = as.numeric(as.character(NECROSIS_PERCENT_CONT))
+  
+  TUMOR_PERCENT_CONT = TUMOR_PERCENT
+  TUMOR_PERCENT_CONT[TUMOR_PERCENT_CONT=="None"] = 0
+  TUMOR_PERCENT_CONT = as.numeric(as.character(TUMOR_PERCENT_CONT))
+  
+  NORMAL_EQUIVALENT_PERCENT_CONT = NORMAL_EQUIVALENT_PERCENT
+  NORMAL_EQUIVALENT_PERCENT_CONT[NORMAL_EQUIVALENT_PERCENT_CONT=="None"] = 0
+  NORMAL_EQUIVALENT_PERCENT_CONT = as.numeric(as.character(NORMAL_EQUIVALENT_PERCENT_CONT))
+  
+  CEA_CONT = factor(CEA, levels = c(0, levels(CEA)))
+  CEA_CONT[CEA_CONT=="None"] = 0
+  CEA_CONT = as.numeric(as.character(CEA_CONT))
+  
+  INFLAMMATION_PERCENT_CONT = factor(INFLAMMATION_PERCENT, levels = c(0, levels(INFLAMMATION_PERCENT)))
+  INFLAMMATION_PERCENT_CONT[INFLAMMATION_PERCENT_CONT=="None"] = 0
+  INFLAMMATION_PERCENT_CONT = as.numeric(as.character(INFLAMMATION_PERCENT_CONT))
+  
+  FIBROBLAST_AND_VESSEL_PERCENT_CONT = factor(FIBROBLAST_AND_VESSEL_PERCENT, levels = c(0, levels(FIBROBLAST_AND_VESSEL_PERCENT)))
+  FIBROBLAST_AND_VESSEL_PERCENT_CONT[FIBROBLAST_AND_VESSEL_PERCENT_CONT=="None"] = 0
+  FIBROBLAST_AND_VESSEL_PERCENT_CONT = as.numeric(as.character(FIBROBLAST_AND_VESSEL_PERCENT_CONT))
+  
+  AGE_CONT = as.character(AGE)
+  AGE_CONT[AGE_CONT=="None"] = mean(as.numeric(AGE_CONT[AGE_CONT!="None"]))
+  AGE_CONT = as.numeric(AGE_CONT)
+})
+kostVars = c("NECROSIS_PERCENT_CONT","AGE_CONT","NORMAL_EQUIVALENT_PERCENT_CONT", "FIBROBLAST_AND_VESSEL_PERCENT_CONT", "TREATMENT",  "CEA_CONT", "SEX", "COUNTRY", "CHEMOTHERAPY_POOLED",  "HISTOLOGIC_GRADE", "TUMOR_PERCENT_CONT", "RADIATION_THERAPY_POOLED", "INFLAMMATION_PERCENT_CONT", "PC3")
 kosticRCM = RCM(kostic, k = 3)
-save(kosticRCM, file = "kosticRCM.RData")
+kosticRCMlin = RCM(kostic, k = 3, covariates = kostVars, responseFun = "linear")
+kosticRCMnp = RCM(kostic, k = 3, covariates = kostVars, responseFun = "nonparametric")
+save(kosticRCM, kosticRCMlin, file = "kosticRCM.RData")
 } else {load("kosticRCM.RData")}
-plot(kosticRCM)
-plot(kosticRCM, samColour = "DIAGNOSIS")
-plot(kosticRCM, samColour = "OSH_DIAGNOSIS")
 ```
 
-##### Dr. armpit data
-
-The dataset contains 16S sequencing data from armpit swabs of volunteers.
-
-```{r ArmPit, purl =  FALSE}
-if(!file.exists("armpit.RData")){
-load("Armpit/okseldata.rda") 
-load("Armpit/div.rda") 
-load("Armpit/odor.rda")
-db<-data.frame(odor,info,food,washing)
-db$subject = db$subject.1
-db$subject.2 = db$subject.1 = NULL
-load("Armpit/okseldata_20160229.rda") # data in object counts
-Counts<-counts[,-903]
-rownames(Counts) = rownames(db) = db$subject
-OTUa = Counts[,-903]
-armpit = phyloseq(otu_table(apply(as.matrix(OTUa), 1:2, as.numeric), taxa_are_rows =FALSE), sample_data(data.frame(db)))
-save(armpit, file = "armpit.RData")
-} else {load(file = "armpit.RData")}
-
-if(!file.exists(file = "armpitRCM.RData")){
-  armpitRCM = RCM(armpit, k=3)
-  armpitRCMconstrLin = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "linear")
-  armpitRCMconstrQuad = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "quadratic")
-  armpitRCMconstrNonParam = RCM(armpit, covariates = sample_variables(armpit)[!sample_variables(armpit) %in% c("subject")], k=3, responseFun = "nonparametric")
-  lessVariablesArmpit = c("BMI", "Fastfood", "Meat", "Vegetables", "gender")
-  armpitRCMconstrLinLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "linear")
-  armpitRCMconstrNonParamLess = RCM(armpit, covariates = lessVariablesArmpit, k=3, responseFun = "nonparametric")
-    save(armpitRCM, armpitRCMconstrLin, armpitRCMconstrQuad, armpitRCMconstrNonParam, armpitRCMconstrLinLess, armpitRCMconstrNonParamLess, file = "armpitRCM.RData")
-} else {load(file = "armpitRCM.RData")}
+```{r KosticPlots}
+plot(kosticRCM, samColour = "TREATMENT")
+for (i in kostVars){
+  print(plot(kosticRCM, samColour = i))
+}
 ```
-##### CMET data
 
-This is a longitudinal dataset on growth in a water cooling system. It has the unique property of providing cell concentrations from flow cytometry from the same samples as used for the 16S sequencing. We could use this information to alleviate the compositional effect. This is relatively new in the literature, and no standard way exists of incorporating this information. In general, the cell concentratios and library sizes correlate poorly.
+Race, country, chemotherapy and radiotherapy seem to be related to microbiome composition
 
-See separate document for extended discussion.
+```{r KosticPlots Constrained}
+plot(kosticRCMlin)
+```
+
+Four sample clusters are visible. Important drivers of variability are the cancer status, country, tumor percentage and radiation therapy
+
+```{r KosticPlotsConstrainedCol}
+plot(kosticRCMlin, samColour = "TREATMENT", samShape = "COUNTRY")
+```
+
+The first dimension is dominated by country, the second by treatment, so these are the two most important variables.
+
+# CMET data
+
+This is a longitudinal dataset on microbial growth in a water cooling system of a nuclear power plant \cite{Props2017}.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
 if(!file.exists(file = "CMETdata.RData")){
@@ -279,8 +322,8 @@ if(!file.exists(file = "CMETdata.RData")){
   otuTab$Sample_ID = NULL
   #Select only samples present in samData
   otuTab = otuTab[as.character(samData$sample_title),]
-  #Multiply relative abundances by cell counts in samData
-  otuTab = round(as.matrix(otuTab)/rowSums(as.matrix(otuTab))*samData$cellDensity)
+  #Multiply relative abundances by cell counts in samData. Not a good approach!
+  # otuTab = round(as.matrix(otuTab)/rowSums(as.matrix(otuTab))*samData$cellDensity)
   taxTab = read.csv("/home/stijn/PhD/Datasets/CMET/tax_table_raw.csv", sep = ";")
   rownames(taxTab) = taxTab$X
   taxTab$X = NULL
@@ -297,20 +340,10 @@ if(!file.exists(file = "CMETRCM.RData")){
   CMETRCM = RCM(CMETwater, k = 3, prevCutOff = 0.05)
   envVarsCMET = c("ph","temp","Conductivity","cellDensity", "Reactor.phase", "Reactor.cycle")
   CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
-  CMETRCMlinML = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05, envGradEst = "ML")
   CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET, prevCutOff = 0.05)
   CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET, prevCutOff = 0.05)
   save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
 } else {load(file = "CMETRCM.RData")}
-```
-
-No convergence for quadratic case. That one seems hard to fit.
-
-```{r CMETliks, purl = FALSE, eval = FALSE}
-liksCMET = sapply(list("unconstrained" = CMETRCM, "linear" = CMETRCMlin,"quadratic" = CMETRCMquad, "nonParametric" = CMETRCMnonParam), liks)
-#The comparison is complicated here because we trimmed the linear case.
-liksCMERmelt = melt(liksCMET, varnames = c("Dimension","responseFun"),value.name = "logLik")
-ggplot(aes(x = Dimension, y = logLik, colour =responseFun), data = liksCMERmelt) + geom_point() +geom_line(aes(group = responseFun))
 ```
 
 ```{r plotCMET, purl = FALSE}
@@ -341,18 +374,5 @@ plot(CMETRCMlin, samColour = "Reactor.cycle", plotTaxa = FALSE, Dim = c(2,1))
 ```
 
 Reactor phase clearly explains most of the variation in the data
-
-```{r plotCMETquad, purl = FALSE}
-plot(CMETRCMquad, plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, plotTaxa = FALSE, square = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "ph", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "temp", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Conductivity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMquad, samColour = "cellDensity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Reactor.phase", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Timepoint", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMquad, samColour = "collection_date", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMquad, samColour = "Reactor.cycle", plotTaxa = FALSE, Dim = c(2,1))
-```
 
 The control phase seems to be very different from the others, also conductivity plays a role. Also the second dimension is the most important. Should we reorder the dimensions? Also the quadratic graph differs quite a lot from the linear one.

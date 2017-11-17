@@ -127,15 +127,19 @@ abline(h=0, col ="red", lty = "dashed")
 
 In this setting we simulate all distributions from the same template, but with ten-fold differences in library sizes. Stiill there is thus no signal in this dataset.
 
-```{r NBnullb, purl = FALSE, eval =FALSE}
+```{r NBnullb, purl = FALSE}
+groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
+groupFactor0b = factor(groupInd, levels = 1:nPop, labels =  c("1", "1.5","2","3"), ordered = TRUE) #as factor
 if(!file.exists(file = "RCMsim/resList0b.RData")){
   if(!file.exists(file = "RCMsim/datList0b.RData")){
-datList0b = mclapply(mc.cores=1, 1:reps, function(i){
+datList0b = mclapply(mc.cores = 4, 1:reps, function(i){
 ## Sample parameters
 rhosSampled = sample(rhoEst, p)
 thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
-libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
-libSizesSampled[seq_len(n/2)] = libSizesSampled[seq_len(n/2)]*10 #Apply the ten-fold change in library sizes
+libSizesSampled = sample(libSizesEst, n) #Sampled libSizes, confounded with group membership
+libSizesSampled[groupInd==2] = round(libSizesSampled[groupInd==2]*1.5)
+libSizesSampled[groupInd==3] = round(libSizesSampled[groupInd==3]*2)
+libSizesSampled[groupInd==4] = round(libSizesSampled[groupInd==4]*3)
 
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
@@ -145,18 +149,26 @@ list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = theta
 })
 save(datList0b,  file = "RCMsim/datList0b.RData")
 } else {load(file = "RCMsim/datList0b.RData")}
-
 # Results
   if(!file.exists("RCMsim/resList0RCMb.RData")){
 RCMresList0b = mclapply(mc.cores=4, datList0b, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
   })
 save(RCMresList0b, file = "RCMsim/resList0RCMb.RData")
-} else { load("RCMsim/resList0RCMb.RData")}
-resList0b = otherAnalyses(RCMresList0b)
+  } else { load("RCMsim/resList0bRCM.RData")}
+RCMresList0b = RCMresList0b[sapply(RCMresList0b, class) == "RCM"]
+resList0b = otherAnalyses(RCMresList0b, cores = 4)
 resList0bRows = lapply(resList0b, extractRows)
 resList0bCols = mapply(resList0b, resList0bRows, FUN=extractCols, SIMPLIFY=FALSE)
-save(resList0b, resList0bRows,resList0bCols,  file = "RCMsim/resList0b.RData")
+
+datList0b = lapply(RCMresList0b, function(x){x$X})
+CorDF0blib = makeCorDf(resList0bRows, datList0b, scoreDim = "rows", dataMat = TRUE, groupMeth = groupsMeth)
+CorDF0btax = makeCorDf(resList0bCols, datList0b, scoreDim = "columns", dataMat = TRUE, groupMeth = groupsMeth)
+#We also want to see if they cluster according to library sizes
+SilDF0b = makeSilDf(resList0bRows, groupFactor0b)
+distDF0b = makeDistDf(resList0bRows, groupFactor0b)
+rm(resList0bRows, resList0b, datList0b, resList0bCols);gc(verbose = FALSE)
+save(CorDF0blib, CorDF0btax, SilDF0b, distDF0b, file = "RCMsim/resList0b.RData")
 } else {load(file = "RCMsim/resList0b.RData")}
 ```
 
@@ -894,6 +906,10 @@ Library sizes are considered to be technical artefacts, and thus should not affe
 plotCor(CorDF0lib)
 ```
 
+```{r libCor0, fig.cap = "Correlations of sample scores and random standard normal control variable with library sizes, results of 100 simulations with the negative binomial under H0 in the first three dimensions. The library sizes were tenfold larger in half of the samples than in the other half. Orange diamonds indicate means.\\label{supfig:libCor0}"}
+plotCor(CorDF0blib)
+```
+
 ```{r libCor4, fig.cap = "Correlations of sample scores and random standard normal control variable with library sizes, results of 100 simulations with the negative binomial under H0, but with differences in dispersions between 4 sample groups, in the first three dimensions. Orange diamonds indicate means.\\label{supfig:libCor4}"}
 plotCor(CorDF4lib)
 ```
@@ -944,7 +960,13 @@ plotCor(CorDFZellerlib)
 
 ### Silhouette
 
-#### Parametric simulation
+#### Parametric simulation without signal
+
+```{r sil0b, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 unrelated sample groups. Orange diamonds indicate means.\\label{supfig:sil0b}"}
+plotSil(SilDF0b)
+```
+
+#### Parametric simulation with signal
 
 ```{r sil1, fig.cap = "Boxplots of silhouettes in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 unrelated sample groups. Orange diamonds indicate means.\\label{supfig:sil1}"}
 plotSil(SilDF1)
@@ -990,7 +1012,13 @@ plotSil(SilDFZeller)
 
 ### Between-overall distance ratio
 
-#### Parametric simulation
+#### Parametric simulation without signal
+
+```{r dist0b, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the negative binomial without signal but with differences in library sizes between the groups. Orange diamonds indicate means.\\label{supfig:dist0b}"}
+distRatioPlot(distDF0b)
+```
+
+#### Parametric simulation with signal
 
 ```{r dist1, fig.cap = "Boxplots of between-to-overall distance ratios in the first three dimensions by ordination method for 100 simulations with the negative binomial under H1 with 4 unrelated sample groups. Orange diamonds indicate means.\\label{supfig:dist1}"}
 distRatioPlot(distDF1)

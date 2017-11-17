@@ -86,7 +86,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
 
    #add legend names
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
-     plot = plot + scale_colour_manual(name = colLegend, values = brewer.pal(length(unique(dataSam$colourPlot)), Palette))
+     plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
      plot = plot + scale_colour_continuous(name = colLegend)
    }
