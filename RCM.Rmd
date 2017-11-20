@@ -1219,9 +1219,11 @@ After implementing the method and proving its concept, it is time to compare it 
 
 A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
 
-We could perhaps look for the distance based method that maximizes $\frac{d_{m, overall}}{d_{m, within}}$? This is related to Ward's minimum variance method, but with scaling to the overall distance. This takes differences in the scales of solutions of different methods into account.
+We could perhaps look for the distance based method that maximizes $\frac{d_{m, overall}}{d_{m, within}}$? This is related to Ward's minimum variance method, but with scaling to the overall distance. This takes differences in the scales of solutions of different methods into account. We then use the geometric mean of these ratios over the different clusters as statistic:
 
-This approach can only be applied to the row scores (samples), since there the importance parameters are multiplied and thus distances are represented correctly.
+$$\Big(\prod_{m=1}^l\frac{d_{m, overall}}{d_{m, within}}\Big)^{1/l}$$
+
+This approach can only be applied to the row scores (samples), since there the importance parameters are multiplied and thus distances are represented correctly. This approach is reminiscent of Ward clustering \cite{Ward1963} and a pseudo F-statistic \cite{Anderson2001}.
 
 ## Silhouette
 
@@ -1237,14 +1239,15 @@ The motivating problem to develop the whole method was to find an approach that 
 
 Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot. Equivalently correlations with average relative abundance can be investigated.
 
-<!---
-The between distance between groups m and m' is then defined as $d_{mm'} = d_{euclidean}(\mathbf{M}_m, \mathbf{M}_{m'})$ with $d_{euclidean}$ the euclidean distance.
---->
-
 ## Contribution of taxa to the separation of the clusters
 
-For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid. It is calculated as the ratio of the average contribution in the direction of the centroid of taxa with signal to all the average contribution of all other taxa. With $\mathbf{H}_l$ the vector from the origin to the centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
+For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid, compared to the non-signal taxa. 
+
+With $\mathbf{H}_l$ the vector from the origin to the sample centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
 
 $$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
-with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the ratio of the signal taxa to the average signal of the 50\% non-signal taxa with highest signal. Because the mean is very sensitive to outliers, we also include the median, whcih makes our method come out as best. it is very important to mention this in a publication and show both results!
 
+with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the average ratio of the median signal of the signal taxa to the 75th percentile of the signal of the non-signal taxa. The rationale is that half of the non-signal taxa are expected to contribute in the direction of the cluster, and taking the median of this half is in practice the 75th percentile. The final statistic is thus
+
+
+$$\frac{1}{m}\sum_{l=1}^m \frac{\underset{j}{\mathrm{median}} (\mathbf{s}_{lj,sig}\mathbf{H}_l )}{\underset{j}{\hat{F}^{-1}_{0.75}}(\mathbf{s}_{lj,noSig}\mathbf{H}_l )}$$

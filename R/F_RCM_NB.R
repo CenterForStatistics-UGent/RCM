@@ -21,7 +21,7 @@
 #' -confoundersFilt an nxh matrix with confounders for filtering, with all levels and without intercept
 #' @param covariates an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables already
 #' @param centMat a fxd matrix containing the contrasts to center the categorical variables. f equals the number of continuous variables + the total number of levels of the categorical variables.
-#' @param responseFun a character string, either "linear", "quadratic", "dynamic" or "non-parametric"
+#' @param responseFun a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"
 #' @param prevCutOff a scalar the minimum prevalence needed to retain a taxon before the the confounder filtering
 #' @param minFraction a scalar, total taxon abundance should equal minFraction*n if it wants to be retained before the confounder filtering
 #' @param responseFun a characters string indicating the shape of the response function
@@ -404,7 +404,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   } else { #If covariates provided, do a constrained analysis
 
     d = ncol(covariates)
-    require(vegan)
     CCA = cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
     alpha = matrix(0,d,k)
     alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,1:k] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
@@ -494,10 +493,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 
         if (verbose) cat("\n Estimating environmental gradient \n")
-      AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha[seq_k(KK, nLambda1s)]), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)
-      if(AlphaTmp$termcd!=1) warning("Environmental gradient could not be fitted!")
-      alpha[,KK] = AlphaTmp$x[seq_len(d)]
-      lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$x[-seq_len(d)]
+      AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha[seq_k(KK, nLambda1s)]), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
+      alpha[,KK] = AlphaTmp[seq_len(d)]
+      lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp[-seq_len(d)]
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")

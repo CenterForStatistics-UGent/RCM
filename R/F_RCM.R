@@ -13,9 +13,9 @@
 #'
 #'Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
 #'
-#'@return see RCM.NB()
-#'@import nleqslv,VGAM,edgeR,tensor,alabama
-#'@export
+#' @return see RCM.NB()
+#' @import nleqslv,VGAM,edgeR,tensor,alabama
+#' @export
 RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
 
   reqpkg <- c("phyloseq", "nleqslv", "edgeR", "VGAM", "alabama", "tensor")

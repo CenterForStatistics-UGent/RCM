@@ -25,9 +25,9 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
     NB_params_old = NB_params
 
     NB_params = sapply(seq_len(p), function(i){
-      nleq = try(nleqslv(NB_params[,i] , reg = confMat,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg = 1, X = X[,i], control = nleqslv.control, jac = JacCol_constr)$x)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
+      nleq = try(nleqslv(NB_params[,i] , reg = confMat,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], X = X[,i], control = nleqslv.control, jac = JacCol_constr, psi = 1)$x)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
       if(class(nleq)=="try-error"| anyNA(nleq)| any(is.infinite(nleq))){
-        nleq = nleqslv(NB_params[,i] , reg = confMat,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], cReg =1, X = X[,i], control = nleqslv.control)$x # If fails try with numeric jacobian
+        nleq = nleqslv(NB_params[,i] , reg = confMat,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], X = X[,i], control = nleqslv.control, psi = 1)$x # If fails try with numeric jacobian
       }
       return(nleq)
     }) #Estimate response functions

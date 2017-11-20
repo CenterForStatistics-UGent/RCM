@@ -83,6 +83,8 @@ save(filtRes, file="/home/stijn/PhD/Biplots/filtResHMP.RData")
 plot(filtRes[["Anterior.nares"]], samColour ="RUNCENTER", colLegend = "Sequencing center")
 ```
 
+\clearpage
+
 # The American gut project
 
 The American gru project consits of stool samples sampled by volunteers at home, together with their answers to a questionnaire. Since they are sampled at home the variability is expected to be large.
@@ -92,6 +94,8 @@ plot(resListRCM[["AGP"]], samColour = "IBD")
 ```
 
 The AGP dataset is presumably too noisy to find much of a signal
+
+\clearpage
 
 # The Zeller data
 
@@ -149,9 +153,11 @@ save(zellerSphyRCMconstrLin, zellerSphyRCMconstrLinML, zellerSphyRCMconstrQuad, 
 plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
 ```
 
-```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
+```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
 plot.RCM(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
 ```
+
+\clearpage
 
 # Turnbaugh et al. (2009)
 
@@ -169,6 +175,8 @@ rm(turntwinsRCm)
 
 With such small datasets it is hard to draw conclusions.
 
+\clearpage
+
 # Turnbaugh et al. (2009b)
 
 In this group, 15 gnotobiotic mice were inoculated with human feces, and for one group the diet was switched to a Western diet after one month \cite{Turnbaugh200b9}. Then a second generation of mice was inoculated with cecal samples from the previous groups, and here also diet was varied. The variables recorded were:
@@ -184,7 +192,8 @@ if(!file.exists("turnMiceRCM.RData")){
   load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 HumMiceRCM = RCM(HumMicePhy, k=3)
 HumMiceRCMlin = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","Time"))
-save(HumMiceRCM, file = "turnMiceRCM.RData")
+gommsHum = gommsPhy(HumMicePhy)
+save(HumMiceRCM, gommsHum, file = "turnMiceRCM.RData")
 } else {load("turnMiceRCM.RData")}
 ```
 
@@ -200,11 +209,13 @@ plot.RCM(HumMiceRCM, samColour = "Diet", samShape = "Generation_p")
 
 It is clear that current diet is the dominant variable in the first dimension.
 
-```{r humMicePlotSecondLook, purl = FALSE}
+```{r humMicePlotSecondLookTime, purl = FALSE}
 plot.RCM(HumMiceRCM, samColour = "Time", samShape = "Generation_p")
 ```
 
 Also the older group of generation 1 mice is different, it separates in the second dimension.
+
+\clearpage
 
 # Kostic colorectal cancer
 
@@ -237,7 +248,8 @@ For the constrained analysis we use the variables
 
 For radiation therapy and chemotherapy, "None" and "No" were pooled. For Necrosis percent, normal equivalent percent, tumor percent, inflammation percent and CEA, "None" was set to 0, for age to the average age. Necrosis percent, age, normal equivalent, fibroblast and vessel percent, and cea were treated as continuous variables
 
-```{r KosticRCM}, purl = FALSE, eval = FALSE}
+```{r KosticRCM}, purl = FALSE}
+kostVars = c("NECROSIS_PERCENT_CONT","AGE_CONT","NORMAL_EQUIVALENT_PERCENT_CONT", "FIBROBLAST_AND_VESSEL_PERCENT_CONT", "TREATMENT",  "CEA_CONT", "SEX", "COUNTRY", "CHEMOTHERAPY_POOLED",  "HISTOLOGIC_GRADE", "TUMOR_PERCENT_CONT", "RADIATION_THERAPY_POOLED", "INFLAMMATION_PERCENT_CONT", "PC3")
 if(!file.exists("kosticRCM.RData")){
 sample_data(kostic) = within(sample_data(kostic),{
   RADIATION_THERAPY_POOLED = RADIATION_THERAPY
@@ -276,7 +288,6 @@ sample_data(kostic) = within(sample_data(kostic),{
   AGE_CONT[AGE_CONT=="None"] = mean(as.numeric(AGE_CONT[AGE_CONT!="None"]))
   AGE_CONT = as.numeric(AGE_CONT)
 })
-kostVars = c("NECROSIS_PERCENT_CONT","AGE_CONT","NORMAL_EQUIVALENT_PERCENT_CONT", "FIBROBLAST_AND_VESSEL_PERCENT_CONT", "TREATMENT",  "CEA_CONT", "SEX", "COUNTRY", "CHEMOTHERAPY_POOLED",  "HISTOLOGIC_GRADE", "TUMOR_PERCENT_CONT", "RADIATION_THERAPY_POOLED", "INFLAMMATION_PERCENT_CONT", "PC3")
 kosticRCM = RCM(kostic, k = 3)
 kosticRCMlin = RCM(kostic, k = 3, covariates = kostVars, responseFun = "linear")
 kosticRCMnp = RCM(kostic, k = 3, covariates = kostVars, responseFun = "nonparametric")
@@ -286,12 +297,12 @@ save(kosticRCM, kosticRCMlin, file = "kosticRCM.RData")
 
 ```{r KosticPlots}
 plot(kosticRCM, samColour = "TREATMENT")
-for (i in kostVars){
-  print(plot(kosticRCM, samColour = i))
-}
+plot(kosticRCM, samColour = "COUNTRY")
+plot(kosticRCM, samColour = "CHEMOTHERAPY_POOLED")
+plot(kosticRCM, samColour = "RADIATION_THERAPY_POOLED")
 ```
 
-Race, country, chemotherapy and radiotherapy seem to be related to microbiome composition
+Country, chemotherapy and radiotherapy seem to be related to microbiome composition
 
 ```{r KosticPlots Constrained}
 plot(kosticRCMlin)
@@ -303,11 +314,13 @@ Four sample clusters are visible. Important drivers of variability are the cance
 plot(kosticRCMlin, samColour = "TREATMENT", samShape = "COUNTRY")
 ```
 
-The first dimension is dominated by country, the second by treatment, so these are the two most important variables.
+The first dimension is dominated by country, the second by treatment, so these are the two most important variables. This is a bit surprising since the treatment does not seem to play a role in the unconstrained ordination.
+
+\clearpage
 
 # CMET data
 
-This is a longitudinal dataset on microbial growth in a water cooling system of a nuclear power plant \cite{Props2017}.
+This is a longitudinal dataset on microbial growth in a water cooling system of a nuclear power plant \cite{Props2016}.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
 if(!file.exists(file = "CMETdata.RData")){
@@ -342,37 +355,26 @@ if(!file.exists(file = "CMETRCM.RData")){
   CMETRCMlin = RCM(CMETwater, k = 3, responseFun = "linear", covariates = envVarsCMET, prevCutOff = 0.05)
   CMETRCMquad = RCM(CMETwater, k = 3, responseFun = "quadratic", covariates = envVarsCMET, prevCutOff = 0.05)
   CMETRCMnonParam= RCM(CMETwater, k = 3, responseFun = "nonparametric", covariates = envVarsCMET, prevCutOff = 0.05)
-  save(CMETRCM, CMETRCMlin, CMETRCMquad,CMETRCMnonParam, file = "CMETRCM.RData")
+  #Condition on time variable
+  CMETRCMcond = RCM(CMETwater, k = 3, prevCutOff = 0.05, confounders = "Timepoint")
+  save(CMETRCM, CMETRCMlin, CMETRCMnonParam, CMETRCMcond, file = "CMETRCM.RData")
 } else {load(file = "CMETRCM.RData")}
 ```
 
 ```{r plotCMET, purl = FALSE}
-plot(CMETRCM)
-plot(CMETRCM, samColour = "ph")
-plot(CMETRCM, samColour = "temp")
-plot(CMETRCM, samColour = "Conductivity")
-plot(CMETRCM, samColour = "cellDensity")
-plot(CMETRCM, samColour = "Reactor.phase")
-plot(CMETRCM, samColour = "Timepoint")
-plot(CMETRCM, samColour = "collection_date")
-plot(CMETRCM, samColour = "Reactor.cycle")
+plot(CMETRCM, samColour = "Reactor.phase", samShape = "Reactor.cycle")
 ```
 
-We clearly have two groups in the second dimension, partly explained by the _Reactor.phase_ and _collection.date_ variables. Still feels as if we're missing a confounder here. In the first dimension we have a strong time signal.
+The first dimension mainly tracks the change of the cooling water throughout the different phases, the second dimension is related to the reactor cylce
 
 ```{r plotCMETlin, purl = FALSE}
-plot(CMETRCMlin, plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, plotTaxa = FALSE, square = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "ph", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "temp", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Conductivity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMlin, samColour = "cellDensity", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Reactor.phase", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Timepoint", plotTaxa = FALSE,  Dim = c(2,1))
-plot(CMETRCMlin, samColour = "collection_date", plotTaxa = FALSE, Dim = c(2,1))
-plot(CMETRCMlin, samColour = "Reactor.cycle", plotTaxa = FALSE, Dim = c(2,1))
+plot(CMETRCMlin, samColour = "Reactor.phase", samShape = "Reactor.cycle")
 ```
 
-Reactor phase clearly explains most of the variation in the data
+The constrained analysis confirms phase and cycle as being the most important drivers. Also, the most important taxa are seen to react to the gradient dominated by reactor cycle.
 
-The control phase seems to be very different from the others, also conductivity plays a role. Also the second dimension is the most important. Should we reorder the dimensions? Also the quadratic graph differs quite a lot from the linear one.
+```{r plotCMETnp, purl = FALSE}
+plot(CMETRCMnonParam, samColour = "Reactor.phase", samShape = "Reactor.cycle")
+```
+
+The sample ordination is similar when non-parametric response functions are used, but the role of reactor phase is assessed differently.

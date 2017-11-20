@@ -6,10 +6,11 @@
 #' @param scoreDim a character vector, "rows" or "columns": which margins to use to calculate the correlations
 #' @param dataMat a boolean, is datList a list of data matrices? Otherwise it is a list of lists
 #' @param groupMeth a factor defining groups of the methods provided, based on their ordination paradigms
+#' @param dispersion a boolean, have overdispersion parameters been provided?
 #'
 #'@return a list of dataframes with "Correl" and "Method" components
 makeCorDf = function(scores, datList, Dims = 1:3, scoreDim = "rows", dataMat = TRUE,
-                     groupMeth = droplevels(factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control")))){
+                     groupMeth = droplevels(factor(c(as.character(groupsMeth[names(groupsMeth) %in% names(scores[[1]])]), "Control"), levels = c(levels(groupsMeth), "Control"))), dispersion = FALSE){
   if(!dataMat){
     datList = lapply(datList, function(x){x$dataMat})
   }

@@ -8,9 +8,9 @@
 #'
 #' @return a list with components
 #' \item{confModelMatTrim}{A confounder matrix without intercept, with all levels of factors present. This will be used to trim out taxa that have zero abundances in any subgroup defined by confounders}
-#' \item{confModelMat}{A confounder matrix with intercept, and with reference levels for factors absent. This will be used to fit the model to modify the independence model}
+#' \item{confModelMat}{A confounder matrix with intercept, and with reference levels for factors absent. This will be used to fit the model to modify the independence model, and may include continuous variables}
 buildConfMat = function(x,...){
-  UseMethod("buildConfMat",x,...)
+  UseMethod("buildConfMat",x)
 }
 
 buildConfMat.numeric = function(confounders, n, ...){
@@ -46,11 +46,11 @@ buildConfMat.data.frame = function(confounders, n,...){
   list(confModelMatTrim  = confModelMatTrim, confModelMat = confModelMat)
 }
 
-buildConfMat.character = function(confounders, n, physeq){
+buildConfMat.character = function(confounders, n, physeq,...){
   if(class(physeq) != "phyloseq"){
     stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
   }
-  confounders = get_variable(physeq, confounders) # The dataframe with the confounders
+  confounders = data.frame(get_variable(physeq, confounders)) # The dataframe with the confounders
   buildConfMat.data.frame(confounders, n)
 }
 
