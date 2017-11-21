@@ -24,7 +24,7 @@ The algorithm requires the following inputs:
  
  The algorithm allows to supply the following optional inputs
  
-  - a n-by-c design matrix __B__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $b_{im}$ then represents the value of confounder variable $m$ in sample $i$.
+  - a n-by-q design matrix __E__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $e_{il}$ then represents the value of confounder variable $m$ in sample $i$.
   - a n-by-g design matrix __C__ of constraining variables, containing $z$ dummies for categorical variables with $z$ levels, and no intercept. The entry $c_{iy}$ then represents the value of constraining variable $y$ in sample $i$.
 
 # Trimming
@@ -57,8 +57,16 @@ The independence model is fitted as follows:
  and
  
  $$\Big(\frac{1}{p}\sum_{j=1}^p |1-\frac{u_{j,new}}{u_{j,old}}|^a\Big)^{\frac{1}{a}}$$
- , with $a$ a convergence norm, are below a certain tolerance. The default is to use 0.001 as tolerance and $a = 2$ as convergence norm.  
+ , with $a$ a convergence norm, are below a certain tolerance. The default is to use 0.001 as tolerance and $a = 2$ as convergence norm. Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process.
  
+# Conditioning on confounders
+
+If a confounder matrix is provided, the effect of the confounders is filtered out by fitting the following model:
+
+ $$log(E(X_{ij})) = u_i + u_j + \sum_{l=1}^q \zeta_{jl}e_{il}$$
+
+with $\zeta_{jl}$ the interaction parameter between taxon $j$ and confounding variable $l$. Note that $\forall i: e_{i1}=1$, i.e. the model is fitted with an intercept.
+
 Under independence between rows and columns we model the counts in a contingency table as 
 
 $$E(X_{ij}) = a_i b_j$$
