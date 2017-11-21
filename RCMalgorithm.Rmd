@@ -24,7 +24,7 @@ The algorithm requires the following inputs:
  
  The algorithm allows to supply the following optional inputs
  
-  - a n-by-q design matrix __E__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $e_{il}$ then represents the value of confounder variable $m$ in sample $i$.
+  - a n-by-q design matrix __E__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $g_{il}$ then represents the value of confounder variable $l$ in sample $i$.
   - a n-by-g design matrix __C__ of constraining variables, containing $z$ dummies for categorical variables with $z$ levels, and no intercept. The entry $c_{iy}$ then represents the value of constraining variable $y$ in sample $i$.
 
 # Trimming
@@ -48,8 +48,8 @@ The independence model is fitted as follows:
  1. Find starting values $u_{i, init} = log(\sum_{j=1}^p x_{ij})$ and $u_{j, init} = log(\sum_{i=1}^n x_{ij})$ for $u_{i}$  and $u_j$ respectively
  2. Estimate a mean-dispersion trend using the estimateGLMTrendedDisp() function of the _edgeR_ package, given $u_i$ and $u_i$. This estimate is very insensitive to slight changes in the mean structure and will never be reestimated throughout the whole fitting procedure to save computation time.
  3. Estimate the dispersion parameters $\theta_j$ based on the mean-dispersion trend using empirical Bayes with the estimateGLMTagwiseDispersion() function in the _edgeR_ package, given $u_i$ and $u_j$.
- 4. Estimate $u_{i,new}$'s using maximum likelihood, keeping the $\theta_j$'s and $u_j$'s constant
- 5. Estimate the $u_{j,new}$'s using maximum likelihood, keeping the $\theta_j$'s and $u_i$'s constant
+ 4. Estimate $u_{i,new}$'s using maximum likelihood (ML), keeping the $\theta_j$'s and $u_j$'s constant.
+5. Estimate the $u_{j,new}$'s using maximum likelihood, keeping the $\theta_j$'s and $u_i$'s constant
  6. Check for convergence. If no convergence is reached, repeat steps 3-5. Convergence is assumed when
  
  $$\Big(\frac{1}{n}\sum_{i=1}^n |1-\frac{u_{i,new}}{u_{i,old}}|^a\Big)^{\frac{1}{a}}$$
@@ -57,140 +57,71 @@ The independence model is fitted as follows:
  and
  
  $$\Big(\frac{1}{p}\sum_{j=1}^p |1-\frac{u_{j,new}}{u_{j,old}}|^a\Big)^{\frac{1}{a}}$$
- , with $a$ a convergence norm, are below a certain tolerance. The default is to use 0.001 as tolerance and $a = 2$ as convergence norm. Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process.
+, with $a$ a convergence norm, are below a certain tolerance. The default is to use 0.001 as tolerance and $a = 2$ as convergence norm. Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process. All maximum likelihood estimation is under the negative binomial model.
  
 # Conditioning on confounders
 
 If a confounder matrix is provided, the effect of the confounders is filtered out by fitting the following model:
 
- $$log(E(X_{ij})) = u_i + u_j + \sum_{l=1}^q \zeta_{jl}e_{il}$$
+ $$log(E(X_{ij})) = u_i + u_j + \sum_{l=1}^q \zeta_{jl}g_{il}$$
 
-with $\zeta_{jl}$ the interaction parameter between taxon $j$ and confounding variable $l$. Note that $\forall i: e_{i1}=1$, i.e. the model is fitted with an intercept.
+with $\zeta_{jl}$ the interaction parameter between taxon $j$ and confounding variable $l$, which is fitted by maximum likelihood. Note that $\forall i: g_{i1}=1$, i.e. the model is fitted with an intercept.
 
-Under independence between rows and columns we model the counts in a contingency table as 
+Again this step is performed iteratively by alternating between estimating the $\zeta_{jl}$ parameters and re-estimating the overdispersion parameters as in step. of the independence model. Convergence is then assumed when $\sqrt{\frac{1}{pq} \sum_{l=1}^q \sum_{j=1}^p (\zeta_{jl,new} - \zeta_{jl,old})^2}$ drops below a tolerance level of 0.001.
 
-$$E(X_{ij}) = a_i b_j$$
+# Capturing the signal
 
-whereby usually $a_i=x_{i.}=\sum_{j=1}^px_{ij}$ (the library sizes) and $b_j=\frac{x_{.j}}{x_{..}}=\frac{\sum_{i=1}^nx_{ij}}{\sum_{j=1}^p\sum_{i=1}^nx_{ij}}$ (the average relative abundances). The matrix of expectations under the independence model can then be written as:
+The steps undertaken so far to model $E(X_{ij})$ are merely fitting a "null" model and will not play a role in the final ordination. The next terms that will be added will capture the biological signal in the data __X__ and will be used for data visualization. This step differs between an _unconstrained_ RC(M) model, that merely uses the data __X__, and _constrained_ analysis, that also incorporates the covariate matrix __C__.
 
-$$E = \frac{R\mathbf{11}^TC}{x_{..}}$$
+## Unconstrained RC(M)
 
-with $x_{..}=\sum_{i=1}^n\sum_{j=1}^px_{ij}$ the total sum of the count table, and __1__ a row vector of ones of suitable length.
+The unconstrained RC(M) model looks like
 
-There exist many variation so of correspondence analysis, but all are concerned with the difference between the observed count __X__ and the expected counts based on the margins __E__: $X-E$. This means that the signal can come from observations that are either smaller or larger than expected. This two-way mode of deviations will give rise to the unimodality of correspondence analysis (see later).
+$$log(E(X_{ij})) = u_i + u_j + \Big[\sum_{l=1}^q \zeta_{jl}e_{il}\Big] + \sum_{k=1}^K\psi_kr_{ik}s_{jk}$$
 
-The aim is to represent these departures from independence in a few important dimensions.
+with the term between [] being optional.
 
-#### Reconsitution formula of Correspondence Analysis (CA)
+The unconstrained RC(M) model is fitted as follows:
 
-A more extended model than the independence model is
+1. Obtain a singular value decomposition as $R^{-1}(X-E)C^{-1} = U\Sigma V$. This gives us initial values $[r_{i1}^{SVD}, r_{i2}^{SVD},..., r_{iK}^{SVD}] = U_{(1.)}$, the first row of $U$, and correspondingly $\Sigma$ and $V$ give initial values for $\mathbf{\psi}^{SVD}$ and $\mathbf{s}^{SVD}$. For these initial values we still need to ensure that the (weighted) variances equal 1, and transfer these weights to the importance parameters $\mathbf{\psi}^{SVD}$ so we set
 
-$$E(X_{ij}) = a_i  b_j + c_i d_j \sum_{k=1}^K \omega_k v_{ki} w_{jk}$$.
+$$\psi_k^{init} = \psi_k^{SVD}\sum_{i=1}^n\big({r^{SVD}_{ik}}\big)^2 \sum_{j=1}^p\big(z_js^{SVD}_{jk}\big)^2$$
 
-with $a_i = c_i = x_{i.} = \sum_{j=1}^px_{ij}$ and $b_j = d_j = \frac{x_{.j}}{x_{..}}$ with $x_{.j} = \sum_{i=1}^nx_{ij}$. K = min(n,p) and the terms are ordered such that $\omega_1 >\omega_2>...>\omega_K$. When fitted, the second series of terms will attempt to repair discrepancies between __X__ and __E__ and as such capture departures from independence. This is called the *reconstitution formula* since it decomposes the observed average count into its expectation under independence and a residual. The residual is then further decomposed into $k$ pieces.
-The first two dimensions $(\omega_1\mathbf{v}_1,\omega_2\mathbf{v}_2)$ can then be plotted to represent samples that depart from independence in a similar way. $(\mathbf{w}_1,\mathbf{w}_2)$ can be added to show which taxa contribute to these departures, according to the biplot principle. Note that we give priority to correctly representing distances between _samples_ rather than _taxa_. The orthogonal projection of $(\omega_1 v_{ki}, \omega_2 v_{ki})$ on $(w_{j1},w_{j2})$ then equals $\frac{(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2})}{||(w_{j1},w_{j2})||}$. This value is proportional to the departure from the independence model of taxon $j$ in sample $i$ in dimension $k$ ($(\omega_1 v_{ki}, \omega_2 v_{ki})^t(w_{j1},w_{j2}) = \omega_1 v_{ki} w_{j1} + \omega_2 v_{ki} w_{j2}$), with the norm of the species vector as proportionality constant. We could fit this model by maximum likelihood after assuming e.g. a Poisson distribution, but it is much more efficient to do this through a matrix decomposition
+$$r_{ik}^{init} = \big(\frac{r_{ik}^{SVD}}{\sum_{i=1}^n{\big({r^{SVD}_{ik}}\big)^2}}\big)^{1/2}$$
 
-#### Correspondence analysis as a singular value decomposition
+and
 
-Corrsepondence analysis is usually done through singular value decomposition(SVD) of the matrix of departures from independence __X-E__. This is not done on the matrix of raw departures, but is usually weighted by row and column scores in one way or the other, to account for the heteroscedasicity of count data. Subtle differences in choice of weights lead to different versions of correspondence analysis. very often it is not mentioned which version is used, which complicates comparison of results of different packages. We are following "Understanding Biplots", from Gower _et al._ here.
+$$s_{jk}^{init} = \big(\frac{z_js_{jk}^{SVD}}{\sum_{j=1}^p{\big(s^{SVD}_{jk}}z_j\big)^2}\big)^{1/2}$$
 
-CA performs a singular value decomposition of the following matrix
+with $z_j = exp(u_j)$
 
-$$A_1 = R^{-1/2}(X-E)J^{-1/2}=U\Sigma V^T$$
+2. For all dimensions $k$ starting from 1 to K :
+a) Estimate the dispersions $\theta_j$ using empirical Bayes as before
+b) Estimate the importance parameter $\psi_k$ by full ML, keeping the sample and taxon scores and overdispersions fixed.
+c) Estimate the sample scores $r_ik$ by restricted ML, keeping the taxon scores, overdispersions and importance parameters fixed. Lagrangian multipliers are used to ensure that
 
-with $\Sigma$ a diagonal matrix with the singular values of __X__ (all between 0 and 1) on the diagnonal and __R__ and __J__ diagonal matrices with row and column sums of __X__.
+$$ \sum_{i=1}^n r_{ik} = 0$$
+and 
 
-Elements of this matrix are $$a_{1ij} = \frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}}} = \frac{1}{\sqrt{n}}\frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}/n}}$$
+$$ \sum_{i=1}^n r_{ik}r_{ik'} = \delta_{kk'}$$
+with $\delta$ the Kronecker delta.
 
-, also known as also known as $\sqrt{n}$ times the Pearson standardized residuals. The Pearson standardized residuals standardize the departures from __E__ by dividing by the square root of the expected value. This is in line with the common assumption that for count data $E(X_{ij}) = Var(X_{ij})$ and would yield approximately standard normally distributed variables if this assumption holds and $E(X_{ij})$ is sufficiently large. Hence the sum of squared elements $$\sum_{i=1}^n\sum_{j=1}^pa_{1ij}^2$$ yields 1/n the Pearson $\chi^2$ statistic to test for association in the contingency table.
+c) Estimate the taxon scores $s_jk$ by restricted ML, keeping the sample scores, overdispersions and importance parameters fixed. Lagrange multipliers are used to ensure that
 
-In matrix notation the reconstitution formula becomes
+$$ \sum_{j=1}^p z_js_{jk} = 0$$
 
-$$X = E_{independence} + R^{1/2}U\Sigma VJ^{1/2}$$
+and 
 
-with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}J^{1/2}V=\mathbf{0}$ (weighted means of rows and columns equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'K^{1/2}V=\mathbf{1}$ (weighted variances equal one) (see VanDerHeijden et al., 1985).
+$$ \sum_{j=1}^p z_js_{jk}s_{jk'} = \delta_{kk'}$$
+d) Check for convergence of dimension $k$. If no convergence reached, repeat steps a-c. Convergence is assumed when 
 
-Note that the use of correspondence analysis implies unimodal response curves (see later). Hence it is not appropriate to represent species as arrows. Representing them as points is more appropriate.
-
-#### Biplots based on correspondence analysis
-
-Many biplots are possible, we will discuss three of the most important ones.
-
-##### Pearson standardized residuals
-
-We could proceed by plotting the first two columns of $U\Sigma$ to represent the samples and add the first two columns of __V__ to show which taxa contribute to the departure. This seems also the most logical course to me, since it allows to identify samples and species that contribute most to the divergence from independence.
-
-##### Contingency ratio
-
-To optimally represent the distances between samples, we could also plot the columns of $R^{-1/2}U\Sigma$ and add $VC^{-1/2}$ for the species. This representation has the merit of centering the sample and species vectors in the plot. Also in this configuration the site scores are at the _centroids_ or _barycentres_ of the sample scores as can be seen from:
-
-$$R^{-1}X(J^{-1/2}V) = R^{-1/2}(R^{-1/2}XJ^{-1/2})V = R^{-1/2}(R^{-1/2}XJ^{-1/2})V = \\ R^{-1/2}(U\Sigma V' + R^{-1/2}EJ^{-1/2})V = R^{-1/2}(U\Sigma V' + R^{-1/2}EJ^{-1/2})V = R^{-1/2}(U\Sigma V' + R^{-1/2}R11^TJJ^{-1/2})V = R^{-1/2}U\Sigma$$
+$$|1-\frac{\psi_k^{new}}{\psi_k^{old}}| < 0.001$$
  
-The last step of the derivation relies on the orthogonality of __V__ and on the property $\mathbf{1}^TJ^{-1/2}V = \mathbf{0}$. A centroid is defined as a centre of mass: the weighted average of the sample scores with taxon abundances in that sample as weights. This is the same way as in which the species scores are calculated in PCoA based on the sample scores (see later). This version of correspondence analysis is implemented in the _vegan_ and _phyloseq_ packages, as it was described in Legendre and Legendre, 2012, p466-471.
+ AND
+ 
+ $$\forall \mathbf{r_k}, \mathbf{s_k} \Big(\sqrt{\sum_{i=1}^n (1-\frac{r^{new}_{ik}}{r^{old}_{ik}})^2} < 0.001 \Big) \cup \Big( \sqrt{\sum_{j=1}^p (1-\frac{s^{new}_{jk}}{s^{old}_{jk}})^2} < 0.001 \Big)$$
 
-An alternative way to consider this version is to look at the svd of
-
-$$A_2 = R^{-1}(X-E)C^{-1} = U'\Sigma V'^{T} = R^{-1/2}(U \Sigma V^T)C^{-1/2}$$
-
-The elements of the matrix $A_2$ are $a_{2ij} = \frac{x_{ij}-e_{ij}}{e_{ij}} = \frac{x_{ij}}{e_{ij}}-1$. The ratio $\frac{x_{ij}}{e_{ij}}$ represents the relative departure from the expected counts and is called the _contingency ratio_. The biplot of $U'\Sigma$ vs $V'$ will thus visualize contributions to the departure of this contingency ratio.
-
-##### Chi-squared distance
-
-A third biplot is one based on the chi-squared distances. True to our original aim to give priority to samples, we will only discuss chi-squared distances between samples. 
-
-The squared chi-squared distance between two samples $i$ and $i'$ is defined as:
-
-$$d^2_{ii'} = \sum_{j=1}^p \frac{1}{x_{.j}}\Big(\frac{x_{ij}}{x_{i.}}-\frac{x_{i'j}}{x_{i'.}}\Big)^2$$
-, i.e. squared differences in proportions weighted by column scores. A drawback of this distance is that it gives more weighted to taxa with low abundances. The lower dimensional representation of these distances can be achieved by the svd
-
-$$A_3 = R^{-1}(X-E)C^{-1/2} = U'\Sigma V^T = R^{-1/2}U\Sigma V$$
-
-It is evident that the row scores of these biplots will be equal to PCoA biplots based on the chi-squared distance, and to the row scores of the correspondence analysis based on the contingency ratio. The column scores on the other hand, are equal to those from the approximation to the Pearson residuals.
-
-This form of correspondence analysis has been criticised for putting undue emphasis on rare species (Legendre and Gallagher, 2001 and Rao, 1997).
-
-#### Joint plots
-
-Some researchers prefer to plot $U\Sigma$ vs $\Sigma V^T$ to represent distances between both sites and species corrrectly. However, this loses the biplot property (inner product interpration) and end their discussion here.
-
-#### Skewness
-
-Because of the skewness of the distribution, the residuals are also very skewed. If we have an expectation of around 1, it is very likely to observe a zero, but much less likely to observe a 2. Still both deviations are weighted equally. I think a residual-based approach is ill suited to asymmetric, skewed data. Also the library size correction will never be appropriate, so that part of the biplot will reflect differences in library sizes. We considered decomposing
-
-$$R^{-1}(X-E)J^{-1}$$
-
-in the past to account for the fact that the data are not Poisson ($Var(X) = E(X)$) but rather negative binomial ($Var(X) = E(X) + \phi*E(X)^2$) and thus the variance for large means proportional to the squared expectation. We still use this decomposition to obtain starting values for our RC(M) model. Even more general we considered
-
-$$R^{-a}(X-E)J^{-b}$$
-
-and estimate $a$ and $b$ by maximum likelihood but we did not really see how to go on from here.
-
-#### Detrended correspondence analysis
-
-In regular correspondence analysis it is often observed that the second axis points form an arch with respect to the first axis. This effect can be removed by detrending. The procedure is then called Detrended correspondence analysis (DCA) (Hill and Gauch, 1980).
-
-#### Link to Gaussian ordination and niche theory
-
-Species can grow and reproduce best within certain ranges of parameter values that describe their envrionment. The multidimensional space spanned by environmental variables in which a certain species can grow is called its __niche__. The species prospers in the center of its niche, but its abundance decreases as the characteristics of the environment depart from this optimal conditions. In extreme cases the species simply cannot survive or reproduce in certain envrironments and is simply absent. Hence this niche is usually decribed by a unimodal function, often a Gaussian function (Gauc _et al._, 1974).
-
-The expected counts are then modelled as:
-
-$$log(E(X_{ij})) = \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
-
-whereby 
-
- - $h_{ik}$ = a latent variable representing an environmental score
- - $a_{jk}$ is the maximal logged expected abundance achieved when the latent variable $h_{ik}$ equals the optimum $q_{jk}$
- - $m_{jk}$ is the tolerance, it determines how fast the expected value decreases as $\mathbf{c}_{i.}$ moves away from its optimal values $\boldsymbol{\alpha}_k^{-t}h_{ik}$
-
-Under the assumptions that:
-
-  1) All tolerances $m_{jk}$ are equal for all species ($m_k$)
-  2) All maxima $a_{jk}$ are equal for all species
-  3) The modi $q_{jk}$ are homogeneously distributed over a region larger than $m_k$
-  4) Counts are Poisson distributed
-  
-  CA yields the ML solution of this Gaussian model see ter Braak, 1986).
+i.e. an infinity norm is used for the psis, and an L2-norm for the sample and taxon scores.
 
 ### Log-linear analysis
 
@@ -308,15 +239,7 @@ $$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\
 
 #### Starting values
 
-1. Obtain a singular value decomposition as $R^{-c}(X-E)C^{-d} = U\Sigma V$. This gives us initial values $[r_{11}^{init}, r_{12}^{init},..., r_{1i}^{init}] = U_{(1.)}$, the first row of $U$, and correspondingly $\Sigma$ and $V$ give initial values for $\mathbf{\psi}$ and $\mathbf{s}$. The values for $c$ and $d$ were determind based on correlation with the final values, and $c=d=1$ performed best.
 
-We still need to ensure that the (weighted) variances equal 1, so we set
-
-$$r_{ki}^{init} = \big(\frac{w_ir_{ki}^{SVD}}{\sum_{i=1}^n{r^{SVD}_{ki}}^2w_i}\big)^{1/2}$$
-
-and
-
-$$s_{ik}^{init} = \big(\frac{z_js_{ik}^{SVD}}{\sum_{i=1}^n{s^{SVD}_{ik}}^2z_j}\big)^{1/2}$$
 
 #### Iteration
 

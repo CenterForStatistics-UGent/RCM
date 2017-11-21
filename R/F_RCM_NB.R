@@ -384,7 +384,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         ##Check convergence  (any numbered norm for row and column scores)
         convergence[KK] = ((iterOut[KK] <= maxItOut) &&
-                             (all(abs(1-psis[KK]/psisOld) < Psitol)) && #Infinity norm for the psis
+                             (abs(1-psis[KK]/psisOld) < Psitol) && #Infinity norm for the psis
                              ((sum(abs(1-rMat[,KK]/rMatOld)^convNorm)/n)^(1/convNorm) < tol) &&
                              ((sum(abs(1-cMat[KK,]/cMatOld)^convNorm)/p)^(1/convNorm) < tol) )
       } # END while-loop until convergence
