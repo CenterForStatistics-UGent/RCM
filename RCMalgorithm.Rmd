@@ -15,24 +15,50 @@ output:
 
 This document provides an exact description of the algorithm used to fit the RC(M) model augmented with the negative binomial distribution for microbiome data.
 
+# Inputs
 
+The algorithm requires the following inputs:
 
+ - an n-by-p data matrix __X__, with samples $i$ in the rows and taxa (species, OTUs) $j$ in the columns. Thus $x_{ij}$ is the observed count of taxon $j$ in sample $i$.
+ - a required dimension of the solution K. The dimensions are fitted sequentially, so the solutions for the lower dimensions are independent of the final required dimension.
+ 
+ The algorithm allows to supply the following optional inputs
+ 
+  - a n-by-c design matrix __B__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $b_{im}$ then represents the value of confounder variable $m$ in sample $i$.
+  - a n-by-g design matrix __C__ of constraining variables, containing $z$ dummies for categorical variables with $z$ levels, and no intercept. The entry $c_{iy}$ then represents the value of constraining variable $y$ in sample $i$.
 
+# Trimming
 
-The aim of this notebook is to wrap the codes to fit the RC(M) model with the negative binomial, zero-inflated poisson and zero-inflated negative binomial models. Also an overview of the theory is given here. Functions for fitting the RC(M) model have been moved to separate files in the "R"-folder, functions related the simulation study but not belonging to the core RC(M) methodology are shown in the "pubFun" folder.
+Rows and columns of __X__ with zero counts are trimmed prior to model fitting.
 
-The underlying motivation is to develop a visualization technique for the microbiome that does not suffer from the defects of currently applied techniques such as PCA, PCoA with Bray-Curtis distance etc. These methods are in particular sensitive to differences in library size.
+To avoid numerical instability, also taxa below a certain prevalence threshold or with total count lower than a certain fraction of the number of samples $n$ are excluded prior to model fitting.
 
-# Theory
+The default prevalence threshold is 5%, the default fraction of $n$ is 10%.
 
-## Unconstrained analysis
+If a confounder matrix is provided with dummy variables, also discard the taxa that fall below the prevalence and total count fractions mentioned above within each level of the categorical confounding variables, again to avoid overflow.
 
-### Correspondence analysis
+# Independence model
 
-Suppose we have a $nxp$ count data matrix $\mathbf{X}$ with $n$ samples (sites) and $p$ taxa (species), with $i$ and $j$ row respectively column indices. The count matrix has been trimmed to exclude all-zero rows and columns.
+The independence model is defined as:
 
-#### Independence model
+$$log(E(x_{ij})) = u_i + u_j$$
 
+The independence model is fitted as follows:
+
+ 1. Find starting values $u_{i, init} = log(\sum_{j=1}^p x_{ij})$ and $u_{j, init} = log(\sum_{i=1}^n x_{ij})$ for $u_{i}$  and $u_j$ respectively
+ 2. Estimate a mean-dispersion trend using the estimateGLMTrendedDisp() function of the _edgeR_ package, given $u_i$ and $u_i$. This estimate is very insensitive to slight changes in the mean structure and will never be reestimated throughout the whole fitting procedure to save computation time.
+ 3. Estimate the dispersion parameters $\theta_j$ based on the mean-dispersion trend using empirical Bayes with the estimateGLMTagwiseDispersion() function in the _edgeR_ package, given $u_i$ and $u_j$.
+ 4. Estimate $u_{i,new}$'s using maximum likelihood, keeping the $\theta_j$'s and $u_j$'s constant
+ 5. Estimate the $u_{j,new}$'s using maximum likelihood, keeping the $\theta_j$'s and $u_i$'s constant
+ 6. Check for convergence. If no convergence is reached, repeat steps 3-5. Convergence is assumed when
+ 
+ $$\Big(\frac{1}{n}\sum_{i=1}^n |1-\frac{u_{i,new}}{u_{i,old}}|^a\Big)^{\frac{1}{a}}$$
+ 
+ and
+ 
+ $$\Big(\frac{1}{p}\sum_{j=1}^p |1-\frac{u_{j,new}}{u_{j,old}}|^a\Big)^{\frac{1}{a}}$$
+ , with $a$ a convergence norm, are below a certain tolerance. The default is to use 0.001 as tolerance and $a = 2$ as convergence norm.  
+ 
 Under independence between rows and columns we model the counts in a contingency table as 
 
 $$E(X_{ij}) = a_i b_j$$
