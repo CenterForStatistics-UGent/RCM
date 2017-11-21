@@ -56,8 +56,8 @@ The independence model is fitted as follows:
  
  and
  
- $$\Big(\frac{1}{p}\sum_{j=1}^p |1-\frac{u_{j,new}}{u_{j,old}}|^a\Big)^{\frac{1}{a}}$$
-, with $a$ a convergence norm, are below a certain tolerance. The default is to use 0.001 as tolerance and $a = 2$ as convergence norm. Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process. All maximum likelihood estimation is under the negative binomial model.
+ $$\sqrt{\Big(\frac{1}{p}\sum_{j=1}^p (1-\frac{u_{j,new}}{u_{j,old}})^2\Big)}$$
+are below a tolerance of 0.001 as tolerance. Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process. All maximum likelihood estimation is under the negative binomial model.
  
 # Conditioning on confounders
 
@@ -93,7 +93,7 @@ and
 
 $$s_{jk}^{init} = \big(\frac{z_js_{jk}^{SVD}}{\sum_{j=1}^p{\big(s^{SVD}_{jk}}z_j\big)^2}\big)^{1/2}$$
 
-with $z_j = exp(u_j)$
+with $z_j = exp(u_j)$, see above for an extended discussion on the weights.
 
 2. For all dimensions $k$ starting from 1 to K :
 a) Estimate the dispersions $\theta_j$ using empirical Bayes as before
@@ -113,15 +113,23 @@ $$ \sum_{j=1}^p z_js_{jk} = 0$$
 and 
 
 $$ \sum_{j=1}^p z_js_{jk}s_{jk'} = \delta_{kk'}$$
-d) Check for convergence of dimension $k$. If no convergence reached, repeat steps a-c. Convergence is assumed when 
+d) Check for convergence of dimension $k$. If no convergence reached, repeat steps a-c, otherwise fit the next dimension conditional on the previous ones. Convergence for dimension $k$ is assumed when 
 
-$$|1-\frac{\psi_k^{new}}{\psi_k^{old}}| < 0.001$$
+$$\Big|1-\frac{\psi_k^{new}}{\psi_k^{old}}\Big| < 0.001$$
  
  AND
  
  $$\forall \mathbf{r_k}, \mathbf{s_k} \Big(\sqrt{\sum_{i=1}^n (1-\frac{r^{new}_{ik}}{r^{old}_{ik}})^2} < 0.001 \Big) \cup \Big( \sqrt{\sum_{j=1}^p (1-\frac{s^{new}_{jk}}{s^{old}_{jk}})^2} < 0.001 \Big)$$
 
 i.e. an infinity norm is used for the psis, and an L2-norm for the sample and taxon scores.
+
+## Constrained RC(M)
+
+The constrained RC(M) model looks like
+
+$$log(E(X_{ij})) = u_i + u_j + \Big[\sum_{l=1}^q \zeta_{jl}e_{il}\Big] + \sum_{k=1}^K\psi_kr_{ik}s_{jk}$$
+
+with the term between [] being optional.
 
 ### Log-linear analysis
 

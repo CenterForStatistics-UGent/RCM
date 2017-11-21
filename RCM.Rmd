@@ -1251,3 +1251,18 @@ with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, 
 
 
 $$\frac{1}{m}\sum_{l=1}^m \frac{\underset{j}{\mathrm{median}} (\mathbf{s}_{lj,sig}\mathbf{H}_l )}{\underset{j}{\hat{F}^{-1}_{0.75}}(\mathbf{s}_{lj,noSig}\mathbf{H}_l )}$$
+
+# Some thoughts
+
+Why do we not fit models like:
+
+$$log(E(X_{ij})) = u_i + u_j + \sum_{k=1}^K\psi_kf_j(r_{ik})$$
+or 
+
+$$log(E(X_{ij})) = u_i + u_j + \sum_{k=1}^K\psi_k{\boldsymbol{\alpha}_k^t\mathbf{c}_{i}}s_{jk}$$
+
+Why do we only use fancy gradient models if we can explain the gradients using environmental variables, and not when they are just latent gradients (the row scores $r_{ik}$)? Basically in the unconstrained case we force every taxon to react in the same way to the latent gradient. We now use a linear response function without intercept, making all taxon vectors start from the origin. We could relax this requirement of course. I guess we just pay more attention to the response function when there is an interpretable gradient? But this latent gradient analysis may be something, no? We are no longer looking for just departures from independence but rather for how taxa respond to a latent gradient.
+
+This is a clash between the "Independence-deviation" school from Goodman's RC and corresponence analyssi on the one hand, and flexible response modelling by \cite{Zhu2005} and \cite{Yee2006} on the other hand.
+
+The second equation is probably too restrictive, the regular linaer response functions is already debatable, let alone if we force the intercepts to be zero.
