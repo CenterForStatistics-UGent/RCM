@@ -925,6 +925,47 @@ save(SilDFHum, CorDFHumlib, CorDFHumtax, distDFHum, contrHum, SilDFZeller, CorDF
 } else {load("RCMsim/resListSimSeq.RData")}
 ```
 
+# Method evaluation
+
+After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way. For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
+
+## Overall vs. within distance
+
+A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
+
+We could perhaps look for the distance based method that maximizes $\frac{d_{m, overall}}{d_{m, within}}$? This is related to Ward's minimum variance method, but with scaling to the overall distance. This takes differences in the scales of solutions of different methods into account. We then use the geometric mean of these ratios over the different clusters as statistic:
+
+$$\Big(\prod_{m=1}^l\frac{d_{m, overall}}{d_{m, within}}\Big)^{1/l}$$
+
+This approach can only be applied to the row scores (samples), since there the importance parameters are multiplied and thus distances are represented correctly. This approach is reminiscent of Ward clustering \cite{Ward1963} and a pseudo F-statistic \cite{Anderson2001}.
+
+## Silhouette
+
+See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
+
+$$s(i) = \frac{b(i) - a(i)}{max\big(a(i), b(i)\big)}$$
+
+The silhouette can take values between +1 for optimal separation and -1 for wrong classification. If a poin i close to the centroid of its own cluster but very far from all the others the methods has performed well and is rewarded with a high silhouette. We can average the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
+
+## Correlation with library sizes and abundances
+
+The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
+
+Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot. Equivalently correlations with average relative abundance can be investigated.
+
+## Contribution of taxa to the separation of the clusters
+
+For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid, compared to the non-signal taxa. 
+
+With $\mathbf{H}_l$ the vector from the origin to the sample centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
+
+$$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
+
+with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the average ratio of the median signal of the signal taxa to the 75th percentile of the signal of the non-signal taxa. The rationale is that half of the non-signal taxa are expected to contribute in the direction of the cluster, and taking the median of this half is in practice the 75th percentile. The final statistic is thus
+
+
+$$\frac{1}{m}\sum_{l=1}^m \frac{\underset{j}{\mathrm{median}} (\mathbf{s}_{lj,sig}\mathbf{H}_l )}{\underset{j}{\hat{F}^{-1}_{0.75}}(\mathbf{s}_{lj,noSig}\mathbf{H}_l )}$$
+
 # Simulation results
 
 ## Correlations with library sizes

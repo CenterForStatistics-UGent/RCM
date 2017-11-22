@@ -98,7 +98,7 @@ plot(ZellerRCM2, plotType = "species", taxRegExp = "Fusobacter", taxLabels = TRU
 
 It is clear that these Fusobacterium species behave very differently between the species. We can also colour the species plots by phylogenetic level, e.g. order level, if available in the dataset.
 
-```{r plotUnconstrainedRCMspec2, eval = FALSE}
+```{r plotUnconstrainedRCMspec3, eval = FALSE}
 plot(ZellerRCM2, plotType = "species", taxLabels = TRUE, taxCol = "Order")
 ```
 
@@ -375,3 +375,9 @@ plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = FusoSpecies, yLoc = NULL)
 ```
 
 Not all Fusobacteria react to the environmental gradient in the same way.
+
+We can do the same for the second dimension, which is dominated by age
+
+```{r plotnonParamRespFunAge}
+plotRespFun(ZellerRCM2constrNonParam, Dim = 2, taxa = taxaDrawn, yLoc = -8)
+```

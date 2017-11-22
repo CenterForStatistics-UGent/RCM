@@ -15,7 +15,9 @@ output:
 
 This document provides an exact description of the algorithm used to fit the RC(M) model augmented with the negative binomial distribution for microbiome data.
 
-# Inputs
+# Fitting procedure
+
+## Inputs
 
 The algorithm requires the following inputs:
 
@@ -27,7 +29,7 @@ The algorithm requires the following inputs:
   - a n-by-q design matrix __E__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $g_{il}$ then represents the value of confounder variable $l$ in sample $i$.
   - a n-by-g design matrix __C__ of constraining variables, containing $z$ dummies for categorical variables with $z$ levels, and no intercept. The entry $c_{iy}$ then represents the value of constraining variable $y$ in sample $i$.
 
-# Trimming
+## Trimming
 
 Rows and columns of __X__ with zero counts are trimmed prior to model fitting.
 
@@ -37,7 +39,7 @@ The default prevalence threshold is 5%, the default fraction of $n$ is 10%.
 
 If a confounder matrix is provided with dummy variables, also discard the taxa that fall below the prevalence and total count fractions mentioned above within each level of the categorical confounding variables, again to avoid overflow.
 
-# Independence model
+## Independence model
 
 The independence model is defined as:
 
@@ -46,7 +48,7 @@ $$log(E(x_{ij})) = u_i + u_j$$
 The independence model is fitted as follows:
 
  1. Find starting values $u_{i, init} = log(\sum_{j=1}^p x_{ij})$ and $u_{j, init} = log(\sum_{i=1}^n x_{ij})$ for $u_{i}$  and $u_j$ respectively
- 2. Estimate a mean-dispersion trend using the estimateGLMTrendedDisp() function of the _edgeR_ package, given $u_i$ and $u_i$. This estimate is very insensitive to slight changes in the mean structure and will never be reestimated throughout the whole fitting procedure to save computation time.
+ 2. Estimate a mean-dispersion trend using the estimateGLMTrendedDisp() function of the _edgeR_ package (version `r packageVersion("edgeR")`), given $u_i$ and $u_i$. This estimate is very insensitive to slight changes in the mean structure and will never be reestimated throughout the whole fitting procedure to save computation time.
  3. Estimate the dispersion parameters $\theta_j$ based on the mean-dispersion trend using empirical Bayes with the estimateGLMTagwiseDispersion() function in the _edgeR_ package, given $u_i$ and $u_j$.
  4. Estimate $u_{i,new}$'s using maximum likelihood (ML), keeping the $\theta_j$'s and $u_j$'s constant.
 5. Estimate the $u_{j,new}$'s using maximum likelihood, keeping the $\theta_j$'s and $u_i$'s constant
@@ -59,7 +61,7 @@ The independence model is fitted as follows:
  $$\sqrt{\Big(\frac{1}{p}\sum_{j=1}^p (1-\frac{u_{j,new}}{u_{j,old}})^2\Big)}$$
 are below a tolerance of 0.001 as tolerance. Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process. All maximum likelihood estimation is under the negative binomial model.
  
-# Conditioning on confounders
+## Conditioning on confounders
 
 If a confounder matrix is provided, the effect of the confounders is filtered out by fitting the following model:
 
@@ -69,11 +71,11 @@ with $\zeta_{jl}$ the interaction parameter between taxon $j$ and confounding va
 
 Again this step is performed iteratively by alternating between estimating the $\zeta_{jl}$ parameters and re-estimating the overdispersion parameters as in step. of the independence model. Convergence is then assumed when $\sqrt{\frac{1}{pq} \sum_{l=1}^q \sum_{j=1}^p (\zeta_{jl,new} - \zeta_{jl,old})^2}$ drops below a tolerance level of 0.001.
 
-# Capturing the signal
+## Capturing the signal
 
 The steps undertaken so far to model $E(X_{ij})$ are merely fitting a "null" model and will not play a role in the final ordination. The next terms that will be added will capture the biological signal in the data __X__ and will be used for data visualization. This step differs between an _unconstrained_ RC(M) model, that merely uses the data __X__, and _constrained_ analysis, that also incorporates the covariate matrix __C__.
 
-## Unconstrained RC(M)
+### Unconstrained RC(M)
 
 The unconstrained RC(M) model looks like
 
@@ -93,7 +95,7 @@ and
 
 $$s_{jk}^{init} = \big(\frac{z_js_{jk}^{SVD}}{\sum_{j=1}^p{\big(s^{SVD}_{jk}}z_j\big)^2}\big)^{1/2}$$
 
-with $z_j = exp(u_j)$, see above for an extended discussion on the weights.
+with $z_j = exp(u_j)$, see below for an extended discussion on the weights.
 
 2. For all dimensions $k$ starting from 1 to K :
 a) Estimate the dispersions $\theta_j$ using empirical Bayes as before
@@ -119,17 +121,203 @@ $$\Big|1-\frac{\psi_k^{new}}{\psi_k^{old}}\Big| < 0.001$$
  
  AND
  
- $$\forall \mathbf{r_k}, \mathbf{s_k} \Big(\sqrt{\sum_{i=1}^n (1-\frac{r^{new}_{ik}}{r^{old}_{ik}})^2} < 0.001 \Big) \cup \Big( \sqrt{\sum_{j=1}^p (1-\frac{s^{new}_{jk}}{s^{old}_{jk}})^2} < 0.001 \Big)$$
+ $$\Big(\sqrt{\sum_{i=1}^n (1-\frac{r^{new}_{ik}}{r^{old}_{ik}})^2} < 0.001 \Big) \cup \Big( \sqrt{\sum_{j=1}^p (1-\frac{s^{new}_{jk}}{s^{old}_{jk}})^2} < 0.001 \Big)$$
 
 i.e. an infinity norm is used for the psis, and an L2-norm for the sample and taxon scores.
 
-## Constrained RC(M)
+The Lagrangian parameters are stored to be used as starting values in the next iteration to speed up the computation.
+
+### Constrained RC(M)
 
 The constrained RC(M) model looks like
 
-$$log(E(X_{ij})) = u_i + u_j + \Big[\sum_{l=1}^q \zeta_{jl}e_{il}\Big] + \sum_{k=1}^K\psi_kr_{ik}s_{jk}$$
+$$log(E(X_{ij})) = u_i + u_j + \Big[\sum_{l=1}^q \zeta_{jl}e_{il}\Big] + \sum_{k=1}^K\psi_kf_{jk}(\boldsymbol{\alpha}_k^t\mathbf{C}_i)$$
 
-with the term between [] being optional.
+with the term between [] being optional. For this model four components need to be fitted iteratively:
+
+ - $\theta_k$, the overdispersion parameter as before
+ - $\psi_k$ the importance parameter as in the unconstrained model
+ - $\boldsymbol{\alpha}_k$, the environmental gradient, under the restriction that
+ $$\boldsymbol{\alpha}^t_k\boldsymbol{\alpha}_k' = \delta_{kk'}$$
+ - $f_{jk}$, the species specific response function. This can be parametric (polynomial in practice) or non-parametric.
+ 
+ The fitting of the constrained RC(M) model proceeds as follows:
+ 
+ 1. Starting values for $\boldsymbol{\alpha}$ are obtained from a constrained correspondence analysis by the $cca()$ function in the $vegan$ package. Next they are normalized to fulfil the $\boldsymbol{\alpha}^t_k\boldsymbol{\alpha}_k = 1$ requirement. Starting values for $\boldsymbol{\psi}$ are the eigenvalues of the constrained correspondence analysis. For the response functions no starting values are calculated.
+ 2. For all dimensions $k$ starting from 1 to K :
+ a) Estimate the overdispersions by empircal Bayes as before.
+ b) If the response function is parametric, estimate the importance parameter $\psi_k$ by full ML
+ c) Estimate the response functions $f_{jk}$ by full ML. 
+ For parametric, polynomial response functions this entails estimating a vector of parameters $\Big(\beta_{0jk},..., \beta_{vjk} \Big)$ with v the degree of the polynomial. After fitting, normalize these parameters to
+ 
+ $$\beta_{wjk}^{new} = \frac{\beta_{wjk}}{\sqrt{\sum_{j=1}^p\beta_{wjk}^2}}$$
+ with $w$ a degree indicator. This assures the normalization $\boldsymbol{\beta}_{wk}^t\boldsymbol{\beta}_{wk} = 1$.
+ 
+ For non-parametric response functions this relies on cubic splines as defined by the $bs()$ function of the $VGAM$ package. Also for non-parametric response functions the area between the response functions and the x-axis over the range of environmental scores $\boldsymbol{\alpha}_k^t\mathbf{C}_i$ is calculated as $a_{jk}$. The importance parameter psi is now defined to be 
+ 
+ $$\psi_k = \sqrt{\sum_{j=1}^p a_{jk}^2z_j}$$
+ Analogously, estimate general response functions $f_k$ ignoring species labels.
+ 
+ d) Estimate the environmental gradient $\boldsymbol{\alpha}_k^t$ by maximizing the likelihood ratio
+ 
+ $$LR(\boldsymbol{\alpha}_k) = log \frac{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_{jk}, \theta_j, \psi_k) }{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_k, \theta_j, \psi_k) }$$
+ with $g_{NB}$ the density function of the negative binomial distribution. This approach encourages maximal niche separation between the species
+ e) Check for convergence. If no convergence reached, repeat steps a-d, otherwise fit the next dimension conditional on the previous ones. Convergence is assumed when
+ 
+ $$\Big|1-\frac{\psi_k^{new}}{\psi_k^{old}}\Big| < 0.001$$
+ 
+ AND
+ 
+ $$\sqrt{\sum_{l=1}^d (1-\frac{\alpha_{lk}^{new}}{\alpha_{lk}^{old}})^2} < 0.001$$
+ For parametric response functions there is an additional requirement that 
+ 
+ $$\forall w: \sqrt{\sum_{j=1}^p \Big(1-\frac{\beta_{jk}^{new}}{\beta_{jk}^{old}}\Big)^2} < 0.001$$
+# Explanatory notes
+
+In this section we give some explanation regarding the particularities of this fitting procedure with respect to the original method by Goodman \cite{Goodman1979}.
+
+## Estimating the independence model
+
+An independence model for a contingency table is basically a marginal model. Therefor the most evident, model free way to estimate the independence model may be simply through sample and taxon sums, namely $u_i = log(x_{i.})$ with $x_{i.} = \sum_{j=1}^p x_{ij}$ and $u_j = log(\frac{x_{.j}}{x_{..}})$ with $x_{.j} = \sum_{i=1}^n x_{ij}$ and $x_{..} = \sum_{j=1}^p \sum_{i=1}^n x_{ij}$.
+
+However, the library sizes $x_{i.}$ do not correspond to the maximum likelihood estimate of $u_i$ under the negative binomial model. As a result the first dimensional row scores $r_{1i}$ tried to correct for this discrepancy and became related (linearly correlated) to the library sizes. This effect of sequencing depth on the sample ordination is something we want to avoid absolutely.
+
+Therefor we estimate the $u_i$'s, $u_j$'s iteratively using maximum likelihood, which also implies dispersion estimation as outlined above.
+
+In practice, the marginal sums differ more from the MLE for the library sizes than for the taxon abundances. We can think of the following mathematical explanation: when calculating library sizes or abundances by row and column sums, each observations receives the same weight. However, when we estimate the margins through ML, we solve the following score equations:
+
+$$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{i}} = \sum_{j=1}^p \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
+
+$$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{j}} = \sum_{i=1}^n \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}.$$
+
+Note that since we are estimating offsets the value of the regressor is 1. In this case the difference of $x_{ij}$ with the expected value $\mu_{ij}$ is weighted by a factor $\frac{1}{1+\frac{\mu_{ij}}{\theta_j}} = \frac{\theta_j}{\theta_j+\mu_{ij}}$. When estimating $u_j$, $\theta$ is a constant but when estimating $u_i$ it is different for every observation $y_{ij}$. Hence the weights put on every observation differ much more when estimating the sample offsets than when estimating the taxon offsets. That is the reason why the MLE differs more from the marginal sum for the library size than for the abundances.
+
+Note also that when there is a very large overdispersion for a taxon _j_ ($\theta_j$ small), its observations carry little information and their weights are small in the calculation of the library sizes. However, when there is very little overdispersion ($\theta_j \rightarrow \infty$), the weights of the components of the score function equal 1, as with Poisson regression. It is thus not surprising that the MLEs of the Poisson regression are equal to the estimators based on the marginal sums. This means that the larger and the more diverse the overdispersion estimates are, the more the MLEs under the negative binomial model will depart from the marginal sums. Finally, we see that departures from the mean $\mu_{ij}$ are weighted down for large values of $\mu_{ij}$, acknowledging the fact that the variance increases faster than linear with the mean in the negative binomial model.
+
+## The choice of normalization weights
+
+Constraints are needed to render this model identifiable, since we have three unknown regressors ($r_{ik}, s_{jk} and psi_k$) instead of one. We do restrict the importance parameter $psi_k$ to be positive, and center the (weighted) row and column scores around 0, which is a useful property for the biplot and is also the case for correspondence analysis. In addition the row and column scores are restricted to have (weighted) variance 1. $psi_k$ is the only parameter that can grow in size without restriction. As a result it will automatically serve as a measure of importance of the departure from independence in that direction, since all scores of the dimensions are normalized. This is also the case for correspondence analysis. Thridly, the scores of the different dimensions are orthogonal, so the solutions in different dimensions are linearly independent.
+
+Centering:
+
+$$\sum_{i=1}^nw_ir_{ki} = 0$$
+
+Normalization($k=k'$) and orthogonality ($k \neq k'$)
+
+$$\sum_{i=1}^nw_ir_{ki}r_{k'i} = \delta_{kk'}$$
+
+$$\sum_{j=1}^pz_js_{kj} = 0$$
+
+$$\sum_{j=1}^pz_js_{kj}s_{k'j} = \delta_{kk'}$$
+Hereby $w_i$ and $z_j$ are row and column weigths. But which weights $w_i$ and $z_j$ should we use? Goodman proposes to use $w_i = x_{i.}$ and $z_j = x_{.j}$ thus uses _weighted_ constraints, to retain the relationship with correspondence analysis \cite{Goodman1979}. Others recommend using uniform weights not to let the marginal distribution affect the model fit \cite{Becker1989}.
+
+To make the correct choice one should remember that the weights can be regarded as probability density functions, they represent the likelihood of sampling a certain sample or taxon from the population. On the population level we could say that
+
+$$E(w_iX_{ik}) = 0$$,
+
+i.e. the average row score on the population level is zero. This is a useful restriction to make sure that the biplot is centered around zero. Analogously we want that
+
+$$E(w_iX_{ik}X_{ik'}) = \delta_{kk'}$$
+
+and accordingly for the column scores:
+
+$$E(z_j S_{jk}) = 0$$
+
+$$E(z_j S_{jk} S_{jk'}) = \delta_{kk'}$$
+
+For the microbiome case, every subject comes from the same population under the null-hypothesis and all subjects are thus eqaully likely to be sampled and have the same importance. The library sizes as a purely technical artefact, unrelated to the biological importance of the subject. Consequently we use uniform row weights $w_i = 1/n$ (or $w_i = 1$, the magnitude is of no importance since the associated $\psi_k$ will grow or shrink accordingly). However, some taxa are more prevalent in the population than others. We want the average column scores on the population level to be centered around zero, have variance one and be orthogonal. That is why we set $z_j = exp(u_j)$; because the more abundant species are in fact more abundant in the population as a whole (as opposed to samples with a large library size), it makes sense to use a marginal weighting scheme for the column scores. The weights $z_j$ are derived from the independence model, as explained in the previous paragraph.
+
+## The negative binomial density function
+
+For the sake of completeness we give the density function of the negative binomial distribution (see Lawless, 1987) in the ($\mu$, $\theta$) parametrization whereby $E(X_{ij}) = \mu_{ij}$ and $Var(X_{ij}) = \mu_{ij} + \frac{\mu_{ij}^2}{\theta_j}$ .
+
+$$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\mu_{ij}}{\theta_j+\mu_{ij}}\big)^{X_{ij}} \big(\frac{\theta_j}{\theta_j+\mu_{ij}}\big)^{\theta_j}$$
+## Biplot
+
+8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ as sample points and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($\psi_1r_{1i}$, $\psi_2r_{2i}$) on ($s_{1j}$, $s_{2j}$) equals $cos (\eta) ||(\psi_1r_{1i}, \psi_2r_{2i})|| = \frac{(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i})}{||(s_{1j}, s_{2j})||}$ with $\eta$ the angle between the two vectors. This projection is thus proportional to the departure from independence in the first two dimensions combined. The larger the entries of the species and sample scores (the scaling between these two sets is arbitrary, we usually choose them in the same order of magnitude) and the smaller the angle, the larger the departure of this taxon in this sample. The choice of $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ assures the distances between samples are well represented, since more weight is added to differences in scores in important dimensions.
+
+In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)xn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
+
+##### Model quality
+
+9. Assess the goodness of fit
+
+It would be interesting to assess the goodness of fit of our models. Questions that come to mind are:
+
+ - How do the different dimensions of the fit relate to one another in terms of importance? How well does our lower dimensional solution represent high-dimensional departures from independence?
+ - How much better are quadratic or nonparametric response functions compared to the linear response functions?
+ - Which samples and/or taxa are poorly represented in the low-dimensional solution? Which ones exhibit lack of fit to the negative binomial distribution?
+ - Which samples/taxa have a strong influence on the final model fit?
+ 
+###### Relative importance of dimensions
+
+Mean
+
+The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
+
+Likelihood
+
+Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions.
+
+We can decompose the difference in log-likelihood between the independence and the full RC(K) model as
+
+$$(LL_K - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1) + ... + (LL_K - LL_{K-1})$$
+
+with $LL_k$ the log-likelihoods of RC(k) model, $LL_0$ being the independence model. Scaling by $(LL_{sat} - LL_0)$ with $LL-sat$ the log-likelihood of the saturated model, will provide interpretable fractions of the log-likelihood explained. The trouble is how to estimate the log likelihood of a saturated model, especially the overdispersion. We just use the likelihood of the Poisson distribution here, since the dispersions will be zero.
+
+This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
+
+This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
+
+All in all the psis are the most interpretable measure of importance of each dimension. Means are more interpretable than likelihoods.
+
+###### Comparison of response functions
+
+In case the models are fitted on exactly the same dataset, we can compare the likelihoods of these models. Unconstrained models are freer and generally have more parameters, hence their likelihood is expected to be higher. On the other hand, the constrained models get more information, which they might exploit to beat the constrained ones. Within the constrained models, the likelihood is expected to increase from linear over quadratic to non-parametric response functions. However, if we estimate the environmental gradient $\alpha$ through the likelihood ratio criterion, this criterion does not necessarily maximize the likelihood or guarantee an increasing likelihood with the dimensions.
+
+###### Detecting lack of fit
+
+In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. Anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
+
+####### Deviance
+
+Deviance (in relation to the saturated model) would be one option. The deviance is proportional to the difference in log-likelihoods of a certain model and the saturated model. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of which ones are worst.
+
+####### Deviance residuals
+
+The deviance residuals $d_{ij}$ of the negative binomial distribution are defined as (see M. L. Zwilling, “Negative Binomial Regression,” The Mathematica Journal, 2013):
+
+\[
+d_{ij} = 
+\begin{cases}
+sgn(X_{ij}-\mu_{ij})\sqrt{2\Big(X_{ij}ln(\frac{X_{ij}}{\mu_{ij}})-(X_{ij}+\frac{1}{\phi_j})ln(\frac{1+X_{ij}\phi_j}{1+\mu_{ij}\phi_j})\Big)} \text{ if } X_{ij} > 0\\
+sgn(X_{ij}-\mu_{ij})\sqrt{\frac{2}{\phi_j}ln(1+\phi_j\mu_{ij})} \text{ if } X_{ij} = 0
+\end{cases}
+\]
+
+Their sum of squares equals the total deviance per sample or taxon. Plotting the deviances in function of the environmental gradient can reveal patterns and thus lack of fit to the linearity assumption.
+
+We can do this for the taxa that respond strongest to the environmental gradient, and make residual plots with deviance or Pearson residuals. An alternative is to try to detect systematic trends through series of positive or negative residuals using Ward and Wolfowitz' runs test, and plot the taxa with the largest test statistic.
+
+###### Identifying influential observations
+
+Since we have explicitly expressed all score functions, we can easily identify influential observations using _influence functions_. They represent the influence a certain observation has on parameter, keeping the other sorts of parameters fixed. Because of the iterative algorithm this assumption is incorrect, maybe the influence functions cannot always be trusted. The long fitting times also exclude (leave-one-out) refitting procedures.
+
+For the unconstrained case in a scenario without outliers the influence functions may not yield very surprising results on the level of the plot, observations mainly have influence on their own row and column scores. Coupling through the constraints is rather weak. It may however help to identify outlying abundances in case of outlying row- or column scores.
+
+For the constrained case it may be enlightning to see which samples (and taxa) affect the estimation of the environmental gradient most.
+
+For maximum likelihood estimation the influence function $\psi(\theta| f, x)$ of a parameter $\theta$ for a distribution $f$ and data x is defined as:
+
+$$\psi(\theta| f, x) = -S_f(\theta|x) E\big(I(\theta, \theta|x)\big)^{-1}  $$
+ with $S_f(\theta|x)$ the score function and $E\big(I(\theta, \theta|x)\big)$ the expected Fisher information matrix.
+
+
+
+
+
+
+
 
 ### Log-linear analysis
 
@@ -143,7 +331,7 @@ For $u_{ij} \neq 0$ this is the saturated model, which provides a perfect fit by
 
 ### The RC(M)-association model
 
-For the purpose of making biplots, we might consider the following model (proposed by Leo Goodman, 1985. See also VanDerHeijden 1994)
+For the purpose of making biplots, we might consider the following model (proposed by Leo Goodman, 1979. See also VanDerHeijden 1994)
 
 $$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + \psi_1r_{1i}s_{1j} + \psi_2r_{2i}s_{2j}$$
 
@@ -152,62 +340,6 @@ or in matrix form:
 $$\mathbf{lE} = \mathbf{u_{sam,MLE}}\mathbf{u_{tax,MLE}}^t + \mathbf{r}_k \boldsymbol{\psi}_k \mathbf{s}_k^t$$
 
 with $\mathbf{lE}$ the n-by-p matrix of logged expectations, $\mathbf{u_{sam,MLE}}$ the vector with length $n$ with the row intercepts estimated by ML, $\mathbf{u_{tax,MLE}}$ the vector of length $p$ with the column intercepts estimated by ML, $\mathbf{r}_k$ the n-by-k matrix of row scores, $\boldsymbol{\psi}_k$ a diagonal matrix with the $k$ $\psi$'s on the diagonal and $\mathbf{s}_k$ the p-by-k matrix of column scores
-
-Constraints are needed to render this model identifiable, since we have three unknown regressors ($r_{ik}, s_{jk} and psi_k$) instead of one. We do restrict the importance parameter $psi_k$ to be positive, and center the (weighted) row and column scores around 0, which is a useful property for the biplot and is also the case for correspondence analysis. In addition the row and column scores are restricted to have (weighted) variance 1. $psi_k$ is the only parameter that can grow in size without restriction. As a result it will automatically figure as a measure of importance of the departure from independence in that direction, since all scores of the dimensions are normalized. This is also the case for correspondence analysis. Thridly, the scores of the different dimensions are orthogonal, so the solutions in different dimensions are linearly independent.
-
-Centering:
-
-$$\sum_{i=1}^nw_ir_{ki} = 0$$
-
-with k=1,2 and
-
-Normalization($k=k'$) and orthogonality ($k \neq k'$)
-
-$$\sum_{i=1}^nw_ir_{ki}r_{k'i} = I(k=k')$$
-
-$$\sum_{j=1}^pz_js_{kj} = 0$$
-
-$$\sum_{j=1}^pz_js_{kj}s_{k'j} = I(k=k')$$
-Hereby $w_i$ and $z_j$ are row and column weigths.
-
-#### RC(M)-weights
-
-The weights can be regarded as probability density functions, they represent the likelihood of sampling a certain sample or taxon from the population. On the population level we could say that
-
-$$E(w_iX_{ik}) = 0$$,
-
-i.e. the average row score on the population level is zero. This is a useful restriction to make sure that the biplot is centered around zero. Analogously we want that
-
-$$E(w_iX_{ik}X_{ik'}) = I(k=k')$$
-
-and accordingly for the column scores:
-$$E(z_j S_{jk}) = 0$$
-
-$$E(z_j S_{jk} S_{jk'}) = I(k=k')$$. 
-
-But which weights $w_i$ and $z_j$ should we use?
-
-Goodman proposes to use $w_i = x_{i.}$ and $z_j = x_{.j}$ thus uses _weighted_ constraints, to retain the relationship with correspondence analysis (see below). Becker _et al._ (1989) recommend using uniform weights not to let the marginal distribution affect the model fit. 
-
-For the microbiome case, every subject comes from the same population under the null-hypothesis and all subjects are thus eqaully likely to be sampled and have the same importance. The library sizes as a purely technical artefact, unrelated to the biological importance of the subject. Consequently we use uniform row weights $w_i = 1/n$ (or $w_i = 1$, the magnitude is of no importance since the associated $\psi_k$ will grow or shrink accordingly). However, some taxa are more prevalent in the population than others. We want the average column scores on the population level to be centered around zero, have variance one and be orthogonal. That is why we set $z_j = exp(u_j)$; because the more abundant species are in fact more abundant in the population as a whole (as opposed to samples with a large library size), it makes sense to use a marginal weighting scheme for the column scores. The weights $z_j$ will be estimated by maximum likelihood, as explained in the next paragraph.
-
-#### RC(M) margins
-
-The most logical choices for the margins and the independence model have long seemed to use $u=-log(x_{..})$, $u_i = log(x_{i.})$ and $u_j = log(x_{.j})$.
-
-However, the library sizes do not correspond to the maximum likelihood estimate of $u_i$ under the Negative Binomial model. As a result the first dimensional row scores $r_{1i}$ tried to correct for this effect and became related (linearly correlated) to the library sizes, which we want to avoid absolutley. 
-
-To avoid this we set $u=0$ and estimate the $u_i$'s, $u_j$'s and overdispersions iteratively using maximum likelihood in a first step (this converges very quickly). The main disadvantage I see of this approach is that the independence model becomes model dependent. Next we'll have to iterate between fitting the overdispersions, the imporance parameters $\psi$, the $r's$ and the $s's$. Hereby we use marginal weights for the taxa ($z_j = exp(u_j)$) and uniform weights for the rows. 
-
-In practice, the marginal sums differ more from the MLE for the library sizes than for the taxon abundances. We can think of the following mathematical explanation: when calculating library sizes or abundances by row and column sums, each observations receives the same weight. However, when we estimate the margins through ML, we solve the following score equations:
-
-$$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{i}} = \sum_{j=1}^p \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
-
-$$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{j}} = \sum_{i=1}^n \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}.$$
-
-Note that since we are estimating offsets the value of the regressor is 1. In this case the difference of $y_{ij}$ with the expected value $\mu_{ij}$ is weighted by a factor $\frac{1}{1+\frac{\mu_{ij}}{\theta_j}} = \frac{\theta_j}{\theta_j+\mu_{ij}}$. When estimating $u_j$, $\theta$ is a constant but when estimating $u_i$ it is different for every observation $y_{ij}$. Hence the weights put on every observation differ much more when estimating the sample offsets than when estimating the taxon offsets. That is the reason why the MLE differs more from the marginal sum for the library size than for the abundances.
-
-Note also that when there is a very large overdispersion for a taxon _j_ ($\theta_j$ small), its observations carry little information and their weights are small in the calculation of the library sizes. However, when there is very little overdispersion ($\theta_j \rightarrow \infty$), the weights of the components of the score function equal 1, as with Poisson regression. These MLEs of the Poisson regression are also equal to the estimators based on the marginal sums. This means that the larger and the more diverse the overdispersion estimates are, the more the MLEs under the negative binomial model will depart from the marginal sums. Finally, we see that departures from the mean $\mu_{ij}$ are weighted down for large values of $\mu_{ij}$, acknowledging the fact that the variance increases faster than linear with the mean in the negative binomial model.
 
 #### Imposing the restrictions
 
@@ -239,11 +371,7 @@ See Goodman 1985 (appendix), Becker 1988 for information on estimation. The code
 
 Parameters of interest to estimate are $\psi$, $r_1$, $r_2$, $c_1$, $c_2$. In the process we'll also need the nuisance parameters $\mathbf{\theta}$ and the offsets of the independence model $u_i$ and $u_j$. Assume $E(X_{ij}) = \mu_{ij}$ and  $Var(X_{ij})=\mu_{ij} + \frac{\mu_{ij}^2}{\theta}$
 
-#### The negative binomial density function
 
-For the sake of completeness we give the density function of the negative binomial distribution (see Lawless, 1987) in the ($\mu$, $\theta$) parametrization whereby $E(X_{ij}) = \mu_{ij}$ and $Var(X_{ij}) = \mu_{ij} + \frac{\mu_{ij}^2}{\theta_j}$ .
-
-$$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\mu_{ij}}{\theta_j+\mu_{ij}}\big)^{X_{ij}} \big(\frac{\theta_j}{\theta_j+\mu_{ij}}\big)^{\theta_j}$$
 
 #### Starting values
 
@@ -359,85 +487,7 @@ $$Lag(s_{jk}, \mathbf{\lambda}) = L_{NB}(s_{jk}) + \sum_{k=1}^M \big( \lambda_{1
  
  Overdispersions are not taken into account in determining the convergence since they're merely nuisance parameters.
 
-#### Biplot
 
-8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ as sample points and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($\psi_1r_{1i}$, $\psi_2r_{2i}$) on ($s_{1j}$, $s_{2j}$) equals $cos (\eta) ||(\psi_1r_{1i}, \psi_2r_{2i})|| = \frac{(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i})}{||(s_{1j}, s_{2j})||}$ with $\eta$ the angle between the two vectors. This projection is thus proportional to the departure from independence in the first two dimensions combined. The larger the entries of the species and sample scores (the scaling between these two sets is arbitrary, we usually choose them in the same order of magnitude) and the smaller the angle, the larger the departure of this taxon in this sample. The choice of $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ assures the distances between samples are well represented, since more weight is added to differences in scores in important dimensions.
-
-In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)xn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
-
-##### Model quality
-
-9. Assess the goodness of fit
-
-It would be interesting to assess the goodness of fit of our models. Questions that come to mind are:
-
- - How do the different dimensions of the fit relate to one another in terms of importance? How well does our lower dimensional solution represent high-dimensional departures from independence?
- - How much better are quadratic or nonparametric response functions compared to the linear response functions?
- - Which samples and/or taxa are poorly represented in the low-dimensional solution? Which ones exhibit lack of fit to the negative binomial distribution?
- - Which samples/taxa have a strong influence on the final model fit?
- 
-###### Relative importance of dimensions
-
-Mean
-
-The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
-
-Likelihood
-
-Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions.
-
-We can decompose the difference in log-likelihood between the independence and the full RC(K) model as
-
-$$(LL_K - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1) + ... + (LL_K - LL_{K-1})$$
-
-with $LL_k$ the log-likelihoods of RC(k) model, $LL_0$ being the independence model. Scaling by $(LL_{sat} - LL_0)$ with $LL-sat$ the log-likelihood of the saturated model, will provide interpretable fractions of the log-likelihood explained. The trouble is how to estimate the log likelihood of a saturated model, especially the overdispersion. We just use the likelihood of the Poisson distribution here, since the dispersions will be zero.
-
-This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
-
-This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
-
-All in all the psis are the most interpretable measure of importance of each dimension. Means are more interpretable than likelihoods.
-
-###### Comparison of response functions
-
-In case the models are fitted on exactly the same dataset, we can compare the likelihoods of these models. Unconstrained models are freer and generally have more parameters, hence their likelihood is expected to be higher. On the other hand, the constrained models get more information, which they might exploit to beat the constrained ones. Within the constrained models, the likelihood is expected to increase from linear over quadratic to non-parametric response functions. However, if we estimate the environmental gradient $\alpha$ through the likelihood ratio criterion, this criterion does not necessarily maximize the likelihood or guarantee an increasing likelihood with the dimensions.
-
-###### Detecting lack of fit
-
-In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. Anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
-
-####### Deviance
-
-Deviance (in relation to the saturated model) would be one option. The deviance is proportional to the difference in log-likelihoods of a certain model and the saturated model. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of which ones are worst.
-
-####### Deviance residuals
-
-The deviance residuals $d_{ij}$ of the negative binomial distribution are defined as (see M. L. Zwilling, “Negative Binomial Regression,” The Mathematica Journal, 2013):
-
-\[
-d_{ij} = 
-\begin{cases}
-sgn(X_{ij}-\mu_{ij})\sqrt{2\Big(X_{ij}ln(\frac{X_{ij}}{\mu_{ij}})-(X_{ij}+\frac{1}{\phi_j})ln(\frac{1+X_{ij}\phi_j}{1+\mu_{ij}\phi_j})\Big)} \text{ if } X_{ij} > 0\\
-sgn(X_{ij}-\mu_{ij})\sqrt{\frac{2}{\phi_j}ln(1+\phi_j\mu_{ij})} \text{ if } X_{ij} = 0
-\end{cases}
-\]
-
-Their sum of squares equals the total deviance per sample or taxon. Plotting the deviances in function of the environmental gradient can reveal patterns and thus lack of fit to the linearity assumption.
-
-We can do this for the taxa that respond strongest to the environmental gradient, and make residual plots with deviance or Pearson residuals. An alternative is to try to detect systematic trends through series of positive or negative residuals using Ward and Wolfowitz' runs test, and plot the taxa with the largest test statistic.
-
-###### Identifying influential observations
-
-Since we have explicitly expressed all score functions, we can easily identify influential observations using _influence functions_. They represent the influence a certain observation has on parameter, keeping the other sorts of parameters fixed. Because of the iterative algorithm this assumption is incorrect, maybe the influence functions cannot always be trusted. The long fitting times also exclude (leave-one-out) refitting procedures.
-
-For the unconstrained case in a scenario without outliers the influence functions may not yield very surprising results on the level of the plot, observations mainly have influence on their own row and column scores. Coupling through the constraints is rather weak. It may however help to identify outlying abundances in case of outlying row- or column scores.
-
-For the constrained case it may be enlightning to see which samples (and taxa) affect the estimation of the environmental gradient most.
-
-For maximum likelihood estimation the influence function $\psi(\theta| f, x)$ of a parameter $\theta$ for a distribution $f$ and data x is defined as:
-
-$$\psi(\theta| f, x) = -S_f(\theta|x) E\big(I(\theta, \theta|x)\big)^{-1}  $$
- with $S_f(\theta|x)$ the score function and $E\big(I(\theta, \theta|x)\big)$ the expected Fisher information matrix.
  
 ### One-by-one (1B1)
 
@@ -512,142 +562,7 @@ Unlike the RC(2)NB model, $f_j$ has to be estimated as well, there is no obvious
 
 Newton-Raphson would be incredibly complicated here, the derivatives of the log-likelihood functions barely fit on a page!
 
-### Gomms
 
-Our method bears some resemblance to the GOMMS-method proposed by Sohn and Li (2017). The aim of their method is to identify latent factors that optimally represent the microbiome count data in a low dimensional subspace. The advantage is that you do not need to model the covariance between the true underlying covariates. A number of factors $k$ is prespecified, and then the expected count is modelled as:
-
-$$log(\mu_{ij}) = u_i + \sum_{k=1}^Kr_{ik}s_{jk} $$
-
-whereby $r_{ik}$ represents the latent factor of sample $i$. For identifiability, they set
-
-$$\mathbf{r}^t_k\mathbf{r}_k' = \delta_{kk'} $$
-
-The GLM is augmented with a Zero-inflated quasi-Poisson. For numerical reasons they could not estimate taxon-wise dispersion parameters, pretty much like the numerical problems we encounterd with the ZIP and ZINB. Therefor they do with an
-Still they only use the sample factors estimated this way, and do not go into making. A Hotelling's $T^2$ statistic can be used to test for significant division of clusters.
-
-## Constrained analysis
-
-So far we have been doing unconstrained or unsupervised explorative visualization, or _indirect_ gradient analysis. We just visualized the strongest signals in the data, independent of sample covariates. Only then did we use the covariate information to try to correlate the covariates with the latent variables formed by the row and column scores. We usually do this by adding a colour code for the samples in our biplots.
-
-A logical next step is to develop a __constrained__ method in the same framework, i.e. with the same error distribution. We argued that PCoA with Bray-Curtis distance or regular correspondence analysis did not perform well, and we expect the same for canonical correspondence analysis since it relies on the same distributional assumptions. We will visualize those departures from the independence model that can be explained by the sample covariates. Each dimension will thus consist of a linear combination of sample covariates, the weight of each of these covariates in the dimensions reflecting how much they contribute to explaining the variation. For background information see also Zhu _et al._ , 2005, and Zhang and Thas, 2012.
-
-We call our n-by-d covariate matrix $C$, for every sample $i$, $d$ baseline covariates are measured. These covariates can be either discrete or continuous. $c_{iy}$ is the observed value of covariate $y$ in sample $i$, $\mathbf{c_{i.}}$ the whole covariate vector of length $d$ of sample $i$, and $\mathbf{c_{.y}}$ all recorded values of variable $y$.
-
-We could of course just perform our classical, unconstrained methods and then regress the obtained sample scores on the envrionmental variables. However, it is to be expected that this is a less efficient use of the data, which has been shown for the case of correspondence analysis by Prodon and Lebreton (1994).
-
-### Canonical correlation analysis
-
-Canonical correlation analysis seeks to compare multivariate sets of random variables __X__ (n-by-p) and __Y__ (n-by-m) with variables in the columns. This way one discovers which variables correlate best between both data sets. Usually both data sets represent different kinds of measurements, e.g. dietary habits vs. health condition, but all measured on the same individual. It looks for linear transformations __Xa__ and __Yb__ that maximize the correlation $\rho = cor(\mathbf{Xa}, \mathbf{Yb})$. We call these transformations the _canonical covariates_ $\mathbf{Xa_i} = \mathbf{U}_i$ and $\mathbf{Yb_i} = \mathbf{V}_i$ and the corresponding correlation $\rho_i$ the _canonical correlation_. The consecutive canonical covariates are linearly independent, the canonical correlation coefficients decrease over the dimensions of the solution.
-
-__X__ and __Y__ are column centered to obtain __A__ and __B__, and then we look for projecting vectors __x__ and __y__ that maximize correlation between $\mathbf{z}_x = \mathbf{Ax}$ and $\mathbf{z}_y = \mathbf{Ay}$. Note that there is no notion of percentage of variance explained, and that this method is symmetric with respect to datasets __X__ and __Y__.
-
-### Redundancy analysis (RDA)
-
-Redundancy analysis extracts variation between variables of a n-by-p dataset __X__ that can be explained by variables from another n-by-d dataset __Y__ (column centered). It is a constrained version of principal components analysis (PCA), whereby principal components are restricted to be linear combinations of the set of constraining variables.
-
-In a first step the rows of __X__ are fitted on those of __Y__ in multiple linear regression:
-
-$$\widehat{X} = X (Y^tY)^{-1}Y^t X$$
-
-Next the covariance matrix $\widehat{X}^t\widehat{X}$ is subjected to regular PCA:
-
-$$\widehat{X}^t\widehat{X} = W \Lambda W^t$$
-We plot the first columns of $\widehat{X} W \Lambda$ to represent the variability of __X__ explained by __Y__. Components of $B = (Y^tY)^{-1}Y^t X$ may be added to show which columns of __Y__ explain most variance of __X__.
-
-#### Partial redundancy analysis
-
-In partial redundancy analysis, the effect of a second covariate matrix Z is conditioned on prior to PCA or RDA. __X__ is regressed on __Z__, PCA or RDA proceeds on the residual matrix of this regression.
-
-### Constrained/canonical correspondence analysis (CCA)
-
-The idea behind canonical or constrained correspondence analysis is to have unimodal response functions as with regular CA, but to restrict the row scores to be linear functions of the environmental variables. Also, it is Gaussian ordination with the scores equally restricted under the same conditions as the unrestricted Gaussian ordination. CCA relates to CA as RDA relates to PCA.
-
-Of course one could perform regular correspondence analysis, and then relate the obtained gradients to known envrionmental variables in a two-step approach. This is again an instance of _indirect_ gradient analysis (see Whittaker 1967).
-
-There are many ways to introduce and explain CCA, with many parallels to other (forgotten) methods, but we will stick to the approach based on the singular value decomposition.
-
-In contrast to redundancy analysis, constrained correspondence analysis (CCA) assumes bell-shaped, unimodal response curves with respect to environmental variables. A __response curve__ describes the expected abundance of a species in function of an environmental score, which is a function fo environmental variables. Redundancy analysis asssumes linear responses to the environmental variables, which is less useful in the ecological context. Classical ecological theory assumes species have an optimal combination of values of the environmental variables, and their expected abundances decrease as the environment departs from these optimal values.
-
-Ter Braak (1987) proposes a method of direct gradient analysis based on CA: canonical correspondence analysis (CCA). It basically assumes that species have a Gaussian response curve in function of an environmental score which is a _linear_ conbination of environmental variables. The linear projection vector $\boldsymbol{\alpha}$ is called the __environmental gradient__. The row scores of the ordination are restricted to be linear combinations of the environmental variables. Prior to the analysis the environmental variables are centered and scaled to avoid arbitrariness in the choice of the units and render the elements of the envrionmental gradient comparable. The estimating equations are:
-
-1) Species scores $\mathbf{s} = \mathbf{J}^{-1}\mathbf{X}^t\mathbf{r}$
-2) Sample scores (weighted average taxon scores) $\mathbf{r*} = \mathbf{R}^{-1}\mathbf{Xs}$
-3) Environmental gradient $\boldsymbol{\alpha} = (\mathbf{C}^t\mathbf{RC})^{-1}\mathbf{C}^t\mathbf{Rr*}$: weighted regression on environmental variables
-4) Sample scores (environmental) $\lambda\mathbf{r} = \mathbf{C}\boldsymbol{\alpha}$
-
-whereby $\lambda$ is a measure of the importance of that dimension. We can write this also as the following estimating equation:
-
-$$(C^TXJ^{-1}X^TC - \boldsymbol{\lambda}C^TRC)\boldsymbol{\alpha} = \mathbf{0}$$
-
-or as 
-
-$$(C^TX(C^TRC)^{-1}X^TC - \boldsymbol{\lambda}J)\mathbf{s} = \mathbf{0}$$
-
-The first equation represents a generalized eigenvalue problem, the second a regular eigenvalue problem since __J__ is a diagonal matrix.
-
-Another approximation to CCA follows more the path we have before with CA. Hereby the rows of the chi-square transformed matrix $\mathbf{R^{-1/2}(X-E)C^{-1/2}}$ are subjected to weighted least squares regression on the environmental variables, with the sample totals $\mathbf{R}$ as weights. The matrix of environmental variables undergoes weighted centering prior to model fitting, with the library sizes as weights. The row-weight-centered matrix $C'$ is thus calculated as $C' = C(I - \frac{1}{c_{..}d}R\mathds{1}$. Then singular value decomposition is applied to the matrix of fitted values $F = Y (C^T R C)^{-1} C' R R^{-1/2}(X-E)C^{-1/2}$ of this regression, such that $F = U'\Sigma'V'$. Using the fitted values assures that only the systematic part explained by the covariates plays a role. 
-
-A third approach by ter Braak in _"The history of canonical correspondence analysis"_ (2014) uses a direct SVD. Here he also references Goodman's work. The singular value approach he proposes is:
-
-$$(Y^tRY)^{-1/2}Y^tXC^{-1/2} = U\Sigma V^t$$
-
-The environmental gradients are then $(Y^tRY)^{-1/2}U \Sigma$, the taxon scores $C^{-1/2}V$.
-
-CCA is related to weighted Redundancy analysis (RDA) of the Chi-squared distances, just like regular CA is related to PCoA of Chi-squared distances.
-
-Legendre and Legendre (2012) describe an even different way of fitting the CCA. Because of all these algorithms and the use of weights, CCA is a very difficult method to interpret and compare, since it is not always clear which version is being used in which case.
-
-#### CCA triplots
-
-In a triplot of a CCA ordination, the samples and species are plotted as points, and the elements of the environmental gradient as arrows. The species scores are the right singular vectors, the sample scores can be calculated as linear combinations of environmental variables (environmental scores), or as the weighted average of their species scores (weighted by species abundances). In the latter case, the closer the species points lie to to the sample point, the higher the expected abundance. The orthogonal projection of the species point onto the environmental arrow represents how much the expected abundance increases (decreases) with changes in this environmental variable.
-
-#### Conditioning in CCA
-
-Conditioning occurs in the same fashion as with regular CA: the residuals of the CCA on the conditioning matrix Z are the input for the CCA on the environmental variables of interest.
-
-### Redundancy analysis (RDA)
-
-Redundancy analysis (RDA) is a constrained version of PCA, whereby the loadings are constrained to be linear combinations of a set of exploratory variables. This result can be compared to unconstrained PCA to see how much of the total variance is accounted for by the constrained variance. This type of analysis is indicated in case of linear relationships between the response variables (species counts) and explanatory variables. In our case this would e.g. be a environmental gradient in dimension $k$ that is dominated by the concentration of a toxic substance, which only decreases the expected abundance as its concentration increases. Another option is that the gradient is dominated by a variable with a short gradient.
-
-### Constrained Analysis of Principal Coordinates
-
-Constrained Analysis of Principal Coordinates (CAP) can be seen as a constrained version of PCoA. It is similar to RDA but extends to dissimilarity measures other than the Euclidean distance. See Anderson and Willis (2003).
-
-### Constrained RC(M) model
-
-The following approaches to constrained analysis of ecological data exist, or have been considered
-
-#### The classical approach for gradient analysis
-
-This model comes from ecology and is the one used by Zhu _et al._ (2005) and Zhang and Thas (2012 and 2016). This assumes each taxon has an optimal combination of covariates, and its expected abundance decreases as the covariates depart from this optimal combination. The expected abundance follows a Gaussian distribution in function of this departure.
-
-The expected counts are modelled as 
-
-$$log(E(X_{ij})) = \sum_{k=1}^K \big(a_{jk} - \frac{(h_{ik} - q_{jk})^2}{2m_{jk}^2}\big)$$
-
-whereby 
-
- - $h_{ik} = \boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$ the optimal linear combination of $\mathbf{c}_{i.}$ in dimension $k$, also called the _environmental score_
- - $\boldsymbol{\alpha}_k$ is called the _environmental gradient_
- - $\alpha_{ky}$ is element corresponding to covariate $y$ of the environmental gradient in dimension $k$
- - $a_{jk}$ is the maximal logged expected abundance achieved when the linear combination of covariates $\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$ equals the optimum $q_{jk}$
- - $m_{jk}$ is the tolerance, it determines how fast the expected value decreases as $\mathbf{c}_{i.}$ moves away from its optimal values $\boldsymbol{\alpha}_k^{-t}h_{ik}$
- 
- The scales of $h_{ik}$, $q_{jk}$ and $m_{jk}$ are undefined, so we need an additional restriction to render the model identifiable. Zhu _et al._, 2005 propose setting $\sum_{j=1}^p m_{jk}^2/p=1$. Note that $a_{jk}$, $q_{jk}$ and $m_{jk}$ are species specific parameters whereas $\boldsymbol{\alpha}_k$ is specific for the dimension but common to all species.
- 
- Does the environmental score really need to be a result of a _linear_ projection vector? From the modelling perspective perhaps not, but it does really ease the interpretation of course, which is hard enough already.
- 
-##### Triplot
-
-- $q_{jk}$ is plotted as points as optimum per species
-- The components of $\boldsymbol{\alpha}$ are plotted as arrows for the environmental variables.
-- The samples are plotted as their site scores $\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}$
- 
-##### Estimation
-
-The estimation iterates between estimating $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_{jk} = \big(a_{jk}, q_{jk}, m_{jk})$.
-
-Note that this model is fitted without an intercept
 
 #### RC(M) approach to gradient analysis
 
@@ -1016,186 +931,3 @@ X = matrix(rnbinom(n*p, mu = outer(libSizes, relAbs), size = thetaMat), n, p)
 system.time(dNBlibSizes(log(libSizes), X, log(relAbs),thetas))
 ```
 
-# Competing methods
-
-## Unconstrained RC(M)
-
-### PCoA/MDS
-
-Principal coordinates analysis (PCoA) or multidimensional scaling (MDS) are dimension reduction techniques specifically for samples. The consist in calculating dissimilarity matrices with dissimilarities between samples based on some chosen dissimilarity measure. These dissimilarity matrices are than decomposed through eigenvalue decomposition, and the first two dimensions are plotted. More formally, for a n-by-p data matrix $\mathbf{X}$, all pairwise distances between samples $i$ and $i'$ $D_{ii'} = d(\mathbf{X_{i.}}, \mathbf{X_{i'.}})$ are calculated and summarized in a n-by-n dissimilarity matrix $\mathbf{D}$. If the dissimilarity measure is a true distance, then $d_{ii'} = d_{i'i}$ and $\mathbf{D}$ is symmetric. Next $\mathbf{D}$ is squared and undergoes double centering:
-
-$$B = -1/2 J D^2 J$$
-
-with $\mathbf{J} = \mathbb{I} - \frac{1}{n}\mathbf{11'}$ a centering matrix. This transformed matrix __B__ then undergoes eigendecomposition into
-
-$$ \mathbf{B} = \mathbf{V}^t\boldsymbol{\Lambda}\mathbf{V} $$
-
-  with the eigenvectors of $\mathbf{D}$ in the columns of $\mathbf{V}$ and $\boldsymbol{\Lambda}$ a diagonal matrix with eigenvalues of $\mathbf{D}$ on the diagonal. $\mathbf{v}_1\lambda_1$ can then be plotted _vs_ $\mathbf{v}_2\lambda_2$ in a 2D scatterplot to represent distances between the samples optimally in 2D. In the calculation of $\mathbf{D}$, the information on the individual taxa is lost. Taxa scores can be calculated by weighted averaging of the sample scores for each taxon, weighted by the taxon abundances in these samples. The taxon score of taxon _j_ in dimension 1 then becomes
-   
-   $$t_{j1} = \sum_{i=1}^n v_{i1}*\frac{x_{ij}}{x_{.j}}$$
-   
-  This is a two step approach: the taxon scores are only calculated post-hoc and not as part of the eigendecomposition.
-   
-  In the following paragraphs we discuss a number of popular distance measures for microbiome data that are commonly used for PCoA.
-   
-#### Bray-Curtis dissimilarity
-
-This distance measure was invented in 1957 in the context of forest ecology. It is calculated as
-
-$$BC_{12} = 1-\frac{2*S_{12}}{S_1 + S_2}$$
-
-with $S_{12}$ the counts or relative abundances of all species observed in \textbf{both samples}, and $S_{i}$ the counts or relative abundances of species only observed in sample $i$. This dissimilarity measure varies between 1 when no species are shared (maximal dissimilarity), and 0 when all species shared, and the community composition is identical. It is not a distance measure since it does not fulfill the triangle inequality $d(a,b) \leq d(a,c) + d(b,c)$. For use in microbiome research see e.g. Barfod _et al._, 2017 and many others. You can apply it to eihter absolute or relative counts, although the latter appears to be the most popular. In Callahan _et al._ (2016) they also apply it to log-transformed counts, even though they note that this leads to correlations with the library sizes.
-
-#### UniFrac distance
-
-The UniFrac distance was developed specifically for the microbiome by Lozupone and coworkers (2005), and includes phylogenetic information in the distance calculation. It is defined as the fraction of the phylogenetic tree length that leads to species found in only one of the two samples. As opposed to Bray-Curtis dissimilarity, it is a true distance metric.
-
-##### Weighted UniFrac
-
-To account for differences in sequencing depth, in 2007 weighted UniFrac was proposed. This weights every branch by the absolute difference in relative abundances the species of both samples as follows:
-
-$$d_{UniFrac}(1,2) = \sum_{i=1}^b l_i |\frac{x_{1b}}{x_{1.}} - \frac{x_{2b}}{x_{2.}}|$$
-with $x_{zb}$ the total abundance of species in sample _z_ pertaining to branch _b_. This means that also branches with species from both samples can contribute to the distance between the samples, if their compositions are uneven.
-
-#### Jenssen-Shannon distance
-   
-We include the Jenssen-Shannon distance because of its role in the enterotypes publication (Arumugam _et al._, 2011). It is the square root of the Jenssen-Shannon _divergence_, a symmetrized version of the Kullback-Leibler divergence.
-
-$$d_{Jenssen-Shannon}(a,b) = \sqrt{0.5 \sum_{j=1}^p x_{aj} log \frac{x_{aj}}{\frac{x_{aj}+x_{bj}}{2}} + 0.5 \sum_{j=1}^p x_{bj} log \frac{x_{bj}}{\frac{x_{aj}+x_{bj}}{2}}}$$
-
-It is a true distance.
-
-#### Hellinger distance
-
-This came up during our own research into a version of correspondence analysis that would accurately model the variance of our count data. Still, it was originally designed for distances between distributions rather than between real data ratios.
-
-The Hellinger distance divides by the square root of the observation as means of normalization:
-
-$$\frac{X}{\sqrt{Var(X)}} \approx \frac{X}{\sqrt{X}} = \sqrt{X}$$
-
-The rationale is that each observation x (rather than the margins of the table) is the best estimate of its expectation E(X), and under the Poisson model also of its variance. Still also these plots are susceptible to differences in library sizes. See Rao (1997), who suggests this method as an alternative to correspondence analysis. The drawback of correspondence analysis is that the estimate for the expected abundances used to standardize departures from independence $X-E$ is based on the taxon sums, and thus on other samples. With the Hellinger distance only, the sample itself is used to estimate the expected abundances, namely by the count itself. It is defined as 
-
-$$d_{hellinger}^2(a,b) = \sum_{j=1}^p \Big(\sqrt{\frac{x_{aj}}{x_{a.}}}-\sqrt{\frac{x_{bj}}{x_{b.}}}\Big)^2 $$
-
-. It does works on the relative abundances. It has been used in publications on microbiome, e.g. Kreisinger _et al._, 2015, Hollister _et al._ 2015, Vital _et al._, 2015.
-
-For a biplot we find the singular value decomposition
-
-$$R^{1/2}(P-Q) = STV^t$$
-
-with $p_{ij} = \sqrt{\frac{x_{ij}}{x_{i.}}}$ and $q_{ij} = \sqrt{\frac{x_{.j}}{x_{..}}}$. To represent the samples we plot the first $k$ columns of $TR^{1/2}S$, and to add the taxa we can add the first $k$ columns of $\Delta^{-1}V$ with $\delta_{ij} = \Big(\sqrt{(P-Q)^tR(P-Q)}\Big)_{ij}$ if $i=j$ and 0 otherwise.
-
-#### Transformations
-
-##### Log transform
-
-In Callahan _et al._ (2016), which serves as a manual for the popular _phyloseq_ package, it is suggested to first log-transform the counts(after adding pseudocount 1) as a variance stabilizing transformation, prior to applying methods like PCoA
-
-##### Variance stabilizng transformation
-
-The _DESeq_ packages provides a variance stabilizing transformation (VST), based on the estimated mean-variance trend. The point is to get transformed values whose variance is independent of the mean.
-
-##### Regularized log-transform
-
-Apart from the VST, the _DESeq2_ packages also offers the _rlog_ transformation. It results in a $log_2$ transformed expected value of the count, based on an intercept and a sample-wise coefficient that is shrunk based on the mean variance trend. This transformation should account for differences in library sizes. See _DESeq2_ manual.
-
-#### Related material
-
-   * See Warton _et al._ (2012): Distance-based multivariate analyses confound
-location and dispersion effects
-   * See technical report bio BioRankings: "Dealing with High-Dimensional Data". Pairwise distances all become similar in high dimensions.
-   
-#### Non-metric multidimensional scaling
-
-Non-metric multidimensional scaling (NMDS) can be considered the little brother of MDS, since it also represents distance matrices in lower dimensions. Still there are some important differences: 
-
- - NMDS is fitted numerically instead of through singular value decomposition
- - The number of axes is chosen beforehand. There is no ordering in the axes, the solution depends on the number of axes chosen
- - It makes no assumption on the distribution of the data, in contrast to PCA which assumes linear relationships and CCA which assumes unimodal ones.
- 
- The ordination is fitted iteratively, by minimizing the stress between the original distances and the distances of the actual ordination. See the tutorial by Steven M. Holland for more information.
- 
-### Double principal coordinates analysis
-
-Double principal coordinates analysis (DPCoA) intends to include dissimilarities between species into the analysis. These could be morphological differences, but in the microbiome case these will be phylogentic distances. 
-
-We have given a n-by-p data matrix __X__ and a p-by-p symmetric dissimilarity matrix between the species $\Sigma$.
-
-1) Use PCoA to find the optimal _n-1_th dimensional representation of the the dissimilarity matrix $\Sigma$
-2) Add the samples points at the barycentres (weighted averages) of the species points. In this representations Euclidean distances between samples on the plots equal the square roots of their Rao dissimilarity.
-3) Use PCA to find a lower dimensional representation of the samples.
-
-It is similar to Unifrac in the sense that it uses phylogenetic information. It is also reminiscent of PCoA, only that here distances between _species_ rather than samples are used. Also the dimension reduction is more complex.
-
-### PCA
-
-Principal components analysis (PCA) is perhaps the most widely used of all dimension reduction methods. Out os a number of possibly correlated continuous variables, it creates linear combinations of these variables that are orthogonal to each other, and for which each linear combinations has maximal variance, conditional on the previous ones.
-
-PCA is performed as an eigenvalue decomposition of the variance covariance matrix
-
-$$Y^tY = W \Lambda W^t$$
-
-with $W^TW = I$. The variables (columns) of __Y__ are presumed to be centered and scaled. This dimensionality reduction optimally represents Euclidean distances between samples in lower dimensions. Its use with dummies of categorical variables is problematic, since they are inherently correlated and affect the ordination of the PCA. This analysis seems usefull for explorative visualization of continuous covariate data, rather than counts.
-
-#### PCA on ranks
-
-In the phyloseq manual it is proposed to perform PCA on ranked abundance data. Thereby low ranks are set equal to 1 to avoid creating artificially large differences between lowly abundant taxa.
-
-### Correspondence analysis
-
-This is the classical, statistical way of analysing contingency tables of count data. For discussion see the beginning of this document.
-
-### CoDa
-
-In recent years there have been many publications on analysing microbiome data as compositional. Gloor and Reid (2016) and Gloor _et al._ propose a method to extend this philosophy to biplots. In a frist step, zero counts are replaced by a non-zero pseudocount, either 0.5 or through a Bayesian method. Next the data are normalized to realtive abundances, divided by the geometric mean and log-transformed. This is called the central logratio transform (clr). PCA is applied to these transformed data (through eigendecomposition of the variance-covariance matrix) and sample scores mutliplied by eigenvalues are plotted. Row scores can be added as weighted sample means.
-
-Theoretical concerns I have about this method are the following:
-
- - Heteroscedasticity of count data is not addressed. Authors claim this should be handled "downstream".
- - Negative correlations due to compositionality might be swamped by true biological correlations
- - The library sizes are not always of merely technical nature, and very often measures of biomass or cell count are including. This questions the compositional nature of these data
-
-### Bayesian Nonparametric Ordination 
-
-(Ren _et al._ (2016))
-
-# Method evaluation
-
-After implementing the method and proving its concept, it is time to compare it with existing methodologies. We need to define a way to obtain datasets, and a way to evaluate the ordinations in a high-throughput way. For the simulation we will need multiple repetitions to prove the superiority of our method, so we need an automatic evaluation of the clustering accuracy.
-
-## Overall vs. within distance
-
-A first intuitive approach would be to compare the within cluster distances on the plot to the distances to the origin. Clusters are defined as samples generated with the same taxon distribution, either parametrically or non-parametrically. Say we have $m = 1,...,l$ groups with (multidimensional) means $\mathbf{M}_m$.  The within distance is then defined as $d_{m, within} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{M}_m, Y_i)$, with $d_{euclidean}$ the euclidean distance. The overall distance of a group then equals $d_{m, overall} = \frac{1}{n_m}\sum_{i=1}^{n_m} d_{euclidean}(\mathbf{0}, Y_i)$ with $\mathbf{0}$ the origin. This calculation can be done for each dimension separately or in the multidimensional space.
-
-We could perhaps look for the distance based method that maximizes $\frac{d_{m, overall}}{d_{m, within}}$? This is related to Ward's minimum variance method, but with scaling to the overall distance. This takes differences in the scales of solutions of different methods into account. We then use the geometric mean of these ratios over the different clusters as statistic:
-
-$$\Big(\prod_{m=1}^l\frac{d_{m, overall}}{d_{m, within}}\Big)^{1/l}$$
-
-This approach can only be applied to the row scores (samples), since there the importance parameters are multiplied and thus distances are represented correctly. This approach is reminiscent of Ward clustering \cite{Ward1963} and a pseudo F-statistic \cite{Anderson2001}.
-
-## Silhouette
-
-See "Silhouettes: a Graphical Aid to the Interpretation and Validation of Cluster Analysis", Rousseeuw, 1987. The silhouette can be calculated with any distance measure, but we will just use the euclidean distance again. For each point $i$, calculate the distance to each other point in the ordination, and average these distances within the cluster. Call $a(i)$ the average distance to its own cluster and $b(i)$ the smallest of the average distances to the other cluster. The the silhouette of observation i $s(i)$ is defined as:
-
-$$s(i) = \frac{b(i) - a(i)}{max\big(a(i), b(i)\big)}$$
-
-The silhouette can take values between +1 for optimal separation and -1 for wrong classification. If a poin i close to the centroid of its own cluster but very far from all the others the methods has performed well and is rewarded with a high silhouette. We can average the silhouttes over the ordination or jus look at their distribution to compare the ordination methods.
-
-## Correlation with library sizes and abundances
-
-The motivating problem to develop the whole method was to find an approach that would not show correlation between the row scores and the library sizes, which is a technical artefact.
-
-Pearson correlations of row scores with library sizes could be another criterion to evaluate the quality of the biplot. Equivalently correlations with average relative abundance can be investigated.
-
-## Contribution of taxa to the separation of the clusters
-
-For the methods that do yield taxon scores, we can also verify if the correct taxa contribute to the separation of the clusters. A useful measure in this case seems the relative contribution of the taxa with signal in the direction of the cluster centroid, compared to the non-signal taxa. 
-
-With $\mathbf{H}_l$ the vector from the origin to the sample centroid of group $l$, $\mathbf{s}_{l,sig}$ the $n_{l,sig}$-by-k matrix with scores of the $n_{l,sig}$ taxa in group l with signal and $\mathbf{s}_{l,noSig}$ the $n_{l,noSig}$-by-k matrix with scores of the $n_{l,noSig}$ taxa without signal, the quantity we are looking for is:
-
-$$ \frac{n_{l,noSig} \mathbf{s}_{l,sig}\mathbf{H}_l \mathbb{1}}{n_{l,sig} \mathbf{s}_{l,noSig}\mathbf{H}_l \mathbb{1}}$$
-
-with $\mathbb{1}$ a column matrix of one of the appropriate dimension. However, this will very often lead to negative and/or very large ratios. Therefore we look at the average ratio of the median signal of the signal taxa to the 75th percentile of the signal of the non-signal taxa. The rationale is that half of the non-signal taxa are expected to contribute in the direction of the cluster, and taking the median of this half is in practice the 75th percentile. The final statistic is thus
-
-
-$$\frac{1}{m}\sum_{l=1}^m \frac{\underset{j}{\mathrm{median}} (\mathbf{s}_{lj,sig}\mathbf{H}_l )}{\underset{j}{\hat{F}^{-1}_{0.75}}(\mathbf{s}_{lj,noSig}\mathbf{H}_l )}$$

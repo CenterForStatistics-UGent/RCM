@@ -518,7 +518,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         ##Check convergence  (any numbered norm for row and column scores)
         convergence[KK] = ((iterOut[KK] <= maxItOut) &&
-                             (all(abs(1-psis[KK]/psisOld) < Psitol)) && #Infinity norm for the psis
+                             (abs(1-psis[KK]/psisOld) < Psitol) && #Infinity norm for the psis
                              ((sum(abs(1-alpha[,KK]/alphaOld)^convNorm)/p)^(1/convNorm) < tol) && #Env gradient
                              if(responseFun=="nonparametric") TRUE else (mean(abs(1-(NB_params[,,KK]/NBparamsOld)[NBparamsOld*NB_params[,,KK] != 0])^convNorm)^(1/convNorm) < tol) #Parameters of the response function
         )
