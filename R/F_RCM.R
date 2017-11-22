@@ -75,9 +75,6 @@ rm(tmp)
       confModelMat = confModelMat[!NArows,]
       confModelMatTrim = confModelMatTrim[!NArows,]
     }
-    if(!is.null(covModelMat)){
-      covModelMat = confModelMat[!NArows,]
-    }
     warning(paste("Some covariates contain missing values. We removed samples \n", paste(which(NArows), collapse = ", "), "\n prior to analysis." ),immediate. = TRUE)
     }
   } else {

@@ -355,4 +355,23 @@ Show the variables
 plot(ZellerRCM2constrNonParam, plotType = "variables")
 ```
 
-The envrionmental gradients are quite different from the case with the linear response functions. Especially age is an important driver of the environmental gradient here. Still the results for cancer diagnosis , country and gender are similar to before.
+The envrionmental gradients are quite different from the case with the linear response functions. Especially age is an important driver of the environmental gradient here. Still the results for cancer diagnosis, country and gender are similar to before.
+
+#### Looking at the species' response function
+
+The advantage of the non-parametric response functions is that we can get a good, fine-grained understanding of how species react to the environmental gradient. Let's have a look at the response function of a random subset of 8 taxa in the first dimension
+
+```{r plotnonParamRespFun}
+set.seed(684584)
+taxaDrawn =  sample(taxa_names(ZellerRCM2constrNonParam$physeq), 8)
+plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = taxaDrawn, yLoc = -8)
+```
+
+Here we see e.g. that _Succinatimonas hippei_ is more abundant than under the independence model for low values of the environmental score, but less abundant for high values. The gradient in this dimension is clearly dominated by the cancer diagnosis. Let us have a look at how _Fusobacterium_ species react to this gradient, as the authos found them to be more abundant in cancer patients \cite{Zeller2014}.
+
+```{r plotnonParamRespFunFuso}
+FusoSpecies = grep("Fusobacterium",value = TRUE,taxa_names(ZellerRCM2constrNonParam$physeq))
+plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = FusoSpecies, yLoc = NULL)
+```
+
+Not all Fusobacteria react to the environmental gradient in the same way.
