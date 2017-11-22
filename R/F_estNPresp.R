@@ -44,5 +44,6 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
   taxonCoef = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit$coef})
   psi = sqrt(sum(sapply(taxonWise, function(x){x$int})^2*colWeights))
+  names(taxonWise) = colnames(X)
   list(taxonWiseFitted = taxonWiseFitted, taxonCoef = taxonCoef, overallFitted = matrix(fitted(overall), ncol = ncols), overallCoef = coef(overall), psi = psi, taxonWise = taxonWise)
 }
