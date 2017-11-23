@@ -26,8 +26,8 @@ extractCoord = function(RCM, Dim = c(1,2)){
       dataTax = data.frame(
         origin1 = -RCM$NB_params[1,,Dim[1]]/RCM$NB_params[2,,Dim[1]] ,
         origin2 = -RCM$NB_params[1,,Dim[2]]/RCM$NB_params[2,,Dim[2]] ,
-        slope1 = RCM$NB_params[2,,Dim[1]] * RCM$psis[Dim[1]], #The gradient
-        slope2 = RCM$NB_params[2,,Dim[2]] * RCM$psis[Dim[2]]
+        slope1 = RCM$NB_params[2,,Dim[1]] , #The gradient
+        slope2 = RCM$NB_params[2,,Dim[2]]
       )
        dataTax = within(dataTax, {
         end1 = origin1 + slope1
@@ -44,7 +44,7 @@ extractCoord = function(RCM, Dim = c(1,2)){
 
       peakHeights = apply(RCM$NB_params[,,Dim],2, function(x){
         A = x[3,]; B = x[2,]; C = x[1,];
-        sapply(exp(B^2 * RCM$psis[Dim]-4*A*C)/(4*A), function(y){max(y,1/y)}) #select largest relative departure
+        sapply(exp(B^2 -4*A*C)/(4*A), function(y){max(y,1/y)}) #select largest relative departure
       })
       rownames(peakHeights) = c("peak1","peak2")
       dataTax = cbind(dataTax, t(peakHeights))
@@ -69,7 +69,6 @@ extractCoord = function(RCM, Dim = c(1,2)){
     names(dataTax) = c("end1","end2", "origin1","origin2")
     rownames(dataTax) = colnames(RCM$X)
   }
-
 
   #Variables
   if(!constrained) {dataVar =NULL

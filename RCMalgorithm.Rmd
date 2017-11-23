@@ -232,13 +232,43 @@ For the microbiome case, every subject comes from the same population under the 
 For the sake of completeness we give the density function of the negative binomial distribution (see Lawless, 1987) in the ($\mu$, $\theta$) parametrization whereby $E(X_{ij}) = \mu_{ij}$ and $Var(X_{ij}) = \mu_{ij} + \frac{\mu_{ij}^2}{\theta_j}$ .
 
 $$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\mu_{ij}}{\theta_j+\mu_{ij}}\big)^{X_{ij}} \big(\frac{\theta_j}{\theta_j+\mu_{ij}}\big)^{\theta_j}$$
-## Biplot
+## Plotting the RC(M) ordination
 
-8. Plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ as sample points and add $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($\psi_1r_{1i}$, $\psi_2r_{2i}$) on ($s_{1j}$, $s_{2j}$) equals $cos (\eta) ||(\psi_1r_{1i}, \psi_2r_{2i})|| = \frac{(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i})}{||(s_{1j}, s_{2j})||}$ with $\eta$ the angle between the two vectors. This projection is thus proportional to the departure from independence in the first two dimensions combined. The larger the entries of the species and sample scores (the scaling between these two sets is arbitrary, we usually choose them in the same order of magnitude) and the smaller the angle, the larger the departure of this taxon in this sample. The choice of $\psi_1r_{1i}$ vs $\psi_2r_{2i}$ assures the distances between samples are well represented, since more weight is added to differences in scores in important dimensions.
+### Unconstrained RC(M)
 
-In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)xn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
+To plot the unconstrained sample ordination, e.g. in the first two dimensions, plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$, preferably as dots. All weight of the importance parameters $\psi_k$ is alloted to the samples, which means that the distances between sample points can be intepreted as optimal representations of between-sample distances in lower dimension. More weight is added to differences in scores in important dimensions.
+
+To show the role of the taxa in the ordination, add taxon scores $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($\psi_1r_{1i}$, $\psi_2r_{2i}$) on ($s_{1j}$, $s_{2j}$) equals $cos (\eta) ||(\psi_1r_{1i}, \psi_2r_{2i})|| = \frac{(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i})}{||(s_{1j}, s_{2j})||}$ with $\eta$ the angle between the two vectors. This projection is thus proportional to the departure from independence in the first two dimensions combined, for taxon $j$ in sample $i$. The larger the entries of the species and sample scores (the scaling between these two sets is arbitrary, we usually choose them in the same order of magnitude) and the smaller the angle, the larger the departure of this taxon in this sample. 
+
+### Constrained RC(M)
+
+#### Linear response functions
+
+For a constrained ordination with linear response functions, plot e.g. in the first two dimensions the sample scores $(\psi_1\boldsymbol{\alpha}_1^t\mathbf{C}_i, \psi_2\boldsymbol{\alpha}_2^t\mathbf{C}_i)$, preferably as dots. Again this ordination optimally represents distances between samples in low dimension that can be explained by the environmental variables.
+
+Taxon arrows can be added with their origin in $(-\frac{\beta_{0j1}}{\beta_{1j1}}, -\frac{\beta_{0j2}}{\beta_{1j2}})$. This represents the combination of values of the environmental scores in the first two dimensions were a sample would have no expected departure from independence for this taxon $j$. The arrow then extends in the direction of $(\beta_{1j1}, \beta_{1j2})$. The orthogonal projection of this taxon vector onto the sample scores (which depart from the origin), is then equal to $\frac{(\beta_{1j1}, \beta_{1j2})^t(\psi_1\boldsymbol{\alpha}_1^t\mathbf{C}_i, \psi_2\boldsymbol{\alpha}_2^t\mathbf{C}_i)}{||(\beta_{1j1}, \beta_{1j2})||}$, i.e. the departure from uniformity of taxon $j$ that is due to the environmental score from sample $i$.
+
+Labels for the environmental variables are then added according to the loadings of $\boldsymbol{\alpha}_k$. The projection of $\boldsymbol{\alpha}_{y}$ onto $\boldsymbol{\beta}_{1j}$ then reflects the sensitivity of the expected abundance of taxon $j$ to changes in variable $y$.
+
+There is no interpretation available for the relative position of sample and variable vectors. This is because the environmental gradient $\boldsymbol{\alpha}_k$ projects the environmental variables of a sample $i$, $\mathbf{C}_i$ onto a single scalar $h_{ik}$, the environmental score. Many combinations of variables $\mathbf{C}_i$ can lead to the same environmental score.
+
+#### Quadratic response function
+
+For a quadratic response function the samples are ordered as for the linear one.
+
+The taxa are plotted as dots at the locations $(-\frac{\beta_{2j1}}{2\beta_{3j1}}, -\frac{\beta_{2j2}}{2\beta_{3j2}})$ of maximal departure from independence. The convexity $\beta_{3jk}<0$ or concavity $\beta_{3jk}>0$ in each dimension can be shown e.g. by a colour code. Note that cases like $\beta_{3j1}<0<\beta_{3j1}$ can occur, which greatly complicates the interpretation. Further, ellipses can be drawn around the taxon points to indicate the steepness of the response functions. we choose to draw ellipses connecting the values of the envrionmental score at which the response functions are at 95% of their peaks.
+
+The variables can be added as in the linear case to show how they contribute to the environmental gradient.
+
+#### Non-parametric response functions
+
+For non-parametric response functions the samples and variables can be plotted as before, but there is no clear cut way to add the role of the species. The interpretation of the plot will thus mainly focus on the sample ordination.
+
+If the researcher is interested in the response functions of the species, they can be plotted in one dimension in function of the environmental score for many species combined. The environmental gradient of this dimension can be added as a reference to show which variables constitute the gradient.
 
 ##### Model quality
+
+In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)xn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
 
 9. Assess the goodness of fit
 
@@ -845,89 +875,4 @@ It is clear that the triplot is not trivial to interpret, but then again: neithe
 ## Some general thoughts on the RC(M)
 
 Contrary to most other methods to make biplots for microbiome data, the RC(M)-method is a truly statistical method that explicitly models the mean. This renders it very easy to interpret. It's main weaknesses are the reliance on a parametric distribution (which may be incorrect), and it's relatively long running times. However, many other biplot methods, such as CA ot PCoA with Hellinger distances, also make distributional assumptions, mostly without stating them explicitly.
-
-\newpage
-
-#### Test the software
-
-Some preliminary test to make sure everything runs without errors
-
-```{r tests, purl = FALSE, eval = FALSE}
-n = 2000; p = 10000
-counts = matrix(rnbinom(n*p, mu = 5, size = 3), n, p)
-covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6), status = sample(c("Treatment","Control"),n, replace=TRUE), siblings = rpois(n, lambda = 0.9))
-physeq = phyloseq(otu_table(counts, taxa_are_rows = FALSE), sample_data(covars))
-confounderVec = get_variable(physeq, "country")
-d = 30
-v = 2
-X = matrix(rpois(n*p,2), n, p)
-thetaMat = abs( matrix(rnorm(p), n, p, byrow = TRUE))
-psi = 3
-muMarg = outer(rowSums(X), colSums(X))/sum(X)
-NB_params = betas = matrix(rnorm(p*v),v,p)
-reg = model.matrix(~rnorm(n))
-
-#Unconstrained one dimension matrix
-un1Dmat = RCM(counts, k=1)
-# Add two dimensions
-un3Dmat = RCM(dat = counts, prevFit = un1Dmat, k=2)
-
-#Unconstrained one dimension phyloseq
-un1DmatPhy = RCM(physeq, k=1)
-# Add two dimensions (even accepts a matrix!)
-un3DmatPhy = RCM(dat = counts, prevFit = un1DmatPhy, k=3)
-
-#Unconstrained one dimension matrix with confounder filtering
-un1DmatConf = RCM(counts, k=1, confounders = data.frame(confounderVec))
-# Add two dimensions
-un3DmatConf = RCM(dat = counts, prevFit = un1DmatConf, k=3)
-
-#Check some requirements
-str(un3DmatConf$confParams)
-colSums(un3Dmat$rMat^2)
-crossprod(un3Dmat$rMat)
-colSums(t(un3Dmat$cMat) * un3Dmat$abunds)
-rowSums(un3Dmat$cMat^2)
-sum(un3Dmat$cMat[1,]* un3Dmat$cMat[2,] * un3Dmat$abunds)
-# All is well!
-
-#Unconstrained one dimension physeq with confounder filtering
-un1DmatConfPhy = RCM(physeq, k=1, confounders = "country")
-# Add two dimensions
-un3DmatConfPhy = RCM(dat = counts, prevFit = un1DmatConf, k=3)
-
-#Constrained one dimension matrix without confounder filtering
-con1Dmat = RCM(physeq, k=1, covariates =  sample_variables(physeq))
-con1DmatML = RCM(dat = physeq, k=1, covariates =  sample_variables(physeq), envGradEst = "ML")
-# Add two dimensions
-con3Dmat = RCM(dat = physeq, prevFit = con1Dmat, k=3, covariates =  sample_variables(physeq))
-
-
-con2DmatLin = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "linear")
-
-con2DmatDyn = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "dynamic")
-apply(con2DmatDyn$NB_params,3, function(x){mean(x[3,]==0)}) #19 and 16% of the taxa prefer linear response functions
-con2DmatDyn$NB_params_noLab
-
-con2DmatQuad = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "quadratic")
-# The zeller data?
-con2DmatNon = RCM(physeq, k = 2, covariates =  sample_variables(physeq),  responseFun = "nonparametric")
-
-plot.RCM(con2DmatLin, colour = "BMI")
-plot.RCM(con2DmatQuad, colour = "BMI")
-plot.RCM(con2DmatNon, colour = "BMI")
-
-con2DmatLin$alpha
-con2DmatQuad$alpha
-con2DmatNon$alpha
-
-#Comparsion with Julia
-relAbs = 10^runif(p,-6,-2);
-relAbs = relAbs/sum(relAbs);
-thetas = abs(rnorm(p,3,1));
-libSizes = 10^runif(n,3,5);
-thetaMat = matrix(thetas, n, p, byrow =TRUE)
-X = matrix(rnbinom(n*p, mu = outer(libSizes, relAbs), size = thetaMat), n, p)
-system.time(dNBlibSizes(log(libSizes), X, log(relAbs),thetas))
-```
 
