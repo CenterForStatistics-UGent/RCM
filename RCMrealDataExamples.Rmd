@@ -145,7 +145,7 @@ zellerSphyRCMconstrLinML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Ag
 zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
 zellerSphyRCMconstrNonParam = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
 zellerSphyRCMconstrNonParamML = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric", envGradEst = "ML")
-save(zellerSphyRCMconstrLin, zellerSphyRCMconstrLinML, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam,file="zellerSphyRCMconstr.RData")
+save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam, file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")}
 ```
 

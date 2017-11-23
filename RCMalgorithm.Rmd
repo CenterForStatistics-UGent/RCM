@@ -15,7 +15,7 @@ output:
 
 This document provides an exact description of the algorithm used to fit the RC(M) model augmented with the negative binomial distribution for microbiome data. Existing implementations in R, such as the $rcim()$ function in the $VGAM$ package \cite{VGAM} and $rc()$ in the $logmult$ package \cite{logmult} fail to converge, likely due to numerical reasons. 
 
-# Fitting procedure
+# Fitting procedure \label{sec:FittingProcedure}
 
 ## Inputs
 
@@ -163,11 +163,12 @@ with the term between [] being optional. For this model four components need to 
  d) Estimate the environmental gradient $\boldsymbol{\alpha}_k^t$ by maximizing the likelihood ratio
  
  $$LR(\boldsymbol{\alpha}_k) = log \frac{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_{jk}, \theta_j, \psi_k) }{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_k, \theta_j, \psi_k) }$$
- with $g_{NB}$ the density function of the negative binomial distribution. This approach encourages maximal niche separation between the species.
+ with $g_{NB}$ the density function of the negative binomial distribution. This approach encourages maximal niche separation between the species. The environmental gradient is restricted such that the coefficients of dummies of the same categorical variable sum to zero, again using Lagrange multipliers. This is convenient for later plotting and also assures avoids dependence of the solution on the choice of reference level, in the light of the normalization step in e).
  
 However, the separated niche concept is not accepted by all ecologists. If niches are really maximally separated, how can species co-occur then? An alternative option is therefore to estimate $\alpha$ through full ML, maximizing only the numerator in the previous equation. Surprisingly, the solutions of both approaches are very similar, although not exactly identical. The full ML solution is also much faster.
- 
- e) Check for convergence. If no convergence reached, repeat steps a-d, otherwise fit the next dimension conditional on the previous ones. Convergence is assumed when
+
+ e) Normalize the environmental gradient to unit variance
+ f) Check for convergence. If no convergence reached, repeat steps a-e, otherwise fit the next dimension conditional on the previous ones. Convergence is assumed when
  
  $$\Big|1-\frac{\psi_k^{new}}{\psi_k^{old}}\Big| < 0.001$$
  
@@ -232,6 +233,32 @@ $$E(z_j S_{jk}) = 0$$
 $$E(z_j S_{jk} S_{jk'}) = \delta_{kk'}$$
 
 For the microbiome case, every subject comes from the same population under the null-hypothesis and all subjects are thus eqaully likely to be sampled and have the same importance. The library sizes as a purely technical artefact, unrelated to the biological importance of the subject. Consequently we use uniform row weights $w_i = 1/n$ (or $w_i = 1$, the magnitude is of no importance since the associated $\psi_k$ will grow or shrink accordingly). However, some taxa are more prevalent in the population than others. We want the average column scores on the population level to be centered around zero, have variance one and be orthogonal. That is why we set $z_j = exp(u_j)$; because the more abundant species are in fact more abundant in the population as a whole (as opposed to samples with a large library size), it makes sense to use a marginal weighting scheme for the column scores. The weights $z_j$ are derived from the independence model, as explained in the previous paragraph.
+
+For the parameters of the parametric response functions we use uniform weights for normalization, because the use of $exp(u_j)$ as weights for the normalization leads to very extreme solutions. Likely this is because the parameters are not centered
+
+## Shape of the response function
+
+Note that our definition of the response function differs from the response function most common one \cite{terBraak1986, Zhu205, Yee2006}: it no longer models mean abundance but mean departure from independence.
+
+A linear response function may be most appropriate for problems with __short gradients__ i.e. whereby the difference in observed environmental variables is too short to devine more than an increase or decrease in departure from independence. Also in this case it is easy to interpret the effect of each of the environmental variables on the departure from independence. As so often in statistics, the linearity assumption may not be realistic, but renders models that are easy to interpret ("All models are wrong, but some models are useful"). 
+
+For problems with __long gradients__, i.e. whereby species' departures of independence rise and drop (or drop and rise) within the score of the observed environmental scores, quadratic response functions may be more appropriate. This corresponds e.g. with the scenario whereby a species' abundance does bot depart a lot from independence for extreme values of the environmental score, and but does depart the independence model for an intermediate value of the environmental score, e.g. it thrives in this environment and its abundance is higher than under independence. In essence this is the same as the approach \cite{Zhu2005}, only now the baseline is the independence model rather than 0. Every taxon thereby has its own baseline, the response function models departures from this baseline. 
+
+Note that we usually do not choose the ranges of the environmental variables or scores, so that we cannot guarantee a range long enough for the quadratic response function to be appropriate. Note also that what is a long gradient for one species, may be a short one for another.
+
+Even though the quadratic response function can be fitted, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "dynamic"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. For plotting it is not very attractive to have different shapes of the response function for the same taxon in different dimensions though.
+
+If the user is unsure and has enough data, he may use non-parametric response functions. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret. This approach makes no assumptions on the shape of the response function (apart from a certain smoothness) and may be interesting if one wants to study individual species' response functions.
+
+ All in all we see a trade-off between quality of the ordination of the samples versus interpretability of the role of the taxa.
+ 
+## Relationship between unconstrained and constrained RC(M)
+
+If we fit the constrained method with only one covariate, namely a factor with a unique level for every sample, and all $\beta_{0j}$ (and $\beta_{2j}$) equal to zero , we expect to find the same solution as the unconstrained case. This means we do not constrain the ordination at all in this case and $\beta_{1jk} = s_{jk}$ and $\boldsymbol{\alpha}_{k}^t\mathbf{C}_i = r_{ik}$.
+
+## Comparison with existing methods
+
+
 
 # Plotting the RC(M) ordination
 
@@ -321,463 +348,3 @@ $$\psi(\theta| f, x) = -S_f(\theta|x) E\big(I(\theta, \theta|x)\big)^{-1}  $$
 For the unconstrained case in a scenario without outliers the influence functions may not yield very surprising results on the level of the plot, observations mainly have influence on their own row and column scores. Coupling through the constraints is rather weak. It may however help to identify outlying abundances in case of outlying row- or column scores.
 
 For the constrained case it may be enlightning to see which samples (and taxa) affect the estimation of the environmental gradient most.
-
-# Estimating equations
-
-## The negative binomial density function
-
-For the sake of completeness we give the density function of the negative binomial distribution (see Lawless, 1987) in the ($\mu$, $\theta$) parametrization whereby $E(X_{ij}) = \mu_{ij}$ and $Var(X_{ij}) = \mu_{ij} + \frac{\mu_{ij}^2}{\theta_j}$ .
-
-$$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\mu_{ij}}{\theta_j+\mu_{ij}}\big)^{X_{ij}} \big(\frac{\theta_j}{\theta_j+\mu_{ij}}\big)^{\theta_j}$$
-
-3. Estimate overdispersions
-
-Theoretically we might estimate the dispersions by ML, but the estimates are very variable, which dramatically affects the rest of the fitting procedure.
-
- - Maximum likelihood estimation (not used) 
- 
-$$log(E(x_{ij})) = l_{ij} = offset\big(log(\frac{x_{i.}x_{.j}}{x_{..}}  \big) + \psi_1 (s_{1i}^{init}r_{1j}^{init}) + \psi_2 (s_{2i}^{init}r_{2j}^{init})\big)$$
-
-to obtain estimates for the overdispersions $\theta_j$, whereby the means $\mu_{ij}$ are assumed known
-
- $$\sum_{i=1}^n \sum^{y_i^*}_{t=0} \big( \frac{t}{1+\frac{t}{\theta_j} } \big) + \theta_j^2 log(1+\frac{\mu_{ij}}{\theta_j})- \mu_{ij}\frac{y_{ij}+\theta_j}{1+\frac{\mu_{ij}}{\theta_j} }$$
- 
- For this we can use the theta.ml() function in the _MASS_ package
- 
- - edgeR robust
- 
-To get more stable estimates of the dispersions, RNA-seq packages such as _DESeq_ and _edgeR_ use an empirical Bayes approach to shrink dispersion estimates towards a fitted mean-dispersion trend. Here I use the machinery of edgeR robust (version `r packageVersion("edgeR")`) to estimate the dispersions
- 
-To reduce the computational cost and because the estimates do not change a lot anyway the estimation of the overdispersions is not repeated in every iteration
-
-4. Estimate the psi parameters
- 
- Solve the system of score equations (see Lawless 1987) for $\psi_1$ and $\psi_2$, assuming $\theta_j$'s given
- 
- $$\sum_{i=1}^n \sum_{j=1}^p r_{im}s_{mj} \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} = 0$$ for all m=1,...,k
- 
- with
- 
- $$E(X_{ij}) = \mu_{ij} = exp\big(log(\frac{x_{i.}x{.j}}{x_{..}}) + \psi_1^{MLE} s_{1j}^{init}r_{1i}^{init} + \psi_2^{MLE} s_{2j}^{init}r_{2i}^{init} \big)$$.
- 
- These are non-linear equations for which we use the _nleqslv_ package, with its default the Broyden method. This is a variation of the Newton-Raphson method (or Fisher scoring in case of ML) whereby the Jacobian is recycled and not recalculated at every iteration. The Jacobian is a square matrix of dimension k*(k-1)/2. The diagonal entry at position $kk'$ is:
- 
- $$\frac{\delta^2 L_{NB}(\mu, \theta)}{\delta \psi_k \delta \psi_{k'}} = -\sum_{i=1}^n \sum_{j=1}^p r_{ik}r_{ik'}s_{kj}s_{k'j}\frac{\mu_{ij}(1+\frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}$$
- 
-5. Estimate the row scores. 
-
-To estimate the $r_{i}$'s we would like to use weighted least squares to minimize
-
-$$\sum_{j=1}^p\Big(log(x_{ij}) - \big(u + u_i + u_j +\sum_{k=1}^M r_{ik} \big( \hat{\psi_ks_{jk}} \big)\Big)^2$$
-
-for every $i$. Unfortunately we cannot calculate $log(x_{ij})$ because of the zeroes.
-
-We'll have to use another way to estimate them, maximum likelihood in our case. I don't like using weighted least squares on the non-transformed counts,
-
-$$\sum_{j=1}^p\Big(x_{ij} - exp\big(u + u_i + u_j +\sum_{k=1}^M r_{ik} \big( \hat{\psi_ks_{jk}} \big)\Big)^2,$$
-
-because of the skewness of the residuals as explained above.
-
-To enforce the constraints on the row scores one option would be to estimate all scores through full maximum likelihood and then modify a few of them to make them satisfy the constraints and repeat until convergence. This runs into numerical problems though, because the modified scores are usually very large initially which leads to overflow when exponenttiated. Instead we use the methods of the Lagrange multipliers to implement the constraints. We thus seek to maximize the Lagrangian function
-
-$$Lag(r_{ik}, \mathbf{\lambda}) = L_{NB}(\mathbf{r}) + \sum_{k=1}^M \big( \lambda_{1k} \sum_{i=1}^n w_i r_{ik} \big) + \sum_{k=1}^M \big( \lambda_{2k} ( \sum_{i=1}^n w_i r_{ik}^2 ) - 1 \big) + \sum_{k \neq k'} \big(\lambda_{3kk'} \sum_{i=1}^n (w_ir_{ik}r_{ik'}) \big)$$
-
-with $L_{NB}(\mathbf{r})$ the log-likelihood function of the negative binomial regression. The derivatives of this function for the following system of equations
-
-$$\frac{\partial Lag(r_{ik}, \mathbf{\lambda})}{\partial r_{ik}} = \sum_{j=1}^p \hat{s}_{jk} \hat{\psi}_k \frac{y_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} + \sum_{k=1}^M w_i \lambda_{1k}  + \sum_{k=1}^M \big(2 \lambda_{2k} w_ir_{ik}\big) +  \sum_{k' \neq k} w_ir_{ki} \lambda_{kk'} = 0$$
-
-and 
-
-$$\frac{\partial Lag(r_{ik}, \mathbf{\lambda})}{\partial \lambda_{1k}} = \sum_{i=1}^n w_i r_{ik} = 0$$
-
-and 
-
-$$\frac{\partial Lag(r_{ik}, \mathbf{\lambda})}{\partial \lambda_{2k}} = (\sum_{i=1}^n w_i r_{ik}^2) - 1 = 0$$
-
-and 
-
-$$\frac{\partial Lag(r_{ik}, \mathbf{\lambda}))}{\partial \lambda_{3kk'}} = (\sum_{i=1}^n w_i r_{ik}r_{ik'}) - 1 = 0$$
-
-. The latter three groups of equations represent the original centering, normalization and orthogonality constraints. 
-
-There are additional equations in the system now, but also as many extra $\lambda$ parameter to optimize. These $\lambda$ parameters are also stored and used as initial values in the next iteration run. There size represent the extent to which the constraints pull away the solution from the optimal, unconstrained solution, but I don't see how we can use that in a biologically or statistically meaningful way.
-
-We now truly have a system of equations to solve, which we do with the _nleqslv_ package. It is straightforward but a bit cumbersome to also provide the analytical Jacobian, which greatly speeds up the iterations (otherwise it has to be approximated numerically). The Jacobian is sparse and symmetric. with following non-zero entries:
-
- $$\frac{\delta^2 Lag(\mu, \theta)}{ \delta r_{ik} \delta r_{ik'}} = -\sum_{i=1}^n \sum_{j=1}^p \psi_{k}\psi_{k'}s_{kj}s_{k'j}\frac{\mu_{ij}(1+\frac{x_{ij}}{\theta_j})}{(1+\frac{\mu_{ij}}{\theta_j})^2}=0$$
- 
-  $$\frac{\delta^2 Lag(\mu, \theta)}{\delta r_{ik} \delta \lambda_{1k}} = w_i$$
-  
-  $$\frac{\delta^2 Lag(\mu, \theta)}{\delta r_{ik} \delta \lambda_{2k}} = 2w_ir_{ik}$$
-  
-  $$\frac{\delta^2 Lag(\mu, \theta)}{\delta r_{ik} \delta \lambda_{3kk'}} = w_ir_{ik'}$$
-  
-  All other entries are zero.
-  
-6. Estimate the column scores
-
-Repeat step 4 but now estimate $s_{jk}$ column scores in the restrictions, e.g. the Lagrangian becomes:
-
-$$Lag(s_{jk}, \mathbf{\lambda}) = L_{NB}(s_{jk}) + \sum_{k=1}^M \big( \lambda_{1k} \sum_{j=1}^p z_j s_{jk} \big) + \sum_{k=1}^M \big( \lambda_{2k}  ( \sum_{j=1}^p z_js_{jk}^2 ) - 1 \big) + \sum_{k \neq k'} \big(\lambda_{3kk'} \sum_{j=1}^p (z_js_{jk}s_{jk'}) - 1\big)$$
-
-#### Termination
-
-7. Repeat steps 3-6 until convergence. Convergence is assumed if between two iterations
-
- - None of the $\psi$ parameters change less than $0.01\%$ (infinity norm)
- 
- AND
- 
- - None of the square roots of the L2-norms of the relative changes of row and column scores exceeds 0.1%, or
- 
- $$\forall \mathbf{r_k}, \mathbf{s_k} \Big(\sqrt{\sum_{i=1}^n (1-\frac{r^{(iter-1)}_{ik}}{r^{(iter)}_{ik}})^2} < 0.001 \Big) \cup \Big( \sqrt{\sum_{j=1}^p (1-\frac{s^{(iter-1)}_{kj}}{s^{(iter)}_{kj}})^2} < 0.001 \Big)$$
- 
- and analogously for all the scores. Other norms, such as L1 or infinity norms can also be used. A norm between 1 and 2 will lead to fast convergence.
- 
- Overdispersions are not taken into account in determining the convergence since they're merely nuisance parameters.
-
-
- 
-### One-by-one (1B1)
-
-Initially all dimension were estimated jointly, but for reasons of speed we moved to a one-by-one approach estimating first the first dimension, then the second given the first, then the third given the first two and so on. By splitting the estimation procedures into smaller parts like this the estimation speeds up considerably, presumably because the systems are easier to solve.
-
-### Confounders (Conditioning)
-
-Sometimes some covariates are known to affect the abundances but one is not interested in their effect. We think first and foremost of technical parameters such as sequencing center or technology. We would like to condition on these parameters and visualize remainign variability.
-
-#### Conditioning in correspondence analysis
-
-Conditioning in correspondence analysis occurs by performing CCA with a confounder matrix Z as covariates, and then perform regular CA on the matrix of residuals.
-
-#### Conditioning in the RCM approach
-
-Thanks to our log-linear approach we can filter out the effect of these parameters by including interaction terms between the taxa and the confounding covariate to be filtered out. This willl occcur after fitting the independence model but before fitting the RC(M) component. We thus fit the following model in case of $c$ confounding variables:
-
- $$log(E(X_{ij})) = \lambda + \lambda_i + \lambda_j + \textcolor{red}{\sum_{l=1}^c \zeta_{jl}e_{il}} + \sum_{k=1}^M \psi_k r_{ik} s_{jk}$$
- 
-with $e_{il}$ the value of covariate $l$ in sample $i$ and $\zeta_{jl}$ the interaction parameter between taxon $j$ and confounding variable $l$. Note that we assume that the categorical variables have already been converted to multiple dummy variables.
-
-#### Confounders and zero counts
-
-Filtering out the effect of confounders brings the problems of the zeroes to the fore again. If a taxon has only zero counts in one of the subgroups defined by the confounding variables, the model will fail to fit, since the parameters $\zeta_{jl}$ would need to equal minus infinity. For continuous confounders this is of course not an issue. Maybe there exists a more efficient solution, but for now we will have to trim the taxa for which this occurs from further analysis in order to render the model identifiable. This trimming occurs already before fitting the independence model.
-
-#### Weaknesses
-
-The main drawback of our method is of course its strong reliance on the assumption of counts following the negative binomial distribution. The robustness to the violation of this assumption will need to be investigated. 
-
-Also our method does not take taxon-interaction networks into account. It assumes independence between taxon counts. However, this is something we could still add to the method.
-
-Finally also phylogenetic relation ships between taxa are not used, but this need not be a problem. Our method is a real compositional method: it reveals differences in taxon compositions between samples, and need not be influenced by "prior" information such as evolutionary relationships. After all taxa in the same body site are not guaranteed to be evolutionarily related, and vice versa distinct body sites can harbour closely related taxa.
-
-#### Implementation
-
-For the filtering based on the prevalence and abundance, we need a confounder matrix
-
- 1. Without intercept (Overall filtering has happened already)
- 2. With __all__ levels of the categorical variables, so set $contrasts=FALSE$ to avoid hidden reference levels of the factors
- 
- When actually filtering on the confounders, we can simply use a confounder matrix
- 
- 1. With intercept
- 2. With treatment coding
- 
- In this case all that matters is to change the offset formed by the independence model. We will still return the confoundes' parameters though.
-
-### Zero-inflated poisson
-
-We could also augment our model with a zero-inflated Poisson rather than a negative binomial distribution. This opens additional modeling perspectives. We can model the chance on a structural zeroes:
-
-$$logit(P(X_{ij}=0)) = f + f_i + f_j + t_{i1}v_{j1}\chi_1 + t_{i2}v_{j2}\chi_2$$.
-
-The probability of a strucutral zero does not depend on the sample: strucutural zeroes are assumed to be truly absent species and not due to undersampling. All samples come from the same population under $H_0$, and there the structural zeroes are only dependent on the columns. Therefor we set all $f_i=0$. In practice $f$ is not estimated either, instead $f_j$ is estimated without restrictions. The terms $t_{i1}v_{j1}\chi_1 + t_{i2}v_{j2}\chi_2$ indicate in which two independent directions the observed number of zeroes deviates from this base level. I think we need the term $f_i$ because otherwise the first dimension $t_{i1}$ scores will start correcting for it. The independence moel in this case is that the chance on a structural zero only depends on the marginal probabilities. A logit model without an intercept does not make sense, it assumes a baseline probability of structural zero of 0.5.
-
-Fitting the mean part of this models encounters severe numerical problems, this part of the project is not retained and is put in the fridge.
-
-#### Restrictions
-
-The same restrictions apply to the scores $t_i$ and $v_j$ as to $r_i$ and $s_j$
-
-#### Estimation (see Lambert 1992 for details)
-
-The mean and zero probability are modelled independently, absence of a species is independent of its abundance when it is present. Say $Z=0$ when $X$ is from the Poisson state and $Z=1$ when X is a structural zero. Evidently, when $X=0$, Z is unknown.
-
-EM algorithm: iterate between 
-
- - E: estimate Z, assuming  $\mathbf{r_i}$, $\mathbf{s_j}$ and $\mathbf{\Psi}$ known, through its expectation
- - M: Maximize the log-likelihood given Z
- 
-Unlike the RC(2)NB model, $f_j$ has to be estimated as well, there is no obvious candidate here. We estimate it marginally and then keep it fixed during the iterations. This way the score visualize departures in zero inflation from this independence of zero-inflation between rows and columns.
-
-Newton-Raphson would be incredibly complicated here, the derivatives of the log-likelihood functions barely fit on a page!
-
-
-
-#### RC(M) approach to gradient analysis
-
-#### Constrained RC(M), overparametrized version
-
-If we want to retain analogy with the unconstrained version and model only the departure from independence, we could fit the following model:
-
-$$log(E(X_{ij})) = u + u_i + u_j  + \sum_{k=1}^K \psi_k s_{jk} f_{jk}(\boldsymbol{\alpha}_k^t \mathbf{c}_{i.}) $$
-
-with $f_j$ the species-specific response function, which can be linear, quadratic (Gaussian on count scale), non-parametric, ... . The usual restrictions apply to the column scores $\mathbf{s}$:
-
-$$\mathbf{s^tu_{tax}} = \mathbf{0}$$
-$$\mathbf{s_k^tUs_{k'}} = I(k = k')$$
-
-with $u_{tax}$ the vector of $exp(u_j)$'s and  $\mathbf{U}$ a diagonal p-by-p matrix with $u_{tax}$ on the diagonal.
-
-For $\alpha$ (a d-by-k matrix) we enforce the following restrictions:
-
-- Normalization restricts the size, and dimensions are orthogonal (if $k \geq 3$)
-
-$$\boldsymbol{\alpha}^t\boldsymbol{\alpha} = \mathbb{1}_d$$
-
-with $\mathbb{1}_d$ the identity matrix of dimension $d$.
-
-However, this model is overparametrized: $s_{jk}$ and $f_{jk}$ both model the response of a taxon $j$ in the $k$-th dimension.
-
-### Constrained RC(M), identifiable version
-
-A more parsimonious version of this model can be obtained by dropping the column scores.
-
-For any response function with $q$ parameters $\boldsymbol{\beta}_j$ we model the mean as:
-
-$$log(E(X_{ij})) = log(\mu_{ij}) = u_i + u_j + \sum_{k=1}^K \psi_k f_j \big( \boldsymbol{\alpha}_k^t \mathbf{C}_{i}|\boldsymbol{\beta}_j \big) .$$
-
-Basically this represents a marriage of the RC(M) models of Goodman and the gradient models of Zhu and Hastie (2005). For the response function previously a quadratic function (Gaussian on count scale) has been proposed but this may not be realistic. Also the setting is different: we are looking for response function that maximize the __departure from independence__, no longer the abundances themselves! In a first stage we will try fit the linear model with $f(x) = \beta_0 + \beta_1 x$ but later we might estimate $f$ non-parametrically as in Zhu _et al._ (2005). 
-
-Note that the concept of a "row score" is lost here: since every taxon reacts differently to changes in the environment $C_{i.}$. Still this will not yield a perfect fit since $\boldsymbol{\alpha}_k^t$ is only unique to the dimension and the number of parameters $q$ estimated per response function $f_j$ is much smaller than the number of samples $n$.
-
-#### Shape of the response function
-
-Note that our definition of the response function differs from the response function defined by Zhu and Hastie (2005): it no longer models mean abundance but mean departure from independence.
-
-A linear response function may be most appropriate for problems with __short gradients__ i.e. whereby the difference in observed environmental variables is too short to devine more than an increase or decrease in departure from independence. Also in this case it is easy to interpret the effect of each of the environmental variables on the departure from independence. As so often in statistics, the linearity assumption may not be realistic, but renders models that are easy to interpret ("All models are wrong, but some models are useful"). 
-
-For problems with __long gradients__, i.e. whereby species' departures of independence rise and drop (or drop and rise) within the score of the observed environmental scores, quadratic response functions may be more appropriate. This corresponds e.g. with the scenario whereby a species' abundance does bot depart a lot from independence for extreme values of the environmental score, and but does depart the independence model for an intermediate value of the environmental score, e.g. it thrives in this environment and its abundance is higher than under independence. In essence this is the same as the approach of Zhu and Hastie, only now the baseline is the independence model rather than 0. Every taxon thereby has its own baseline, the response function models departures from this baseline. 
-
-Note that we usually do not choose the ranges of the environmental variables or scores, so that we cannot guarantee a range long enough for the quadratic response function to be appropriate. Note also that what is a long gradient for one species, may be a short one for another.
-
-Even though the quadratic response function can be fitted, and/or has a "significantly" (quotation marks due to non-likelihood framework) higher likelihood than the linear response function, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "dynamic"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. Does this invalidate the likelihood-ratio criterion used to estimate the environmental gradient? I do not think this should be a problem. And should we use the same criterion then for the overall response function ignoring taxon labels? Probably yes, although this scenario seems highly unlikely. For plotting it is not very attractive to have different shapes of the response function for the same taxon in different dimensions.
-
-If the user is unsure and has enough data, he may use non-parametric response funcion. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret.
-
- All in all we see a trade-off between quality of the ordination of the samples versus interpretability of the role of the taxa. Personally I tend to give the second factor most weight, to maximise the amount of information we visualize.
-
-##### Relationship to constrained RC(M)
-
-If we fit this method with only one covariate, namely a factor with a unique level for every sample, and all $\beta_{0j}$ (and $\beta_{2j}$) equal to zero , we expect to find the same solution as the unconstrained case. This means we do not constrain the ordination at all in this case and $\beta_{1jk} = s_{jk}$ and $\boldsymbol{\alpha}_{k}^t\mathbf{C}_i = r_{ik}$.
-
-#### Restricitions
-
-##### Restrictions on the envrionmental gradient
-
-The $\boldsymbol{\alpha}$'s of different dimensions will be constrained as follows:
-
-$$\boldsymbol{\alpha}_k^t\boldsymbol{\alpha}_k = \mathbf{1}$$
-
-$$\boldsymbol{\alpha_k}^t\boldsymbol{\alpha_{k'}} = 0$$
-
-or in shorter notation
-
-$$\boldsymbol{\alpha}^t \boldsymbol{\alpha} = \mathds{1}$$
-
-One restriction I intended to include but which turns out to be a __very bad idea__ is to center the $\alpha$'s:
-
-$$\boldsymbol{\alpha}^t\mathbf{1} = \mathbf{0}$$
-
-This would force the parameter of a single continuous covariate to be 0, the parameters of two continuous variables to be each other's opposite. In short it is not very desirable and is not implemented.
-
-##### Restrictions on parameters of categorical variables in the environmental gradient
-
-For continuous variables the previous discussion suffises, but for categorical variables special attention is required. In a regular, unrestricted setting one would use treatment coding, setting one of the levels of the variable to be the reference level and estimate no parameter for it. However, the above normalization and orthogonality constraints render the result dependent on the choice of reference level, which is of course highly undesirable. Also for quick understanding of the biplot it would be convenient to plot all the values of the categorical variable, and save the reader the trouble of looking up the reference value. Because of these two reasons we will need a coding scheme that includes all parameters.
-
-Say we have $d_{cont}$ continuous covariates and $d_{cat}$ categorical variables with $d = d_{cont} + d_{cat}$, and $m_l$ levels for every categorical variable $l$. Then $\boldsymbol{\alpha}_k$ compromises
-
-$$ q = d_{cont} + \sum_{l=1}^{d_{cat}} (m_l-1) $$
-rows, or $q$ parameters to be estimated. Note that there is no intercept needed in this case, intercepts have already be included in the $f()$ function, such that samples with $\alpha_k = \mathbf{0}$ can still have departures from independence.  We can write $\boldsymbol{\alpha}_k$ then as:
-
-$$\boldsymbol{\alpha}_k = (\beta_{cont_1}, ... , \beta_{cont_{d_{cont}}}, \beta_{cat_{11}}, \beta_{cat_{12}}, ..., \beta_{cat_{1(m_1-1)}}, ...,  \beta_{cat_{d_{cat}(m_{d_{cat}}-1)}})_k$$
-, i.e. one paramater less than the number of levels. For imposing the restrictions and for plotting we want a representation whereby all covariate levels are represented. We therefore include all parameters, and impose that the parameters sum to 0 within each covariate.
-
-$$\boldsymbol{\alpha}_k' = (\beta_{cont_1}', ... , \beta_{cont_{d_{cont}}}', \beta_{cat_{11}}', \beta_{cat_{12}}', ..., \beta_{cat_{1m_1}}', ...,  \beta_{cat_{d_{cat}m_{d_{cat}}}}')_k$$
-Whereby $q' = d_{cont} + \sum_{l=1}^{d_{cat}}(m_l)$, but under the restriction that for all categorical variables $l$
-
-$$\sum_{m=1}^{m_l} \beta_{cat_{lm}k}' = 0$$ 
-
-We again have $g$ degrees of freedom. It is this $\boldsymbol{\alpha}_k'$ that will need to be centered, normalized and orthogonalized _in order to treat each variable level equally_ and _avoid dependence of the outcome on the choice of reference level_. Also this representation will come in handy for plotting, centering the levels of the same covariate around zero. We will call this the __zero-sum__ representation.
-
-##### Restricitions on the parameters of the parametric response functions
-
-The parameters of the response functions are restricted as follows (for linear and quadratic response functions):
-
-$$\boldsymbol{\beta}_1^t\mathbf{Z}\boldsymbol{\beta}_1 = \boldsymbol{\beta}_0^t\mathbf{Z}\boldsymbol{\beta}_0 = 1$$
-and for quadratic response functions:
-
-$$\boldsymbol{\beta}_2^t\mathbf{Z}\boldsymbol{\beta}_2 = 1$$
-
-with $\mathbf{Z}$ a diagonal matrix with the column weights $\mathbf{z}$ on hte diagonal, i.e. $Z_{ab} = \delta_{ab}z_a$. Since the parameters of the response functions are species specific, initially we thought they should undergo weighted normalization, following the same argumant as for the species scores in the unconstrained case. However, this leads to very extreme values for the parameters of the response functions for lowly abundant taxa, disfiguring the plots. That's why we decided to set all $z_a=\frac{1}{p}$.
-
-Again, only the $\psi$ parameters can grow in size to reflect the importance of the dimension, other paramaters are normalized.
-
-Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the response functions without offsets (all $\beta_{0j} = 0$)? This means that if the environmental scores equals zero, there is no departure from independence. However, this does not give species fully the chance to react in a different way to the environmental gradient. For a certain value, some species might depart from independence while others might not. Therefore we leave $\beta_{0j}$ to be freely estimated, under the weighted variance 1 restriction.
-
-#### Scaling
-
-
-
-#### A note on the importance parameters
-
-For the constrained model we have noted that the ordering of the importance parameters $\psi_k$ is not always decreasing. This is because of the way the $\alpha$'s are estimated: by maximizing the separation of the niches of the species. The first dimension is thus the one that maximally separates these niches, regardless of the total impact on the modelled mean. Therefore I think it is appropriate to keep the ordering of the dimensions as our algorithm spits it out.
-
-#### Estimation of the constrained RC(M) model
-
-##### Environmental gradient
-
-###### Log-likelihood criterion
-
-Another aspect from niche theory is that species have eveolved to occupy maximally distinct niches. $\boldsymbol{\alpha}$ could be estimated by ML as before, but in order to ensure maximum separation of the response functions of all the species we will consider a version of the log-likelihood ratio approach from Zhu _et al._ (2005):
-
-$$LR(\boldsymbol{\alpha}) = log \frac{\prod_{i=1}^n \prod_{j=1}^p \big(p_j^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}_j) \big)}{\prod_{i=1}^n \prod_{j=1}^p \big(p^{(\alpha)}(x_{ij};\boldsymbol{\alpha}^T \mathbf{c}_i,\boldsymbol{\beta}) \big)}$$
-
-with $p^{(\alpha)}$ and $p^{(\alpha)}_j$ estimated probability density functions without and with taxon labels and $\boldsymbol{\beta}_l$ and $\boldsymbol{\beta}$ the parameters of the response functions. $p^{(\alpha)}$ and $p^{(\alpha)}_j$ are calculated under a certain error distribution (e.g. negative binomial). $LR(\boldsymbol{\alpha})$ actually compares two models. In the restricted model each species reacts in the same way to its environment, relative to its own baseline defined by $u_j$, and all do not depart from independence for a certain combination of environmental variables. In the extended model each species is left to react to the environment in its own way. In case of a linear response function it means that it gets a unique intercept and slope.
-
-###### Full ML
-
-However, the niche concept is not accepted by all ecologists. If niches are really maximally separated, how can species co-occur then?
-An alternative option would be to estimate $\alpha$ through full ML. Surprisingly, the solutions of both approaches are very similar, although not exactly identical. The full ML solution is also much faster.
-
-Naive approach
-
-The naive approach to optimize $LR(\boldsymbol{\alpha})$ would be to use constrained optimization (constraining the $\boldsymbol{\alpha}$'s to have variance one etc.) and estimate $p_j^{(\boldsymbol{\alpha})}$ and $p^{(\boldsymbol{\alpha})}$ in every evaluation of this function. This implies a analytical jacobian cannot be estimated and requires a huge amount of re-estimation of the response functions. This naive approach is computationally unfeasible
-
-Iterative approach
-
-A smarter approach (also the one proposed by Zhu and Hastie, 2005) is to iterate between estimating $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$ given $p_j^{(\boldsymbol{\alpha})}$ and $p^{(\boldsymbol{\alpha})}$, and estimating $p_j^{(\boldsymbol{\alpha})}$ and $p^{(\boldsymbol{\alpha})}$ given $\boldsymbol{\alpha}$. This results in much fewer estimations of $p_j^{(\alpha)}$ and $p^{(\alpha)}$ and allows to optimize $LR(\boldsymbol{\alpha})$ by finding the roots of $\frac{\partial LR(\boldsymbol{\alpha})}{\partial \boldsymbol{\alpha}} = \mathbf{0}$ (and analytically specifying the second order derivative).
-
-Convergence is assumed when every single change in $\alpha$ is below a tolerance level (infinity norm), or when the L2-norm of alpha is below a tolerance level.
-
-Estimating $p^{(\alpha)}_k$ non-parametrically in this iterative algorithm will be computationally more demanding.
-
-###### Lagrangian
-
-Taking into account the restrictions mentioned above, the associated Lagrangian becomes
-
-$$ Lag_{LR}(\boldsymbol{\alpha}_k| \boldsymbol{\beta}_{jk}, \boldsymbol{\beta}_{k}) =  \sum_{i=1}^n  \sum_{j=1}^p \Big(log \big(\frac{f_{NB}(x_{ij}|\psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_j)}{f_{NB}(x_{ij}| \psi_k, \mathbf{C}_i, \boldsymbol{\alpha}_k, \phi_j, f_0)} \big) \Big) + \lambda_{1k} \boldsymbol{\alpha}_k^t\mathbf{M} + \lambda_{2k} (\boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1) +  \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} \boldsymbol{\lambda}_{orth,k}$$
-
-with $\boldsymbol{\alpha}_{-k}$ the $\boldsymbol{\alpha}$-matrix from the first to the (k-1)th column, and $f_{NB}$ the density function of the negative binomial distribution. $\boldsymbol{\lambda}_{orth,k}$ is a diagonal matrix with largangian multipliers for orthogonality on the diagonal.
-
-###### Score equations
-
-####### Linear response function
-
-The first order derivatives becomes (in case of a linear response function, and remember we set $s_{jk} = 1$)
-
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p  \mathbf{C}_i \beta_{1j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^p \mathbf{C}_i \beta_{1} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \mathbf{M}\boldsymbol{\lambda}_{1k} + 2\lambda_{2k} \boldsymbol{\alpha}_k +  \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
-
-with $\mu_{ij0}$ the mean under the null model of equal response functions and $\mathbf{M}$ a q-by-(q-$d_cont$+1) centering matrix. M has ones in the first column, the next columns are all zero except for the entries corresponding to the positons of the dummies of this categorical variable in $\boldsymbol{\alpha}_k$, which are 1. As such, M forces the coefficients of each categorical variable to sum to zero.  In theory we should perhaps reestimate $\theta_j$ on every iteration between the estimation of $\boldsymbol{\alpha}_k$ and $\boldsymbol{\beta}_j$ and $\boldsymbol{\beta}$, and also estimate different overdispersion for the models with equal and species-wise response function, but we think it will complicate the estimation and not make a big difference anyway, so we ignore this for now.
-
-####### Quadratic response function
-
-For a quadratic response function ($f_j(z_i = \mathbf{C}_i\boldsymbol{\alpha}|\boldsymbol{\beta}) = \beta_0 + \beta_1 z_i + \beta_2 z_i^2$) this derivative becomes
-
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k} = \psi_k \Big( \sum_{i=1}^n  \sum_{j=1}^p\mathbf{C}_i (\beta_{1j}+2 \beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}} - \sum_{i=1}^n  \sum_{j=1}^p \mathbf{C}_i (\beta_{1}+2 \beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}} \Big) + \mathbf{M}\boldsymbol{\lambda}_{1k} + \\ 2\lambda_{2k} \boldsymbol{\alpha}_k + \boldsymbol{\alpha}_{-k}^t \boldsymbol{\lambda}_{orth,k} = \mathbf{0}$$
-
-For a non-parametric density function this derivative is not available, which which greatly increase the optimization time.
-
-The other derivatives are (independent of the shape of the response function):
-
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\lambda_{1k}}} = \boldsymbol{\alpha}_k^t \mathbf{M} = \mathbf{0}$$
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \lambda_{2k}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_k - 1 = 0$$
-$$\frac{\partial Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\lambda_{3k}}} = \boldsymbol{\alpha}_k^t \boldsymbol{\alpha}_{-k} = \mathbf{0}$$
-
-###### Jacobians
-
-####### Linear response function
-
-The second order derivatives are for the linear response function
-
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k^2} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p (\mathbf{C}_i \beta_{1j})^2 \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p (\mathbf{C}_i \beta_{1})^2 \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) + 2\lambda_{2k} $$
-
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big( \sum_{i=1}^n  \sum_{j=1}^p  \beta_{1j}^2 c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} - \sum_{i=1}^n  \sum_{j=1}^p \beta_{1}^2 c_{iy} c_{iy'} \frac{\mu_{ij0}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij0}}{\theta_j})^2} \Big) $$
-
-####### Quadratic response function
-
-For the quadratic response function these second order derivatives are:
-
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n \sum_{j=1}^p \Big((\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy}^2\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}   \\ 
-- (\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy}^2\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}^2 \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] + 2\lambda_{2k} $$
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial {\alpha}_{yk}{\alpha}_{y'k}} = - {\psi_k}^2 \Big[ \sum_{i=1}^n \sum_{j=1}^p \Big((\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1j} + 2\beta_{2j}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}   \\ 
-- (\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i)(\beta_{1} + 2\beta_{2}\boldsymbol{\alpha}_k^t\mathbf{C}_i) c_{iy} c_{iy'}\frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2}  \Big) \Big] - 2\psi_k \Big[\sum_{i=1}^n \sum_{j=1}^p c_{iy}c_{iy'} \big(\beta_{2j} \frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}-\beta_{2} \frac{x_{ij} - \mu_{ij0}}{1 + \frac{\mu_{ij0}}{\theta_j}}\big)\Big] $$
-
-<!---+ \\ 2\beta_{2j} c_{iy} c_{iy'}\frac{x_{ij} - \mu_{ij}}{1 + \frac{\mu_{ij}}{\theta_j}}--->
-
-The other derivatives are again independent of the response function:
-
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k \partial \boldsymbol{\lambda_{1k}}} =  \mathbf{M}$$
-
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_k \partial \lambda_{2k}} =  2\boldsymbol{\alpha}_k$$
-
-$$\frac{\partial^2 Lag_{LR}(\boldsymbol{\alpha}_k)}{\partial \boldsymbol{\alpha}_{k} \partial \boldsymbol{\lambda}_{orth,k}} =  \boldsymbol{\alpha}_{-k}$$
-All other second order derivatives equal zero. 
-
-###### Non-parametric response function
-
-The response function $f(\boldsymbol{\alpha}^t\mathbf{C})$ need not have a parametric form. We can also estimate it non-parametrically as in Zhu and Hastie (2005). These authors use the locfit library, which does not result in a ML solution.
-
-Instead we use cubic smoothing splines in a generalized additive model (GAM) to obtain flexible response functions without yielding to a perfect fit. Cubic splines are piecewise polynomials in certain intervals that are continuous and have continuous first and second order derivatives. The knots that define the intervals are normally simply the observations x, although this may differ in the softwares when there are a large number of points. This makes them look very smooth. Their shape is a trade-off between goodness of fit and cumulative value of the second order derivative on the whole interval. The cubic smoothing spline minimizes
-
-$$\sum_{i=1}^n(y_i - \hat{f}(x_i))^2 + \lambda \int \hat{f}''(x)^2 dx $$
-
-This second term can be seen as a penalty for bumpiness of the fit (with smoothing parameter $\lambda$), and ensures smoothness.
-
-The constrained model then looks like:
-
-$$log(E(X_{ij})) = u_i + u_j + \sum_{k=1}^K\psi_k\hat{f}_j(\boldsymbol{\alpha}_k^tC_i)$$
-
-In practice we fit the following model
-
-$$log(E(X_{ij})) = u_i + u_j + \sum_{k=1}^K\beta_{jk}\hat{f}_j(\boldsymbol{\alpha}_k^tC_i)$$
-
-and calculate the $\psi_k$'s afterwards as $\psi_k = \sqrt{\sum_{j=1}^p z_j \beta_{jk}^2}$, so that only the importance parameter $\psi$ can differ in size between the different dimensions.
-
-##### Estimation of the parameters of the parametric response functions
-
-We fit all parameters of the different taxa jointly, and enforce normalization through Lagrange multipliers again.
-
-The derivative of the Lagrangian for $\beta_{jv}$ under the negative binomial model with $v$ a parameter index running along $\boldsymbol{\beta}_j$ (for k=1 and omitting dimension indices)
-
-$$ \sum_{i=1}^n \frac{\partial Lag_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv}} = 2\beta_{jv}\lambda_{2v} +  \sum_{i=1}^n \psi \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv}} \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}} = 0$$
-
-The second order derivative for parameters from the same taxon is:
-
-$$\sum_{i=1}^n \frac{\partial^2 Lag_{NB}(X_{.j}|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv} \partial \beta_{jv'}} = -\psi^2 \sum_{i=1}^n \Big( \frac{\mu_{ij}(1+ \frac{x_{ij}}{\theta_j})}{(1 + \frac{\mu_{ij}}{\theta_j})^2} \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv}} \frac{\partial f_j \big( \boldsymbol{\alpha}^t \mathbf{C}_{i.}|\boldsymbol{\beta}_j \big)}{\partial \beta_{jv'}} \Big) + 2\lambda_{2v} \mathds{I}(v=v')$$
-
-$$\sum_{i=1}^n \frac{\partial^2 Lag_{NB}(X|\boldsymbol{\beta}_j, \theta_j)}{\partial \beta_{jv} \partial \lambda_{2v'}} = 2\beta_{2v} \mathds{I}(v=v')$$
-
-all other second order derivatives equal zero.
-
-#### Algorithm
-
-The whole estimation of the constrained RC(M)-model would then proceed as follows:
-
- 1. Estimate the independence model ($u_i$'s, and $u_j$'s)
- 2. (Optional): Filter out confounders by modifying offset
- 3. Find starting values for $\alpha$, based on CCA
- 4. Iterate between
-  - Estimate $f_j$'s and $f_0$ given $\boldsymbol{\alpha}$
-  - Find $\boldsymbol{\alpha}$ by optimizing $LR(\boldsymbol{\alpha})$
- 5. Estimate overdispersions using empirical Bayes
- 6. Estimate importance parameter $\psi_k$
- 7. Repeat steps 4-6 for every dimension $k$ until convergence
-
-Filtering of rare taxa is not needed in this case, as all covariates are summarized in one "continuous" row score. to check for convergencen, for $\psi_k$  we apply an infinity norm, for $\boldsymbol{\alpha}_k$ the default is an L2-norm.
-
-
-
-
-
-
-

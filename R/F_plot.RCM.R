@@ -133,7 +133,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
       #Filter out small arrows
       dataTax = dataTax[id,]
       if(!all(plotType=="species")){
-      scalingFactorTmp = apply(if("samples" %in% plotType) dataSam[, paste0("Dim", Dim)] else varData[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
+      scalingFactorTmp = apply(if("samples" %in% plotType) {dataSam[, paste0("Dim", Dim)]} else {varData[, paste0("Dim", Dim)]},2,range)/apply(dataTax[, c("end1","end2")]-dataTax[, c("origin1","origin2")],2,range)
       scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
       dataTax = within(dataTax, { #Scale the arrows
         end1 = origin1 + slope1 * scalingFactor

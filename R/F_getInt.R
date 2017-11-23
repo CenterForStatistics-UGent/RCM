@@ -3,9 +3,10 @@
 #' @param fitObj a fitted object, either gam or glm
 #' @param sampleScore the observed environmental scores
 #' @param stop.on.error see ?integrate
+#' @param ... additional arguments passed on to integrate()
 #'
 #' @return a scalar, the value of the integral
-getInt = function(fitObj, sampleScore, stop.on.error = FALSE){
+getInt = function(fitObj, sampleScore, stop.on.error = FALSE,...){
   #Absolute values assure positive outcomes
   integrate(f = function(y, fitObj){
     if(class(fitObj)=="vgam"){
@@ -13,5 +14,5 @@ getInt = function(fitObj, sampleScore, stop.on.error = FALSE){
     } else if(class(fitObj) == "list"){
       c(abs(model.matrix(~ y + I(y^2) + I(y^3)) %*% fitObj$coef))
     } else {stop("GLM fit failed! \n")}
-    },lower = min(sampleScore), upper = max(sampleScore), fitObj = fitObj, stop.on.error = stop.on.error)$value
+    },lower = min(sampleScore), upper = max(sampleScore), fitObj = fitObj, stop.on.error = stop.on.error,...)$value
 }
