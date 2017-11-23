@@ -13,7 +13,7 @@ output:
 
 # Introduction
 
-This document provides an exact description of the algorithm used to fit the RC(M) model augmented with the negative binomial distribution for microbiome data.
+This document provides an exact description of the algorithm used to fit the RC(M) model augmented with the negative binomial distribution for microbiome data. Existing implementations in R, such as the $rcim()$ function in the $VGAM$ package \cite{VGAM} and $rc()$ in the $logmult$ package \cite{logmult} fail to converge, likely due to numerical reasons. 
 
 # Fitting procedure
 
@@ -143,8 +143,10 @@ with the term between [] being optional. For this model four components need to 
  
  The fitting of the constrained RC(M) model proceeds as follows:
  
- 1. Starting values for $\boldsymbol{\alpha}$ are obtained from a constrained correspondence analysis by the $cca()$ function in the $vegan$ package. Next they are normalized to fulfil the $\boldsymbol{\alpha}^t_k\boldsymbol{\alpha}_k = 1$ requirement. Starting values for $\boldsymbol{\psi}$ are the eigenvalues of the constrained correspondence analysis. For the response functions no starting values are calculated.
- 2. For all dimensions $k$ starting from 1 to K :
+ 1. Standardize the covariate matrix. To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. This means that their corresponding elements of $\boldsymbol{\alpha}$ represent the contribution to the environmental score of one standard deviation away from the mean of this variable (in case of linear response functions). A perfect quantitative comparison to the magnitude of the values of the paramaters of the dummies of the categorical variables will never be possible. In our case, with 0-1 dummy coding, equal parameters for a dummy and a continuous variable imply that this level of the categorical variable contributes as much to the environmental score as one standard deviation away from the overall mean of the continuous variable.
+ 
+ 2. Starting values for $\boldsymbol{\alpha}$ are obtained from a constrained correspondence analysis by the $cca()$ function in the $vegan$ package. Next they are normalized to fulfil the $\boldsymbol{\alpha}^t_k\boldsymbol{\alpha}_k = 1$ requirement. Starting values for $\boldsymbol{\psi}$ are the eigenvalues of the constrained correspondence analysis. For the response functions no starting values are calculated.
+ 3. For all dimensions $k$ starting from 1 to K :
  a) Estimate the overdispersions by empircal Bayes as before.
  b) If the response function is parametric, estimate the importance parameter $\psi_k$ by full ML
  c) Estimate the response functions $f_{jk}$ by full ML. 
@@ -161,7 +163,10 @@ with the term between [] being optional. For this model four components need to 
  d) Estimate the environmental gradient $\boldsymbol{\alpha}_k^t$ by maximizing the likelihood ratio
  
  $$LR(\boldsymbol{\alpha}_k) = log \frac{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_{jk}, \theta_j, \psi_k) }{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_k, \theta_j, \psi_k) }$$
- with $g_{NB}$ the density function of the negative binomial distribution. This approach encourages maximal niche separation between the species
+ with $g_{NB}$ the density function of the negative binomial distribution. This approach encourages maximal niche separation between the species.
+ 
+However, the separated niche concept is not accepted by all ecologists. If niches are really maximally separated, how can species co-occur then? An alternative option is therefore to estimate $\alpha$ through full ML, maximizing only the numerator in the previous equation. Surprisingly, the solutions of both approaches are very similar, although not exactly identical. The full ML solution is also much faster.
+ 
  e) Check for convergence. If no convergence reached, repeat steps a-d, otherwise fit the next dimension conditional on the previous ones. Convergence is assumed when
  
  $$\Big|1-\frac{\psi_k^{new}}{\psi_k^{old}}\Big| < 0.001$$
@@ -172,6 +177,7 @@ with the term between [] being optional. For this model four components need to 
  For parametric response functions there is an additional requirement that 
  
  $$\forall w: \sqrt{\sum_{j=1}^p \Big(1-\frac{\beta_{jk}^{new}}{\beta_{jk}^{old}}\Big)^2} < 0.001$$
+ 
 # Explanatory notes
 
 In this section we give some explanation regarding the particularities of this fitting procedure with respect to the original method by Goodman \cite{Goodman1979}.
@@ -227,32 +233,29 @@ $$E(z_j S_{jk} S_{jk'}) = \delta_{kk'}$$
 
 For the microbiome case, every subject comes from the same population under the null-hypothesis and all subjects are thus eqaully likely to be sampled and have the same importance. The library sizes as a purely technical artefact, unrelated to the biological importance of the subject. Consequently we use uniform row weights $w_i = 1/n$ (or $w_i = 1$, the magnitude is of no importance since the associated $\psi_k$ will grow or shrink accordingly). However, some taxa are more prevalent in the population than others. We want the average column scores on the population level to be centered around zero, have variance one and be orthogonal. That is why we set $z_j = exp(u_j)$; because the more abundant species are in fact more abundant in the population as a whole (as opposed to samples with a large library size), it makes sense to use a marginal weighting scheme for the column scores. The weights $z_j$ are derived from the independence model, as explained in the previous paragraph.
 
-## The negative binomial density function
+# Plotting the RC(M) ordination
 
-For the sake of completeness we give the density function of the negative binomial distribution (see Lawless, 1987) in the ($\mu$, $\theta$) parametrization whereby $E(X_{ij}) = \mu_{ij}$ and $Var(X_{ij}) = \mu_{ij} + \frac{\mu_{ij}^2}{\theta_j}$ .
-
-$$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\mu_{ij}}{\theta_j+\mu_{ij}}\big)^{X_{ij}} \big(\frac{\theta_j}{\theta_j+\mu_{ij}}\big)^{\theta_j}$$
-## Plotting the RC(M) ordination
-
-### Unconstrained RC(M)
+## Unconstrained RC(M)
 
 To plot the unconstrained sample ordination, e.g. in the first two dimensions, plot $\psi_1r_{1i}$ vs $\psi_2r_{2i}$, preferably as dots. All weight of the importance parameters $\psi_k$ is alloted to the samples, which means that the distances between sample points can be intepreted as optimal representations of between-sample distances in lower dimension. More weight is added to differences in scores in important dimensions.
 
-To show the role of the taxa in the ordination, add taxon scores $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($\psi_1r_{1i}$, $\psi_2r_{2i}$) on ($s_{1j}$, $s_{2j}$) equals $cos (\eta) ||(\psi_1r_{1i}, \psi_2r_{2i})|| = \frac{(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i})}{||(s_{1j}, s_{2j})||}$ with $\eta$ the angle between the two vectors. This projection is thus proportional to the departure from independence in the first two dimensions combined, for taxon $j$ in sample $i$. The larger the entries of the species and sample scores (the scaling between these two sets is arbitrary, we usually choose them in the same order of magnitude) and the smaller the angle, the larger the departure of this taxon in this sample. 
+To show the role of the taxa in the ordination, add taxon scores $s_{1j}$ vs $s_{2j}$ as arrows to make a biplot. This assures that the orthogonal projection of the vector ($\psi_1r_{1i}$, $\psi_2r_{2i}$) on ($s_{1j}$, $s_{2j}$) equals $cos (\eta) ||(\psi_1r_{1i}, \psi_2r_{2i})|| = \frac{(s_{1j}, s_{2j})^t(\psi_1r_{1i}, \psi_2r_{2i})}{||(s_{1j}, s_{2j})||}$ with $\eta$ the angle between the two vectors. This projection is thus proportional to the departure from independence in the first two dimensions combined, for taxon $j$ in sample $i$. The larger the entries of the species and sample scores (the scaling between these two sets is arbitrary, we usually choose them in the same order of magnitude) and the smaller the angle, the larger the departure of this taxon in this sample.
 
-### Constrained RC(M)
+Distances between taxon arrows are meaningless in this representation.
 
-#### Linear response functions
+## Constrained RC(M)
+
+### Linear response functions
 
 For a constrained ordination with linear response functions, plot e.g. in the first two dimensions the sample scores $(\psi_1\boldsymbol{\alpha}_1^t\mathbf{C}_i, \psi_2\boldsymbol{\alpha}_2^t\mathbf{C}_i)$, preferably as dots. Again this ordination optimally represents distances between samples in low dimension that can be explained by the environmental variables.
 
-Taxon arrows can be added with their origin in $(-\frac{\beta_{0j1}}{\beta_{1j1}}, -\frac{\beta_{0j2}}{\beta_{1j2}})$. This represents the combination of values of the environmental scores in the first two dimensions were a sample would have no expected departure from independence for this taxon $j$. The arrow then extends in the direction of $(\beta_{1j1}, \beta_{1j2})$. The orthogonal projection of this taxon vector onto the sample scores (which depart from the origin), is then equal to $\frac{(\beta_{1j1}, \beta_{1j2})^t(\psi_1\boldsymbol{\alpha}_1^t\mathbf{C}_i, \psi_2\boldsymbol{\alpha}_2^t\mathbf{C}_i)}{||(\beta_{1j1}, \beta_{1j2})||}$, i.e. the departure from uniformity of taxon $j$ that is due to the environmental score from sample $i$.
+Taxon arrows can be added to make a biplot with their origin in $(-\frac{\beta_{0j1}}{\beta_{1j1}}, -\frac{\beta_{0j2}}{\beta_{1j2}})$. This represents the combination of values of the environmental scores in the first two dimensions were a sample would have no expected departure from independence for this taxon $j$. The arrow then extends in the direction of $(\beta_{1j1}, \beta_{1j2})$. The orthogonal projection of this taxon vector onto the sample scores (which depart from the origin), is then equal to $\frac{(\beta_{1j1}, \beta_{1j2})^t(\psi_1\boldsymbol{\alpha}_1^t\mathbf{C}_i, \psi_2\boldsymbol{\alpha}_2^t\mathbf{C}_i)}{||(\beta_{1j1}, \beta_{1j2})||}$, i.e. the departure from uniformity of taxon $j$ that is due to the environmental score from sample $i$.
 
-Labels for the environmental variables are then added according to the loadings of $\boldsymbol{\alpha}_k$. The projection of $\boldsymbol{\alpha}_{y}$ onto $\boldsymbol{\beta}_{1j}$ then reflects the sensitivity of the expected abundance of taxon $j$ to changes in variable $y$.
+In order to make a triplot, labels for the environmental variables are then added according to the loadings of $\boldsymbol{\alpha}_k$. The projection of $\boldsymbol{\alpha}_{y}$ onto $\boldsymbol{\beta}_{1j}$ then reflects the sensitivity of the expected abundance of taxon $j$ to changes in variable $y$. For the categorical variables all levels are shown on the plot, there are no hidden reference level. The continuous variables represent changes of the magnitude of one standard deviation. Comparison of the magnitude of the loadings of continuous and categorical variables is inherently difficult. 
 
-There is no interpretation available for the relative position of sample and variable vectors. This is because the environmental gradient $\boldsymbol{\alpha}_k$ projects the environmental variables of a sample $i$, $\mathbf{C}_i$ onto a single scalar $h_{ik}$, the environmental score. Many combinations of variables $\mathbf{C}_i$ can lead to the same environmental score.
+There is no interpretation available for the relative position of sample and variable vectors. This is because the environmental gradient $\boldsymbol{\alpha}_k$ projects the environmental variables of a sample $i$, $\mathbf{C}_i$ onto a single scalar $h_{ik}$, the environmental score. Many combinations of variables $\mathbf{C}_i$ can lead to the same environmental score. Also Distances between taxon arrows are meaningless in this representation.
 
-#### Quadratic response function
+### Quadratic response function
 
 For a quadratic response function the samples are ordered as for the linear one.
 
@@ -260,60 +263,37 @@ The taxa are plotted as dots at the locations $(-\frac{\beta_{2j1}}{2\beta_{3j1}
 
 The variables can be added as in the linear case to show how they contribute to the environmental gradient.
 
-#### Non-parametric response functions
+### Non-parametric response functions
 
 For non-parametric response functions the samples and variables can be plotted as before, but there is no clear cut way to add the role of the species. The interpretation of the plot will thus mainly focus on the sample ordination.
 
 If the researcher is interested in the response functions of the species, they can be plotted in one dimension in function of the environmental score for many species combined. The environmental gradient of this dimension can be added as a reference to show which variables constitute the gradient.
 
-##### Model quality
+# Assessing the model quality
 
-In the end we'll have estimated  p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)xn + k parameters out of np entries. We have imposed 4k + k(k-1) restrictions, so the final model is still very parsimonious for n and p in the hundreds.
+Even though it is only an explorative visualization and conclusions may still be valid in the face of slight violation of its assumptions, we need tools to evaluate the goodness of fit of the RC(M) model and the validity of its assumptions.
 
-9. Assess the goodness of fit
+## Parsimony
 
-It would be interesting to assess the goodness of fit of our models. Questions that come to mind are:
+An unconstrained RC(M) model of dimension $k$ on a n-by-p data matrix requires estimation of p (abundances) + n (library sizes) + p (dispersions) + kxp (column scores) + kxn (row scores) + k (importance parameters) = (k+2)p + (k+1)n + k parameters out of np entries. 4k + k(k-1) restrictions have been imposed, so the final model is still very parsimonious for n and p in the hundreds.
 
- - How do the different dimensions of the fit relate to one another in terms of importance? How well does our lower dimensional solution represent high-dimensional departures from independence?
- - How much better are quadratic or nonparametric response functions compared to the linear response functions?
- - Which samples and/or taxa are poorly represented in the low-dimensional solution? Which ones exhibit lack of fit to the negative binomial distribution?
- - Which samples/taxa have a strong influence on the final model fit?
- 
-###### Relative importance of dimensions
+An constrained RC(M) model with linear response functions of dimension $k$ on a n-by-p data matrix and with a n-by-d covariate matrix requires estimation of p (abundances) + n (library sizes) + p (dispersions) + 2kp (response function parameters) + kd (environmental gradient loadings) + k (importance parameters) = (2k+1)p + kd + k parameters out of np entries. 3k + k(k-1) restrictions have been imposed.
 
-Mean
+## Importance of the dimension
 
-The first measure of differences in importance between the dimensions are of course the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. The same concept exists for correspondence analysis, where the size of the diagonal elements of $\Sigma$ is proportional to the importance of the corresponding dimension. In the unconstrained case this works very well, but in the constrained case the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. This is because the order of the dimensions is determined by the way the response functions are separated, not just by the mean. Also we do not dispose of the "full" solution of importance parameters as in singular value or eigenvalue approaches, only the dimensions we fitted. This complicates the comparison with the total variance.
+A very natural question is to know how much more important the higher dimensions are in explaining the present variability then the lower dimensions. Also we would want a measure of how much of the variability has been explained in lower dimensions. In principal components analysis (PCA) there is the concept of "percentage variance explained", in correspondence analysis (CA) the total inertia is known and thus also the percentage of variance captured by the lower dimensions. Still the value of these expression is questionable, since they only yield a fraction of _total_ variability. However, part of the total variability is noise, and one does not know which percentage of the _signal_ the higher dimensions explain.
 
-Likelihood
+Since for the RC(M) model for computational reasons only a couple of dimensions are fitted, there is no measure of total variability. One could compare the likelihood of the model to that of the saturated model, but this is not very informative on the count scale.
 
-Another approach than to look at the mean is to look at likelihoods. After all our model is fitted largely with maximum likelihood. Since the model is overparametrized, classical ML theory (such as asymptotic behavious of maximum likelihood statistics) does not apply to our solution. Still we can compare the likelihoods of the independence, the RC(M) and the intermediate models to get an idea of the relative importance of the dimensions.
+The best measure of differences in importance between the dimensions are the importance parameters $\psi_k$. Since all other parameters in both the unconstrained and constrained variables are normalized, these are the only ones that can grow in magnitude to give more weight to the departures of independence in their dimension. This is very similar to the eigenvalues in PCA or the singular values in correspondence analysis, whose size is proportional to the importance of the corresponding dimension. In both the unconstrained and the constrained case it may occur that the magnitude of the $\psi_k$'s is not always monotonically decreasing with the dimensions. However, for skewed distributions as the negative binomial this need not be surprising: the strongest improvement in likelihood is not always achieved by the greatest change in the mean, especially in the presence of nuisance parameters.
 
-We can decompose the difference in log-likelihood between the independence and the full RC(K) model as
+The plotting procedure described above will alot all weight of the importance parameter to the samples, thus automatically weighting for the importance of the dimensions in the sample ordination.
 
-$$(LL_K - LL_0) = (LL_1 - LL_0) + (LL_2 - LL_1) + ... + (LL_K - LL_{K-1})$$
+## Detecting lack of fit
 
-with $LL_k$ the log-likelihoods of RC(k) model, $LL_0$ being the independence model. Scaling by $(LL_{sat} - LL_0)$ with $LL-sat$ the log-likelihood of the saturated model, will provide interpretable fractions of the log-likelihood explained. The trouble is how to estimate the log likelihood of a saturated model, especially the overdispersion. We just use the likelihood of the Poisson distribution here, since the dispersions will be zero.
+In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. Anyhow, we provide tools to detect lack of fit.
 
-This approach leads to weird results for the constrained case as well, because the environmental gradients are not estimated to maximize the likelihood. For the the order of the dimensions is dictated by optimal separation of the species' niches, for good and for ill.
-
-This criterion can also be used to assess the differences in likelihood between constrained methods with different shapes of the response functions (see later).
-
-All in all the psis are the most interpretable measure of importance of each dimension. Means are more interpretable than likelihoods.
-
-###### Comparison of response functions
-
-In case the models are fitted on exactly the same dataset, we can compare the likelihoods of these models. Unconstrained models are freer and generally have more parameters, hence their likelihood is expected to be higher. On the other hand, the constrained models get more information, which they might exploit to beat the constrained ones. Within the constrained models, the likelihood is expected to increase from linear over quadratic to non-parametric response functions. However, if we estimate the environmental gradient $\alpha$ through the likelihood ratio criterion, this criterion does not necessarily maximize the likelihood or guarantee an increasing likelihood with the dimensions.
-
-###### Detecting lack of fit
-
-In our 2D or 3D representation, some samples and taxa may be very well represented, but others not. This may be because of a lack of fit of the negative binomial distribution _tout court_, or because its departure from independence cannot be represented in lower dimension. Anyhow, our plots will not be a truthful representation for this sample or taxon, and the end user should be warned of this.
-
-####### Deviance
-
-Deviance (in relation to the saturated model) would be one option. The deviance is proportional to the difference in log-likelihoods of a certain model and the saturated model. The taxon- and samplewise deviances could be calculated and plotted using a colour code. In the end all samples and taxa will be "poorly" fitted, we just need a relative measure of which ones are worst.
-
-####### Deviance residuals
+### Deviance residuals
 
 The deviance residuals $d_{ij}$ of the negative binomial distribution are defined as (see M. L. Zwilling, “Negative Binomial Regression,” The Mathematica Journal, 2013):
 
@@ -325,91 +305,30 @@ sgn(X_{ij}-\mu_{ij})\sqrt{\frac{2}{\phi_j}ln(1+\phi_j\mu_{ij})} \text{ if } X_{i
 \end{cases}
 \]
 
-Their sum of squares equals the total deviance per sample or taxon. Plotting the deviances in function of the environmental gradient can reveal patterns and thus lack of fit to the linearity assumption.
+Their sum of squares equals the total deviance per sample or taxon. For the unconstrained we can visually represent this by colour codes. In the constrained case with parametric response functions, plotting the deviances in function of the environmental gradient can reveal patterns and thus lack of fit to the linearity assumption.
 
 We can do this for the taxa that respond strongest to the environmental gradient, and make residual plots with deviance or Pearson residuals. An alternative is to try to detect systematic trends through series of positive or negative residuals using Ward and Wolfowitz' runs test, and plot the taxa with the largest test statistic.
 
-###### Identifying influential observations
+## Identifying influential observations
 
-Since we have explicitly expressed all score functions, we can easily identify influential observations using _influence functions_. They represent the influence a certain observation has on parameter, keeping the other sorts of parameters fixed. Because of the iterative algorithm this assumption is incorrect, maybe the influence functions cannot always be trusted. The long fitting times also exclude (leave-one-out) refitting procedures.
-
-For the unconstrained case in a scenario without outliers the influence functions may not yield very surprising results on the level of the plot, observations mainly have influence on their own row and column scores. Coupling through the constraints is rather weak. It may however help to identify outlying abundances in case of outlying row- or column scores.
-
-For the constrained case it may be enlightning to see which samples (and taxa) affect the estimation of the environmental gradient most.
+Since we have explicitly expressed all score functions, we can easily identify influential observations using _influence functions_. They represent the influence a certain observation has on parameter, keeping the other sorts of parameters fixed. Because of the iterative algorithm this latter assumption is incorrect, but the influence functions might still harbour interesting information.
 
 For maximum likelihood estimation the influence function $\psi(\theta| f, x)$ of a parameter $\theta$ for a distribution $f$ and data x is defined as:
 
 $$\psi(\theta| f, x) = -S_f(\theta|x) E\big(I(\theta, \theta|x)\big)^{-1}  $$
  with $S_f(\theta|x)$ the score function and $E\big(I(\theta, \theta|x)\big)$ the expected Fisher information matrix.
 
+For the unconstrained case in a scenario without outliers the influence functions may not yield very surprising results on the level of the plot, observations mainly have influence on their own row and column scores. Coupling through the constraints is rather weak. It may however help to identify outlying abundances in case of outlying row- or column scores.
 
+For the constrained case it may be enlightning to see which samples (and taxa) affect the estimation of the environmental gradient most.
 
+# Estimating equations
 
+## The negative binomial density function
 
+For the sake of completeness we give the density function of the negative binomial distribution (see Lawless, 1987) in the ($\mu$, $\theta$) parametrization whereby $E(X_{ij}) = \mu_{ij}$ and $Var(X_{ij}) = \mu_{ij} + \frac{\mu_{ij}^2}{\theta_j}$ .
 
-
-
-### Log-linear analysis
-
-Another modelling approach is to use log-linear modelling an thereby introduce the negative binomial as error term. We know from previous goodness of fit testing that this is an appropriate error model for microbiome data.
-
-In log-linear analysis the logged expected count $l_{ij}$ is modelled as
-
-$$log(E(X_{ij})) = l_{ij} = u + u_i + u_j + u_{ij}$$.
-
-For $u_{ij} \neq 0$ this is the saturated model, which provides a perfect fit by setting all expected values equal to the observed ones. If $u_{ij} = 0$ this is the independence model presented above.
-
-### The RC(M)-association model
-
-For the purpose of making biplots, we might consider the following model (proposed by Leo Goodman, 1979. See also VanDerHeijden 1994)
-
-$$log(E(x_{ij})) = l_{ij} = u + u_i + u_j + \psi_1r_{1i}s_{1j} + \psi_2r_{2i}s_{2j}$$
-
-or in matrix form:
-
-$$\mathbf{lE} = \mathbf{u_{sam,MLE}}\mathbf{u_{tax,MLE}}^t + \mathbf{r}_k \boldsymbol{\psi}_k \mathbf{s}_k^t$$
-
-with $\mathbf{lE}$ the n-by-p matrix of logged expectations, $\mathbf{u_{sam,MLE}}$ the vector with length $n$ with the row intercepts estimated by ML, $\mathbf{u_{tax,MLE}}$ the vector of length $p$ with the column intercepts estimated by ML, $\mathbf{r}_k$ the n-by-k matrix of row scores, $\boldsymbol{\psi}_k$ a diagonal matrix with the $k$ $\psi$'s on the diagonal and $\mathbf{s}_k$ the p-by-k matrix of column scores
-
-#### Imposing the restrictions
-
-The centering, normalization and orthogonality of the row and column scores are enforced through Lagrange multipliers. This makes the systems of equations harder to solve but assures independence of the dimensions.
-
-#### A note on gradient analysis
-
-Note that this is a case of __indirect gradient__ analysis: the dimensions are estimated without incorporating gradient information (measured covariates) to maximally represent variability in the data. In a next step these obtained gradients can be compared with measured covariates (often graphically through a colour code) to see how well these covariates explain the gradients. 
-
-#### Relationship between CA and log-linear analysis
-
-According to Escoufier, 1982 if $a =\sum_{k=1}^K \omega_k v_{ki} w_{jk}$ is small (i.e. the deviation from independence is small) then $log(1+a) \approx a$ and
-
-$$log(E(x_{ij})) = log(x_{i.}) + log(x_{.j}) - log(x_{..}) + log\big(1 + \sum_{k=1}^K \omega_k v_{ki} w_{jk}\big) \approx log(x_{i.}) + log(x_{.j}) - log(x_{..}) + \sum_{k=1}^K \omega_k v_{ki} w_{jk}$$
-
-i.e. an equivalence between the RC(M)-model and correspondence analysis.
-
-Since the same restricitions apply to the scores $v_{ki}$ and $w_{jk}$ as to U and V, we can state that  $\psi_k \approx \omega_k$. The assumption that the departure from independence is small seems unlikely in our case, but it does provide us with some starting values.
-
-#### The RC(M) model and time series
-
-Often we have data from experiments with repeated measurements, e.g. the evolution of the infant microbiome over time. Should we take this into account while fitting the RC(M) model? I do not think so, since it is an exploratroy method and we just want to visualize the variation in the data. It would be interesting to see if the individuals form clusters or not. In the constrained version of this method (see below), we can always add labels for the individuals and  time variable.
-
-### Fitting the RC(M) model
-
-The models are usually fitted by ML. See page 55 of Goodman 1985 for details. Goodman assumed a Poisson distribution, but it might be possible to use a negative binomial model with unique dispersions for each taxon $j$ as well.
-
-See Goodman 1985 (appendix), Becker 1988 for information on estimation. The code below is generic but we take k=2 for simplicity.
-
-Parameters of interest to estimate are $\psi$, $r_1$, $r_2$, $c_1$, $c_2$. In the process we'll also need the nuisance parameters $\mathbf{\theta}$ and the offsets of the independence model $u_i$ and $u_j$. Assume $E(X_{ij}) = \mu_{ij}$ and  $Var(X_{ij})=\mu_{ij} + \frac{\mu_{ij}^2}{\theta}$
-
-
-
-#### Starting values
-
-
-
-#### Iteration
-
-2. If the independence model is estimated by MLE, estimate the $u_i$'s, $u_j$'s and $\theta_j$'s iteratively until convergence (set $u=0$). The estimating equeations are independent (Jacobian is diagonal) so this converges very quickly. Otherwise set $u_i = log(x_{i.})$ , $u_j = log(x_{.j})$ and $u = log(x_{..})$.
+$$f_{NB}(X_{ij}) = \frac{\Gamma(X_{ij}+\theta_j)}{\Gamma(\theta_j)} \big(\frac{\mu_{ij}}{\theta_j+\mu_{ij}}\big)^{X_{ij}} \big(\frac{\theta_j}{\theta_j+\mu_{ij}}\big)^{\theta_j}$$
 
 3. Estimate overdispersions
 
@@ -707,7 +626,7 @@ Since $\lambda_j$ already represents the offset for taxon $j$, should we fit the
 
 #### Scaling
 
-To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. This means that their corresponding elements of $\boldsymbol{\alpha}$ represent the contribution to the environmental score of one standard deviation away from the mean of this variable (in case of linear response functions). A perfect quantitative comparison to the magnitude of the values of the paramaters of the dummies of the categorical variables will never be possible. In our case, with 0-1 dummy coding, equal parameters for a dummy and a continuous variable imply that this level of the categorical variable contributes as much to the environmental score as one standard deviation away from the overall mean of the continuous variable.
+
 
 #### A note on the importance parameters
 
@@ -856,23 +775,9 @@ The whole estimation of the constrained RC(M)-model would then proceed as follow
 
 Filtering of rare taxa is not needed in this case, as all covariates are summarized in one "continuous" row score. to check for convergencen, for $\psi_k$  we apply an infinity norm, for $\boldsymbol{\alpha}_k$ the default is an L2-norm.
 
-#### Triplot
 
-The interpretation of the triplot is different from the one from Zhu _et al._ (2005), and also different from that of the unconstrained RC(M).
 
- - The components of $\boldsymbol{\alpha}_k$ are plotted as arrows and represent the extent to which the covariates contribute to environmental score in dimension $k$. Categorical variables are centered, all their levels are shown. The continuous variables have been centered and scaled, so the magnitude of their compponents in $\boldsymbol{\alpha}_k$ can be compared to one another.
- - For the samples, the environmental scores are plotted as points and represent environmental scores of each sample. Samples close together in one dimension come from similar environments, considering that environmental gradient. This does _NOT_ mean that they have similar values of the environmental variables. 
- - The plot for the taxa depends on the response function used. 
-    * In case of a linear response function we can plot arrows originating from $-\frac{\beta_{0j}}{\beta_{1j}}$, which represents the point of no departure from independence explained by the covariates. The direction and size of the arrow then depends purely on $\beta_{1j}\psi$. We can make two sorts of projections:
-      - The projection of ($-\frac{\beta_{0j}}{\beta_{1j}}$, $-\frac{\beta_{0j}}{\beta_{1j}} + \beta_{1j}\psi$) onto $\boldsymbol{\alpha}^t\mathbf{C}_i$ (the environmental scores), then corresponds to the departure from independence for taxon $j$ in sample $i$ explained by its environmental variables $\mathbf{C}_i$. The arrow is appropriate since a larger environmental score always results in a larger departure from indepedence under this model. As often in statistics, linearity may not be a very credible assumption, but it leads to models that are easy to interpret.
-      - The projection of ($-\frac{\beta_{0j}}{\beta_{1j}}$, $-\frac{\beta_{0j}}{\beta_{1j}} + \beta_{1j}\psi$) onto $(0,\alpha_y)$ reflects the sensitivity of taxon $j$ to changes in covariate $y$.
-      We cannot make a direct connection between components of the environmental gradient $\boldsymbol{\alpha}$ and the observed environmental scores $\boldsymbol{\alpha}^t\mathbf{C}_i$, even though this may seem so intuitively. Often it is so that a large $\alpha_y$ points in the direction of samples with a large $c_{iy}$, but this is not guaranteed. Many different combinations of covariates $\mathbf{C}_{i}$ can lead to the same environmental score for a given $\boldsymbol{\alpha}$. This is because of the dimension reduction from $d$ to 1 resulting from the projection by $\boldsymbol{\alpha}$. We will have to warn the user for this pitfall, and facilitate the depiction of the environmental variables of each samples through colour codes.
-    * In case of quadratic response function we should plot the extremum of the response functions in each dimension as a point (taking the importance parameter $\psi_k$ into account, which is multiplied by each of the parameters $\beta$ of the response functions). If this is a minimum, this represents the value of the environmental score with the largest drop in expected abundance compared to the independence model, in case of a maximum the largest rise. With colour and shape codes we can show which kind of extremum it is, and which kind of departure from indepedence (negative or positive effect on the expectation). To represent the tolerances, i.e. how steep these valleys and mountains of expected abundance are, we can use ellipses to designate e.g. points with 50% the departure from independence from the top. For CCA this feature is not needed since there all tolerances are assumed equal.
-    * In case of non-parametric response function I do not see I clear way to plot the species. The benefit of this method will have to be the improved ordination of the environmental gradient and the samples. One can always look at the individual species response functions if one is interested.
-  
-It is clear that the triplot is not trivial to interpret, but then again: neither is a triplot based on CCA.
 
-## Some general thoughts on the RC(M)
 
-Contrary to most other methods to make biplots for microbiome data, the RC(M)-method is a truly statistical method that explicitly models the mean. This renders it very easy to interpret. It's main weaknesses are the reliance on a parametric distribution (which may be incorrect), and it's relatively long running times. However, many other biplot methods, such as CA ot PCoA with Hellinger distances, also make distributional assumptions, mostly without stating them explicitly.
+
 
