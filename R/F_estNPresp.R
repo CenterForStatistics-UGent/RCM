@@ -12,7 +12,7 @@
 #' @param verbose a boolean, should number of failed fits be reported
 #' @param ... further arguments, passed on to the VGAM:::vgam() function
 #'
-#' The negative binomial likelihood is still maximized, but now the response function is a non-parametric one. To avoid a perfect fit and overly flexible functions, we enforce smoothness restrictions. In practice we use a generalized additive model (GAM), i.e. with splines.  The same fitting procedure is carried out ignoring species labels. We do not normalize the parameters related to the splines: the psis can be calculated afterwards. The VGAM package turned ut to be very buggy, and chose the mgcv package instead. Unfortunately we can only use this with a single parameter, so we have to turn to VGAM again for the overall response function. Fitting both models with different packages is of course not desirable.
+#' The negative binomial likelihood is still maximized, but now the response function is a non-parametric one. To avoid a perfect fit and overly flexible functions, we enforce smoothness restrictions. In practice we use a generalized additive model (GAM), i.e. with splines.  The same fitting procedure is carried out ignoring species labels. We do not normalize the parameters related to the splines: the psis can be calculated afterwards.
 #'
 #' @return A list with components
 #' \item{taxonWiseFitted}{A n-by-p matrix of fitted valuesof the response curves per taxon at the observed values of the environmental scores}

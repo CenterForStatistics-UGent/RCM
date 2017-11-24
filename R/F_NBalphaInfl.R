@@ -20,7 +20,7 @@ NBalphaInfl = function(rcm, Dim){
   p = ncol(X)
   n = nrow(X)
   d = ncol(CC)
-  envGradEst = rcm$envGradEst
+  envGradEst = if(is.null(rcm$envGradEst)) "LR" else rcm$envGradEst
   thetaMat = matrix(rcm$thetas, byrow = TRUE, n, p)
   NB_params = rcm$NB_params[,,Dim]
   NB_params_noLab = rcm$NB_params_noLab[,Dim]

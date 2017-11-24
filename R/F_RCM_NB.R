@@ -402,7 +402,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
                       confounders = confounders, confParams = confParams)
 
   } else { #If covariates provided, do a constrained analysis
-
+require(vegan)
     d = ncol(covariates)
     CCA = cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
     alpha = matrix(0,d,k)

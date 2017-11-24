@@ -39,12 +39,13 @@
 #' @param legendSize a size for the coloured dots in the legend
 #' @param noLegend a boolean indicating you do not want a legend
 #' @param crossSize the size of the central cross
+#' @param contCol  a character vector of length two, giving the low and high values of the continuous colour scale
 #'
 #' @return see the ggplot()-function
 plot.RCM = function(RCMfit, Dim = c(1,2),
-                    samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
+                    samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "\n parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,...) {
+                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"),...) {
   require(RColorBrewer)
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
@@ -88,7 +89,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
      plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
-     plot = plot + scale_colour_continuous(name = colLegend)
+     plot = plot + scale_colour_continuous(name = colLegend, low = contCol[1], high =  contCol[2])
    }
    if(!is.null(shapeLegend)){
      plot = plot + scale_shape_discrete(name = shapeLegend)
@@ -200,7 +201,7 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     if(length(taxCol)>1 && length(unique(taxCol))<10){
       dataTax$taxCol = Palette[c(taxCol[id])]
     } else if(taxCol=="Deviance"){
-      dataTax$taxCol = colSums(getDevianceRes(RCMfit, Dim)^2)
+      dataTax$taxCol = colSums(getDevianceRes(RCMfit, Dim)^2)[id]
     } else if(taxCol %in% colnames(tax_table(RCMfit$physeq, errorIfNULL = FALSE))){
       dataTax$taxCol = tax_table(RCMfit$physeq)[, taxCol]
       mostCommon = names(sort(table(dataTax$taxCol), decreasing = TRUE)[seq_len(nPhyl)])
@@ -211,7 +212,7 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
       if(arrowSize > 0){
       plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = if(alpha) "arrowLength" else NULL, colour = if("samples" %in% plotType) NULL else  "taxCol"), colour = taxColSingle, arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
       if(!"species" %in% plotType){
-      plot = plot + if(is.factor(taxCol)) scale_colour_discrete(name = colLegend) else scale_colour_continuous(name = colLegend)
+      plot = plot + if(is.factor(taxCol)) scale_colour_discrete(name = colLegend) else scale_colour_continuous(name = colLegend, low = contCol[1], high = contCol[2])
       }
       plot = plot +  if(alpha) scale_alpha_continuous(range = alphaRange)
       }
