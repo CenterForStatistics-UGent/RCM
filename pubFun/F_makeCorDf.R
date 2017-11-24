@@ -12,12 +12,12 @@ makeCorDf = function(scores, datList, Dims = 1:3, scoreDim = "rows", groupMeth =
 
   cor0 = lapply(Dims, function(Dim){
       mapply(scores, datList, FUN = function(x,z){
-        margins = switch(scoreDim, "rows" = rowSums(x$dataMat), "columns" = colSums(x$dataMat), "dispersions"=x$thetasSampled)
+        margins = switch(scoreDim, "rows" = rowSums(z$dataMat), "columns" = colSums(z$dataMat), "dispersions"=x$thetasSampled)
         x$Control = matrix(rnorm(length(margins)), length(margins), length(Dims))
         sapply(x , function(y){libCor(y, margins = margins, Dim = Dim)}) #Include a control
       }, SIMPLIFY = TRUE)
       })
 
-  cor0df = lapply(cor0, melt, value.name = "Correl", varnames = c("Method"))
+  cor0df = lapply(cor0, function(x){melt(x, value.name = "Correl", varnames = c("Method"))[,c("Correl","Method")]})
   cor0df
 }
