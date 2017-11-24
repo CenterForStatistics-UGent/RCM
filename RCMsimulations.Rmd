@@ -77,17 +77,18 @@ thetaEst = 1/unlist(phiMLEs) #observed dispersions abundances, pooled
 libSizesEst = unlist(sapply(physeqListV13, sample_sums)) #Resample
 if(!file.exists(file = "RCMsim/resList0.RData")){
   if(!file.exists(file = "RCMsim/datList0.RData")){
-datList0 = mclapply(mc.cores=1, 1:reps, function(i){
+datList0 = mclapply(mc.cores=1, integer(reps), function(i){
 ## Sample parameters
 rhosSampled = sample(rhoEst, p)
 thetasSampled = sample(thetaEst, p) #Sampled dispersions are the same in every population, this is the ideal case assumed by our method.
 libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
-
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])
 })
 save(datList0,  file = "RCMsim/datList0.RData")
 } else {load(file = "RCMsim/datList0.RData")}
@@ -114,7 +115,7 @@ save(CorDF0lib, CorDF0tax, file = "RCMsim/resList0.RData")
 rm(physeqListV13);gc(verbose = FALSE)
 ```
 
-```{r Starting Values, purl = FALSE, eval = FALSE}
+```{r Starting Values, purl = FALSE, eval = FALSE, echo = FALSE}
 startList= lapply(resList0, startFun)
 moltStart = melt(startList, value.name = "correlation")
 names(moltStart) = c("correlation", "scores","run")
@@ -146,8 +147,10 @@ libSizesSampled[groupInd==4] = round(libSizesSampled[groupInd==4]*3)
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])
 })
 save(datList0b,  file = "RCMsim/datList0b.RData")
 } else {load(file = "RCMsim/datList0b.RData")}
@@ -204,10 +207,11 @@ thetaMat = matrix(thetasSampled, n, p, byrow = TRUE) * c(rep(c(0.2,0.5,1,5), eac
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = thetaMat),n,p)
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetaMat = thetaMat, rhosSampled = rhosSampled)
-})
-save(datList4,groupFactor4,  file = "RCMsim/datList4.RData")
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])})
+save(datList4, groupFactor4, file = "RCMsim/datList4.RData")
 } else {load(file = "RCMsim/datList4.RData")}
 
 # Results
@@ -262,7 +266,10 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE)),n,p)
-list(dataMat = dataMat, group = groupFactor1, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled)
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID])
 })
 save(datList1,groupFactor1,  file = "RCMsim/datList1.RData")
 } else {load(file = "RCMsim/datList1.RData")}
@@ -332,8 +339,10 @@ meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
 colnames(dataMat) = rownames(rhosSampled) 
 rownames(dataMat) = groupFactor2
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled00[colID,])
 })
 save(datList2,groupFactor2,  file = "RCMsim/datList2.RData")
 } else {load(file = "RCMsim/datList2.RData")}
@@ -389,7 +398,7 @@ groupInd = rep(1:nPop, each = nPerPop) #Group indicator, as integers
 groupFactor3 = factor(groupInd, levels = 1:nPop, labels =  paste("Population", 1:nPop), ordered = TRUE) #as factor
 if(!file.exists(file = "RCMsim/resList3.RData")){
   if(!file.exists(file = "RCMsim/datList3.RData")){
-datList3 = mclapply(mc.cores = 4, 1:reps, function(i){
+datList3 = mclapply(mc.cores = 1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
@@ -415,9 +424,10 @@ meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
 colnames(dataMat) = rownames(rhosSampled) 
 rownames(dataMat) = groupFactor3
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
-})
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled00[colID,])})
 save(datList3,groupFactor3,  file = "RCMsim/datList3.RData")
 } else {load(file = "RCMsim/datList3.RData")}
 
@@ -471,7 +481,7 @@ if(!file.exists(file = "RCMsim/resList5.RData")){
   if(!file.exists(file = "RCMsim/datList5.RData")){
     load("/home/stijn/PhD/Simulations/data/covList.RData")
     require(SpiecEasi)
-datList5 = mclapply(mc.cores = 4, 1:reps, function(i){
+datList5 = mclapply(mc.cores = 1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
 rhosSampled0 = rhosSampled0/sum(rhosSampled0)
@@ -496,9 +506,10 @@ meanMat = libSizesSampled * t(rhosSampled)
 dataMat = rmvnegbin(n = n,mu = meanMat, ks = thetasSampled, Sigma = as.matrix(covList[[covMatName]]))
 colnames(dataMat) = rownames(rhosSampled) 
 rownames(dataMat) = groupFactor5
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, covMatName = covMatName)
-})
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled00[colID,])})
 save(datList5,groupFactor5,  file = "RCMsim/datList5.RData")
 rm(covList);gc(verbose = FALSE)
 } else {load(file = "RCMsim/datList5.RData")}
@@ -588,8 +599,10 @@ meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
 colnames(dataMat) = rownames(rhosSampled) 
 rownames(dataMat) = groupFactorPhy
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, cluSampled = cluSampled, randomTree = randomTree)
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled00[colID,], IDsampled = IDsampled[colID,], cluSampled = cluSampled, randomTree = randomTree)
 })
 save(datListPhy, groupFactorPhy, file = "RCMsim/datListPhy.RData")
 } else {load(file = "RCMsim/datListPhy.RData")}
@@ -650,7 +663,7 @@ if(!file.exists(file = "RCMsim/resListZINB.RData")){
 load(file="/home/stijn/PhD/Biplots/Zicoef.RData")
 
 if(!file.exists(file = "RCMsim/datListZINB.RData")){
-  require(pscl)
+  require(VGAM)
 datListZINB = mclapply(mc.cores=1, 1:reps, function(i){
 ## Sample parameters
 rhosSampled0 = sample(rhoEst, p)
@@ -675,8 +688,10 @@ meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rzinegbin(prod(dim(meanMat)), munb = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE), pstr0 = matrix(propSampled,n,p,byrow = TRUE)),n,p)
 colnames(dataMat) = rownames(rhosSampled) 
 rownames(dataMat) = groupFactorZINB
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, thetasSampled = thetasSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled, propSampled = propSampled)
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled00[colID,], IDsampled = IDsampled[colID,], propSampled = propSampled[colID])
 })
 save(datListZINB,groupFactorZINB,  file = "RCMsim/datListZINB.RData")
 } else {load(file = "RCMsim/datListZINB.RData")}
@@ -755,10 +770,12 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 dataMat = t(sapply(seq_along(libSizesSampled),function(i){Dirichlet.multinomial(libSizesSampled[i], shape = rhosSampled[,i]*(1-thetaDM)/thetaDM)}))
 colnames(dataMat) = rownames(rhosSampled) 
 rownames(dataMat) = groupFactorDM
-dataMat = dataMat[rowSums(dataMat)>0,colSums(dataMat)>0]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled, rhosSampled = rhosSampled00, IDsampled = IDsampled)
+rowID = rowSums(dataMat)>0
+colID = colSums(dataMat)>0
+dataMat = dataMat[rowID, colID]
+list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], rhosSampled = rhosSampled00[colID,], IDsampled = IDsampled[colID,])
 })
-save(datListDM,groupFactorDM, file = "RCMsim/datListDM.RData")
+save(datListDM, groupFactorDM, file = "RCMsim/datListDM.RData")
 } else {load(file = "RCMsim/datListDM.RData")}
 
 # Results
