@@ -990,7 +990,7 @@ Contrary to most other methods to make biplots for microbiome data, the RC(M)-me
 Some preliminary test to make sure everything runs without errors
 
 ```{r tests, purl = FALSE, eval = FALSE}
-n = 2000; p = 10000
+n = 60; p = 1000
 counts = matrix(rnbinom(n*p, mu = 5, size = 3), n, p)
 covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6), status = sample(c("Treatment","Control"),n, replace=TRUE), siblings = rpois(n, lambda = 0.9))
 physeq = phyloseq(otu_table(counts, taxa_are_rows = FALSE), sample_data(covars))

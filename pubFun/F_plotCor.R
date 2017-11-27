@@ -15,7 +15,8 @@ plotCor = function(corDF, scoreDim = "rows",
     data = orderDF(corDF[[i]], groupsMeth = groupMeth)
     boxplot(Correl ~ Method, main = paste(
       switch(scoreDim, "rows" = "Correlations of library sizes \n with row scores of dimension",
-             "columns" = "Correlations of species abundances \n with column scores of dimension"
+             "columns" = "Correlations of species abundances \n with column scores of dimension",
+             "dispersions" = "Correlations of log10 dispersions \n with column scores of dimension"
       ),i),
       data = data, ylim = c(-1,1), ylab = "Pearson correlation", col = groupMeth, las = 2, cex.main = 0.75)
     meansCor = tapply(data$Correl, data$Method, mean)

@@ -85,10 +85,11 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+rownames(dataMat) = names(libSizesSampled) = seq_len(n)
+colnames(dataMat) = names(rhosSampled) = names(thetasSampled) = seq_len(p)
 rowID = rowSums(dataMat)>0
 colID = colSums(dataMat)>0
-dataMat = dataMat[rowID, colID]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])
+list(dataMat = dataMat[rowID, colID], libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])
 })
 save(datList0,  file = "RCMsim/datList0.RData")
 } else {load(file = "RCMsim/datList0.RData")}
@@ -110,7 +111,7 @@ CorDF0lib = makeCorDf(resList0Rows, datList0, scoreDim = "rows", groupMeth = gro
 CorDF0tax = makeCorDf(resList0Cols, datList0, scoreDim = "columns", groupMeth = groupsMeth)
 CorDF0disp = makeCorDf(resList0Cols, datList0, scoreDim = "dispersions", groupMeth = groupsMeth)
 rm(resList0Rows, resList0, datList0, resList0Cols);gc(verbose = FALSE)
-save(CorDF0lib, CorDF0tax, file = "RCMsim/resList0.RData")
+save(CorDF0lib, CorDF0tax,CorDF0disp, file = "RCMsim/resList0.RData")
 } else {load(file = "RCMsim/resList0.RData")}
 rm(physeqListV13);gc(verbose = FALSE)
 ```
@@ -147,10 +148,11 @@ libSizesSampled[groupInd==4] = round(libSizesSampled[groupInd==4]*3)
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p,byrow = TRUE)),n,p)
+rownames(dataMat) = names(libSizesSampled) = seq_len(n)
+colnames(dataMat) = names(rhosSampled) = names(thetasSampled) = seq_len(p)
 rowID = rowSums(dataMat)>0
 colID = colSums(dataMat)>0
-dataMat = dataMat[rowID, colID]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])
+list(dataMat = dataMat[rowID, colID], libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])
 })
 save(datList0b,  file = "RCMsim/datList0b.RData")
 } else {load(file = "RCMsim/datList0b.RData")}
@@ -207,9 +209,8 @@ thetaMat = matrix(thetasSampled, n, p, byrow = TRUE) * c(rep(c(0.2,0.5,1,5), eac
 ## Create dataset
 meanMat = outer(libSizesSampled, rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = thetaMat),n,p)
-rowID = rowSums(dataMat)>0
-colID = colSums(dataMat)>0
-dataMat = dataMat[rowID, colID]
+rownames(dataMat) = names(libSizesSampled) = seq_len(n)
+colnames(dataMat) = names(rhosSampled) = names(thetasSampled) = seq_len(p)
 list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID], rhosSampled = rhosSampled[colID])})
 save(datList4, groupFactor4, file = "RCMsim/datList4.RData")
 } else {load(file = "RCMsim/datList4.RData")}
@@ -266,10 +267,11 @@ libSizesSampled = sample(libSizesEst, n) #Sampled libSizes
 ## Create dataset
 meanMat = libSizesSampled * t(rhosSampled)
 dataMat = matrix(rnbinom(prod(dim(meanMat)), mu = meanMat, size = matrix(thetasSampled,n,p, byrow = TRUE)),n,p)
+rownames(dataMat) = names(libSizesSampled) = seq_len(n)
+colnames(dataMat) = names(rhosSampled) = names(thetasSampled) = seq_len(p)
 rowID = rowSums(dataMat)>0
 colID = colSums(dataMat)>0
-dataMat = dataMat[rowID, colID]
-list(dataMat = dataMat, libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID])
+list(dataMat = dataMat[rowID, colID], libSizesSampled = libSizesSampled[rowID], thetasSampled = thetasSampled[colID])
 })
 save(datList1,groupFactor1,  file = "RCMsim/datList1.RData")
 } else {load(file = "RCMsim/datList1.RData")}
@@ -1042,7 +1044,75 @@ plotCor(CorDFHumlib)
 plotCor(CorDFZellerlib)
 ```
 
+Some methods have row scores that correlate with library sizes in non-parametric simulations but not in parametric ones. Perhaps the biological effect is confounded with the library sizes here? for this we plot the observed library sizes in function of the grouping cofactors.
+
+```{r boxplotHum, fig.cap = "Observed library sizes in original dataset in function of diet in the Turnbaugh dataset\\label{supfig:boxplotHum}"}
+load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
+boxplot(sample_sums(HumMicePhy)~get_variable(physeq = HumMicePhy, "Diet"))
+```
+
+```{r boxplotHum, fig.cap = "Observed library sizes in original dataset in function of diagnosis in the Zeller dataset\\label{supfig:boxplotHum}"}
+load("/home/stijn/PhD/Simulations/data/zellerData.RData")
+boxplot(sample_sums(zellerSphy)~get_variable(physeq = zellerSphy, "Diagnosis"))
+```
+
 \clearpage
+
+## Correlations with dispersions
+
+Dispersion parameters differ between taxa, but are only related to their variance, no to their mean abundance. As a result they should not affect the ordination, and thus not be correlated to the taxon scores.
+
+```{r dispCor0, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H0 in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCor0}"}
+plotCor(CorDF0disp, scoreDim = "dispersions")
+```
+
+```{r dispCor0b, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H0 in the first three dimensions. The disprary sizes were tenfold larger in half of the samples than in the other half. Orange diamonds indicate means.\\label{supfig:dispCor0}"}
+plotCor(CorDF0bdisp)
+```
+
+```{r dispCor4, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H0, but with differences in dispersions between 4 sample groups, in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCor4}"}
+plotCor(CorDF4disp)
+```
+
+```{r dispCor1, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H1 with 4 unrelated sample groups in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCor1}"}
+plotCor(CorDF1disp)
+```
+
+```{r dispCor2, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCor2}"}
+plotCor(CorDF2disp)
+```
+
+```{r dispCor3, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and differences in disprary sizes in each group in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCor3}"}
+plotCor(CorDF3disp)
+```
+
+```{r dispCor5, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCor5}"}
+plotCor(CorDF5disp)
+```
+
+```{r dispCorPhy, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the negative binomial under H1 with 4 related sample groups with 10% DA taxa and correlated taxa in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCorPhy}"}
+plotCor(CorDFPhydisp)
+```
+
+```{r dispCorDM, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the Dirichlet multinomial distribution under H1 in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCorDM}"}
+plotCor(CorDFDMdisp)
+```
+
+```{r dispCorZINB, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 simulations with the zero-inflated negative binomial distribution under H1 in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCorZINB}"}
+plotCor(CorDFZINBdisp)
+```
+
+\clearpage
+
+### Non-parametric simulation
+
+```{r dispCorHum, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 non-parametric simulations based on the Turnbaugh dataset in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCorHum}"}
+plotCor(CorDFHumdisp)
+```
+
+```{r dispCorZeller, fig.cap = "Correlations of sample scores and random standard normal control variable with disprary sizes, results of 100 non-parametric simulations based on the Zeller dataset in the first three dimensions. Orange diamonds indicate means.\\label{supfig:dispCorZeller}"}
+plotCor(CorDFZellerdisp)
+```
 
 ## Sample separatation
 

@@ -25,8 +25,12 @@ estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersio
   trended.dispersion = if(is.null(trended.dispersion)){
     estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = logMeansMat, weights = NULL)
     } else {trended.dispersion}
-  thetaEsts <- 1/estimateGLMTagwiseDisp(y = t(X), design = NULL,
+  trended.dispersion = if(is.list(trended.dispersion)) trended.dispersion$dispersion else trended.dispersion
+
+  thetaEstsTmp <- estimateGLMTagwiseDisp(y = t(X), design = NULL,
                                         prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
+
+thetaEsts = if(is.list(thetaEstsTmp)) thetaEstsTmp$tagwise.dispersion else thetaEstsTmp
   if (anyNA(thetaEsts)) {
     idNA = is.na(thetaEsts)
     thetaEsts[idNA] = mean(thetaEsts[!idNA])
