@@ -838,9 +838,9 @@ testTwins = testSimSeq(TurnTwins, "Status_p") # No significance
 testAG = testSimSeq(AGphylo, "IBD")
 load("/home/stijn/PhD/Simulations/data/zellerData.RData")
 testZeller = testSimSeq(zellerSphy, "Diagnosis")
-load("Kostic.RData")
+load("/home/stijn/PhD/Biplots/Kostic.RData")
 testKostic = testSimSeq(kostic, "TREATMENT")
-load(file = "CMETdata.RData")
+load(file = "/home/stijn/PhD/Biplots/CMETdata.RData")
 testCMETphase = testSimSeq(CMETwater, "Reactor.phase")
 testCMETcycle = testSimSeq(CMETwater, "Reactor.cycle")
 save(testHum, testTwins, testAG, testZeller, testKostic, testCMETphase, testCMETcycle, file = "SimSeqTests.RData")
@@ -1044,17 +1044,35 @@ plotCor(CorDFHumlib)
 plotCor(CorDFZellerlib)
 ```
 
+#### Correlations with library sizes in original datasets
+
 Some methods have row scores that correlate with library sizes in non-parametric simulations but not in parametric ones. Perhaps the biological effect is confounded with the library sizes here? for this we plot the observed library sizes in function of the grouping cofactors.
 
-```{r boxplotHum, fig.cap = "Observed library sizes in original dataset in function of diet in the Turnbaugh dataset\\label{supfig:boxplotHum}"}
+```{r LibboxplotHum, fig.cap = "Observed library sizes in original dataset in function of diet in the Turnbaugh dataset\\label{supfig:boxplotHum}"}
 load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 boxplot(sample_sums(HumMicePhy)~get_variable(physeq = HumMicePhy, "Diet"))
 ```
 
-```{r boxplotHum, fig.cap = "Observed library sizes in original dataset in function of diagnosis in the Zeller dataset\\label{supfig:boxplotHum}"}
+```{r LibboxplotZeller, fig.cap = "Observed library sizes in original dataset in function of diagnosis in the Zeller dataset\\label{supfig:LibboxplotZeller}"}
 load("/home/stijn/PhD/Simulations/data/zellerData.RData")
 boxplot(sample_sums(zellerSphy)~get_variable(physeq = zellerSphy, "Diagnosis"))
 ```
+
+```{r LibboxplotZeller, fig.cap = "Observed library sizes in original dataset in function of diagnosis in the Kostic dataset\\label{supfig:LibboxplotKostic}"}
+load("/home/stijn/PhD/Biplots/Kostic.RData")
+boxplot(sample_sums(kostic)~get_variable(physeq = kostic, "TREATMENT"))
+```
+
+```{r LibboxplotPropsPhase, fig.cap = "Observed library sizes in original dataset in function of reactor phase in the Props dataset\\label{supfig:LibboxplotPropsPhase}"}
+load(file = "/home/stijn/PhD/Biplots/CMETdata.RData")
+boxplot(sample_sums(CMETwater)~get_variable(physeq = CMETwater, "Reactor.cycle"))
+```
+
+```{r LibboxplotPropsCycle, fig.cap = "Observed library sizes in original dataset in function of diagnosis in the Props dataset\\label{supfig:LibboxplotPropsCycle}"}
+boxplot(sample_sums(CMETwater)~get_variable(physeq = CMETwater, "Reactor.phase"))
+```
+
+Biologically meaningful variables are clearly related to the library sizes.
 
 \clearpage
 
