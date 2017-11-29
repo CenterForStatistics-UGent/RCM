@@ -12,7 +12,7 @@
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
 #' @param ... Other argumens passed on to the ggplot() function
-plotRespFun = function(RCM, taxa, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLoc = NULL, Palette = "rainbow", adJitter = FALSE, subdivisions = 100L, nTaxa = 8L, angle = 90,...){
+plotRespFun = function(RCM, taxa = NULL, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLoc = NULL, Palette = "rainbow", adJitter = FALSE, subdivisions = 100L, nTaxa = 8L, angle = 90,...){
 require(ggplot2)
 require(reshape2)
   if(is.null(RCM$nonParamRespFun)){
@@ -39,7 +39,7 @@ plot = ggplot(data = dfMolt, aes(x = sampleScore, y = responseFun, group = Taxon
 plot = plot + xlab("Environmental score") + ylab("Response function")
 
 #Also add the associated elements of the environmental gradient in the upper margin
-textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])), y = yLoc)
+textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))
 textDf = textDf[order(textDf$x),]
 textDf$y = (if(is.null(yLoc)) max(dfMolt$responseFun)*0.9 else yLoc) + if(adJitter) rep(c(-1,0,1)*diff(range(dfMolt$responseFun))/8, length.out = nrow(RCM$alpha)) else 0
 plot = plot + geom_text(data = textDf, mapping = aes(x=x, y=y, label=text), inherit.aes = FALSE, angle = angle, size = labSize) + scale_colour_brewer(palette = Palette)

@@ -443,7 +443,7 @@ The AGP dataset is indeed too noisy to find much of a signal
 
 #### Unconstrained RC(M)
 
-The Zeller data are obtained from a study on colorectal cancer in cancer patients and healthy controls \cite{Zeller2014}. Patient covariates recorded were age, gender, BMI, cancer diagnosis(healthy, small adenoma or cancer) and country(France or Germany).
+The Zeller data are obtained from a study on colorectal cancer in cancer patients and healthy controls \cite{Zeller2014}. Patient covariates recorded were age, gender, BMI, cancer diagnosis(healthy, small adenoma or cancer) and country(France or Germany). On the same data, 16S rRNA as well as metagenomic data are available.
 
 ```{r load zeller RC(M) NB results, purl = FALSE, include = FALSE}
 load("/home/stijn/PhD/Simulations/data/zellerData.RData")
@@ -490,14 +490,25 @@ zellerSphyRCMconstrQuad = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age
 zellerSphyRCMconstrNonParam = RCM(zellerSphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
 save(zellerSphyRCMconstrLin, zellerSphyRCMconstrQuad, zellerSphyRCMconstrNonParam, file="zellerSphyRCMconstr.RData")
 } else {load("zellerSphyRCMconstr.RData")}
+
+if(!file.exists("zellerMphyRCMconstr.RData")){
+zellerMphyRCMconstrLin = RCM(zellerMphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear") # Use smallest possible cndtol!
+zellerMphyRCMconstrQuad = RCM(zellerMphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "quadratic")
+zellerMphyRCMconstrNonParam = RCM(zellerMphy, k=2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
+save(zellerMphyRCMconstrLin, zellerMphyRCMconstrQuad, zellerMphyRCMconstrNonParam, file="zellerMphyRCMconstr.RData")
+} else {load("zellerMphyRCMconstr.RData")}
 ```
 
-```{r ZellerConstrainedBiplot, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
+```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
 plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
 ```
 
 ```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
 plot.RCM(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
+```
+
+```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
+plotRespFun(zellerSphyRCMconstrNonParam)
 ```
 
 \clearpage
