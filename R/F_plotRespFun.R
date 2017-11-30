@@ -12,7 +12,7 @@
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
 #' @param ... Other argumens passed on to the ggplot() function
-plotRespFun = function(RCM, taxa = NULL, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLoc = NULL, Palette = "rainbow", adJitter = FALSE, subdivisions = 100L, nTaxa = 8L, angle = 90,...){
+plotRespFun = function(RCM, taxa = NULL, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLoc = NULL, Palette = "Set3", adJitter = FALSE, subdivisions = 100L, nTaxa = 8L, angle = 90,...){
 require(ggplot2)
 require(reshape2)
   if(is.null(RCM$nonParamRespFun)){

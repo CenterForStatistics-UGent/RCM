@@ -499,9 +499,29 @@ save(zellerMphyRCMconstrLin, zellerMphyRCMconstrQuad, zellerMphyRCMconstrNonPara
 } else {load("zellerMphyRCMconstr.RData")}
 ```
 
-```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
+```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
 plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
 ```
+
+```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
+plot.RCM(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
+```
+
+```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
+plotRespFun(zellerSphyRCMconstrNonParam)
+```
+
+```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
+plot.RCM(zellerMphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
+```
+
+Some OTU seems completely out of touch with the rest. Plot the deviances of the taxa.
+
+```{r ZellerConstrainedBiplotDev, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
+plot.RCM(zellerMphyRCMconstrLin, plotType = "species", taxCol = "Deviance", taxDots = TRUE)
+```
+
+Fix me!!!
 
 ```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
 plot.RCM(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
