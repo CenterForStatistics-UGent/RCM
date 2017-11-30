@@ -1,0 +1,10 @@
+Package: RCM
+Type: Package
+Title: Fit row-column association models with the negative binomial distribution for the microbiome
+Version: 0.1.0
+Author: Stijn Hawinkel
+Maintainer: Stijn Hawinkel <stijn.hawinkel@ugent.be>
+Description: 
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
