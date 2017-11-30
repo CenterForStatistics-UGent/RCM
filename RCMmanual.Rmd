@@ -38,22 +38,8 @@ palStore = palette()
 
 As example data we use a study on the microbiome of colorectal cancer patients "Potential of fecal microbiota for early-stage detection of colorectal cancer" (2014) by Zeller _et al._.
 
-```{r downLoad Data}
-#Download the necessary files
-for (i in c("data", "results")){if(!dir.exists(i)) dir.create(i)}
-download.file("http://users.ugent.be/~shawinke/data/species.txt", destfile = "./data/species.txt")
-download.file("http://users.ugent.be/~shawinke/data/cancer_metadata.txt", destfile = "./data/cancer_metadata.txt")
-zellerMeta = read.table("./data/cancer_metadata.txt", header=TRUE, sep="") #Read in the patient metadata
-zellerS = read.table("./data/species.txt", header=TRUE, sep="\t", row.names=1) #The 16S count data
-```
-
-Although our package does accept count matrices, we recommend merging all the data into a _phyloseq_ object fro RCM fitting.
-
-```{r formatData}
-Sotu = otu_table(round(zellerS[-1,]), taxa_are_rows=TRUE) #Round to integers
-Smeta = sample_data(zellerMeta)
-rownames(Smeta) = gsub("-",".",Smeta$Sample)
-zellerSphy = phyloseq(Smeta, Sotu) #Create the phyloseq object
+```{r loadZellerData}
+data(Zeller)
 ```
 
 ## Unconstrained RCM

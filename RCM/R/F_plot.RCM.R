@@ -1,7 +1,7 @@
 #' A function to plot RC(M) ordination result with the help of ggplot2
 #'
 #' @param x an RCM object
-#' @param ... further arguments, passed on to the ggplot() function
+#' @param ... further arguments, passed on to aes in the the ggplot() function
 #' @param Dim A vector two dimensions to plot, defaults to the first two
 #' @param samColour a character string, the variable to use for the colour of the sample dots
 #' @param colLegend a character string, the legend text for the sample colour. Defaults to the name of the colour variable
