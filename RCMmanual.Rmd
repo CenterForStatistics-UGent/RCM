@@ -7,7 +7,7 @@ output: rmarkdown::github_document
 
 # RCM
 
-This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial (which might be used in a later R-package) in the "R" folder. Moreover there is the "RC(M).Rmd" file with theoretical discussions, real data analyis and simulation results. The functions used for simulation but which are outside outside the core RC(M) algorithm are present in the "pubFun" folder.
+This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The functions used for simulation but which are outside outside the core RC(M) algorithm are present in the "pubFun" folder.
 
 The "ZIandSimCode.Rmd" file contains code to fit the ZI components as well and old simulation code.
 
@@ -18,7 +18,7 @@ Here follows a short tutorial on fitting and plotting the RCM model.
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=TRUE, purl=TRUE}
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE, fig.path = "README_figs/README-")
 # The required package list:
-reqpkg <- c("phyloseq","MASS", "parallel","nleqslv", "edgeR", "ggplot2", "alabama", "reshape2", "tensor", "VGAM", "vegan")
+reqpkg <- c("phyloseq","RCM")
 # Load all required packages and show version
 for(i in reqpkg)
 {
@@ -27,8 +27,6 @@ for(i in reqpkg)
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
 palStore = palette()
-funFiles = dir("R")
-for (i in funFiles) {source(file.path("R",i))} # Run all fitting functions
 ```
 
 ## Dataset
@@ -153,7 +151,7 @@ Some taxa (or samples) may not follow a negative binomial distribution, or their
 The deviance residuals can be extracted manually
 
 ```{r getDeviances}
-devResiduals = getDevianceRes(ZellerRCM2, Dim = c(1,2))
+devResiduals = RCM:::getDevianceRes(ZellerRCM2, Dim = c(1,2))
 ```
 
 but you can also just supply the argument "Deviance" to samColour
@@ -291,7 +289,7 @@ For these taxa we see no signal at all.
 It can also be interesting to see which samples have the strongest influence on the environmental gradient.
 
 ```{r inflCalc}
-inflArr = NBalphaInfl(ZellerRCM2constr, Dim = 1)
+inflArr = RCM:::NBalphaInfl(ZellerRCM2constr, Dim = 1)
 ```
 
 Say we want to know which samples have on average the largest influence on the estimation of the age parameter.
