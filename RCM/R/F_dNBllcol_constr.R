@@ -1,7 +1,7 @@
 #' A function to evaluate the score function for the parameters of the response function for 1 taxon at the time
-#' @param betas a vector of v parameters of the response function of a single taxon (\boldsymbol{beta}_j)
+#' @param betas a vector of v parameters of the response function of a single taxon
 #' @param X the count vector of length n
-#' @param reg a n-by-v matrix of regressors(\mathbf{C} \boldsymbol{\alpha})
+#' @param reg a n-by-v matrix of regressors
 #' @param theta The dispersion parameter of this taxon
 #' @param muMarg offset of length n
 #' @param psi a scalar, the importance parameter

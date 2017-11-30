@@ -42,11 +42,13 @@
 #' @param contCol  a character vector of length two, giving the low and high values of the continuous colour scale
 #'
 #' @return see the ggplot()-function
+#' @export
+#' @import ggplot2
+#' @import phyloseq
 plot.RCM = function(RCMfit, Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "\n parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(RCMfit$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
                     Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"),...) {
-  require(RColorBrewer)
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(RCMfit$covariates) #Constrained plot?
@@ -87,7 +89,7 @@ plot.RCM = function(RCMfit, Dim = c(1,2),
 
    #add legend names
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
-     plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
+     plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(RColorBrewer::brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
      plot = plot + scale_colour_continuous(name = colLegend, low = contCol[1], high =  contCol[2])
    }
@@ -236,7 +238,7 @@ if(taxLabels){
 } else if(taxDots){
   if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, show.legend = FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
   } else {
-    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = labSize, inherit.aes = FALSE) + scale_colour_manual(values = c(brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) # "Other" is made grey
+    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = labSize, inherit.aes = FALSE) + scale_colour_manual(values = c(RColorBrewer::brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) # "Other" is made grey
   }
 }
   if(!"samples" %in% plotType){

@@ -60,10 +60,10 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
   cSam2 = cSam^2
 
   Jac[did,did] = switch(responseFun,
-                        "linear" = - psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*switch(envGradEst, "LR" = (tmp-tmp0), "ML" = tmp)}), CC,1,1))),
+                        "linear" = - psi^2 *(colSums(tensor::tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*switch(envGradEst, "LR" = (tmp-tmp0), "ML" = tmp)}), CC,1,1))),
                         "quadratic" = switch(envGradEst,
-            "LR" =colSums((tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2))- tmp0*(NB_params_noLab[2]+NB_params_noLab[3]*2*cSam)^2) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,])-(X-mu0)/(1+mu0/thetaMat)*NB_params_noLab[3]))}),CC,1,1))),
-            "ML" = colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2)) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,]))))}),CC,1,1))))
+            "LR" =colSums((tensor::tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2))- tmp0*(NB_params_noLab[2]+NB_params_noLab[3]*2*cSam)^2) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,])-(X-mu0)/(1+mu0/thetaMat)*NB_params_noLab[3]))}),CC,1,1))),
+            "ML" = colSums(tensor::tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2)) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,]))))}),CC,1,1))))
 
   diag(Jac)[did] = diag(Jac)[did] + 2*lambda2 #Correct the diagonal
 

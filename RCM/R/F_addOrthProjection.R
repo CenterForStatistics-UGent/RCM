@@ -7,6 +7,9 @@
 #' @param labPos the position of the label. Will be calculated if not provided
 #'
 #' @return a geom_segment object that draws the projection
+#' @export
+#' @import ggplot2
+#' @import phyloseq
 addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = NULL, Dims = 1:2, addLabel = FALSE, labPos = NULL){
   nulls = is.null(sample) + is.null(species) + is.null(variable)
   if(nulls != 1) stop("Provide two variables categories for a projection! \n")

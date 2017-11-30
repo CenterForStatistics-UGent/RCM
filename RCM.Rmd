@@ -12,22 +12,11 @@ output:
 WD = "/home/stijn/PhD/Biplots"
 knitr::opts_knit$set(root.dir = WD)
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FALSE, echo=FALSE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height=6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
-# The required package list:
-reqpkg <- c("phyloseq", "parallel", "ggplot2", "vegan", "reshape2") #"DirFactor","MASS",
-# Load all required packages and show version
-for(i in reqpkg)
-{
-#   print(i) 
-#   print(packageVersion(i))
-  library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
-} 
-if(detectCores()==4) setwd(WD)
+library(RCM)
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = grep("black",palette(), value =TRUE, invert = TRUE)
 palette(palStore)
-funFiles = dir("R")
 funFilesPub = dir("pubFun")
-for (i in funFiles) {source(file.path("R",i))}
 for (i in funFilesPub) {source(file.path("pubFun",i))};rm(i)
 ```
 
@@ -990,9 +979,10 @@ Contrary to most other methods to make biplots for microbiome data, the RC(M)-me
 Some preliminary test to make sure everything runs without errors
 
 ```{r tests, purl = FALSE, eval = FALSE}
-n = 60; p = 1000
+n = 60; p = 500
 counts = matrix(rnbinom(n*p, mu = 5, size = 3), n, p)
 covars = data.frame(age = rnorm(n, 35,5), gender = sample(c(TRUE, FALSE), n , replace = TRUE), country = factor(sample(c("France","Belgium","Germany"),n, replace=TRUE)), BMI = rnorm(n , 27,6), status = sample(c("Treatment","Control"),n, replace=TRUE), siblings = rpois(n, lambda = 0.9))
+library(phyloseq)
 physeq = phyloseq(otu_table(counts, taxa_are_rows = FALSE), sample_data(covars))
 confounderVec = get_variable(physeq, "country")
 d = 30

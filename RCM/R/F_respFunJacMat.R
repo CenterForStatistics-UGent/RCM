@@ -2,7 +2,7 @@
 #'
 #' @param betas: a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers
 #' @param aX the nxp data matrix
-#' @param reg a vector of regressors with the dimension n-by-v (\mathbf{C} \boldsymbol{\alpha})
+#' @param reg a vector of regressors with the dimension n-by-v
 #' @param thetaMat The n-by-p matrix with dispersion parameters
 #' @param mumarg offset matrix of size nxp
 #' @param psi a scalar, the importance parameter

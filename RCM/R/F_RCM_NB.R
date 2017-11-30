@@ -60,7 +60,7 @@
 #' \item{confounders}{(if provided) the confounder matrix}
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 2000L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 4, vgamMaxit = 100L){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 4, vgamMaxit = 100L){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -173,7 +173,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
       convergence = c(NBRCM$converged, rep(FALSE, k-Kprev))
       iterOut = c(NBRCM$iter, rep(1,k-Kprev))
-      trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(outer(logLibSizesMLE, logAbundsMLE, FUN = "+")), weights = NULL)
+      trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(outer(logLibSizesMLE, logAbundsMLE, FUN = "+")), weights = NULL)
       confParams = NBRCM$confParams
     }
     #Otherwise start the fit from scratch
@@ -193,7 +193,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     libSizes = rowSums(X)
 
     #Get the trended-dispersion estimates. Very insensitive to the offset so only need to be calculated once
-    trended.dispersion <- estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(libSizes, abunds))), weights = NULL)
+    trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(libSizes, abunds))), weights = NULL)
 
     if(marginEst == "MLE"){
 
@@ -402,9 +402,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
                       confounders = confounders, confParams = confParams)
 
   } else { #If covariates provided, do a constrained analysis
-require(vegan)
     d = ncol(covariates)
-    CCA = cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
+    CCA = vegan::cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
     alpha = matrix(0,d,k)
     alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,1:k] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
     alpha = t(t(alpha)-colMeans(alpha))
@@ -501,7 +500,7 @@ require(vegan)
           if (verbose) cat("\n Estimating response functions \n")
           nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, degreeSpline = dfSpline, colWeights = colWeights, verbose = verbose)
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
+          AlphaTmp = alabama::constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
           psis[KK] = nonParamRespFun[[KK]]$psi #Get the psis based on the integrals

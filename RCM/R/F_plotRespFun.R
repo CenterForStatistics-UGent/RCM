@@ -12,9 +12,10 @@
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
 #' @param ... Other argumens passed on to the ggplot() function
+#' @export
+#' @import ggplot2
+#' @import phyloseq
 plotRespFun = function(RCM, taxa = NULL, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLoc = NULL, Palette = "Set3", adJitter = FALSE, subdivisions = 100L, nTaxa = 8L, angle = 90,...){
-require(ggplot2)
-require(reshape2)
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -33,7 +34,7 @@ if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongl
 
 df = data.frame(sampleScore = sampleScoreSeq, lapply(taxa, predictFun, x = sampleScoreSeq))
 names(df)[-1] = taxa
-dfMolt = melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
+dfMolt = reshape2::melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
 
 plot = ggplot(data = dfMolt, aes(x = sampleScore, y = responseFun, group = Taxon, colour = Taxon),...) + geom_line()
 plot = plot + xlab("Environmental score") + ylab("Response function")

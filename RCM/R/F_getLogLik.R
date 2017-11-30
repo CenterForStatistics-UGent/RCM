@@ -7,6 +7,6 @@
 getLogLik = function(rcm, Dim){
   E = extractE(rcm, Dim)
   if(Dim[1] == Inf) dpois(x = rcm$X, lambda = rcm$X, log = TRUE)
-  thetaMat = extractDisp(rcm, E, Dim)
+  thetaMat = extractDisp(rcm, E)
   dnbinom(x = rcm$X, mu = E, size = thetaMat, log = TRUE)
 }

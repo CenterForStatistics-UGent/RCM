@@ -13,7 +13,6 @@
 #' @return A vector of length p with dispersion estimates
 estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersion = NULL, prior.df = 10, dispWeights = NULL, rowMat = NULL)
 {
-  require(edgeR)
   logMeansMat =
    if(!is.null(rMat)){ #Unconstrained
       t(rMat %*% (cMat * psis) + log(muMarg))
@@ -23,11 +22,11 @@ estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersio
       t(log(muMarg) + psis* rowMat)
     }
   trended.dispersion = if(is.null(trended.dispersion)){
-    estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = logMeansMat, weights = NULL)
+    edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = logMeansMat, weights = NULL)
     } else {trended.dispersion}
   trended.dispersion = if(is.list(trended.dispersion)) trended.dispersion$dispersion else trended.dispersion
 
-  thetaEstsTmp <- estimateGLMTagwiseDisp(y = t(X), design = NULL,
+  thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(y = t(X), design = NULL,
                                         prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
 
 thetaEsts = if(is.list(thetaEstsTmp)) thetaEstsTmp$tagwise.dispersion else thetaEstsTmp

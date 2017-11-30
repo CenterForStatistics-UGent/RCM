@@ -5,22 +5,20 @@
 #' @param round a boolean, whether to round to nearest integer. Defaults to FALSE.
 #' @param distribution a character string, the error distribution of the RC(M) model. Defaults to NB
 #' @param prevCutoff a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2
-#' @param minFraction a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10%
+#' @param minFraction a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10\%
 #' @param rowWeights,colWeights character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
 #' @param covariates In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
 #' @param confounders In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case dat is a matrix, a nxf matrix or dataframe of confounders Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
 #' @param prevFit An object with a previous fit, normally from a lower dimension, that should be extended.
 #'
-#'Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
+#'@description Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
 #'
 #' @return see RCM.NB()
-#' @import nleqslv,VGAM,edgeR,tensor,alabama
+#' @import nleqslv
+#' @import VGAM
+#' @import phyloseq
 #' @export
 RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
-
-  reqpkg <- c("phyloseq", "nleqslv", "edgeR", "VGAM", "alabama", "tensor")
-  for (i in reqpkg){require(i, character.only = TRUE, quietly=TRUE)}
-
   classDat = class(dat) #The class provided
 
   ##The count data##
@@ -82,16 +80,9 @@ rm(tmp)
   }
 
   tic = proc.time() #Time the calculation
-  tmp = switch(distribution,
-               NB=RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k,
+  tmp = RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k,
                          confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim),
-                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat, NBRCM = prevFit,...),
-               ZIP=RCM_ZIP(X, rowWeights = rowWeights, colWeights = colWeights, k = k,
-                           confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim),
-                           covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZIPRCM = prevFit,...),
-               ZINB=RCM_ZINB(X,  rowWeights = rowWeights, colWeights = colWeights, k = k,
-                             confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim),
-                             covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, ZINBRCM = prevFit, ...))
+                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat, NBRCM = prevFit,...)
   if(classDat=="phyloseq"){tmp$physeq = prune_samples(rownames(X),prune_taxa(colnames(X),dat)) }
   tmp = within(tmp, {
     runtimeInMins = (proc.time()-tic)[1]/60 + if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} # Sum the runtimes

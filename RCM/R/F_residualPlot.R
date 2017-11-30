@@ -8,8 +8,10 @@
 #' @param mfrow passed on to par(). If not supplied will be calculated based on numTaxa
 #'
 #'If whichTaxa is "run" or "response" the taxa with the highest run statistics or responses are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
+#'@export
+#'@import ggplot2
+#'@import phyloseq
 residualPlot = function(RCM, Dim = 1, whichTaxa = "response", resid = "Deviance", numTaxa = 9, mfrow = NULL, samColour = NULL, samShape = NULL){
-  require(tseries)
   sampleScore = RCM$covariates %*% RCM$alpha[,Dim, drop = FALSE]
   if(resid == "Deviance"){
     resMat = getDevianceRes(RCM, seq_len(Dim))

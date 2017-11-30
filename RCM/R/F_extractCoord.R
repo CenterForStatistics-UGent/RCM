@@ -10,6 +10,7 @@
 #' \item{samples}{A dataframe of sample scores}
 #' \item{species}{A dataframe of column scores, with origin, slope, end and ellipse coordinates as needed}
 #' \item{variables}{A dataframe of variable scores, loadings of the environmental gradient}
+#' @export
 extractCoord = function(RCM, Dim = c(1,2)){
   # Samples
   constrained = !is.null(RCM$covariates)

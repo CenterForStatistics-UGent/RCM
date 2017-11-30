@@ -4,7 +4,9 @@ Title: Fit row-column association models with the negative binomial distribution
 Version: 0.1.0
 Author: Stijn Hawinkel
 Maintainer: Stijn Hawinkel <stijn.hawinkel@ugent.be>
-Description: 
-License: What license is it under?
+Description: Combine ideas of log-linear analysis of contingency table, flexible response function estimation and empirical Bayes dispersion estimation for explorative visualization of microbiome datasets.
+License: GPL-2
 Encoding: UTF-8
 LazyData: true
+RoxygenNote: 6.0.1
+Imports: RColorBrewer,alabama,edgeR,reshape2,tseries,vegan
