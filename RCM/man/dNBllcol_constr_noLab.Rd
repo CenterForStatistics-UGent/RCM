@@ -7,6 +7,8 @@
 dNBllcol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, ...)
 }
 \arguments{
+\item{betas}{a vector of regression parameters with length v}
+
 \item{X}{the nxp data matrix}
 
 \item{reg}{a matrix of regressors of dimension nxv}
@@ -17,7 +19,7 @@ dNBllcol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, ...)
 
 \item{psi}{a scalar, the importance parameter}
 
-\item{beta}{a vector of regression parameters with length v}
+\item{...}{further arguments passed on to the jacobian}
 }
 \value{
 The evaluation of the score functions (a vector length v)

@@ -1,11 +1,13 @@
 #'Filters out the effect of known confounders. This is done by fitting interactions of every taxon with the levels of the confounders. It returns a modified offset matrix for the remainder of the fitting procedure.
 #'
 #' @param muMarg a nxp matrix, the current offset
-#' @param confounders a nxt confounder matrix
+#' @param confMat a nxt confounder matrix
 #' @param X the nxp data matrix
 #' @param thetas a vector of length p with the current dispersion estimates
 #' @param p an integer, the number of columns of X
 #' @param n an integer, the number of rows of X
+#' @param nleqslv.control see nleqslv()
+#' @param trended.dispersion a vector of length p with trended dispersion estimates
 #' @param tol a scalar, the convergence tolerance
 #' @param maxIt maximum number of iterations
 #'

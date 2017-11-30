@@ -15,7 +15,7 @@
 #' @param Jac an empty Jacobian matrix
 #'
 #' @return a symmetric jacobian matrix of size n+k + 1
-NBjacobianRow = function(beta, X, reg, thetas, muMarg, k, n ,p, nlambda, rowWeights, nLambda, rMatK, preFabMat, Jac){
+NBjacobianRow = function(beta, X, reg, thetas, muMarg, k, n ,p, rowWeights, nLambda, rMatK, preFabMat, Jac){
   rMat = beta[1:n]
   mu = exp(rMat %*% reg)* muMarg
 

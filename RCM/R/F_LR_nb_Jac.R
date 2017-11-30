@@ -1,6 +1,6 @@
 #' A function that returns the Jacobian of the likelihood ratio
 #'
-#' @param Alpha: a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
+#' @param Alpha a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers
 #' @param X the n-by-p count matrix
 #' @param CC a n-by-d covariate vector
 #' @param responseFun a character string indicating the type of response function
@@ -11,7 +11,7 @@
 #' @param alphaK a matrix of environmental gradients of lower dimensions
 #' @param k an integer, the current dimension
 #' @param centMat a nLambda1s-by-d centering matrix
-#' @param nLambdas an integer, number of lagrangian multipliers
+#' @param nLambda an integer, number of lagrangian multipliers
 #' @param nLambda1s an integer, number of centering restrictions
 #' @param thetaMat a matrix of size n-by-p with estimated dispersion parameters
 #' @param muMarg an n-by-p offset matrix
@@ -19,6 +19,7 @@
 #' @param ncols a scalar, the number of columns of X
 #' @param preFabMat a prefabricated matrix
 #' @param envGradEst a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution
+#' @param ... Further arguments passed on to other functionss
 #'
 #' @return A symmetric matrix, the evaluated Jacobian
 LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric","dynamic"), psi, NB_params, NB_params_noLab, d, alphaK, k, centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, preFabMat,envGradEst, ...){
@@ -60,10 +61,10 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonpa
   cSam2 = cSam^2
 
   Jac[did,did] = switch(responseFun,
-                        "linear" = - psi^2 *(colSums(tensor::tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*switch(envGradEst, "LR" = (tmp-tmp0), "ML" = tmp)}), CC,1,1))),
+                        "linear" = - psi^2 *(colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*switch(envGradEst, "LR" = (tmp-tmp0), "ML" = tmp)}), CC,1,1))),
                         "quadratic" = switch(envGradEst,
-            "LR" =colSums((tensor::tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2))- tmp0*(NB_params_noLab[2]+NB_params_noLab[3]*2*cSam)^2) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,])-(X-mu0)/(1+mu0/thetaMat)*NB_params_noLab[3]))}),CC,1,1))),
-            "ML" = colSums(tensor::tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2)) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,]))))}),CC,1,1))))
+            "LR" =colSums((tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2))- tmp0*(NB_params_noLab[2]+NB_params_noLab[3]*2*cSam)^2) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,])-(X-mu0)/(1+mu0/thetaMat)*NB_params_noLab[3]))}),CC,1,1))),
+            "ML" = colSums(tensor(vapply(did, FUN.VALUE = tmp, function(x){CC[,x]*(-psi^2*(tmp*(matrix(NB_params[2,]^2,n,ncols, byrow =TRUE)+4*outer(cSam,NB_params[2,]*NB_params[3,])+4*outer(cSam2,NB_params[3,]^2)) + 2*psi*(rowMultiply((X-mu)/(1+mu/thetaMat),NB_params[3,]))))}),CC,1,1))))
 
   diag(Jac)[did] = diag(Jac)[did] + 2*lambda2 #Correct the diagonal
 

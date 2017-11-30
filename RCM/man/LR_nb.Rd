@@ -33,11 +33,13 @@ LR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric",
 
 \item{ncols}{a scalar, the number of columns of X}
 
-\item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution
+\item{nonParamRespFun}{A list, the result of the estNPresp() function}
+
+\item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
+
+\item{...}{Further arguments passed on to other functions
 
 DON'T USE "p" as variable name, partial matching in the grad-function in the numDeriv package}
-
-\item{nonParamsRespFun}{A list, the result of the estNPresp() function}
 }
 \value{
 : a scalar, the evaluation of the log-likelihood ratio at the given alpha

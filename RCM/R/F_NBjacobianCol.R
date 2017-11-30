@@ -1,6 +1,6 @@
 #'A jacobian function for the estimation of the column scores in an unconstrained RC(M) model
 #'
-#'   @param beta vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
+#' @param beta vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
 #' @param X the nxp data matrix
 #' @param reg a nx1 regressor matrix: outer product of rowScores and psis
 #' @param thetas nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)

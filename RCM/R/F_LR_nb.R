@@ -12,8 +12,9 @@
 #' @param NB_params_noLab Starting values for the NB_params without label
 #' @param thetaMat a matrix of size n-by-p with estimated dispersion parameters
 #' @param ncols a scalar, the number of columns of X
-#' @param nonParamsRespFun A list, the result of the estNPresp() function
+#' @param nonParamRespFun A list, the result of the estNPresp() function
 #' @param envGradEst a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution
+#' @param ... Further arguments passed on to other functions
 #'
 #' DON'T USE "p" as variable name, partial matching in the grad-function in the numDeriv package
 #'

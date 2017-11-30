@@ -7,9 +7,13 @@
 dNBllcol(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, ...)
 }
 \arguments{
+\item{beta}{vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers}
+
 \item{X}{the nxp data matrix}
 
 \item{reg}{a nx1 regressor matrix: outer product of rowScores and psis}
+
+\item{thetas}{nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)}
 
 \item{muMarg}{the nxp offset}
 
@@ -25,11 +29,11 @@ dNBllcol(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, ...)
 
 \item{cMatK}{the lower dimensions of the colScores}
 
-\item{theta}{nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)}
+\item{...}{further arguments passed on to the jacobian}
 }
 \value{
 A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
 }
 \description{
-@param beta vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
+A score function for the estimation of the column scores in an unconstrained RC(M) model
 }

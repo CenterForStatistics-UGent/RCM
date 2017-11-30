@@ -13,7 +13,7 @@
 #' @param rMatK the lower dimension row scores
 
 #' @return A vector of length n + k +1 with evaluations of the derivative of the lagrangian
-dNBllrow = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights, nLambda, rMatK,...) {
+dNBllrow = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights, nLambda, rMatK) {
 
   rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
   mu = exp(rMat %*% reg)* muMarg

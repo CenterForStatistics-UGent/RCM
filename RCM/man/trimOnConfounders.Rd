@@ -15,7 +15,7 @@ trimOnConfounders(confounders, X, prevCutOff, minFraction, n)
 
 \item{minFraction}{a scalar between 0 and 1, each taxon's total abundance should equal at least the number of samples n times minFraction, otherwise it is trimmed}
 
-\item{n:}{the number of samples
+\item{n}{the number of samples
 
 Should be called prior to fitting the independence model}
 }

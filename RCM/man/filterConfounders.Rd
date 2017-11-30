@@ -10,6 +10,8 @@ filterConfounders(muMarg, confMat, X, thetas, p, n, nleqslv.control,
 \arguments{
 \item{muMarg}{a nxp matrix, the current offset}
 
+\item{confMat}{a nxt confounder matrix}
+
 \item{X}{the nxp data matrix}
 
 \item{thetas}{a vector of length p with the current dispersion estimates}
@@ -18,13 +20,15 @@ filterConfounders(muMarg, confMat, X, thetas, p, n, nleqslv.control,
 
 \item{n}{an integer, the number of rows of X}
 
+\item{nleqslv.control}{see nleqslv()}
+
+\item{trended.dispersion}{a vector of length p with trended dispersion estimates}
+
 \item{tol}{a scalar, the convergence tolerance}
 
 \item{maxIt}{maximum number of iterations
 
 Fits the negative binomial mean parameters and overdispersion parameters iteratively. Convergence is determined based on the L2-norm of the absolute change of mean parameters}
-
-\item{confounders}{a nxt confounder matrix}
 }
 \value{
 a list with components:

@@ -7,12 +7,12 @@
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
   maxItOut = 500L, Psitol = 0.001, verbose = FALSE, NBRCM = NULL,
   global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1 - 16),
-  jacMethod = "Broyden", dispFrec = 20L, convNorm = 2, prior.df = 10,
+  jacMethod = "Broyden", dispFreq = 20L, convNorm = 2, prior.df = 10,
   marginEst = "MLE", confounders = NULL, prevCutOff = 0.025,
   minFraction = 0.1, covariates = NULL, centMat = NULL,
   responseFun = c("linear", "quadratic", "dynamic", "nonparametric"),
   record = FALSE, control.outer = list(trace = FALSE),
-  control.optim = list(), envGradEst = "LR", dfSpline = 4,
+  control.optim = list(), envGradEst = "LR", dfSpline = 3,
   vgamMaxit = 100L)
 }
 \arguments{
@@ -38,6 +38,10 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 
 \item{nleqslv.control}{a list with control options, see nleqslv}
 
+\item{jacMethod}{Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm}
+
+\item{dispFreq}{an integer, how many iterations the algorithm should wait before reestimationg the dispersions. Defaults to 20}
+
 \item{convNorm}{a scalar, the norm to use to determine convergence}
 
 \item{prior.df}{an integer, see estDisp()}
@@ -56,7 +60,7 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 
 \item{centMat}{a fxd matrix containing the contrasts to center the categorical variables. f equals the number of continuous variables + the total number of levels of the categorical variables.}
 
-\item{responseFun}{a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"}
+\item{responseFun}{a characters string indicating the shape of the response function}
 
 \item{record}{A boolean, should intermediate parameter estimates be stored?}
 
@@ -71,12 +75,6 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 \item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function
 
 Not intended to be called directly but only through the RCM() function}
-
-\item{method}{Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm}
-
-\item{dispFreq}{an integer, how many iterations the algorithm should wait before reestimationg the dispersions. Defaults to 20}
-
-\item{responseFun}{a characters string indicating the shape of the response function}
 }
 \value{
 A list with elements

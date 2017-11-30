@@ -16,7 +16,7 @@ NBrowInfl = function(rcm, Dim = 1){
 
   score= reg*(rcm$X-mu)/(1+mu/thetaMat) + c(rcm$rowWeights*(lambdaRow[1] + lambdaRow[2]*2*rcm$rMat[,Dim] + tmp))
 
-  JacobianInv = solve(NBjacobianRow(beta = c(rcm$rMat[,Dim], lambdaRow), X = rcm$X, reg= reg, thetas = thetaMat, muMarg = muMarg, k = Dim, p = ncol(rcm$X), n=nrow(rcm$X), rowWeights = rcm$rowWeights , nLambda = Dim+1, rMatK = rMatK)) #Inverse Jacobian
+  JacobianInv = solve(NBjacobianRow(beta = c(rcm$rMat[,Dim], lambdaRow), X = rcm$X, reg= reg, thetas = thetaMat, muMarg = mu, k = Dim, p = ncol(rcm$X), n=nrow(rcm$X), rowWeights = rcm$rowWeights , nLambda = Dim+1, rMatK = rMatK)) #Inverse Jacobian
 
   #After a long thought: The X's do not affect the estimation of the lambda parameters!
   #Matrix of all influences becomes too large: return score and inverse jacobian

@@ -11,7 +11,7 @@
 #' @param NBRCM a previously fitted NBRCM object, from which the lower dimensions can be extracted. Only useful if NBRCM$xk < k
 #' @param global global strategy for solving non-linear systems, see ?nleqslv
 #' @param nleqslv.control a list with control options, see nleqslv
-#' @param method Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm
+#' @param jacMethod Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm
 #' @param dispFreq an integer, how many iterations the algorithm should wait before reestimationg the dispersions. Defaults to 20
 #' @param convNorm a scalar, the norm to use to determine convergence
 #' @param prior.df an integer, see estDisp()
@@ -21,7 +21,6 @@
 #' -confoundersFilt an nxh matrix with confounders for filtering, with all levels and without intercept
 #' @param covariates an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables already
 #' @param centMat a fxd matrix containing the contrasts to center the categorical variables. f equals the number of continuous variables + the total number of levels of the categorical variables.
-#' @param responseFun a character string, either "linear", "gaussian" (or alias "quadratic") or "non-parametric"
 #' @param prevCutOff a scalar the minimum prevalence needed to retain a taxon before the the confounder filtering
 #' @param minFraction a scalar, total taxon abundance should equal minFraction*n if it wants to be retained before the confounder filtering
 #' @param responseFun a characters string indicating the shape of the response function
@@ -60,7 +59,8 @@
 #' \item{confounders}{(if provided) the confounder matrix}
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control=list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFrec = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 4, vgamMaxit = 100L){
+#' @export
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -335,7 +335,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         cMatOld = cMat[KK,]
 
         #Overdispersions (not at every iterations to speed things up, the estimates do not change a lot anyway)
-        if((iterOut[KK] %% dispFrec) ==0 || (iterOut[KK]==1)){
+        if((iterOut[KK] %% dispFreq) ==0 || (iterOut[KK]==1)){
           if (verbose) cat(" Estimating overdispersions \n")
           thetas[,KK+1] = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
           thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
@@ -472,7 +472,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           rowMat = NULL
         }
         #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
-        if((iterOut[KK] %% dispFrec) == 0 || iterOut[KK] == 1){
+        if((iterOut[KK] %% dispFreq) == 0 || iterOut[KK] == 1){
           if (verbose) cat(" Estimating overdispersions \n")
           thetas[,KK+1] = estDisp(X = X, muMarg = if(responseFun == "nonparametric") nonParamRespFun[[KK]]$taxonWiseFitted else muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
           thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE)
@@ -498,9 +498,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, degreeSpline = dfSpline, colWeights = colWeights, verbose = verbose)
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, colWeights = colWeights, verbose = verbose)
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = alabama::constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
           psis[KK] = nonParamRespFun[[KK]]$psi #Get the psis based on the integrals

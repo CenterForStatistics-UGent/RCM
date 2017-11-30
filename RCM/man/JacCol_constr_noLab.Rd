@@ -7,6 +7,8 @@
 JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat)
 }
 \arguments{
+\item{betas}{a vector of regression parameters with length v}
+
 \item{X}{the nxp data matrix}
 
 \item{reg}{a matrix of regressors of dimension nxv}
@@ -22,8 +24,6 @@ JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat)
 \item{v}{an integer, the number of parameters of the response function}
 
 \item{preFabMat}{a prefabricated matrix}
-
-\item{beta}{a vector of regression parameters with length v}
 }
 \value{
 The jacobian (a v-by-v matrix)

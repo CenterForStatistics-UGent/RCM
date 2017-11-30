@@ -1,6 +1,6 @@
 #' The jacobian of the estimating function for the response function without taxon labels
 #'
-#' @param beta a vector of regression parameters with length v
+#' @param betas a vector of regression parameters with length v
 #' @param X the nxp data matrix
 #' @param reg a matrix of regressors of dimension nxv
 #' @param thetasMat A matrix of dispersion parameters

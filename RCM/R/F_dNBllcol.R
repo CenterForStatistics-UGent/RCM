@@ -1,9 +1,9 @@
 #'A score function for the estimation of the column scores in an unconstrained RC(M) model
 #'
-#'   @param beta vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
+#' @param beta vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
 #' @param X the nxp data matrix
 #' @param reg a nx1 regressor matrix: outer product of rowScores and psis
-#' @param theta nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)
+#' @param thetas nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)
 #' @param muMarg the nxp offset
 #' @param k an integer, the dimension of the RC solution
 #' @param p an integer, the number of taxa
@@ -11,6 +11,7 @@
 #' @param nLambda an integer, the number of restrictions
 #' @param colWeights the weights used for the restrictions
 #' @param cMatK the lower dimensions of the colScores
+#' @param ... further arguments passed on to the jacobian
 
 #' @return A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
 dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, ...) {

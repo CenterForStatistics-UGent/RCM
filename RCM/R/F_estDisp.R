@@ -1,6 +1,6 @@
 #' A function to estimate the overdispersion of the negative binomial distribution. Hereby information between taxa is shared with empirical Bayes using the edgeR pacakage, where the time-limiting steps are programmed in C.
 #'
-#' @param X: the data matrix of dimensions nxp
+#' @param X the data matrix of dimensions nxp
 #' @param cMat a 1xp colum scores matrix
 #' @param rMat a nx1 rowscores matrix, if unconstrained
 #' @param muMarg an nxp offset matrix

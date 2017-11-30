@@ -22,6 +22,8 @@ estNBparamsNoLab(design, thetasMat, muMarg, psi, X, nleqslv.control, initParam,
 
 \item{initParam}{a vector of length v of initial parameter estimates}
 
+\item{n}{an integer, the number of samples}
+
 \item{v}{an integer, the number of parameters per taxon}
 
 \item{dynamic}{a boolean, should response function be determined dynamically? See details}

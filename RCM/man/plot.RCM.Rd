@@ -4,11 +4,11 @@
 \alias{plot.RCM}
 \title{A function to plot RC(M) ordination result with the help of ggplot2}
 \usage{
-plot.RCM(RCMfit, Dim = c(1, 2), samColour = NULL, colLegend = if
+\method{plot}{RCM}(x, ..., Dim = c(1, 2), samColour = NULL, colLegend = if
   (Influence) paste("Influence on\\n", samColour,
   "\\n parameter \\n in dimension", inflDim) else samColour, samShape = NULL,
   shapeLegend = samShape, samSize = 1.5, taxNum = if (all(plotType ==
-  "species") || !is.null(taxRegExp)) {     ncol(RCMfit$X) } else {     10 },
+  "species") || !is.null(taxRegExp)) {     ncol(x$X) } else {     10 },
   scalingFactor = NULL, plotType = c("samples", "species", "variables"),
   quadDrop = 0.995, nPoints = 1000, plotEllipse = TRUE, taxaScale = 0.5,
   Palette = if (!all(plotType == "species")) "Set1" else "Paired",
@@ -21,10 +21,12 @@ plot.RCM(RCMfit, Dim = c(1, 2), samColour = NULL, colLegend = if
   "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"), returnCoords = FALSE,
   varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
   phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
-  crossSize = 4, contCol = c("orange", "darkgreen"), ...)
+  crossSize = 4, contCol = c("orange", "darkgreen"))
 }
 \arguments{
-\item{RCMfit}{an RCM object}
+\item{x}{an RCM object}
+
+\item{...}{further arguments, passed on to the ggplot() function}
 
 \item{Dim}{A vector two dimensions to plot, defaults to the first two}
 
@@ -43,6 +45,8 @@ plot.RCM(RCMfit, Dim = c(1, 2), samColour = NULL, colLegend = if
 \item{scalingFactor}{a scalar, a user supplied scaling factor for the taxon arrows If not supplied it will be calculated to make sample and taxon plots on the same scale}
 
 \item{plotType}{a character string: which components to plots}
+
+\item{quadDrop}{a number between 0 and 1. At this fraction of the peak height are the ellipses of the quadratic response functions drawn}
 
 \item{nPoints}{an integer, number of points to evaluate for the ellipse}
 

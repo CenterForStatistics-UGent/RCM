@@ -1,7 +1,7 @@
 #' An auxiliary R function to "array" multiply an array with a vector, kindly provided by Joris Meys
 #'
-#' @param x: a axbxc array
-#' @param y: a vector of length c
+#' @param x a axbxc array
+#' @param y a vector of length c
 #'
 #' @return a axb matrix. The ij-th element equals sum(x[i,j,]*y)
 arrayprod <- function(x,y){

@@ -8,6 +8,8 @@ NBjacobianCol(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda, cMatK,
   preFabMat, Jac)
 }
 \arguments{
+\item{beta}{vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers}
+
 \item{X}{the nxp data matrix}
 
 \item{reg}{a nx1 regressor matrix: outer product of rowScores and psis}
@@ -36,5 +38,5 @@ NBjacobianCol(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda, cMatK,
 A matrix of dimension p+1+1+(k-1) with evaluations of the Jacobian
 }
 \description{
-@param beta vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers
+A jacobian function for the estimation of the column scores in an unconstrained RC(M) model
 }

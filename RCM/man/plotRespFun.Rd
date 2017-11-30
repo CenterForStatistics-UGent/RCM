@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_plotRespFun.R
 \name{plotRespFun}
 \alias{plotRespFun}
-\title{A function that plots the non-parametric response functions of a prespecified set of taxa over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.}
+\title{Plot the non-parametric response functions of a prespecified set of taxa}
 \usage{
 plotRespFun(RCM, taxa = NULL, Dim = 1, nPoints = 1000L, labSize = 2.5,
   yLoc = NULL, Palette = "Set3", adJitter = FALSE, subdivisions = 100L,
@@ -34,5 +34,5 @@ plotRespFun(RCM, taxa = NULL, Dim = 1, nPoints = 1000L, labSize = 2.5,
 \item{...}{Other argumens passed on to the ggplot() function}
 }
 \description{
-A function that plots the non-parametric response functions of a prespecified set of taxa over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
+Plots a number of response functions over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
 }

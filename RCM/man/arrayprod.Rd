@@ -7,9 +7,9 @@
 arrayprod(x, y)
 }
 \arguments{
-\item{x:}{a axbxc array}
+\item{x}{a axbxc array}
 
-\item{y:}{a vector of length c}
+\item{y}{a vector of length c}
 }
 \value{
 a axb matrix. The ij-th element equals sum(x[i,j,]*y)

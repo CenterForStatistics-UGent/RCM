@@ -5,6 +5,7 @@
 #' @param d an integer, the number of environmental variables, including dummies
 #' @param k an integer, the current dimension
 #' @param centMat a centering matrix
+#' @param ... further arguments for other methods, not needed in this one
 #'
 #' The centering matrix centMat ensures that the parameters of the dummies of the same categorical variable sum to zero
 #'

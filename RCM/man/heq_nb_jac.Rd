@@ -16,6 +16,8 @@ heq_nb_jac(Alpha, alphaK, d, k, centMat, ...)
 \item{k}{an integer, the current dimension}
 
 \item{centMat}{a centering matrix}
+
+\item{...}{further arguments for other methods, not needed in this one}
 }
 \value{
 The jacobian matrix

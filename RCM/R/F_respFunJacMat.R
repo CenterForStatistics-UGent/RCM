@@ -1,10 +1,10 @@
 #' Calculates the Jacobian of the score functions of the paramaters of parametric response functions  (a polynomial of any degree). Parameters are sorted per taxon, than with increasing degree.
 #'
-#' @param betas: a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers
-#' @param aX the nxp data matrix
+#' @param betas a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers
+#' @param X the nxp data matrix
 #' @param reg a vector of regressors with the dimension n-by-v
 #' @param thetaMat The n-by-p matrix with dispersion parameters
-#' @param mumarg offset matrix of size nxp
+#' @param muMarg offset matrix of size nxp
 #' @param psi a scalar, the importance parameter
 #' @param v an integer, one plus the degree of the response function
 #' @param p an integer, the number of taxa

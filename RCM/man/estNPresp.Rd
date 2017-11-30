@@ -18,7 +18,15 @@ estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefInitOverall,
 
 \item{thetas}{a vector of length p with dispersion parameters}
 
+\item{n}{an integer, the number of samples}
+
 \item{coefInit}{a 2-by-p matrix with current taxon-wise parameter estimates}
+
+\item{coefInitOverall}{a vector of length 2 with current overall parameters}
+
+\item{dfSpline}{a scalar, the degrees of freedom for the smoothing spline.}
+
+\item{vgamMaxit}{Maximal number of iterations in the fitting of the GAM model}
 
 \item{colWeights}{a vector of length p with column weights}
 
@@ -27,10 +35,6 @@ estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefInitOverall,
 \item{...}{further arguments, passed on to the VGAM:::vgam() function
 
 The negative binomial likelihood is still maximized, but now the response function is a non-parametric one. To avoid a perfect fit and overly flexible functions, we enforce smoothness restrictions. In practice we use a generalized additive model (GAM), i.e. with splines.  The same fitting procedure is carried out ignoring species labels. We do not normalize the parameters related to the splines: the psis can be calculated afterwards.}
-
-\item{coefInitOveral}{a vector of length 2 with current overall parameters}
-
-\item{degreeSpline}{a scalar, the degrees of freedom for the smoothing spline.}
 }
 \value{
 A list with components

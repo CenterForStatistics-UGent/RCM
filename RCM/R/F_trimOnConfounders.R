@@ -4,7 +4,7 @@
 #' @param X the nxp data matrix
 #' @param prevCutOff a scalar between 0 and 1, the prevalence cut off
 #' @param minFraction a scalar between 0 and 1, each taxon's total abundance should equal at least the number of samples n times minFraction, otherwise it is trimmed
-#' @param n: the number of samples
+#' @param n the number of samples
 #'
 #' Should be called prior to fitting the independence model
 #'

@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_RCM.R
 \name{RCM}
 \alias{RCM}
-\title{A simple wrapper function for the RC(M) object for phyloseq objects and matrices, for all posible distributions it passes all argument onto the correct function.}
+\title{A simple wrapper function for the RC(M) object for phyloseq objects and matrices.}
 \usage{
 RCM(dat, k, round = FALSE, distribution = "NB", prevCutOff = 0.025,
   minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",
@@ -17,6 +17,8 @@ RCM(dat, k, round = FALSE, distribution = "NB", prevCutOff = 0.025,
 
 \item{distribution}{a character string, the error distribution of the RC(M) model. Defaults to NB}
 
+\item{prevCutOff}{a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2}
+
 \item{minFraction}{a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10\%}
 
 \item{rowWeights, colWeights}{character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
@@ -27,11 +29,14 @@ RCM(dat, k, round = FALSE, distribution = "NB", prevCutOff = 0.025,
 
 \item{prevFit}{An object with a previous fit, normally from a lower dimension, that should be extended.}
 
-\item{prevCutoff}{a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2}
+\item{...}{Further arguments passed on to the RCM.NB() function}
 }
 \value{
 see RCM.NB()
 }
 \description{
-Trim on prevalence and total abundance to avoid instability of the algorithm. We cannot conlcude much anyway on lowly abundant taxa
+This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
+}
+\details{
+This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
 }

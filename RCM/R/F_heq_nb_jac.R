@@ -5,6 +5,7 @@
 #' @param d an integer, the number of environmental variables, including dummies
 #' @param k an integer, the current dimension
 #' @param centMat a centering matrix
+#' @param ... further arguments for other methods, not needed in this one
 #'
 #' @return The jacobian matrix
 heq_nb_jac = function(Alpha, alphaK, d, k, centMat, ...){

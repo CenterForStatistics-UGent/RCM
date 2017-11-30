@@ -1,4 +1,6 @@
-#' A function that plots the non-parametric response functions of a prespecified set of taxa over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
+#' Plot the non-parametric response functions of a prespecified set of taxa
+#'
+#' @description Plots a number of response functions over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
 #'
 #' @param RCM and RCM object
 #' @param taxa a character vector of taxa to be plotted
@@ -29,7 +31,7 @@ sampleScoreRange = range(with(RCM, covariates %*% alpha)[,Dim])
 sampleScoreSeq = x = seq(sampleScoreRange[1], sampleScoreRange[2], length.out = nPoints)
 if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongly
   intsNonParam = sapply(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]], function(x){getInt(x$fit, sampleScore =c( RCM$covariates %*% RCM$alpha[,1]), subdivisions = subdivisions)}) #The integrals
-  taxa = taxa_names(zellerSphyRCMconstrNonParam$physeq)[intsNonParam > quantile(intsNonParam, (ntaxa(zellerSphyRCMconstrLin$physeq)-nTaxa)/ntaxa(zellerSphyRCMconstrLin$physeq))]
+  taxa = taxa_names(RCM$physeq)[intsNonParam > quantile(intsNonParam, (ntaxa(RCM$physeq)-nTaxa)/ntaxa(RCM$physeq))]
 }
 
 df = data.frame(sampleScore = sampleScoreSeq, lapply(taxa, predictFun, x = sampleScoreSeq))

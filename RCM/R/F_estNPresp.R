@@ -5,9 +5,11 @@
 #' @param X the n-by-p data matrix
 #' @param ncols an integer, the number of columns of X
 #' @param thetas a vector of length p with dispersion parameters
+#' @param n an integer, the number of samples
 #' @param coefInit a 2-by-p matrix with current taxon-wise parameter estimates
-#' @param coefInitOveral a vector of length 2 with current overall parameters
-#' @param degreeSpline a scalar, the degrees of freedom for the smoothing spline.
+#' @param coefInitOverall a vector of length 2 with current overall parameters
+#' @param dfSpline a scalar, the degrees of freedom for the smoothing spline.
+#' @param vgamMaxit Maximal number of iterations in the fitting of the GAM model
 #' @param colWeights a vector of length p with column weights
 #' @param verbose a boolean, should number of failed fits be reported
 #' @param ... further arguments, passed on to the VGAM:::vgam() function
@@ -22,11 +24,10 @@
 #' \item{psi}{The importance parameter of the dimension}
 #' \item{taxonWise}{The taxonwise response function}
 estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefInitOverall, dfSpline, vgamMaxit, colWeights, verbose,...){
-  taxonWise = lapply(seq_len(ncols), function(i){#print(i);
-    df = data.frame(x = X[,i], logMu = log(muMarg[,i]), sampleScore = sampleScore) #Going through a dataframe slows things down, so ideally we shoudl appeal directly to the vgam.fit function
-    # tmp = try(vgam2(data = df, x ~ s(sampleScore, df = 4), offset = logMu, family = negbinomial.size(lmu = "loge", size =thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...),silent=TRUE) #No intercept needed: if the spline equals zero there is no departure from independence. Also we have only one additive term
-    # if(class(tmp)=="try-error") {
-      tmp = try(vgam(data = df,x ~ splines::bs(sampleScore, degree = 3), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...), silent = TRUE)
+  taxonWise = lapply(seq_len(ncols), function(i){
+    df = data.frame(x = X[,i], logMu = log(muMarg[,i]), sampleScore = sampleScore) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
+ #No intercept needed: if the spline equals zero there is no departure from independence. Also we have only one additive term
+      tmp = try(vgam(data = df,x ~ bs(sampleScore, degree = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...), silent = TRUE)
     # }
     if(class(tmp)=="try-error") { #If still fails turn to parametric fit
       warning("GAM would not fit, turned to cubic parametric fit ")
@@ -40,7 +41,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   sumFit = sum(sapply(taxonWise, function(x){length(x$fit)==2}))
   if(verbose && sumFit) cat("A total number of",sumFit, "response functions did not converge! \n")
   samRep = rep(sampleScore,ncols)
-  overall = vgam(c(X) ~ splines::bs(samRep, degree = 3), offset = c(log(muMarg)), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
+  overall = vgam(c(X) ~ bs(samRep, degree = dfSpline), offset = c(log(muMarg)), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
   taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
   taxonCoef = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit$coef})
   psi = sqrt(sum(sapply(taxonWise, function(x){x$int})^2*colWeights))

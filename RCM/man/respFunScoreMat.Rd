@@ -7,23 +7,25 @@
 respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v, ...)
 }
 \arguments{
+\item{betas}{a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers}
+
+\item{X}{the nxp data matrix}
+
+\item{reg}{a matrix of regressors with the dimension nx(deg+1)}
+
+\item{thetaMat}{The n-by-p matrix with dispersion parameters}
+
+\item{muMarg}{offset matrix of size nxp}
+
 \item{psi}{a scalar, the importance parameter}
 
-\item{p}{an integer, the number of taxa
-
-The parameters are restricted to be normalized, i.e. all squared intercepts, first order and second order parameters sum to 1}
+\item{p}{an integer, the number of taxa}
 
 \item{v}{an integer, one plus the degree of the response function}
 
-\item{betas:}{a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers}
+\item{...}{further arguments passed on to the jacobian
 
-\item{aX:}{the nxp data matrix}
-
-\item{reg:}{a matrix of regressors with the dimension nx(deg+1)}
-
-\item{thetaMat:}{The n-by-p matrix with dispersion parameters}
-
-\item{mumarg:}{offset matrix of size nxp}
+The parameters are restricted to be normalized, i.e. all squared intercepts, first order and second order parameters sum to 1}
 }
 \value{
 The evaluation of the score functions, a vector of length (p+1)*(deg+1)

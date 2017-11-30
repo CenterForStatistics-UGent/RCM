@@ -9,6 +9,8 @@ estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
   rowMat = NULL)
 }
 \arguments{
+\item{X}{the data matrix of dimensions nxp}
+
 \item{cMat}{a 1xp colum scores matrix}
 
 \item{rMat}{a nx1 rowscores matrix, if unconstrained}
@@ -24,8 +26,6 @@ estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
 \item{dispWeights}{Weights for estimating the dispersion in a zero-inflated model}
 
 \item{rowMat}{matrix of row scores in case of constrained ordination}
-
-\item{X:}{the data matrix of dimensions nxp}
 }
 \value{
 A vector of length p with dispersion estimates

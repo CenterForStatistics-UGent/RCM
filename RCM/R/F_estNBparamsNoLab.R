@@ -7,6 +7,7 @@
 #' @param X the data matrix
 #' @param nleqslv.control a list of control elements, passed on to nleqslv()
 #' @param initParam a vector of length v of initial parameter estimates
+#' @param n an integer, the number of samples
 #' @param v an integer, the number of parameters per taxon
 #' @param dynamic a boolean, should response function be determined dynamically? See details
 #' @param envRange a vector of length 2, giving the range of observed environmental scores

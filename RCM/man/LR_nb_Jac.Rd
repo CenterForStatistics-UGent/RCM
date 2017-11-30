@@ -10,6 +10,8 @@ LR_nb_Jac(Alpha, X, CC, responseFun = c("linear", "quadratic",
   envGradEst, ...)
 }
 \arguments{
+\item{Alpha}{a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers}
+
 \item{X}{the n-by-p count matrix}
 
 \item{CC}{a n-by-d covariate vector}
@@ -30,6 +32,8 @@ LR_nb_Jac(Alpha, X, CC, responseFun = c("linear", "quadratic",
 
 \item{centMat}{a nLambda1s-by-d centering matrix}
 
+\item{nLambda}{an integer, number of lagrangian multipliers}
+
 \item{nLambda1s}{an integer, number of centering restrictions}
 
 \item{thetaMat}{a matrix of size n-by-p with estimated dispersion parameters}
@@ -44,9 +48,7 @@ LR_nb_Jac(Alpha, X, CC, responseFun = c("linear", "quadratic",
 
 \item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
 
-\item{Alpha:}{a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers}
-
-\item{nLambdas}{an integer, number of lagrangian multipliers}
+\item{...}{Further arguments passed on to other functionss}
 }
 \value{
 A symmetric matrix, the evaluated Jacobian

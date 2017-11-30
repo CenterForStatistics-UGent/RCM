@@ -7,9 +7,15 @@
 respFunJacMat(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec)
 }
 \arguments{
+\item{betas}{a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers}
+
+\item{X}{the nxp data matrix}
+
 \item{reg}{a vector of regressors with the dimension n-by-v}
 
 \item{thetaMat}{The n-by-p matrix with dispersion parameters}
+
+\item{muMarg}{offset matrix of size nxp}
 
 \item{psi}{a scalar, the importance parameter}
 
@@ -20,12 +26,6 @@ respFunJacMat(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec)
 \item{IDmat}{an logical matrix with indices of non-zero elements}
 
 \item{IndVec}{a vector with indices with non-zero elements}
-
-\item{betas:}{a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers}
-
-\item{aX}{the nxp data matrix}
-
-\item{mumarg}{offset matrix of size nxp}
 }
 \value{
 The jacobian, a square matrix of dimension (deg+1)*(p+1)

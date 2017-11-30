@@ -1,4 +1,4 @@
-#' A function to make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic
+#' Make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic
 #'
 #' @param RCM an RCM object
 #' @param Dim an integer, which dimension?
@@ -6,8 +6,9 @@
 #' @param resid the type of residuals to use, either "Deviance" or "Pearson"
 #' @param numTaxa an integer, the number of taxa to plot
 #' @param mfrow passed on to par(). If not supplied will be calculated based on numTaxa
+#' @param samColour,samShape Vectors or character strings denoting teh sample colour and shape respectively. If character string is provided, the variables with this name is extracted from the phyloseq object in RCM
 #'
-#'If whichTaxa is "run" or "response" the taxa with the highest run statistics or responses are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
+#'@details If whichTaxa is "run" or "response" the taxa with the highest run statistics or responses are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
 #'@export
 #'@import ggplot2
 #'@import phyloseq

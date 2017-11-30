@@ -15,7 +15,9 @@ heq_nb(Alpha, alphaK, d, k, centMat, ...)
 
 \item{k}{an integer, the current dimension}
 
-\item{centMat}{a centering matrix
+\item{centMat}{a centering matrix}
+
+\item{...}{further arguments for other methods, not needed in this one
 
 The centering matrix centMat ensures that the parameters of the dummies of the same categorical variable sum to zero}
 }
