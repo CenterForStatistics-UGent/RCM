@@ -27,9 +27,9 @@ for(i in reqpkg)
 } 
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = palette()
-funFiles = dir("R")
+funFiles = dir("RCM/R")
 funFilesPub = dir("pubFun")
-for (i in funFiles) {source(file.path("R",i))}
+for (i in funFiles) {source(file.path("RCM/R",i))}
 for (i in funFilesPub) {source(file.path("pubFun",i))};rm(i)
 load("/home/stijn/PhD/American Gut/AGphylo.RData")
 load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
@@ -481,7 +481,7 @@ For the metagenomics data we do not see a trend in function of the diagnosis.
 
 #### Constrained RC(M)
 
-In the constrained analysis we use all the available covariates to construct the environmental gradient.
+In the constrained analysis we use all the available covariates to construct the environmental gradient: age, gender, diagnosis, BMI and country.
 
 ```{r zellerConstrained, purl =FALSE}
 if(!file.exists("zellerSphyRCMconstr.RData")){
@@ -503,32 +503,32 @@ save(zellerMphyRCMconstrLin, zellerMphyRCMconstrQuad, zellerMphyRCMconstrNonPara
 plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
 ```
 
-```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
+```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, only age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
 plot.RCM(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
 ```
 
-```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
+```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Non-parametric response functions of constrained RC(M) analysis on 16S Zeller data. Only the 8 most strongly reacting taxa are shown. \\label{fig:ZellerNPrespFun}"}
 plotRespFun(zellerSphyRCMconstrNonParam)
 ```
 
-```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
-plot.RCM(zellerMphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
+```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerMGDiagnosis}"}
+plot(zellerMphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country", xInd = 2.5)
 ```
 
 Some OTU seems completely out of touch with the rest. Plot the deviances of the taxa.
 
-```{r ZellerConstrainedBiplotDev, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
-plot.RCM(zellerMphyRCMconstrLin, plotType = "species", taxCol = "Deviance", taxDots = TRUE)
+```{r ZellerConstrainedBiplotDev, purl=FALSE, fig.cap="Taxon plot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions, with taxa coloured by deviances \\label{fig:taxZellerDiagnosis}"}
+plot(zellerMphyRCMconstrLin, plotType = "species", taxCol = "Deviance", taxDots = TRUE, square = FALSE, arrowSize = 0)
 ```
 
-Fix me!!!
+The taxon in question does not exhibit an exceptionally poor fit, but is definitely worth further investigation.
 
-```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
-plot.RCM(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
+```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with non-parametric response functions. The ordination is very similar to the one for the 16S data. \\label{fig:triZellerDiagnosisNP}"}
+plot.RCM(zellerMphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
 ```
 
-```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, nly age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
-plotRespFun(zellerSphyRCMconstrNonParam)
+```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Non-parametric response functions of constrained RC(M) analysis on metagenomic Zeller data. Only the 8 most strongly reacting taxa are shown. The outlier from the linear case is also among them. The most strongly reacting taxa decrease expected abundance with smaller environmental score \\label{fig:ZellerNPrespFunMG}"}
+plotRespFun(zellerMphyRCMconstrNonParam, yLoc = -100)
 ```
 
 \clearpage

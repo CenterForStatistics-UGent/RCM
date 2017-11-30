@@ -16,7 +16,7 @@
 #' @param plotEllipse a boolean, whether to add the ellipses
 #' @param taxaScale a scalar, by which to scale the rectangles of the quadratic taxon plot
 #' @param Palette the colour palette
-#' @param taxLabels a boolean, shoudl taxon labels be plotted
+#' @param taxLabels a boolean, should taxon labels be plotted
 #' @param taxDots a boolean, should taxa be plotted as dots?
 #' @param taxCol the taxon colour
 #' @param taxColSingle the taxon colour if there is only one
@@ -243,7 +243,7 @@ if(taxLabels){
 } else if(taxDots){
   if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, show.legend = FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
   } else {
-    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = labSize, inherit.aes = FALSE) + scale_colour_manual(values = c(RColorBrewer::brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) # "Other" is made grey
+    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = labSize, inherit.aes = FALSE) + if(!is.numeric(dataTax$taxCol)) scale_colour_manual(values = c(RColorBrewer::brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) else scale_colour_continuous(name = colLegend) # "Other" is made grey
   }
 }
   if(!"samples" %in% plotType){

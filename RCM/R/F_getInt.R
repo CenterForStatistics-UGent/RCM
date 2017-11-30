@@ -6,6 +6,7 @@
 #' @param ... additional arguments passed on to integrate()
 #'
 #' @return a scalar, the value of the integral
+#' @import VGAM
 getInt = function(fitObj, sampleScore, stop.on.error = FALSE,...){
   #Absolute values assure positive outcomes
   integrate(f = function(y, fitObj){
