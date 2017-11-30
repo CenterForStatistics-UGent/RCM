@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_RCM_NB.R
 \name{RCM_NB}
 \alias{RCM_NB}
-\title{A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.}
+\title{A function to fit the RC(M) model with the negative binomial distribution.
+Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.}
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
   maxItOut = 500L, Psitol = 0.001, verbose = FALSE, NBRCM = NULL,
@@ -70,7 +71,7 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 
 \item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
 
-\item{dfSpline}{a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see ?VGAM::s()}
+\item{dfSpline}{a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see splines::bs()}
 
 \item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function
 
@@ -84,8 +85,8 @@ A list with elements
 \item{psis}{ a vector of length k with estimates for the importance parameters psi}
 \item{thetas}{ a vector of length p with estimates for the overdispersion}
 \item{rowRec}{(if not constrained) a n x k x maxItOut array with a record of all rMat estimates through the iterations}
-\item{colRec}{ a k x p x maxItOut array with a record of all cMat estimates through the iterations}
-\item{psiRec}{. a k x maxItOut array with a record of all psi estimates through the iterations}
+\item{colRec}{a k x p x maxItOut array with a record of all cMat estimates through the iterations}
+\item{psiRec}{a k x maxItOut array with a record of all psi estimates through the iterations}
 \item{thetaRec}{ a matrix of dimension pxmaxItOut with estimates for the overdispersion along the way}
 \item{iter}{ number of iterations}
 \item{Xorig}{ (if confounders provided) the original fitting matrix}
@@ -105,5 +106,6 @@ A list with elements
 \item{nonParamRespFun}{A list of the non parametric response functions}
 }
 \description{
-A function to fit the RC(M) model with the negative binomial distribution. Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.
+A function to fit the RC(M) model with the negative binomial distribution.
+Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.
 }

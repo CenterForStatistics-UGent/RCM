@@ -23,6 +23,7 @@
 #' @importFrom splines bs
 #' @import VGAM
 #' @import phyloseq
+#' @importFrom stats as.formula contrasts dnbinom dpois glm.fit integrate quantile
 #' @export
 RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
   classDat = class(dat) #The class provided

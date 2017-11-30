@@ -26,7 +26,7 @@
 \arguments{
 \item{x}{an RCM object}
 
-\item{...}{further arguments, passed on to the ggplot() function}
+\item{...}{further arguments, passed on to aes in the the ggplot() function}
 
 \item{Dim}{A vector two dimensions to plot, defaults to the first two}
 

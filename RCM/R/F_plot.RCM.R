@@ -47,6 +47,8 @@
 #' @export
 #' @import ggplot2
 #' @import phyloseq
+#' @importFrom grDevices colorRampPalette rainbow
+#' @importFrom graphics par text
 #' @method plot RCM
 plot.RCM = function(x, ..., Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "\n parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
