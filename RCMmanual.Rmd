@@ -6,7 +6,7 @@ The package can be installed using the following commands:
 
 ```{r installRCMpackage}
 library(devtools)
-install_github("CenterForStatistics-UGent/RCM")
+install_github("CenterForStatistics-UGent/RCM/package")
 ```
 
 ## Manual

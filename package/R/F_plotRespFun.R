@@ -6,6 +6,7 @@
 #' @param taxa a character vector of taxa to be plotted
 #' @param addSamples a boolean, should sample points be shown?
 #' @param samShape a sample variable name or a vector of length equal to the number of samples, for the sample shape
+#' @param samSize teh size of the sample dots
 #' @param Dim the dimension to be plotted
 #' @param nPoints the number of points to be used to plot the lines
 #' @param labSize the label size for the variables
@@ -20,6 +21,7 @@
 #' @export
 #' @import ggplot2
 #' @import phyloseq
+#' @importFrom stats runif
 plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL, samSize = 2, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 50L, nTaxa = 8L, angle = 90,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
