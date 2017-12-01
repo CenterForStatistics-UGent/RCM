@@ -71,7 +71,7 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 
 \item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
 
-\item{dfSpline}{a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see splines::bs()}
+\item{dfSpline}{a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see VGAM::s()}
 
 \item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function
 
