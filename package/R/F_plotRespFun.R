@@ -57,10 +57,15 @@ plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3)
 #If samples required, add them too
 if(addSamples){
 dfSam = data.frame(x = RCM$covariates %*% RCM$alpha[,Dim])
-dfSam$Shape = if(length(samShape)==1) get_variable(RCM$physeq, varName = samShape) else if(length(samShape)==ncol(RCM$X)) samShape else "|"
+dfSam$Shape = if(length(samShape)==1) get_variable(RCM$physeq, varName = samShape) else if(length(samShape)==ncol(RCM$X)) samShape else NULL
 # dfSam$Fill = if(length(samColour)==1) get_variable(RCM$physeq, varName = samColour) else if(length(samColour)==ncol(RCM$X)) samColour else NULL
 dfSam$y = (if(is.null(yLocSam)) min(dfMolt$responseFun)*0.8 else yLocSam) + if(addJitter) runif(min = -1,max =1, n = nrow(RCM$alpha))*diff(range(dfMolt$responseFun))/20 else 0
-plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", shape = if(is.null(samShape)) NULL else "Shape"),shape = if(!is.null(samShape)) NULL else 1, data = dfSam, size = samSize) +  scale_shape_discrete(name = if(!is.null(samShape)) samShape else "", solid = FALSE)
+if(!is.null(samShape)){
+plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", shape = "Shape"), data = dfSam, size = samSize)
+} else {
+  plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y"),shape = 1, data = dfSam, size = samSize)
+}
+plot = plot + scale_shape_discrete(name = if(!is.null(samShape)) samShape else "", solid = FALSE)
 }
 
 plot
