@@ -60,7 +60,7 @@ dfSam = data.frame(x = RCM$covariates %*% RCM$alpha[,Dim])
 dfSam$Shape = if(length(samShape)==1) get_variable(RCM$physeq, varName = samShape) else if(length(samShape)==ncol(RCM$X)) samShape else "|"
 # dfSam$Fill = if(length(samColour)==1) get_variable(RCM$physeq, varName = samColour) else if(length(samColour)==ncol(RCM$X)) samColour else NULL
 dfSam$y = (if(is.null(yLocSam)) min(dfMolt$responseFun)*0.8 else yLocSam) + if(addJitter) runif(min = -1,max =1, n = nrow(RCM$alpha))*diff(range(dfMolt$responseFun))/20 else 0
-plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", shape = if(is.null(samShape)) NULL else "Shape"), data = dfSam, size = samSize) + scale_shape(solid = FALSE) + if(!is.null(samShape)) scale_shape_discrete(name = samShape, solid = FALSE)
+plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", shape = if(is.null(samShape)) 1 else "Shape"), data = dfSam, size = samSize) +  scale_shape_discrete(name = if(!is.null(samShape)) samShape else "", solid = FALSE)
 }
 
 plot

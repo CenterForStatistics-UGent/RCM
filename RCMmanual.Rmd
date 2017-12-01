@@ -346,14 +346,14 @@ The advantage of the non-parametric response functions is that we can get a good
 ```{r plotnonParamRespFun}
 set.seed(684584)
 taxaDrawn =  sample(taxa_names(ZellerRCM2constrNonParam$physeq), 8)
-plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = taxaDrawn, yLocVar = -6)
+plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = taxaDrawn)
 ```
 
 Here we see e.g. that _Succinatimonas hippei_ is more abundant than under the independence model for low values of the environmental score, but less abundant for high values. The gradient in this dimension is clearly dominated by the cancer diagnosis. Let us have a look at how _Fusobacterium_ species react to this gradient, as the authors found them to be more abundant in cancer patients \cite{Zeller2014}.
 
 ```{r plotnonParamRespFunFuso}
 FusoSpecies = grep("Fusobacterium",value = TRUE,taxa_names(ZellerRCM2constrNonParam$physeq))
-plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = FusoSpecies, yLocVar = NULL, samShape = "Diagnosis")
+plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = FusoSpecies, samShape = "Diagnosis")
 ```
 
 Not all Fusobacteria react to the environmental gradient in the same way.
@@ -361,5 +361,5 @@ Not all Fusobacteria react to the environmental gradient in the same way.
 We can do the same for the second dimension, which is dominated by age
 
 ```{r plotnonParamRespFunAge}
-plotRespFun(ZellerRCM2constrNonParam, Dim = 2, taxa = taxaDrawn, yLocVar = -8, samShape = "Diagnosis")
+plotRespFun(ZellerRCM2constrNonParam, Dim = 2, taxa = taxaDrawn, samShape = "Diagnosis")
 ```
