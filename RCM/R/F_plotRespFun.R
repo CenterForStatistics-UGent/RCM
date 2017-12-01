@@ -4,12 +4,15 @@
 #'
 #' @param RCM and RCM object
 #' @param taxa a character vector of taxa to be plotted
+#' @param addSamples a boolean, should sample points be shown?
+#' @param samShape a sample variable name or a vector of length equal to the number of samples, for the sample shape
 #' @param Dim the dimension to be plotted
 #' @param nPoints the number of points to be used to plot the lines
 #' @param labSize the label size for the variables
-#' @param yLoc the y-location of the variables
+#' @param yLocVar the y-location of the variables, recycled if necessary
+#' @param yLocSam the y-location of the samples, recycled if necessary
 #' @param Palette which color palette to use
-#' @param adJitter should variable names be jittered to make them more readable
+#' @param addJitter should variable names be jittered to make them more readable
 #' @param subdivisions the number of subdivisions for the integration
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
@@ -17,7 +20,7 @@
 #' @export
 #' @import ggplot2
 #' @import phyloseq
-plotRespFun = function(RCM, taxa = NULL, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLoc = NULL, Palette = "Set3", adJitter = FALSE, subdivisions = 100L, nTaxa = 8L, angle = 90,...){
+plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL, samSize = 2, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 50L, nTaxa = 8L, angle = 90,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -44,9 +47,19 @@ plot = plot + xlab(paste("Environmental score of dimension",Dim)) + ylab("Respon
 #Also add the associated elements of the environmental gradient in the upper margin
 textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))
 textDf = textDf[order(textDf$x),]
-textDf$y = (if(is.null(yLoc)) max(dfMolt$responseFun)*0.9 else yLoc) + if(adJitter) rep(c(-1,0,1)*diff(range(dfMolt$responseFun))/8, length.out = nrow(RCM$alpha)) else 0
-plot = plot + geom_text(data = textDf, mapping = aes(x=x, y=y, label=text), inherit.aes = FALSE, angle = angle, size = labSize) + scale_colour_brewer(palette = Palette)
+textDf$y = (if(is.null(yLocVar)) (max(dfMolt$responseFun)+min(dfMolt$responseFun))/2 else yLocVar)
+plot = plot + geom_text(data = textDf, mapping = aes_string(x = "x", y = "y", label = "text"), inherit.aes = FALSE, angle = angle, size = labSize) + scale_colour_brewer(palette = Palette)
 #Finally add a dashed line for the independence model
-plot = plot + geom_hline(yintercept=0, linetype = "dashed", size = 0.3)
+plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3)
+
+#If samples required, add them too
+if(addSamples){
+dfSam = data.frame(x = RCM$covariates %*% RCM$alpha[,Dim])
+dfSam$Shape = if(length(samShape)==1) get_variable(RCM$physeq, varName = samShape) else if(length(samShape)==ncol(RCM$X)) samShape else "|"
+# dfSam$Fill = if(length(samColour)==1) get_variable(RCM$physeq, varName = samColour) else if(length(samColour)==ncol(RCM$X)) samColour else NULL
+dfSam$y = (if(is.null(yLocSam)) min(dfMolt$responseFun)*0.8 else yLocSam) + if(addJitter) runif(min = -1,max =1, n = nrow(RCM$alpha))*diff(range(dfMolt$responseFun))/20 else 0
+plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", shape = if(is.null(samShape)) NULL else "Shape"), data = dfSam, size = samSize) + scale_shape(solid = FALSE) + if(!is.null(samShape)) scale_shape_discrete(name = samShape, solid = FALSE)
+}
+
 plot
 }

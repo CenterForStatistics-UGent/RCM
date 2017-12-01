@@ -4,14 +4,19 @@
 \alias{plotRespFun}
 \title{Plot the non-parametric response functions of a prespecified set of taxa}
 \usage{
-plotRespFun(RCM, taxa = NULL, Dim = 1, nPoints = 1000L, labSize = 2.5,
-  yLoc = NULL, Palette = "Set3", adJitter = FALSE, subdivisions = 100L,
-  nTaxa = 8L, angle = 90, ...)
+plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL,
+  samSize = 2, Dim = 1, nPoints = 1000L, labSize = 2.5,
+  yLocVar = NULL, yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
+  subdivisions = 50L, nTaxa = 8L, angle = 90, ...)
 }
 \arguments{
 \item{RCM}{and RCM object}
 
 \item{taxa}{a character vector of taxa to be plotted}
+
+\item{addSamples}{a boolean, should sample points be shown?}
+
+\item{samShape}{a sample variable name or a vector of length equal to the number of samples, for the sample shape}
 
 \item{Dim}{the dimension to be plotted}
 
@@ -19,11 +24,13 @@ plotRespFun(RCM, taxa = NULL, Dim = 1, nPoints = 1000L, labSize = 2.5,
 
 \item{labSize}{the label size for the variables}
 
-\item{yLoc}{the y-location of the variables}
+\item{yLocVar}{the y-location of the variables, recycled if necessary}
+
+\item{yLocSam}{the y-location of the samples, recycled if necessary}
 
 \item{Palette}{which color palette to use}
 
-\item{adJitter}{should variable names be jittered to make them more readable}
+\item{addJitter}{should variable names be jittered to make them more readable}
 
 \item{subdivisions}{the number of subdivisions for the integration}
 

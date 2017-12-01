@@ -56,7 +56,7 @@
 
 \item{Palette}{the colour palette}
 
-\item{taxLabels}{a boolean, shoudl taxon labels be plotted}
+\item{taxLabels}{a boolean, should taxon labels be plotted}
 
 \item{taxDots}{a boolean, should taxa be plotted as dots?}
 

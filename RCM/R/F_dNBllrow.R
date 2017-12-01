@@ -11,11 +11,12 @@
 #' @param rowWeights a vector of length n, the weights used for the restrictions
 #' @param nLambda an integer, the number of lagrangian multipliers
 #' @param rMatK the lower dimension row scores
+#' @param ... Other arguments passed on to the jacobian
 
 #' @return A vector of length n + k +1 with evaluations of the derivative of the lagrangian
-dNBllrow = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights, nLambda, rMatK) {
+dNBllrow = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights, nLambda, rMatK, ...){
 
-  rMat = matrix(beta[1:n], byrow=FALSE, ncol=1, nrow=n)
+  rMat = matrix(beta[seq_len(n)], byrow=FALSE, ncol=1, nrow=n)
   mu = exp(rMat %*% reg)* muMarg
 
   lambda1 = beta[n+1] #Centering restrictions sum(abunds*r_{ik}) = 0

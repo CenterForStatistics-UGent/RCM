@@ -38,7 +38,7 @@ if(!whichTaxa %in% c("runs","response")){
     plot(x = sampleScore, y = resMat[,tax], ylab = paste(resid,"residuals"), xlab = paste("Environmental score in dimension",Dim), main = tax)
   })
   } else {
-    Plot = ggplot(data.frame(x = c(sampleScore), y = c(resMat), samColour = if(is.null(samColour)) "black"  else get_variable(RCM$physeq, samColour), samShape = if(is.null(samShape)) "none"  else get_variable(RCM$physeq, samShape)), mapping = aes(x=x, y=y, colour = samColour, shape = samShape))+ ylab(paste(resid,"residuals")) + xlab(paste("Environmental score in dimension",Dim))+ggtitle(colnames(resMat)) + geom_point()
+    Plot = ggplot(data.frame(x = c(sampleScore), y = c(resMat), samColour = if(is.null(samColour)) "black"  else get_variable(RCM$physeq, samColour), samShape = if(is.null(samShape)) "none"  else get_variable(RCM$physeq, samShape)), mapping = aes_string(x="x", y="y", colour = "samColour", shape = "samShape"))+ ylab(paste(resid,"residuals")) + xlab(paste("Environmental score in dimension",Dim))+ggtitle(colnames(resMat)) + geom_point()
     Plot = Plot + if(is.null(samShape)) guides(shape = FALSE) else scale_shape_discrete(name = samShape)
     Plot = Plot + if(is.null(samColour)) guides(colour = FALSE) else if(is.factor(get_variable(RCM$physeq, samColour))) scale_colour_discrete(name = samColour) else scale_colour_continuous(name = samColour)
     par(parTmp)

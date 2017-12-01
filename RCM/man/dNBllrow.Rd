@@ -4,7 +4,7 @@
 \alias{dNBllrow}
 \title{A score function of the NB for the row scores}
 \usage{
-dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK)
+dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK, ...)
 }
 \arguments{
 \item{beta}{a vector of of length n + k +1 regression parameters to optimize}
@@ -28,6 +28,8 @@ dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK)
 \item{nLambda}{an integer, the number of lagrangian multipliers}
 
 \item{rMatK}{the lower dimension row scores}
+
+\item{...}{Other arguments passed on to the jacobian}
 }
 \value{
 A vector of length n + k +1 with evaluations of the derivative of the lagrangian

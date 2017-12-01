@@ -42,7 +42,7 @@ RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minF
   if(round) {X=round(X, 0) }#Round to integer
 
   #Check X type
-  if(!all(sapply(X, function(x){(x%%1)==0}))){stop("Please provide integer count matrix, or set 'round' to TRUE! \n")
+  if(!all(floor(X)==X)){stop("Please provide integer count matrix, or set 'round' to TRUE! \n")
   } else{X=matrix(as.integer(X), ncol=p, nrow=n)}
 
   colnames(X)=colNames; rownames(X)=rowNames

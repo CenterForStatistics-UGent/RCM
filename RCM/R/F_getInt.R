@@ -6,10 +6,12 @@
 #' @param ... additional arguments passed on to integrate()
 #'
 #' @return a scalar, the value of the integral
-#' @import VGAM
+#' @importFrom splines bs
+#' @importFrom VGAM predict
 getInt = function(fitObj, sampleScore, stop.on.error = FALSE,...){
   #Absolute values assure positive outcomes
   integrate(f = function(y, fitObj){
+    requireNamespace("splines")
     if(class(fitObj)=="vgam"){
     abs(predict(fitObj, type = "link", newdata = data.frame(sampleScore = y, logMu = 0))) #logMu = 0 for departure from uniformity
     } else if(class(fitObj) == "list"){

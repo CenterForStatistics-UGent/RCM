@@ -20,16 +20,16 @@ knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FA
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 # The required package list:
-reqpkg <- c("phyloseq", "ggplot2", "reshape2", "parallel")
+reqpkg <- c("phyloseq", "ggplot2", "reshape2", "parallel", "RCM")
 for(i in reqpkg)
 {
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
 par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
 palStore = palette()
-funFiles = dir("RCM/R")
+# funFiles = dir("RCM/R")
 funFilesPub = dir("pubFun")
-for (i in funFiles) {source(file.path("RCM/R",i))}
+# for (i in funFiles) {source(file.path("RCM/R",i))}
 for (i in funFilesPub) {source(file.path("pubFun",i))};rm(i)
 load("/home/stijn/PhD/American Gut/AGphylo.RData")
 load("/home/stijn/PhD/Simulations/data/physeqListV13.RData")
@@ -403,7 +403,7 @@ plot(resListRCM[["Anterior.nares"]], samColour ="RUNCENTER", colLegend = "Sequen
 
 Since we know that sequencing facility affects the outcome of the sequencing assay and one is not interested in visualizing this technical variability we can condition out this variable. We condition only on the primary sequencing center.
 
-```{r HMP filter out variable effect, purl=FALSE, fig.cap="Biplot of the RC(M) ordination of the HMP Anterior nares dataset after conditioning. Colours indicate sequencing center. The effect of sequencing center has been largely filtered out. \\label{fig:samHMP}"}
+```{r HMP filter out variable effect, purl=FALSE, fig.cap="Biplot of the RC(M) ordination of the HMP Anterior nares dataset after conditioning on main sequencing center. Colours indicate sequencing center. The effect of sequencing center has been largely filtered out. \\label{fig:samHMP}"}
 if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
   K=2
 nleqslv.control = list()
@@ -431,11 +431,9 @@ plot(filtRes[["Anterior.nares"]], samColour ="RUNCENTER", colLegend = "Sequencin
 
 The American gut project consits of stool samples sampled by volunteers at home, together with their answers to a questionnaire. Since they are sampled at home the variability is expected to be large.
 
-```{r AGPplots, purl = FALSE}
+```{r AGPplots, purl = FALSE, fig.cap="Biplot of the RC(M) ordination of the American gut dataset. As expected the dataset is very noisy and we do not find a clear signal. \\label{fig:samAGP}"}
 plot(resListRCM[["AGP"]])
 ```
-
-The AGP dataset is indeed too noisy to find much of a signal
 
 \clearpage
 
@@ -465,17 +463,13 @@ names(zellerRCM) = zellers
 # sapply(zellerRCM,function(x){x$iter})
 ```
 
-```{r plotZellerSphyDiagnosis, purl = FALSE}
-plot.RCM(zellerSphyRCM, samColour = "Diagnosis", samShape = "Country")
+```{r plotZellerSphyDiagnosis, purl = FALSE, fig.cap="Biplot of the RC(M) ordination of the 16S Zeller data. We see some gradient in function of cancer diagnosis, but there is still a lot of remaining variability. \\label{fig:samZeller16S}"}
+plot(zellerSphyRCM, samColour = "Diagnosis", samShape = "Country")
 ```
 
-We see some gradient in function of cancer diagnosis, but there is still a lot of remaining variability.
-
-```{r plotZellerMphy, purl = FALSE }
-plot.RCM(zellerMphyRCM, samColour = "Diagnosis", samShape = "Country")
+```{r plotZellerMphy, purl = FALSE, fig.cap = "Biplot of the RC(M) ordination of the metagenomics Zeller data. No clear gradient related to the diagnosis is visible. \\label{fig:samZellerMGS}"}
+plot(zellerMphyRCM, samColour = "Diagnosis", samShape = "Country")
 ```
-
-For the metagenomics data we do not see a trend in function of the diagnosis.
 
 \clearpage
 
@@ -500,60 +494,61 @@ save(zellerMphyRCMconstrLin, zellerMphyRCMconstrQuad, zellerMphyRCMconstrNonPara
 ```
 
 ```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerDiagnosis}"}
-plot.RCM(zellerSphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
+plot(zellerSphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
 ```
 
 ```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on 16S Zeller data with non-parametric response functions. The environmental gradient is similar as to the linear case, only age is more important according to this model. \\label{fig:triZellerDiagnosisNP}"}
-plot.RCM(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
+plot(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
 ```
 
 ```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Non-parametric response functions of constrained RC(M) analysis on 16S Zeller data. Only the 8 most strongly reacting taxa are shown. \\label{fig:ZellerNPrespFun}"}
 plotRespFun(zellerSphyRCMconstrNonParam)
 ```
 
-```{r ZellerConstrainedBiplot, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerMGDiagnosis}"}
+```{r ZellerConstrainedBiplotMGS, purl=FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions. Cancer diagnosis and country appear to be the most important variables. \\label{fig:triZellerMGDiagnosis}"}
 plot(zellerMphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country", xInd = 2.5)
 ```
 
-Some OTU seems completely out of touch with the rest. Plot the deviances of the taxa.
+Some mOTU seems completely out of touch with the rest. Plot the deviances of the taxa.
 
-```{r ZellerConstrainedBiplotDev, purl=FALSE, fig.cap="Taxon plot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions, with taxa coloured by deviances \\label{fig:taxZellerDiagnosis}"}
+```{r ZellerConstrainedBiplotDev, purl=FALSE, fig.cap="Taxon plot of constrained RC(M) analysis on metagenomic Zeller data with linear response functions, with taxa coloured by deviances \\label{fig:taxZellerMGSDiagnosis}"}
 plot(zellerMphyRCMconstrLin, plotType = "species", taxCol = "Deviance", taxDots = TRUE, square = FALSE, arrowSize = 0)
 ```
 
 The taxon in question does not exhibit an exceptionally poor fit, but is definitely worth further investigation.
 
-```{r ZellerConstrainedBiplotNonParam, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with non-parametric response functions. The ordination is very similar to the one for the 16S data. \\label{fig:triZellerDiagnosisNP}"}
-plot.RCM(zellerMphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
+```{r ZellerConstrainedBiplotNonParamMGS, purl=FALSE, eval = FALSE, fig.cap="Triplot of constrained RC(M) analysis on metagenomic Zeller data with non-parametric response functions. The ordination is very similar to the one for the 16S data. \\label{fig:triZellerMGSDiagnosisNP}"}
+plot(zellerMphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
 ```
 
-```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Non-parametric response functions of constrained RC(M) analysis on metagenomic Zeller data. Only the 8 most strongly reacting taxa are shown. The outlier from the linear case is also among them. The most strongly reacting taxa decrease expected abundance with smaller environmental score \\label{fig:ZellerNPrespFunMG}"}
-plotRespFun(zellerMphyRCMconstrNonParam, yLoc = -100)
+```{r ZellerConstrainedRespMGS, purl=FALSE, eval = FALSE, fig.cap="Non-parametric response functions of constrained RC(M) analysis on metagenomic Zeller data. Only the 8 most strongly reacting taxa are shown. The outlier from the linear case is also among them. The most strongly reacting taxa decrease expected abundance with smaller environmental score \\label{fig:ZellerNPrespFunMG}"}
+plotRespFun(zellerMphyRCMconstrNonParam, yLocVar = -100)
 ```
 
 \clearpage
 
-## Turnbaugh et al. (2009)
+## Turnbaugh et al. (2009a)
 
-In this study the fecal microbiome of monozygotic and dizygotic twins was characterized \cite{Turnbaugh2009}. On of the aims was to find a link with obesity.
+In this study the fecal microbiome of monozygotic and dizygotic twins was characterized \cite{Turnbaugh2009} (Turnbaugh A data). On of the aims was to find a link with obesity.
 
-```{r turnTwins, eval = FALSE, purl = FALSE}
+```{r turnTwins, purl = FALSE}
 if(!file.exists("turntwinsRCm.RData")){
   load(file = "/home/stijn/PhD/Datasets/TurnbaughObeseTwins/TurnTwins.RData")
 turntwinsRCm = RCM(TurnTwins, k=3)
 save(turntwinsRCm, file = "turntwinsRCm.RData")
 } else {load("turntwinsRCm.RData")}
-plot.RCM(turntwinsRCm, samColour = "Status_p", colLegend = "Weight status")
-rm(turntwinsRCm)
 ```
 
-With such small datasets it is hard to draw conclusions.
+```{r turnBaughAplot, fig.cap = "RC(M) biplot of the Turnbaugh A data. No signal in function of weight status is evident, with such small datasets it is hard to draw conclusions.\\label{supfig:Twins}"}
+plot(turntwinsRCm, samColour = "Status_p", colLegend = "Weight status")
+rm(turntwinsRCm)
+```
 
 \clearpage
 
 ## Turnbaugh et al. (2009b)
 
-In this group, 15 gnotobiotic mice were inoculated with human feces, and for one group the diet was switched to a Western diet after one month \cite{Turnbaugh200b9}. Then a second generation of mice was inoculated with cecal samples from the previous groups, and here also diet was varied. The variables recorded were:
+In this group, 15 gnotobiotic mice were inoculated with human feces, and for one group the diet was switched to a Western diet after one month \cite{Turnbaugh2009b} (Turnbaugh B data). Then a second generation of mice was inoculated with cecal samples from the previous groups, and here also diet was varied. The variables recorded were:
 
 - Diet: current diet
 - Generation_p: "Recipient1" if second generation, otherwise diet of cecal samples with which they were inoculated
@@ -563,31 +558,21 @@ In this group, 15 gnotobiotic mice were inoculated with human feces, and for one
 
 ```{r turnmice, purl = FALSE}
 if(!file.exists("turnMiceRCM.RData")){
-  load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
+load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 HumMiceRCM = RCM(HumMicePhy, k=3)
-HumMiceRCMlin = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","Time"))
+HumMiceRCMlin = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","TimeSinceStart"))
 gommsHum = gommsPhy(HumMicePhy)
 save(HumMiceRCM, gommsHum, file = "turnMiceRCM.RData")
 } else {load("turnMiceRCM.RData")}
 ```
 
-```{r humMicePlot, purl = FALSE}
-plot.RCM(HumMiceRCM) # Two or three distinct groups
+```{r humMicePlot, purl = FALSE, fig.cap = "RC(M) biplot of Turnbaugh B data. This dataset appears to have a very strong signal, we can distinguish three or four clusters. \\label{supfig:HumMice}"}
+plot(HumMiceRCM)
 ```
 
-This dataset appears to have a very strong signal, we can distinguish three or four clusters.
-
-```{r humMicePlotSecondLook, purl = FALSE}
-plot.RCM(HumMiceRCM, samColour = "Diet", samShape = "Generation_p")
+```{r humMicePlotSecondLook, purl = FALSE, fig.cap = "RC(M) biplot of Turnbaugh B data. The separation in the first dimension is clearly an effect of Diet, the second dimension seems to be dominated by the date of collection \\label{supfig:HumMiceCol}"}
+plot(HumMiceRCM, samColour = "TimeSinceStart", samShape = "Diet", colLegend = "Days since \nfirst collection")
 ```
-
-It is clear that current diet is the dominant variable in the first dimension.
-
-```{r humMicePlotSecondLookTime, purl = FALSE}
-plot.RCM(HumMiceRCM, samColour = "Time", samShape = "Generation_p")
-```
-
-Also the older group of generation 1 mice is different, it separates in the second dimension.
 
 \clearpage
 
@@ -595,7 +580,7 @@ Also the older group of generation 1 mice is different, it separates in the seco
 
 This is a study on the microbiome of colorectal cancer in humans \cite{Kostic2012}. Nine tumor patients were matched with 9 healthy patients, samples were taken repeatedly. The researchers find a enrichment of Fusobacteria in the tumor and a depletion of Bacteroidetes and Firmicutes.
 
-```{r load Kostic, purl=FALSE}
+```{r loadKostic, purl=FALSE}
 if(!file.exists("Kostic.RData")){
 filepath = system.file("extdata", "study_1457_split_library_seqs_and_mapping.zip", package="phyloseq")
 kostic = microbio_me_qiime(filepath)
@@ -669,26 +654,15 @@ save(kosticRCM, kosticRCMlin, file = "kosticRCM.RData")
 } else {load("kosticRCM.RData")}
 ```
 
-```{r KosticPlots}
-plot(kosticRCM, samColour = "TREATMENT")
-plot(kosticRCM, samColour = "COUNTRY")
-plot(kosticRCM, samColour = "CHEMOTHERAPY_POOLED")
-plot(kosticRCM, samColour = "RADIATION_THERAPY_POOLED")
+```{r KosticPlots, fig.cap="RC(M) biplot of Kostic data. Country of data collection seems to have a strong impact on the composition \\label{supfig:Kostic}"}
+plot(kosticRCM, samColour = "COUNTRY", samShape = "RADIATION_THERAPY_POOLED")
 ```
 
 Country, chemotherapy and radiotherapy seem to be related to microbiome composition
 
-```{r KosticPlots Constrained}
-plot(kosticRCMlin)
+```{r KosticPlotsConstrained, fig.cap="Constrained RC(M) triiplot of Kostic data. Country of data collection and cancer status are clearly the main drivers of the ordination. This is surprising since in the unconstrained ordination the role of cancer status was lost in the noise \\label{supfig:KosticLin}"}
+plot(kosticRCMlin, samColour = "COUNTRY", samShape = "TREATMENT", samLegend = "Cancer status", colLegend = "Country")
 ```
-
-Four sample clusters are visible. Important drivers of variability are the cancer status, country, tumor percentage and radiation therapy
-
-```{r KosticPlotsConstrainedCol}
-plot(kosticRCMlin, samColour = "TREATMENT", samShape = "COUNTRY")
-```
-
-The first dimension is dominated by country, the second by treatment, so these are the two most important variables. This is a bit surprising since the treatment does not seem to play a role in the unconstrained ordination.
 
 \clearpage
 
@@ -735,20 +709,14 @@ if(!file.exists(file = "CMETRCM.RData")){
 } else {load(file = "CMETRCM.RData")}
 ```
 
-```{r plotCMET, purl = FALSE}
+```{r plotCMET, purl = FALSE, fig.cap = "RC(M) biplot of the Props data. The first dimension mainly tracks the change of the cooling water throughout the different phases. There is a certain arch effect visible, which may indicate samples from the startup and shutdown are somewhat similar. \\label{supgfig:Props"}
 plot(CMETRCM, samColour = "Reactor.phase", samShape = "Reactor.cycle")
 ```
 
-The first dimension mainly tracks the change of the cooling water throughout the different phases, the second dimension is related to the reactor cylce
-
-```{r plotCMETlin, purl = FALSE}
+```{r plotCMETlin, purl = FALSE, fig.cap = "Constrained RC(M) triplot with linear response functions of the Props data. The constrained analysis confirms phase and cycle as being the most important drivers. Also, the most important taxa are seen to react to the gradient dominated by reactor cycle. \\label{supgfig:PropsConstr"}
 plot(CMETRCMlin, samColour = "Reactor.phase", samShape = "Reactor.cycle")
 ```
 
-The constrained analysis confirms phase and cycle as being the most important drivers. Also, the most important taxa are seen to react to the gradient dominated by reactor cycle.
-
-```{r plotCMETnp, purl = FALSE}
+```{r plotCMETnp, purl = FALSE, fig.cap = "Constrained RC(M) biplot with non-parametric response functions of the Props data. This confirms the dominant role of reactor cycle and phase in shaping the ordination. The sample ordination looks very similar to the linear response case, suggesting a good fit for linear response functions \\label{supgfig:PropsConstrNP"}
 plot(CMETRCMnonParam, samColour = "Reactor.phase", samShape = "Reactor.cycle")
 ```
-
-The sample ordination is similar when non-parametric response functions are used, but the role of reactor phase is assessed differently.

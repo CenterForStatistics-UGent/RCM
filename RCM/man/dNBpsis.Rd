@@ -4,7 +4,7 @@
 \alias{dNBpsis}
 \title{A score function for the psi of a given dimension (importance parameters)}
 \usage{
-dNBpsis(beta, X, reg, theta, muMarg)
+dNBpsis(beta, X, reg, theta, muMarg, ...)
 }
 \arguments{
 \item{beta}{a scalar, the initial estimate}
@@ -16,6 +16,8 @@ dNBpsis(beta, X, reg, theta, muMarg)
 \item{theta}{a n-by-p matrix with the dispersion parameters}
 
 \item{muMarg}{the nxp offset matrix}
+
+\item{...}{other arguments passed on to the jacobian}
 }
 \value{
 The evaluation of the score function at beta, a scalar

@@ -40,7 +40,7 @@ addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = 
   mat1 = unlist(if(is.null(variable)) RCMplot$samples[sampName, dimNames] else RCMplot$variables[varName, dimNames])
   mat2 = unlist(RCMplot$species[speciesName, c(sapply(Dims, function(x){c(paste0("end",x), paste0("origin",x))}))])
 
-  RCMplot$plot = RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes(x=0, y= 0, xend = Dim1, yend = Dim2), data = data.frame(t(mat1))) #The sample or variable vector
+  RCMplot$plot = RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes_string(x=0, y= 0, xend = "Dim1", yend = "Dim2"), data = data.frame(t(mat1))) #The sample or variable vector
   IntCoordsXTip = (mat2["end1"] + mat2["end2"]*mat1[2]/mat1[1])/((mat1[2]/mat1[1])^2+1)
   IntCoordsYTip = IntCoordsXTip*mat1[2]/mat1[1]
 
@@ -50,8 +50,8 @@ addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = 
   dfTip = data.frame(x = mat2[grep(names(mat2), pattern = "end")][1], y = mat2[grep(names(mat2), pattern = "end")][2], xend = IntCoordsXTip, yend = IntCoordsYTip)
   dfStart = data.frame(x = mat2[grep(names(mat2), pattern = "origin")][1], y = mat2[grep(names(mat2),pattern =  "origin")][2], xend = IntCoordsXStart, yend = IntCoordsYStart)
 
-  RCMplot$plot = RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes(x=x, y= y, xend = xend, yend = yend), data = dfTip, linetype = "dashed")
-  RCMplot$plot = RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes(x=x, y= y, xend = xend, yend = yend), data = dfStart, linetype = "dashed")
+  RCMplot$plot = RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes_string(x="x", y= "y", xend = "xend", yend = "yend"), data = dfTip, linetype = "dashed")
+  RCMplot$plot = RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes_string(x="x", y= "y", xend = "xend", yend = "yend"), data = dfStart, linetype = "dashed")
 
   # Add a red line for the projection
   dfRed = data.frame(xend = IntCoordsXTip, yend = IntCoordsYTip, x = IntCoordsXStart, y = IntCoordsYStart)
@@ -66,7 +66,7 @@ addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = 
       xLab = xLab*2
       yLab = yLab*2
     })
-  RCMplot$plot  =  RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes(x= xLab, y= yLab, xend = xend, yend = yend), data = dfRed/2, arrow = arrow(length = unit(0.2, "cm")), size = 0.25) + annotate("text", col = "orange",label = "r~psi~s", x = xLab, y = yLab, parse = TRUE, size = 7)
+  RCMplot$plot  =  RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes_string(x= "xLab", y= "yLab", xend = "xend", yend = "yend"), data = dfRed/2, arrow = arrow(length = unit(0.2, "cm")), size = 0.25) + annotate("text", col = "orange",label = "r~psi~s", x = xLab, y = yLab, parse = TRUE, size = 7)
   }
 
   RCMplot$plot
