@@ -1,3 +1,7 @@
+---
+output: github_document
+---
+
 # A manual for the use of the RCM functions
 
 This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The functions used for simulation but which are outside outside the core RC(M) algorithm are present in the "pubFun" folder.
