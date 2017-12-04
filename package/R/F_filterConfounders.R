@@ -38,7 +38,7 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
 
     iter = iter +1
 
-    convergence = sqrt(mean((NB_params_old-NB_params)^2)) < tol #Check for convergence, L2-norm
+    convergence = sqrt(mean((1-NB_params/NB_params_old)^2)) < tol #Check for convergence, L2-norm
 
   }
 

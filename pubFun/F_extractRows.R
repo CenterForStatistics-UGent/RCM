@@ -18,7 +18,8 @@ extractRows = function(x){
     UniFrac = if(is.null(UniFrac)) NULL else UniFrac$vectors %*% diag(UniFrac$values$Eigenvalues[seq_len(ncol(UniFrac$vectors))]),
     wUniFrac = if(is.null(wUniFrac)) NULL else wUniFrac$vectors %*% diag(wUniFrac$values$Eigenvalues[seq_len(ncol(wUniFrac$vectors))]),
     DPCOA = if(is.null(DPCOA)) NULL else as.matrix(DPCOA$li),
-    Hellinger = diag(sqrt(1/rowSums(RCM$X))) %*% Hellinger$u %*% diag(Hellinger$d)
+    Hellinger = diag(sqrt(1/rowSums(RCM$X))) %*% Hellinger$u %*% diag(Hellinger$d),
+    gomm = gomm
   ))
   tmpList = tmpList[!sapply(tmpList, is.null)]
   lapply(tmpList, function(y){

@@ -11,35 +11,37 @@ library(devtools)
 install_github("CenterForStatistics-UGent/RCM/package")
 ```
 
-    ## Skipping install of 'RCM' from a github remote, the SHA1 (1e087058) has not changed since last install.
-    ##   Use `force = TRUE` to force installation
+    ## Downloading GitHub repo CenterForStatistics-UGent/RCM@master
+    ## from URL https://api.github.com/repos/CenterForStatistics-UGent/RCM/zipball/master
+
+    ## Installing RCM
+
+    ## Installing vegan
+
+    ## '/usr/lib/R/bin/R' --no-site-file --no-environ --no-save --no-restore  \
+    ##   --quiet CMD INSTALL '/tmp/Rtmp8JsHFL/devtools27d42364599d/vegan'  \
+    ##   --library='/home/stijn/R/x86_64-pc-linux-gnu-library/3.4'  \
+    ##   --install-tests
+
+    ## 
+
+    ## '/usr/lib/R/bin/R' --no-site-file --no-environ --no-save --no-restore  \
+    ##   --quiet CMD INSTALL  \
+    ##   '/tmp/Rtmp8JsHFL/devtools27d46896eb1f/CenterForStatistics-UGent-RCM-d023051/package'  \
+    ##   --library='/home/stijn/R/x86_64-pc-linux-gnu-library/3.4'  \
+    ##   --install-tests
+
+    ## 
 
 Manual
 ------
 
 Here follows a short tutorial on fitting and plotting the RCM model.
 
-``` r
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE, fig.path = "README_figs/README-")
-# The required package list:
-reqpkg <- c("phyloseq","RCM")
-# Load all required packages and show version
-for(i in reqpkg)
-{
-  print(i)
-  print(packageVersion(i))
-  library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
-} 
-```
-
     ## [1] "phyloseq"
     ## [1] '1.20.0'
     ## [1] "RCM"
     ## [1] '0.1.0'
-
-``` r
-palStore = palette()
-```
 
 Dataset
 -------

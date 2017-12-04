@@ -783,16 +783,21 @@ save(datListDM, groupFactorDM, file = "RCMsim/datListDM.RData")
 # Results
 if(!file.exists(file = "RCMsim/resListDM.RData")){
   if(!file.exists("RCMsim/resListDMRCM.RData")){
+# RCMresListDM = lapply(list.files("RCMsim/datListDM"), function(x){load(file.path("RCMsim/datListDM",x));tmp})
+# gommResListDM = lapply(list.files("RCMsim/gomms/datListDM"), function(x){load(file.path("RCMsim/gomms/datListDM",x));tmp})
 RCMresListDM = mclapply(mc.cores=4, datListDM, function(y){
   RCM(y$dataMat, k = nDim, distribution = "NB")
   })
-save(RCMresListDM, file = "RCMsim/resListDMRCM.RData")
+gommResListDM = mclapply(mc.cores=4, datListDM, function(y){
+  gommsPhy(y$dataMat)
+  })
+save(RCMresListDM, gommResListDM, file = "RCMsim/resListDMRCM.RData")
   } else {load("RCMsim/resListDMRCM.RData")}
-  listID = sapply(RCMresListDM, class)=="RCM"
+listID = sapply(RCMresListDM, class)=="RCM"
 RCMresListDM = Filter(RCMresListDM, f = is.list)
 
  if(!file.exists("RCMsim/resListDMOA.RData")){
-resListDM = otherAnalyses(RCMresListDM, cores = 4)
+resListDM = otherAnalyses(RCMresListDM, gommResListDM, cores = 4)
 save(resListDM, file = "RCMsim/resListDMOA.RData")
 } else {load("RCMsim/resListDMOA.RData")}
 

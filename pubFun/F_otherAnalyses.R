@@ -6,7 +6,7 @@
 #' @param cores an integer, number of cores to use
 #'
 #' @return a list of with results of the otherAnalysesSimple() function
-otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
+otherAnalyses = function(RCMlist, gommList, unifrac = FALSE, treeList = NULL, cores = 1){
   if(unifrac) {
     RCMlist = mcmapply(mc.cores = cores, SIMPLIFY = FALSE,RCMlist, treeList, FUN = function(x,tree){
       x$physeq = phyloseq(otu_table(x$X, taxa_are_rows = FALSE), tree)
@@ -14,5 +14,6 @@ otherAnalyses = function(RCMlist, unifrac = FALSE, treeList = NULL, cores = 1){
       x
     })
   }
-  mclapply(mc.cores = cores, RCMlist, otherAnalysesSimple, unifrac = unifrac)
+  tmpList = mclapply(mc.cores = cores, RCMlist, otherAnalysesSimple, unifrac = unifrac)
+  mapply(tmpList, gommList, FUN = function(a,b){a$gomm = b;a})
 } #JSD works on relative abundances by default

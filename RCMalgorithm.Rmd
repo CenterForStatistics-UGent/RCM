@@ -1,16 +1,19 @@
 ---
 title: "RC(M)-method: Implementation, theory and examples"
-author: "Stijn"
-date: "`r format(Sys.time(), '%B %d, %Y')`"
+author: ""
+date: ""
 output:
   pdf_document:
     includes:
       in_header: packagesRCM.sty
+    keep_tex: yes
+bibliography: norm.bib
 ---
 
 \setcounter{tocdepth}{3}
 \tableofcontents
 
+\beginsupplement
 
 ```{r setup, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 WD = "/home/stijn/PhD/Biplots"
@@ -20,12 +23,12 @@ knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning = FALSE, message=FA
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 # The required package list:
-reqpkg <- c("phyloseq", "ggplot2", "reshape2", "parallel", "RCM")
+reqpkg <- c("phyloseq", "ggplot2", "parallel", "RCM")
 for(i in reqpkg)
 {
   library(i, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, character.only=TRUE)
 } 
-par(pty="s", mar = c(8,2,4,2), cex.main = 0.9) #Make sure the biplots are square!
+par(mar = c(4,7,4,4)) #Make sure the biplots are square!, cex.main = 0.9
 palStore = palette()
 # funFiles = dir("RCM/R")
 funFilesPub = dir("pubFun")
@@ -50,16 +53,12 @@ The algorithm requires the following inputs:
  
  The algorithm allows to supply the following optional inputs
  
-  - a n-by-q design matrix __E__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $g_{il}$ then represents the value of confounder variable $l$ in sample $i$.
+  - a n-by-q design matrix __G__ of confounding variables, containing $z-1$ dummies for categorical variables with $z$ levels, and an intercept. The entry $g_{il}$ then represents the value of confounder variable $l$ in sample $i$.
   - a n-by-g design matrix __C__ of constraining variables, containing $z$ dummies for categorical variables with $z$ levels, and no intercept. The entry $c_{iy}$ then represents the value of constraining variable $y$ in sample $i$.
 
 ## Trimming
 
-Rows and columns of __X__ with zero counts are trimmed prior to model fitting.
-
-To avoid numerical instability, also taxa below a certain prevalence threshold or with total count lower than a certain fraction of the number of samples $n$ are excluded prior to model fitting.
-
-The default prevalence threshold is 5%, the default fraction of $n$ is 10%.
+Rows and columns of __X__ with zero counts are trimmed prior to model fitting. To avoid numerical instability, also taxa below a certain prevalence threshold or with total count lower than a certain fraction of the number of samples $n$ are excluded prior to model fitting. The default prevalence threshold is 5%, the default fraction of $n$ is 10%.
 
 If a confounder matrix is provided with dummy variables, also discard the taxa that fall below the prevalence and total count fractions mentioned above within each level of the categorical confounding variables, again to avoid overflow.
 
@@ -69,21 +68,21 @@ The independence model is defined as:
 
 $$log(E(x_{ij})) = u_i + u_j$$
 
-The independence model is fitted as follows:
+The independence model is fitted as follows (see discussion below for explanation):
 
- 1. Find starting values $u_{i, init} = log(\sum_{j=1}^p x_{ij})$ and $u_{j, init} = log(\sum_{i=1}^n x_{ij})$ for $u_{i}$  and $u_j$ respectively
- 2. Estimate a mean-dispersion trend using the estimateGLMTrendedDisp() function of the _edgeR_ package (version `r packageVersion("edgeR")`), given $u_i$ and $u_i$. This estimate is very insensitive to slight changes in the mean structure and will never be reestimated throughout the whole fitting procedure to save computation time.
+ 1. Find starting values $u_{i, init} = log(\sum_{j=1}^p x_{ij})$ and $u_{j, init} = log(\frac{\sum_{i=1}^n x_{ij}}{\sum_{i=1}^n \sum_{j=1}^p x_{ij}})$ for $u_{i}$ and $u_j$ respectively
+ 2. Estimate a mean-dispersion trend using the estimateGLMTrendedDisp() function of the _edgeR_ package (version `r packageVersion("edgeR")`) \cite{Robinson2010edgeR}, given $u_i$ and $u_i$. This estimate is very insensitive to slight changes in the mean structure and will never be reestimated throughout the whole fitting procedure to save computation time.
  3. Estimate the dispersion parameters $\theta_j$ based on the mean-dispersion trend using empirical Bayes with the estimateGLMTagwiseDispersion() function in the _edgeR_ package, given $u_i$ and $u_j$.
  4. Estimate $u_{i,new}$'s using maximum likelihood (ML), keeping the $\theta_j$'s and $u_j$'s constant.
 5. Estimate the $u_{j,new}$'s using maximum likelihood, keeping the $\theta_j$'s and $u_i$'s constant
  6. Check for convergence. If no convergence is reached, repeat steps 3-5. Convergence is assumed when
  
- $$\Big(\frac{1}{n}\sum_{i=1}^n |1-\frac{u_{i,new}}{u_{i,old}}|^a\Big)^{\frac{1}{a}}$$
+ $$\Big(\frac{1}{n}\sum_{i=1}^n |1-\frac{u_{i,new}}{u_{i,old}}|^a\Big)^{\frac{1}{a}} < 0.001 $$
  
  and
  
- $$\sqrt{\Big(\frac{1}{p}\sum_{j=1}^p (1-\frac{u_{j,new}}{u_{j,old}})^2\Big)}$$
-are below a tolerance of 0.001 as tolerance. Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process. All maximum likelihood estimation is under the negative binomial model.
+ $$\sqrt{\Big(\frac{1}{p}\sum_{j=1}^p (1-\frac{u_{j,new}}{u_{j,old}})^2\Big)} < 0.001$$
+Once the independence model has converged, the estimates $u_i$ and $u_j$ are kept constant throughout the remainder of the fitting process. All maximum likelihood estimation is under the negative binomial model.
  
 ## Conditioning on confounders
 
@@ -93,7 +92,7 @@ If a confounder matrix is provided, the effect of the confounders is filtered ou
 
 with $\zeta_{jl}$ the interaction parameter between taxon $j$ and confounding variable $l$, which is fitted by maximum likelihood. Note that $\forall i: g_{i1}=1$, i.e. the model is fitted with an intercept.
 
-Again this step is performed iteratively by alternating between estimating the $\zeta_{jl}$ parameters and re-estimating the overdispersion parameters as in step. of the independence model. Convergence is then assumed when $\sqrt{\frac{1}{pq} \sum_{l=1}^q \sum_{j=1}^p (\zeta_{jl,new} - \zeta_{jl,old})^2}$ drops below a tolerance level of 0.001.
+Again this step is performed iteratively by alternating between estimating the $\zeta_{jl}$ parameters and re-estimating the overdispersion parameters as in step 3 of the independence model. Convergence is then assumed when $\sqrt{\frac{1}{pq} \sum_{l=1}^q \sum_{j=1}^p (1-\frac{\zeta_{jl,new}}{\zeta_{jl,old}})^2}$ drops below a tolerance level of 0.001.
 
 ## Capturing the signal
 
@@ -109,7 +108,7 @@ with the term between [] being optional.
 
 The unconstrained RC(M) model is fitted as follows:
 
-1. Obtain a singular value decomposition as $R^{-1}(X-E)C^{-1} = U\Sigma V$. This gives us initial values $[r_{i1}^{SVD}, r_{i2}^{SVD},..., r_{iK}^{SVD}] = U_{(1.)}$, the first row of $U$, and correspondingly $\Sigma$ and $V$ give initial values for $\mathbf{\psi}^{SVD}$ and $\mathbf{s}^{SVD}$. For these initial values we still need to ensure that the (weighted) variances equal 1, and transfer these weights to the importance parameters $\mathbf{\psi}^{SVD}$ so we set
+1. Obtain a singular value decomposition as $R^{-1}(X-E)C^{-1} = U\Sigma V$, with __E__ the matrix of expected values fitted so far, and __R__ and __C__ diagonal matrices with row and column sums of __X__ on the diagonal respectively. This gives us initial values $[r_{i1}^{SVD}, r_{i2}^{SVD},..., r_{iK}^{SVD}] = U_{(1.)}$, the first row of $U$, and correspondingly $\Sigma$ and $V$ give initial values for $\boldsymbol{\psi}^{SVD}$ and $\mathbf{s}^{SVD}$. For these initial values we still need to ensure that the (weighted) variances equal 1, and transfer these weights to the importance parameters $\mathbf{\psi}^{SVD}$ so we set
 
 $$\psi_k^{init} = \psi_k^{SVD}\sum_{i=1}^n\big({r^{SVD}_{ik}}\big)^2 \sum_{j=1}^p\big(z_js^{SVD}_{jk}\big)^2$$
 
@@ -123,13 +122,13 @@ with $z_j = exp(u_j)$, see below for an extended discussion on the weights.
 
 2. For all dimensions $k$ starting from 1 to K :
 a) Estimate the dispersions $\theta_j$ using empirical Bayes as before
-b) Estimate the importance parameter $\psi_k$ by full ML, keeping the sample and taxon scores and overdispersions fixed.
-c) Estimate the sample scores $r_ik$ by restricted ML, keeping the taxon scores, overdispersions and importance parameters fixed. Lagrangian multipliers are used to ensure that
+b) Estimate the importance parameter $\psi_k$ by full ML, forcing it to be positive and keeping the sample and taxon scores and overdispersions fixed.
+c) Estimate the sample scores $r_{ik}$ by restricted ML, keeping the taxon scores, overdispersions and importance parameters fixed. Lagrangian multipliers are used to ensure that
 
 $$ \sum_{i=1}^n r_{ik} = 0$$
 and 
 
-$$ \sum_{i=1}^n r_{ik}r_{ik'} = \delta_{kk'}$$
+$$ \forall_{k'<k} k': \sum_{i=1}^n r_{ik}r_{ik'} = \delta_{kk'}$$
 with $\delta$ the Kronecker delta.
 
 c) Estimate the taxon scores $s_jk$ by restricted ML, keeping the sample scores, overdispersions and importance parameters fixed. Lagrange multipliers are used to ensure that
@@ -138,7 +137,7 @@ $$ \sum_{j=1}^p z_js_{jk} = 0$$
 
 and 
 
-$$ \sum_{j=1}^p z_js_{jk}s_{jk'} = \delta_{kk'}$$
+$$ \forall_{k'<k} k': \sum_{j=1}^p z_js_{jk}s_{jk'} = \delta_{kk'}$$
 d) Check for convergence of dimension $k$. If no convergence reached, repeat steps a-c, otherwise fit the next dimension conditional on the previous ones. Convergence for dimension $k$ is assumed when 
 
 $$\Big|1-\frac{\psi_k^{new}}{\psi_k^{old}}\Big| < 0.001$$
@@ -167,9 +166,13 @@ with the term between [] being optional. For this model four components need to 
  
  The fitting of the constrained RC(M) model proceeds as follows:
  
- 1. Standardize the covariate matrix. To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. This means that their corresponding elements of $\boldsymbol{\alpha}$ represent the contribution to the environmental score of one standard deviation away from the mean of this variable (in case of linear response functions). A perfect quantitative comparison to the magnitude of the values of the paramaters of the dummies of the categorical variables will never be possible. In our case, with 0-1 dummy coding, equal parameters for a dummy and a continuous variable imply that this level of the categorical variable contributes as much to the environmental score as one standard deviation away from the overall mean of the continuous variable.
+ 1. Standardize the covariate matrix. To render the values of the continuous variables in the environmental gradient comparable, it is clear that they need to be centered and scaled prior to model fitting, as in PCA. This means that their corresponding elements of $\boldsymbol{\alpha}$ represent the contribution to the environmental score of one standard deviation away from the mean of this variable. A perfect quantitative comparison to the magnitude of the values of the paramaters of the dummies of the categorical variables will never be possible. In our case, with 0-1 dummy coding, equal parameters for a dummy and a continuous variable imply that this level of the categorical variable contributes as much to the environmental score as one standard deviation away from the overall mean of the continuous variable.
  
- 2. Starting values for $\boldsymbol{\alpha}$ are obtained from a constrained correspondence analysis by the $cca()$ function in the $vegan$ package. Next they are normalized to fulfil the $\boldsymbol{\alpha}^t_k\boldsymbol{\alpha}_k = 1$ requirement. Starting values for $\boldsymbol{\psi}$ are the eigenvalues of the constrained correspondence analysis. For the response functions no starting values are calculated.
+ 2. Starting values for $\boldsymbol{\alpha}$ are obtained from a constrained correspondence analysis by the $cca()$ function in the $vegan$ package \cite{vegan}. Next they are normalized to fulfil the $\boldsymbol{\alpha}^t_k\boldsymbol{\alpha}_k = 1$ requirement by setting
+
+$$\boldsymbol{\alpha}_k = \frac{\boldsymbol{\alpha}_k^{cca}}{\sqrt{\sum_{y=1}^d \alpha_{yk}^2}} $$ 
+ 
+Starting values for $\boldsymbol{\psi}$ are the eigenvalues of the constrained correspondence analysis. For the response functions no starting values are calculated.
  3. For all dimensions $k$ starting from 1 to K :
  a) Estimate the overdispersions by empircal Bayes as before.
  b) If the response function is parametric, estimate the importance parameter $\psi_k$ by full ML
@@ -179,17 +182,22 @@ with the term between [] being optional. For this model four components need to 
  $$\beta_{wjk}^{new} = \frac{\beta_{wjk}}{\sqrt{\sum_{j=1}^p\beta_{wjk}^2}}$$
  with $w$ a degree indicator. This assures the normalization $\boldsymbol{\beta}_{wk}^t\boldsymbol{\beta}_{wk} = 1$.
  
- For non-parametric response functions this relies on cubic splines as defined by the $bs()$ function of the $VGAM$ package. Also for non-parametric response functions the area between the response functions and the x-axis over the range of environmental scores $\boldsymbol{\alpha}_k^t\mathbf{C}_i$ is calculated as $a_{jk}$. The importance parameter psi is now defined to be 
+ For non-parametric response functions this relies on cubic splines as defined by the $s()$ function of the $VGAM$ package \cite{VGAM}. Also for non-parametric response functions the area between the response functions and the x-axis over the range of environmental scores $\boldsymbol{\alpha}_k^t\mathbf{C}_i$ is calculated as $a_{jk}$. The importance parameter psi is now defined to be 
  
  $$\psi_k = \sqrt{\sum_{j=1}^p a_{jk}^2z_j}$$
  Analogously, estimate general response functions $f_k$ ignoring species labels.
  
  d) Estimate the environmental gradient $\boldsymbol{\alpha}_k^t$ by maximizing the likelihood ratio
  
- $$LR(\boldsymbol{\alpha}_k) = log \frac{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_{jk}, \theta_j, \psi_k) }{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^T_k \mathbf{c}_i,f_k, \theta_j, \psi_k) }$$
- with $g_{NB}$ the density function of the negative binomial distribution. This approach encourages maximal niche separation between the species. The environmental gradient is restricted such that the coefficients of dummies of the same categorical variable sum to zero, again using Lagrange multipliers. This is convenient for later plotting and also assures avoids dependence of the solution on the choice of reference level, in the light of the normalization step in e).
+ $$LR(\boldsymbol{\alpha}_k) = log \frac{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^t_k \mathbf{C}_i,f_{jk}, \theta_j, \psi_k) }{\prod_{i=1}^n \prod_{j=1}^p g_{NB}(x_{ij};\boldsymbol{\alpha}^t_k \mathbf{C}_i,f_k, \theta_j, \psi_k) }$$
+ with $g_{NB}$ the density function of the negative binomial distribution, and under the restrictions that:
  
-However, the separated niche concept is not accepted by all ecologists. If niches are really maximally separated, how can species co-occur then? An alternative option is therefore to estimate $\alpha$ through full ML, maximizing only the numerator in the previous equation. Surprisingly, the solutions of both approaches are very similar, although not exactly identical. The full ML solution is also much faster.
+  - $\boldsymbol{\alpha}_k^t\boldsymbol{\alpha}_k' = \delta_{kk'}$
+  - Components of $\alpha_k$ belonging to dummies of the same categorical variable sum to zero
+
+This approach encourages maximal niche separation between the species. The latter restriction is convenient for later plotting and also assures avoids dependence of the solution on the choice of reference level, in the light of the normalization step in e).
+ 
+However, the separated niche concept is not accepted by all ecologists. If niches are really maximally separated, how can species co-occur then? An alternative option is therefore to estimate $\alpha$ by maximizing only the numerator in the previous equation, but under the same restriction. Surprisingly, the solutions of both approaches are very similar, although not exactly identical. The full ML solution is also much faster.
 
  e) Normalize the environmental gradient to unit variance
  f) Check for convergence. If no convergence reached, repeat steps a-e, otherwise fit the next dimension conditional on the previous ones. Convergence is assumed when
@@ -201,7 +209,7 @@ However, the separated niche concept is not accepted by all ecologists. If niche
  $$\sqrt{\sum_{l=1}^d (1-\frac{\alpha_{lk}^{new}}{\alpha_{lk}^{old}})^2} < 0.001$$
  For parametric response functions there is an additional requirement that 
  
- $$\forall w: \sqrt{\sum_{j=1}^p \Big(1-\frac{\beta_{jk}^{new}}{\beta_{jk}^{old}}\Big)^2} < 0.001$$
+ $$\forall w: \sqrt{\sum_{j=1}^p \Big(1-\frac{\beta_{wjk}^{new}}{\beta_{wjk}^{old}}\Big)^2} < 0.001$$
  
 # Explanatory notes
 
@@ -211,11 +219,24 @@ In this section we give some explanation regarding the particularities of this f
 
 An independence model for a contingency table is basically a marginal model. Therefor the most evident, model free way to estimate the independence model may be simply through sample and taxon sums, namely $u_i = log(x_{i.})$ with $x_{i.} = \sum_{j=1}^p x_{ij}$ and $u_j = log(\frac{x_{.j}}{x_{..}})$ with $x_{.j} = \sum_{i=1}^n x_{ij}$ and $x_{..} = \sum_{j=1}^p \sum_{i=1}^n x_{ij}$.
 
-However, the library sizes $x_{i.}$ do not correspond to the maximum likelihood estimate of $u_i$ under the negative binomial model. As a result the first dimensional row scores $r_{1i}$ tried to correct for this discrepancy and became related (linearly correlated) to the library sizes. This effect of sequencing depth on the sample ordination is something we want to avoid absolutely.
+However, the library sizes $x_{i.}$ do not correspond to the maximum likelihood estimate of $u_i$ under the negative binomial model. As a result the first dimensional row scores $r_{1i}$ tried to correct for this discrepancy and became related (linearly correlated) to the library sizes. This effect of sequencing depth on the sample ordination is something we want to avoid absolutely. Therefor we estimate the $u_i$'s, $u_j$'s iteratively using maximum likelihood, which also implies dispersion estimation as outlined above.
 
-Therefor we estimate the $u_i$'s, $u_j$'s iteratively using maximum likelihood, which also implies dispersion estimation as outlined above.
+In practice, the marginal sums differ more from the MLE for the library sizes than for the taxon abundances, as can be seen from Supplementary Figures \ref{supfig:libSizes} and \ref{supfig:abunds}. 
 
-In practice, the marginal sums differ more from the MLE for the library sizes than for the taxon abundances. We can think of the following mathematical explanation: when calculating library sizes or abundances by row and column sums, each observations receives the same weight. However, when we estimate the margins through ML, we solve the following score equations:
+```{r libSizes, fig.show = "hold", echo = FALSE, fig.cap = "Scatterplots on the log-scale of row sums (library sizes)  versus maximum likelihood estimates of sequencing depth for the Kostic dataset \\label{supfig:libSizes}", fig.width = 5, fig.height = 4}
+load("/home/stijn/PhD/Biplots/kosticRCM.RData")
+par(mar = c(4 , 9, 4, 4), cex.main = 0.9, cex.lab = 0.9)
+libSizes = rowSums(kosticRCM$X)
+abunds = colSums(kosticRCM$X)/sum(kosticRCM$X)
+plot(log = "xy",libSizes, kosticRCM$libSizes, ylab = "log(Maximum likelihood estimates \nof sequencing depths)", xlab = "log(Library sizes)", main = paste("Pearson correlation on log-scale: ",round(cor(log(libSizes), log(kosticRCM$libSizes)),3))); abline(0,1)
+```
+
+```{r Abunds, fig.show = "hold", echo = FALSE, fig.cap = "Scatterplots on the log-scale of column sums (marginal taxon abundances) versus maximum likelihood estimates of abundance respectively for the Kostic dataset \\label{supfig:abunds}", fig.width = 5, fig.height = 4}
+par(mar = c(4 , 9, 4, 4), cex.main = 0.9, cex.lab = 0.9)
+plot(abunds, kosticRCM$abunds, ylab = "log(Maximum likelihood estimates \nof taxon abundances)", xlab = "log(Marginal taxon abundances)", log = "xy", main = paste("Pearson correlation on log-scale: ", round(cor(log(abunds), log(kosticRCM$abunds)),3))); abline(0,1)
+```
+
+We can think of the following mathematical explanation: when calculating library sizes or abundances by row and column sums, each observations receives the same weight. However, when we estimate the margins through ML, we solve the following score equations:
 
 $$\frac{\partial L(\mathbf{X}_i|\mathbf{u}_{i}, \mathbf{u}_j, \boldsymbol{\theta})}{\partial u_{i}} = \sum_{j=1}^p \frac{x_{ij}-\mu_{ij}}{1+\frac{\mu_{ij}}{\theta_j}}$$
 
@@ -227,7 +248,7 @@ Note also that when there is a very large overdispersion for a taxon _j_ ($\thet
 
 ## The choice of normalization weights
 
-Constraints are needed to render this model identifiable, since we have three unknown regressors ($r_{ik}, s_{jk} and psi_k$) instead of one. We do restrict the importance parameter $psi_k$ to be positive, and center the (weighted) row and column scores around 0, which is a useful property for the biplot and is also the case for correspondence analysis. In addition the row and column scores are restricted to have (weighted) variance 1. $psi_k$ is the only parameter that can grow in size without restriction. As a result it will automatically serve as a measure of importance of the departure from independence in that direction, since all scores of the dimensions are normalized. This is also the case for correspondence analysis. Thridly, the scores of the different dimensions are orthogonal, so the solutions in different dimensions are linearly independent.
+Constraints are needed to render the RC(M) model identifiable, since we have three unknown regressors ($r_{ik}$, $s_{jk}$ and $\psi_k$) instead of one. We do restrict the importance parameter $psi_k$ to be positive, and center the (weighted) row and column scores around 0, which is a useful property for the biplot and is also the case for correspondence analysis. In addition the row and column scores are restricted to have (weighted) variance 1. $\psi_k$ is the only parameter that can grow in size without restriction. As a result it will automatically serve as a measure of importance of the departure from independence in that direction, since all scores of the dimensions are normalized. This is also the case for correspondence analysis. Thridly, the scores of the different dimensions are orthogonal, so the solutions in different dimensions are linearly independent.
 
 Centering:
 
@@ -262,7 +283,7 @@ For the parameters of the parametric response functions we use uniform weights f
 
 ## Shape of the response function
 
-Note that our definition of the response function differs from the response function most common one \cite{terBraak1986, Zhu205, Yee2006}: it no longer models mean abundance but mean departure from independence.
+Note that our definition of the response function differs from the response function most common one \cite{terBraak1986, Zhu2005, Yee2006}: it no longer models mean abundance but mean departure from independence.
 
 A linear response function may be most appropriate for problems with __short gradients__ i.e. whereby the difference in observed environmental variables is too short to devine more than an increase or decrease in departure from independence. Also in this case it is easy to interpret the effect of each of the environmental variables on the departure from independence. As so often in statistics, the linearity assumption may not be realistic, but renders models that are easy to interpret ("All models are wrong, but some models are useful"). 
 
@@ -270,7 +291,7 @@ For problems with __long gradients__, i.e. whereby species' departures of indepe
 
 Note that we usually do not choose the ranges of the environmental variables or scores, so that we cannot guarantee a range long enough for the quadratic response function to be appropriate. Note also that what is a long gradient for one species, may be a short one for another.
 
-Even though the quadratic response function can be fitted, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "dynamic"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. For plotting it is not very attractive to have different shapes of the response function for the same taxon in different dimensions though.
+Even though the quadratic response function can be fitted, it may still be pointless if the maximum lies outside the range of the observed values for the environmental score. The peak location would then merely be an extrapolation, and a linear response function may be preferable. Even though the fit is worse than for the parabolic curve, it represents more truthfully the way the species reacts to the given values of the environmental gradient. Therefore we also provide a "dynamic"-option for the response function, whereby initially a quadratic model is fitted but discarded in favour of a linear one if the optimum lies outside of the range of observed environmental scores. For plotting it is not very attractive to have different shapes of the response function for the same taxon in different dimensions though. Another drawback of quadratic response functions is that its maximum likelihood solution may take on a convex shape, which is hard to interpret biologically \cite{Zhang2016}. Additionally the quadratic response function may be convex in some dimensions and concave in others
 
 If the user is unsure and has enough data, he may use non-parametric response functions. This may improve the sample and covariate ordination, although the result for the species becomes harder to interpret. This approach makes no assumptions on the shape of the response function (apart from a certain smoothness) and may be interesting if one wants to study individual species' response functions.
 
@@ -280,9 +301,81 @@ If the user is unsure and has enough data, he may use non-parametric response fu
 
 If we fit the constrained method with only one covariate, namely a factor with a unique level for every sample, and all $\beta_{0j}$ (and $\beta_{2j}$) equal to zero , we expect to find the same solution as the unconstrained case. This means we do not constrain the ordination at all in this case and $\beta_{1jk} = s_{jk}$ and $\boldsymbol{\alpha}_{k}^t\mathbf{C}_i = r_{ik}$.
 
-## Comparison with existing methods
+## Relationship between unconstrained RC(M) and existing methods
 
+### Correspondence analysis
 
+#### Independence model
+
+Under independence between rows and columns we model the counts in a contingency table as 
+
+$$E(X_{ij}) = a_i b_j$$
+
+whereby usually $a_i=x_{i.}=\sum_{j=1}^px_{ij}$ (the library sizes) and $b_j=\frac{x_{.j}}{x_{..}}=\frac{\sum_{i=1}^nx_{ij}}{\sum_{j=1}^p\sum_{i=1}^nx_{ij}}$ (the average relative abundances). The matrix of expectations under the independence model can then be written as:
+
+$$E = \frac{R\mathbf{11}^TC}{x_{..}}$$
+
+with $x_{..}=\sum_{i=1}^n\sum_{j=1}^px_{ij}$ the total sum of the count table, and __1__ a row vector of ones of suitable length.
+
+There exist many variation so of correspondence analysis, but all are concerned with the difference between the observed count __X__ and the expected counts based on the margins (the independence model) __E__: $X-E$. This means that the signal can come from observations that are either smaller or larger than expected. This two-way mode of deviations will give rise to the unimodality of correspondence analysis.
+
+#### Reconsitution formula of Correspondence Analysis (CA)
+
+A more extended model than the independence model is
+
+$$E(X_{ij}) = a_i  b_j + c_i d_j \sum_{k=1}^K \omega_k v_{ki} w_{jk}$$
+
+with $a_i = c_i = x_{i.} = \sum_{j=1}^px_{ij}$ and $b_j = d_j = \frac{x_{.j}}{x_{..}}$ with $x_{.j} = \sum_{i=1}^nx_{ij}$. K = min(n,p) and the terms are ordered such that $\omega_1 >\omega_2>...>\omega_K$. We can then write this model alternatively as
+
+$$E(X_{ij}) = \frac{x_{i.}x_{.j}}{x_{..}} \big(1+\sum_{k=1}^K \omega_k v_{ki} w_{jk}\big)$$
+
+When fitted, the second series of terms will attempt to repair discrepancies between __X__ and __E__ and as such capture departures from independence. This is called the *reconstitution formula* since it decomposes the observed average count into its expectation under independence and a residual. The residual is then further decomposed into $k$ orthogonal pieces.
+
+Correspondence analysis is usually done through singular value decomposition(SVD) of the matrix of departures from independence __X-E__. This is not done on the matrix of raw departures, but is usually weighted by row and column scores in one way or the other, to account for the heteroscedasicity of count data. Subtle differences in choice of weights lead to different versions of correspondence analysis. very often it is not mentioned which version is used, which complicates comparison of results of different packages.
+
+Correspondence analysis performs a singular value decomposition of the following matrix
+
+$$A_1 = R^{-1/2}(X-E)J^{-1/2}=U\Sigma V^T$$
+
+with $\Sigma$ a diagonal matrix with the singular values of __X__ (all between 0 and 1) on the diagnonal and __R__ and __J__ diagonal matrices with row and column sums of __X__.
+
+Elements of this matrix are $$a_{1ij} = \frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}}} = \frac{1}{\sqrt{n}}\frac{x_{ij}-x_{i.}x_{.j}/n}{\sqrt{x_{i.}x_{.j}/n}}$$
+
+, also known as also known as $\sqrt{n}$ times the Pearson standardized residuals. The Pearson standardized residuals standardize the departures from __E__ by dividing by the square root of the expected value. This is in line with the common assumption that for count data $E(X_{ij}) = Var(X_{ij})$ and would yield approximately standard normally distributed variables if this assumption holds and $E(X_{ij})$ is sufficiently large. Hence the sum of squared elements $$\sum_{i=1}^n\sum_{j=1}^pa_{1ij}^2$$ yields 1/n the Pearson $\chi^2$ statistic to test for association in the contingency table.
+
+In matrix notation the reconstitution formula becomes
+
+$$X = E_{independence} + R^{1/2}U\Sigma VJ^{1/2}$$
+
+with $\mathbf{1'}R^{1/2}U=\mathbf{0}$ and $\mathbf{1'}J^{1/2}V=\mathbf{0}$ (weighted means of rows and columns equal zero) and $U'R^{1/2}U=\mathbf{1}$ and $V'K^{1/2}V=\mathbf{1}$ (weighted variances equal one) \cite{VanDerHeijden1985}.
+
+#### Link to the RC(M)-model
+
+If $a =\sum_{k=1}^K \omega_k v_{ik} w_{jk}$ is small (i.e. the deviation from independence is small) then $log(1+a) \approx a$, and the counts are Poisson distributed then
+
+$$log(E(x_{ij})) = log(x_{i.}) + log(x_{.j}) - log(x_{..}) + log\big(1 + \sum_{k=1}^K \omega_k v_{ik} w_{jk}\big) \approx log(x_{i.}) + log(x_{.j}) - log(x_{..}) + \sum_{k=1}^K \omega_k v_{ik} w_{jk}$$
+
+i.e. an equivalence exists between the RC(M)-model and correspondence analysis \cite{Escoufier1982, VanDerHeijden1994}.
+
+If the same restricitions apply to the scores $v_{ik}$ and $w_{jk}$ as to U and V, we can state that  $\psi_k \approx \omega_k$, $v_{ik} \approx r_{ik}$ and $w_{jk} \approx s_{jk}$. The assumption that the departure from independence is small seems unlikely for microbiome data, but it does provide useful starting values for the fitting of the RC(M) model.
+
+### Gomms
+
+The $gomms$ package \cite{Sohn2017} implements a similar mean model to the RC(M) model, but the differences lie mainly in the error distribution. Our RC(M) model assumes a negative binomial model with unique dispersion parameters for every taxon. The $gomms$ methods employs a zero-inflated quasi Poisson distribution with a common overdispersion parameter. It is well known however, that taxa overdispersion differ a lot in sequencing data \cite{Robinson2007, Anders2010}. Also, the zero-inflated component raises the need for an EM-algorithm which is numerically unstable. The $gomms$ package does not exploit the taxon scores for making biplots, and no diagnostic plots are available.
+
+### Row-column interaction models
+
+Our RC(M) method is an application of row-column interaction models (RCIM) proposed in \cite{Yee2014}, namely the model already introduced by \cite{Goodman1979}. We have written our own, faster implementation and improved dispersion estimation for the negative binomial error model.
+
+## Relationship between constrained RC(M) and other methods
+
+### Constrained correspondence analysis
+
+The solution of constrained correspondence analysis (CCA) corresponds to that of quadratic response curves with tolerances equal for all taxa and augmented with a Poisson distribution. Whereas the constrained RC(M) model models the departure from independence in a multiplicative way by estimating an independence model, correspondence analysis captures departure from independence in an additive way by modelling the residuals. In CCA the environmental gradients are not made orthogonal as in the RC(M)-model, but the sample scores are \cite{terBraak1986}.
+
+### Environmental gradient estimation
+
+Most existing methods to estimate response functions and environmental gradients use linear, quadratic and non-parametric response function as in our RC(M) methods \cite{Zhu2005, Yee2015}. They fail however to account explicitly for differences in sequencing depth and taxon abundance, as our method does by estimating the independence model. Our RC(M) method has borrowed the log-ratio approach of estimating the environmental gradient based on niche separation from \cite{Zhu2005}.
 
 # Plotting the RC(M) ordination
 
@@ -346,7 +439,7 @@ In our 2D or 3D representation, some samples and taxa may be very well represent
 
 ### Deviance residuals
 
-The deviance residuals $d_{ij}$ of the negative binomial distribution are defined as (see M. L. Zwilling, “Negative Binomial Regression,” The Mathematica Journal, 2013):
+The deviance residuals $d_{ij}$ of the negative binomial distribution are defined as \cite{Zwilling2013}:
 
 \[
 d_{ij} = 
@@ -379,7 +472,7 @@ We apply the RC(M) method to a number of real datasets to illustrate its functio
 
 ## Human microbiome project
 
-The Human Microbiome Project (HMP) aimed to characterize the healthy human microbiome.
+The Human Microbiome Project (HMP) aimed to characterize the healthy human microbiome \cite{Group2009}.
 
 ```{r RC(M)_NB real datasets, purl = FALSE}
 realNames = c("AGP", "Hard.palate", "Buccal.mucosa", "Anterior.nares", "Left.Antecubital.fossa", "Posterior.fornix",  "Mid.vagina", "Left.Retroauricular.crease", "Vaginal.introitus", "Stool", "Hard.palate")
@@ -403,7 +496,7 @@ plot(resListRCM[["Anterior.nares"]], samColour ="RUNCENTER", colLegend = "Sequen
 
 Since we know that sequencing facility affects the outcome of the sequencing assay and one is not interested in visualizing this technical variability we can condition out this variable. We condition only on the primary sequencing center.
 
-```{r HMP filter out variable effect, purl=FALSE, fig.cap="Biplot of the RC(M) ordination of the HMP Anterior nares dataset after conditioning on main sequencing center. Colours indicate sequencing center. The effect of sequencing center has been largely filtered out. \\label{fig:samHMP}"}
+```{r HMP filter out variable effect, purl=FALSE, fig.cap="Biplot of the RC(M) ordination of the HMP Anterior nares dataset after conditioning on main sequencing center. Colours indicate sequencing center. The effect of sequencing center has been largely filtered out. \\label{fig:samHMPfilt}"}
 if(!file.exists(file="/home/stijn/PhD/Biplots/filtResHMP.RData")){
   K=2
 nleqslv.control = list()
@@ -501,7 +594,7 @@ plot(zellerSphyRCMconstrLin, samColour = "Diagnosis", samShape = "Country")
 plot(zellerSphyRCMconstrNonParam, samColour = "Diagnosis", samShape = "Country")
 ```
 
-```{r ZellerConstrainedResp, purl=FALSE, eval = FALSE, fig.cap="Non-parametric response functions of constrained RC(M) analysis on 16S Zeller data. Only the 8 most strongly reacting taxa are shown. \\label{fig:ZellerNPrespFun}"}
+```{r ZellerConstrainedResp, purl=FALSE, fig.cap="Non-parametric response functions of constrained RC(M) analysis on 16S Zeller data. Only the 8 most strongly reacting taxa are shown. \\label{fig:ZellerNPrespFun}"}
 plotRespFun(zellerSphyRCMconstrNonParam)
 ```
 
@@ -561,22 +654,19 @@ if(!file.exists("turnMiceRCM.RData")){
 load(file = "/home/stijn/PhD/Datasets/Humanized mouse/HumMicePhy.RData")
 HumMiceRCM = RCM(HumMicePhy, k=3)
 HumMiceRCMlin = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","TimeSinceStart"))
+HumMiceRCMnonParam = RCM(HumMicePhy, k=3, covariates = c("Diet","Generation_p","TimeSinceStart"), responseFun = "nonparametric")
 gommsHum = gommsPhy(HumMicePhy)
-save(HumMiceRCM, gommsHum, file = "turnMiceRCM.RData")
+save(HumMiceRCM, HumMiceRCMnonParam, gommsHum, file = "turnMiceRCM.RData")
 } else {load("turnMiceRCM.RData")}
 ```
 
-```{r humMicePlot, purl = FALSE, fig.cap = "RC(M) biplot of Turnbaugh B data. This dataset appears to have a very strong signal, we can distinguish three or four clusters. \\label{supfig:HumMice}"}
-plot(HumMiceRCM)
-```
-
-```{r humMicePlotSecondLook, purl = FALSE, fig.cap = "RC(M) biplot of Turnbaugh B data. The separation in the first dimension is clearly an effect of Diet, the second dimension seems to be dominated by the date of collection \\label{supfig:HumMiceCol}"}
+```{r humMicePlotSecondLook, purl = FALSE, fig.cap = "RC(M) biplot of Turnbaugh B data. This dataset appears to have a very strong signal, we can distinguish three or four clusters. The separation in the first dimension is clearly an effect of Diet, the second dimension seems to be dominated by the date of collection \\label{supfig:HumMiceCol}"}
 plot(HumMiceRCM, samColour = "TimeSinceStart", samShape = "Diet", colLegend = "Days since \nfirst collection")
 ```
 
 \clearpage
 
-## Kostic et al. (2014)
+## Kostic et al. (2012)
 
 This is a study on the microbiome of colorectal cancer in humans \cite{Kostic2012}. Nine tumor patients were matched with 9 healthy patients, samples were taken repeatedly. The researchers find a enrichment of Fusobacteria in the tumor and a depletion of Bacteroidetes and Firmicutes.
 
@@ -649,7 +739,7 @@ sample_data(kostic) = within(sample_data(kostic),{
 })
 kosticRCM = RCM(kostic, k = 3)
 kosticRCMlin = RCM(kostic, k = 3, covariates = kostVars, responseFun = "linear")
-kosticRCMnp = RCM(kostic, k = 3, covariates = kostVars, responseFun = "nonparametric")
+# kosticRCMnp = RCM(kostic, k = 3, covariates = kostVars, responseFun = "nonparametric")
 save(kosticRCM, kosticRCMlin, file = "kosticRCM.RData")
 } else {load("kosticRCM.RData")}
 ```
@@ -668,7 +758,7 @@ plot(kosticRCMlin, samColour = "COUNTRY", samShape = "TREATMENT", samLegend = "C
 
 ## Props et al. (2016)
 
-This is a longitudinal dataset on microbial growth in a water cooling system of a nuclear power plant \cite{Props2016}.
+This is a longitudinal dataset on microbial growth in a water cooling system of a nuclear facility \cite{Props2016}.
 
 ```{r readInCMET, purl = FALSE, eval = FALSE}
 if(!file.exists(file = "CMETdata.RData")){
@@ -709,14 +799,18 @@ if(!file.exists(file = "CMETRCM.RData")){
 } else {load(file = "CMETRCM.RData")}
 ```
 
-```{r plotCMET, purl = FALSE, fig.cap = "RC(M) biplot of the Props data. The first dimension mainly tracks the change of the cooling water throughout the different phases. There is a certain arch effect visible, which may indicate samples from the startup and shutdown are somewhat similar. \\label{supgfig:Props"}
-plot(CMETRCM, samColour = "Reactor.phase", samShape = "Reactor.cycle")
+```{r plotCMET, purl = FALSE, fig.cap = "RC(M) biplot of the Props data. The first dimension mainly tracks the change of the cooling water throughout the different phases. There is a certain arch effect visible, which may indicate samples from the startup and shutdown are somewhat similar. \\label{supgfig:Props}"}
+plot(CMETRCM, samColour = "Reactor.phase", samShape = "Reactor.cycle", taxNum = 6)
 ```
 
-```{r plotCMETlin, purl = FALSE, fig.cap = "Constrained RC(M) triplot with linear response functions of the Props data. The constrained analysis confirms phase and cycle as being the most important drivers. Also, the most important taxa are seen to react to the gradient dominated by reactor cycle. \\label{supgfig:PropsConstr"}
+```{r plotCMETlin, purl = FALSE, fig.cap = "Constrained RC(M) triplot with linear response functions of the Props data. The constrained analysis confirms phase and cycle as being the most important drivers. Also, the most important taxa are seen to react to the gradient dominated by reactor cycle. \\label{supgfig:PropsConstr}"}
 plot(CMETRCMlin, samColour = "Reactor.phase", samShape = "Reactor.cycle")
 ```
 
-```{r plotCMETnp, purl = FALSE, fig.cap = "Constrained RC(M) biplot with non-parametric response functions of the Props data. This confirms the dominant role of reactor cycle and phase in shaping the ordination. The sample ordination looks very similar to the linear response case, suggesting a good fit for linear response functions \\label{supgfig:PropsConstrNP"}
+```{r plotCMETnp, purl = FALSE, fig.cap = "Constrained RC(M) biplot with non-parametric response functions of the Props data. This confirms the dominant role of reactor cycle and phase in shaping the ordination. The sample ordination looks very similar to the linear response case, suggesting a good fit for linear response functions \\label{supgfig:PropsConstrNP}"}
 plot(CMETRCMnonParam, samColour = "Reactor.phase", samShape = "Reactor.cycle")
 ```
+
+\clearpage
+
+\printbibliography

@@ -6,7 +6,7 @@
 #' @param taxa a character vector of taxa to be plotted
 #' @param addSamples a boolean, should sample points be shown?
 #' @param samShape a sample variable name or a vector of length equal to the number of samples, for the sample shape
-#' @param samSize teh size of the sample dots
+#' @param samSize the size of the sample dots
 #' @param Dim the dimension to be plotted
 #' @param nPoints the number of points to be used to plot the lines
 #' @param labSize the label size for the variables
@@ -51,8 +51,8 @@ textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(samp
 textDf = textDf[order(textDf$x),]
 textDf$y = (if(is.null(yLocVar)) (max(dfMolt$responseFun)+min(dfMolt$responseFun))/2 else yLocVar)
 plot = plot + geom_text(data = textDf, mapping = aes_string(x = "x", y = "y", label = "text"), inherit.aes = FALSE, angle = angle, size = labSize) + scale_colour_brewer(palette = Palette)
-#Finally add a dashed line for the independence model
-plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3)
+#Finally add a dashed line for the independence model, and a straight line for the 0 environmental gradient
+plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3) + geom_vline(xintercept = 0, size = 0.2, linetype = "solid")
 
 #If samples required, add them too
 if(addSamples){
