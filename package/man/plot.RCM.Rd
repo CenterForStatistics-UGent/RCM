@@ -21,7 +21,8 @@
   "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"), returnCoords = FALSE,
   varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
   phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
-  crossSize = 4, contCol = c("orange", "darkgreen"))
+  crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 4,
+  legendTitleSize = 4, axisLabSize = 4, axisTitleSize = 4)
 }
 \arguments{
 \item{x}{an RCM object}
@@ -44,7 +45,7 @@
 
 \item{scalingFactor}{a scalar, a user supplied scaling factor for the taxon arrows If not supplied it will be calculated to make sample and taxon plots on the same scale}
 
-\item{plotType}{a character string: which components to plots}
+\item{plotType}{a character string: which components to plot}
 
 \item{quadDrop}{a number between 0 and 1. At this fraction of the peak height are the ellipses of the quadratic response functions drawn}
 
@@ -72,7 +73,7 @@
 
 \item{yInd}{a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side}
 
-\item{labSize}{the size of the variable labels}
+\item{labSize}{the size of the variable and taxon labels}
 
 \item{taxRegExp}{a character vector indicating which taxa to plot}
 
@@ -107,9 +108,14 @@
 \item{crossSize}{the size of the central cross}
 
 \item{contCol}{a character vector of length two, giving the low and high values of the continuous colour scale}
-}
-\value{
-see the ggplot()-function
+
+\item{legendLabSize}{size of the legend labels}
+
+\item{legendTitleSize}{size of the legend title}
+
+\item{axisLabSize}{size of the axis labels}
+
+\item{axisTitleSize}{size of the axis title}
 }
 \description{
 A function to plot RC(M) ordination result with the help of ggplot2

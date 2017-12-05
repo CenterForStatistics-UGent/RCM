@@ -10,7 +10,7 @@
 #' @param samSize a scalar, the size of the sample dots
 #' @param taxNum an integer, the number of taxa to be plotted
 #' @param scalingFactor a scalar, a user supplied scaling factor for the taxon arrows If not supplied it will be calculated to make sample and taxon plots on the same scale
-#' @param plotType a character string: which components to plots
+#' @param plotType a character string: which components to plot
 #' @param quadDrop a number between 0 and 1. At this fraction of the peak height are the ellipses of the quadratic response functions drawn
 #' @param nPoints an integer, number of points to evaluate for the ellipse
 #' @param plotEllipse a boolean, whether to add the ellipses
@@ -42,18 +42,22 @@
 #' @param noLegend a boolean indicating you do not want a legend
 #' @param crossSize the size of the central cross
 #' @param contCol  a character vector of length two, giving the low and high values of the continuous colour scale
+#' @param legendLabSize size of the legend labels
+#' @param legendTitleSize size of the legend title
+#' @param axisLabSize size of the axis labels
+#' @param axisTitleSize size of the axis title
 #'
-#' @return see the ggplot()-function
 #' @export
 #' @import ggplot2
 #' @import phyloseq
 #' @importFrom grDevices colorRampPalette rainbow
 #' @importFrom graphics par text
+#' @importFrom RColorBrewer brewer.pal
 #' @method plot RCM
 plot.RCM = function(x, ..., Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste("Influence on\n", samColour, "\n parameter \n in dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), ) {
+                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16) {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(x$covariates) #Constrained plot?
@@ -88,13 +92,13 @@ plot.RCM = function(x, ..., Dim = c(1,2),
 
    plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], dotList, col = "colourPlot", shape = "shapePlot")) +
      geom_point(size = samSize ) + #point size
-     xlab(paste0(names(dataSam)[1],": ", paste0("psi",Dim[1]), " = ",round(x$psis[Dim[1]],1))) + #xlabel
+     xlab(paste0(names(dataSam)[1],": ", paste0(expression(psi),Dim[1]), " = ",round(x$psis[Dim[1]],1))) + #xlabel
      ylab(paste0(names(dataSam)[2],": ", paste0("psi",Dim[2]), " = ",round(x$psis[Dim[2]],1))) + #ylabel
      if(noLegend) {guides(colour=FALSE)}  #Legend
 
    #add legend names
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
-     plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(RColorBrewer::brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
+     plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
    }    else if(!is.null(colLegend) & !is.factor(dataSam$colourPlot) ){
      plot = plot + scale_colour_continuous(name = colLegend, low = contCol[1], high =  contCol[2])
    }
@@ -243,7 +247,7 @@ if(taxLabels){
 } else if(taxDots){
   if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, show.legend = FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
   } else {
-    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = labSize, inherit.aes = FALSE) + if(!is.numeric(dataTax$taxCol)) scale_colour_manual(values = c(RColorBrewer::brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) else scale_colour_continuous(name = colLegend) # "Other" is made grey
+    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = labSize, inherit.aes = FALSE) + if(!is.numeric(dataTax$taxCol)) scale_colour_manual(values = c(brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) else scale_colour_continuous(name = colLegend) # "Other" is made grey
   }
 }
   if(!"samples" %in% plotType){
@@ -253,8 +257,11 @@ if(taxLabels){
   }
   } #END if "species" %in% plotType
 
-  #Add cross in the centre, and enlarge legend sizes
-  plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size = crossSize, inherit.aes = FALSE, shape=3) + guides(size=legendSize)
+  #Add cross in the centre
+  plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size = crossSize, inherit.aes = FALSE, shape=3)
+  # Enlarge most text
+  plot = plot + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize))
+
   #Expand limits to show all text
   plot = if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
   if(returnCoords){

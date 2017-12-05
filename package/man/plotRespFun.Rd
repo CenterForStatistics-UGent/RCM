@@ -18,7 +18,7 @@ plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL,
 
 \item{samShape}{a sample variable name or a vector of length equal to the number of samples, for the sample shape}
 
-\item{samSize}{teh size of the sample dots}
+\item{samSize}{the size of the sample dots}
 
 \item{Dim}{the dimension to be plotted}
 
