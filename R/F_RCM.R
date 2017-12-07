@@ -15,8 +15,9 @@
 #'@description This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
 #'
 #'@details This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
+#'@seealso \code{\link{RCM_NB}},\code{\link{plot.RCM}}
 #'
-#' @return see RCM.NB()
+#' @return see \code{\link{RCM_NB}}
 #' @importFrom nleqslv nleqslv
 #' @importFrom tensor tensor
 #' @importFrom alabama constrOptim.nl

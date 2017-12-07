@@ -21,8 +21,8 @@
   "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"), returnCoords = FALSE,
   varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
   phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
-  crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 4,
-  legendTitleSize = 4, axisLabSize = 4, axisTitleSize = 4)
+  crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 15,
+  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16)
 }
 \arguments{
 \item{x}{an RCM object}

@@ -13,9 +13,9 @@ The package can be installed using the following commands:
 
 ```{r installRCMpackage}
 library(devtools)
-install_github("CenterForStatistics-UGent/RCM/package")
+install_github("CenterForStatistics-UGent/RCM")
 library(RCM)
-cat("RCM pacakge version", packageVersion("RCM"), "\n")
+cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 library(phyloseq)
 ```
 

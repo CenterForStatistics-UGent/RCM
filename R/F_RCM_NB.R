@@ -32,6 +32,8 @@
 #' @param dfSpline a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see VGAM::s()
 #' @param vgamMaxit an integer, the maximum number of iteration in the vgam() function
 #'
+#' #'@seealso \code{\link{RCM}}
+#'
 #' Not intended to be called directly but only through the RCM() function
 #'
 #' @return A list with elements

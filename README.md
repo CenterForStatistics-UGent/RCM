@@ -8,40 +8,27 @@ The package can be installed using the following commands:
 
 ``` r
 library(devtools)
-install_github("CenterForStatistics-UGent/RCM/package")
+install_github("CenterForStatistics-UGent/RCM")
 ```
 
-    ## Downloading GitHub repo CenterForStatistics-UGent/RCM@master
-    ## from URL https://api.github.com/repos/CenterForStatistics-UGent/RCM/zipball/master
+    ## Skipping install of 'RCM' from a github remote, the SHA1 (c58f0f6e) has not changed since last install.
+    ##   Use `force = TRUE` to force installation
 
-    ## Installing RCM
+``` r
+library(RCM)
+cat("RCM package version", as.character(packageVersion("RCM")), "\n")
+```
 
-    ## Installing vegan
+    ## RCM package version 0.1.0
 
-    ## '/usr/lib/R/bin/R' --no-site-file --no-environ --no-save --no-restore  \
-    ##   --quiet CMD INSTALL '/tmp/Rtmp8JsHFL/devtools27d42364599d/vegan'  \
-    ##   --library='/home/stijn/R/x86_64-pc-linux-gnu-library/3.4'  \
-    ##   --install-tests
-
-    ## 
-
-    ## '/usr/lib/R/bin/R' --no-site-file --no-environ --no-save --no-restore  \
-    ##   --quiet CMD INSTALL  \
-    ##   '/tmp/Rtmp8JsHFL/devtools27d46896eb1f/CenterForStatistics-UGent-RCM-d023051/package'  \
-    ##   --library='/home/stijn/R/x86_64-pc-linux-gnu-library/3.4'  \
-    ##   --install-tests
-
-    ## 
+``` r
+library(phyloseq)
+```
 
 Manual
 ------
 
 Here follows a short tutorial on fitting and plotting the RCM model.
-
-    ## [1] "phyloseq"
-    ## [1] '1.20.0'
-    ## [1] "RCM"
-    ## [1] '0.1.0'
 
 Dataset
 -------
@@ -157,7 +144,7 @@ if (!file.exists(file = "./results/ZellerRCM3.RData")) {
 }
 ```
 
-The total runtime for all dimensions combined was 2.3. We can then plot any combination of two dimensions we want, e.g. the first and the third.
+The total runtime for all dimensions combined was 2.3 minutes. We can then plot any combination of two dimensions we want, e.g. the first and the third.
 
 ``` r
 plot(ZellerRCM3, Dim = c(1, 3), samColour = "Diagnosis", taxNum = 6)

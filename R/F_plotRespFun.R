@@ -18,11 +18,16 @@
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
 #' @param ... Other argumens passed on to the ggplot() function
+#' @param legendLabSize size of the legend labels
+#' @param legendTitleSize size of the legend title
+#' @param axisLabSize size of the axis labels
+#' @param axisTitleSize size of the axis title
+#'
 #' @export
 #' @import ggplot2
 #' @import phyloseq
 #' @importFrom stats runif
-plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL, samSize = 2, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 50L, nTaxa = 8L, angle = 90,...){
+plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL, samSize = 2, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 50L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -52,7 +57,7 @@ textDf = textDf[order(textDf$x),]
 textDf$y = (if(is.null(yLocVar)) (max(dfMolt$responseFun)+min(dfMolt$responseFun))/2 else yLocVar)
 plot = plot + geom_text(data = textDf, mapping = aes_string(x = "x", y = "y", label = "text"), inherit.aes = FALSE, angle = angle, size = labSize) + scale_colour_brewer(palette = Palette)
 #Finally add a dashed line for the independence model, and a straight line for the 0 environmental gradient
-plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3) + geom_vline(xintercept = 0, size = 0.2, linetype = "solid")
+plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3) + geom_vline(xintercept = 0, size = 0.15, linetype = "dotted")
 
 #If samples required, add them too
 if(addSamples){
@@ -67,6 +72,8 @@ plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x 
 }
 plot = plot + scale_shape_discrete(name = if(!is.null(samShape)) samShape else "", solid = FALSE)
 }
+#Adapt the text sizes
+plot = plot + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize))
 
 plot
 }
