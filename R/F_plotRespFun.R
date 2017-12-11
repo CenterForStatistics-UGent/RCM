@@ -22,6 +22,7 @@
 #' @param axisTitleSize size of the axis title
 #' @param ... Other argumens passed on to the ggplot() function
 #'
+#' @return Plots a ggplot2-object to output
 #' @export
 #' @import ggplot2
 #' @import phyloseq
@@ -36,7 +37,7 @@ plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL, Dim 
     predict(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]$fit, newdata = data.frame(sampleScore=x, logMu = 0))}
 
   #The range of sample scores
-sampleScoreRange = range(with(RCM, covariates %*% alpha)[,Dim])
+sampleScoreRange = range(RCM$covariates %*% RCM$alpha[,Dim])
 sampleScoreSeq = x = seq(sampleScoreRange[1], sampleScoreRange[2], length.out = nPoints)
 if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongly
   intsNonParam = sapply(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]], function(x){getInt(x$fit, sampleScore =c( RCM$covariates %*% RCM$alpha[,1]), subdivisions = subdivisions)}) #The integrals

@@ -16,7 +16,8 @@ buildConfMat = function(x,...){
 #' @param confounders a numeric matrix of confounders
 #' @param n the number of rows of the count matrix
 #' @param ... further arguments passed on to other methods
-
+#'
+#' @return The confounder matrix, with intercepts
 buildConfMat.numeric = function(confounders, n, ...){
   if(n!=NROW(confounders)){ #Check dimensions
     stop("Data and confounder matrix do not have the same number of samples! \n")
@@ -37,7 +38,8 @@ buildConfMat.numeric = function(confounders, n, ...){
 #' @param confounders a data frame of confounders
 #' @param n the number of rows of the count matrix
 #' @param ... further arguments passed on to other methods
-
+#'
+#' @return see buidConfMat.numeric
 buildConfMat.data.frame = function(confounders, n,...){
   if(n!=NROW(confounders)){ #Check dimensions
     stop("Data and confounder matrix do not have the same number of samples! \n")
@@ -55,14 +57,13 @@ buildConfMat.data.frame = function(confounders, n,...){
                            contrasts, contrasts = TRUE))
   list(confModelMatTrim  = confModelMatTrim, confModelMat = confModelMat)
 }
-
 #' buildConfMat.character
-#'
 #' @param confounders a numeric matrix of confounders
 #' @param n the number of rows of the count matrix
 #' @param physeq a physeq object with a sample_data slot
 #' @param ... further arguments passed on to other methods
-
+#'
+#' @return see buidConfMat.numeric
 buildConfMat.character = function(confounders, n, physeq,...){
   if(class(physeq) != "phyloseq"){
     stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")

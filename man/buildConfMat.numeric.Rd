@@ -13,6 +13,9 @@
 
 \item{...}{further arguments passed on to other methods}
 }
+\value{
+The confounder matrix, with intercepts
+}
 \description{
 buildConfMat.numeric
 }

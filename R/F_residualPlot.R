@@ -14,6 +14,7 @@
 #' @param taxTitle A boolean, should taxon title be printed
 #'
 #'@details If whichTaxa is "run" or "response" the taxa with the highest run statistics or steepest slopes of the response function are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
+#'@return Plots a ggplot2-object to output
 #'@export
 #'@import ggplot2
 #'@import phyloseq

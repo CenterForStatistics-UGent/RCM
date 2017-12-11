@@ -13,6 +13,12 @@
 
 \item{...}{further arguments passed on to other methods}
 }
+\value{
+see buidConfMat.numeric
+}
 \description{
 buildConfMat.data.frame
+}
+\seealso{
+\code{\link{buidConfMat.numeric}}
 }

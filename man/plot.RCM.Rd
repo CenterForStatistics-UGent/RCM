@@ -117,6 +117,9 @@
 
 \item{axisTitleSize}{size of the axis title}
 }
+\value{
+plots a ggplot2-object to output
+}
 \description{
 A function to plot RC(M) ordination result with the help of ggplot2
 }

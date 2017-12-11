@@ -34,6 +34,9 @@ residualPlot(RCM, Dim = 1, whichTaxa = "response", resid = "Deviance",
 
 \item{taxTitle}{A boolean, should taxon title be printed}
 }
+\value{
+Plots a ggplot2-object to output
+}
 \description{
 Make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic
 }

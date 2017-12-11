@@ -47,6 +47,7 @@
 #' @param axisLabSize size of the axis labels
 #' @param axisTitleSize size of the axis title
 #'
+#' @return plots a ggplot2-object to output
 #' @export
 #' @import ggplot2
 #' @import phyloseq
@@ -175,10 +176,9 @@ plot.RCM = function(x, ..., Dim = c(1,2),
       envScores = x$covariates %*% x$alpha
       rownames(dataTax) = colnames(x$X)
       dataTax = dataTax[idTaxRegExp,] #Keep only selected taxa
-      id = dataID[with(dataID,
-                       order(end1 > max(envScores[,Dim[1]]) | end1 < min(envScores[,Dim[1]]),
-                             end2 > max(envScores[,Dim[2]]) | end2 < min(envScores[,Dim[2]]),
-                             -meanPeakHeights)),
+      id = dataID[order(dataID$end1 > max(envScores[,Dim[1]]) | dataID$end1 < min(envScores[,Dim[1]]),
+                        dataID$end2 > max(envScores[,Dim[2]]) | dataID$end2 < min(envScores[,Dim[2]]),
+                             -dataID$meanPeakHeights),
                   ]$id[seq_len(ceiling(taxFrac*nrow(dataTax)))]
       dataTax = dataTax[id,]
       dataTax[, c("peak1","peak2")] = taxaScale *apply(dataTax[, c("peak1","peak2")], c(1,2), max, 0.0075) # Make sure a line always appears

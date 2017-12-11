@@ -49,6 +49,9 @@ plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL,
 
 \item{...}{Other argumens passed on to the ggplot() function}
 }
+\value{
+Plots a ggplot2-object to output
+}
 \description{
 Plots a number of response functions over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
 }
