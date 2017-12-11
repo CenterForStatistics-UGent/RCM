@@ -4,9 +4,9 @@
 \alias{plotRespFun}
 \title{Plot the non-parametric response functions of a prespecified set of taxa}
 \usage{
-plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL,
-  samSize = 2, Dim = 1, nPoints = 1000L, labSize = 2.5,
-  yLocVar = NULL, yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
+plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL,
+  Dim = 1, nPoints = 1000L, labSize = 2.5, yLocVar = NULL,
+  yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
   subdivisions = 50L, nTaxa = 8L, angle = 90, legendLabSize = 15,
   legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, ...)
 }
@@ -17,9 +17,7 @@ plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL,
 
 \item{addSamples}{a boolean, should sample points be shown?}
 
-\item{samShape}{a sample variable name or a vector of length equal to the number of samples, for the sample shape}
-
-\item{samSize}{the size of the sample dots}
+\item{samSize}{a sample variable name or a vector of length equal to the number of samples, for the sample sizes}
 
 \item{Dim}{the dimension to be plotted}
 

@@ -5,8 +5,7 @@
 #' @param RCM and RCM object
 #' @param taxa a character vector of taxa to be plotted
 #' @param addSamples a boolean, should sample points be shown?
-#' @param samShape a sample variable name or a vector of length equal to the number of samples, for the sample shape
-#' @param samSize the size of the sample dots
+#' @param samSize a sample variable name or a vector of length equal to the number of samples, for the sample sizes
 #' @param Dim the dimension to be plotted
 #' @param nPoints the number of points to be used to plot the lines
 #' @param labSize the label size for the variables
@@ -27,7 +26,7 @@
 #' @import ggplot2
 #' @import phyloseq
 #' @importFrom stats runif
-plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL, samSize = 2, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 50L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
+plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL, Dim = 1, nPoints = 1e3L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 50L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -59,18 +58,18 @@ plot = plot + geom_text(data = textDf, mapping = aes_string(x = "x", y = "y", la
 #Finally add a dashed line for the independence model, and a straight line for the 0 environmental gradient
 plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3) + geom_vline(xintercept = 0, size = 0.15, linetype = "dotted")
 
-#If samples required, add them too, as marks
+#If samples required, add them too, as marks of different heights
 if(addSamples){
 dfSam = data.frame(x = RCM$covariates %*% RCM$alpha[,Dim])
-dfSam$Shape = if(length(samShape)==1) get_variable(RCM$physeq, varName = samShape) else if(length(samShape)==ncol(RCM$X)) samShape else NULL
+dfSam$Size = if(length(samSize)==1) get_variable(RCM$physeq, varName = samSize) else if(length(samSize)==ncol(RCM$X)) samSize else NULL
 # dfSam$Fill = if(length(samColour)==1) get_variable(RCM$physeq, varName = samColour) else if(length(samColour)==ncol(RCM$X)) samColour else NULL
 dfSam$y = (if(is.null(yLocSam)) min(dfMolt$responseFun)*0.8 else yLocSam) + if(addJitter) runif(min = -1,max =1, n = nrow(RCM$alpha))*diff(range(dfMolt$responseFun))/20 else 0
-if(!is.null(samShape)){
-plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", shape = "Shape"), data = dfSam, size = samSize)
+if(!is.null(samSize)){
+plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", size = "Size"), data = dfSam, shape = 124)
 } else {
-  plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y"),shape = 1, data = dfSam, size = samSize)
+  plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y"),shape = 124, data = dfSam, size = 1)
 }
-plot = plot + scale_shape_discrete(name = if(!is.null(samShape)) samShape else "", solid = FALSE)
+plot = plot + scale_size_discrete(name = if(!is.null(samSize)) samSize else "", solid = FALSE)
 }
 #Adapt the text sizes
 plot = plot + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize))
