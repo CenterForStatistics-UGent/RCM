@@ -55,7 +55,7 @@ addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = 
 
   # Add a red line for the projection
   dfRed = data.frame(xend = IntCoordsXTip, yend = IntCoordsYTip, x = IntCoordsXStart, y = IntCoordsYStart)
-  RCMplot$plot  =  RCMplot$plot + geom_segment(inherit.aes = FALSE, col = "orange", mapping = aes(x=x, y= y, xend = xend, yend = yend), data = dfRed)#, linetype = "dashed"
+  RCMplot$plot  =  RCMplot$plot + geom_segment(inherit.aes = FALSE, col = "orange", mapping = aes_string(x="x", y= "y", xend = "xend", yend = "yend"), data = dfRed)
 
   if(addLabel){
   #Add some annotation

@@ -147,10 +147,8 @@ plot.RCM = function(x, ..., Dim = c(1,2),
       if(!all(plotType=="species")){
       scalingFactorTmp = apply(if("samples" %in% plotType) {dataSam[, paste0("Dim", Dim)]} else {varData[, paste0("Dim", Dim)]},2,range)/apply(dataTax[, c("end1","end2")]-dataTax[, c("origin1","origin2")],2,range)
       scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
-      dataTax = within(dataTax, { #Scale the arrows
-        end1 = origin1 + slope1 * scalingFactor
-        end2 = origin2 + slope2 * scalingFactor
-      })
+      #Scale the arrows
+      dataTax[,c("end1","end2")] = dataTax[,c("origin1","origin2")] + dataTax[,c("slope1","slope2")] * scalingFactor
       }
     } else if (x$responseFun == "quadratic"){
       dataTax$colour = apply(coords$species[, paste0("a",Dim)],1, function(x){
@@ -200,10 +198,7 @@ plot.RCM = function(x, ..., Dim = c(1,2),
     scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
     scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*manExpFactorTaxa
     #The scaling factor is the minimum of the ratios between the longest longest arrow and the longest species arrow in every direction of every dimension
-    dataTax = within(dataTax, { #Scale the arrows
-      end1 = end1 * scalingFactor
-      end2 = end2 * scalingFactor
-    })
+    dataTax[, c("end1","end2")] = dataTax[, c("end1","end2")] * scalingFactor
   } # End scaling needed
   }
   dataTax$labels = sub(" ", "\n", rownames(dataTax))
@@ -258,7 +253,7 @@ if(taxLabels){
   } #END if "species" %in% plotType
 
   #Add cross in the centre
-  plot = plot + geom_point(data=data.frame(x=0,y=0), aes(x=x,y=y), size = crossSize, inherit.aes = FALSE, shape=3)
+  plot = plot + geom_point(data=data.frame(x=0,y=0), aes_string(x="x",y="y"), size = crossSize, inherit.aes = FALSE, shape=3)
   # Enlarge most text
   plot = plot + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize))
 

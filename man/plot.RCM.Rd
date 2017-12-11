@@ -5,8 +5,8 @@
 \title{A function to plot RC(M) ordination result with the help of ggplot2}
 \usage{
 \method{plot}{RCM}(x, ..., Dim = c(1, 2), samColour = NULL, colLegend = if
-  (Influence) paste("Influence on\\n", samColour,
-  "\\n parameter \\n in dimension", inflDim) else samColour, samShape = NULL,
+  (Influence) paste0("Influence on\\n", samColour,
+  "\\nparameter \\nin dimension", inflDim) else samColour, samShape = NULL,
   shapeLegend = samShape, samSize = 1.5, taxNum = if (all(plotType ==
   "species") || !is.null(taxRegExp)) {     ncol(x$X) } else {     10 },
   scalingFactor = NULL, plotType = c("samples", "species", "variables"),

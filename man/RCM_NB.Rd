@@ -75,6 +75,8 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 
 \item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function
 
+#'@seealso \code{\link{RCM}}
+
 Not intended to be called directly but only through the RCM() function}
 }
 \value{

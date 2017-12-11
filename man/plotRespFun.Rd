@@ -7,7 +7,8 @@
 plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL,
   samSize = 2, Dim = 1, nPoints = 1000L, labSize = 2.5,
   yLocVar = NULL, yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
-  subdivisions = 50L, nTaxa = 8L, angle = 90, ...)
+  subdivisions = 50L, nTaxa = 8L, angle = 90, legendLabSize = 15,
+  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, ...)
 }
 \arguments{
 \item{RCM}{and RCM object}
@@ -39,6 +40,14 @@ plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samShape = NULL,
 \item{nTaxa}{an integer, number of taxa to plot}
 
 \item{angle}{angle at which variable labels should be turned}
+
+\item{legendLabSize}{size of the legend labels}
+
+\item{legendTitleSize}{size of the legend title}
+
+\item{axisLabSize}{size of the axis labels}
+
+\item{axisTitleSize}{size of the axis title}
 
 \item{...}{Other argumens passed on to the ggplot() function}
 }

@@ -5,7 +5,9 @@
 \title{Make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic}
 \usage{
 residualPlot(RCM, Dim = 1, whichTaxa = "response", resid = "Deviance",
-  numTaxa = 9, mfrow = NULL, samColour = NULL, samShape = NULL)
+  numTaxa = 9, mfrow = NULL, samColour = NULL, samShape = NULL,
+  legendLabSize = 15, legendTitleSize = 16, axisLabSize = 14,
+  axisTitleSize = 16, taxTitle = TRUE)
 }
 \arguments{
 \item{RCM}{an RCM object}
@@ -20,11 +22,21 @@ residualPlot(RCM, Dim = 1, whichTaxa = "response", resid = "Deviance",
 
 \item{mfrow}{passed on to par(). If not supplied will be calculated based on numTaxa}
 
-\item{samColour, samShape}{Vectors or character strings denoting teh sample colour and shape respectively. If character string is provided, the variables with this name is extracted from the phyloseq object in RCM}
+\item{samColour, samShape}{Vectors or character strings denoting the sample colour and shape respectively. If character string is provided, the variables with this name is extracted from the phyloseq object in RCM}
+
+\item{legendLabSize}{size of the legend labels}
+
+\item{legendTitleSize}{size of the legend title}
+
+\item{axisLabSize}{size of the axis labels}
+
+\item{axisTitleSize}{size of the axis title}
+
+\item{taxTitle}{A boolean, should taxon title be printed}
 }
 \description{
 Make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic
 }
 \details{
-If whichTaxa is "run" or "response" the taxa with the highest run statistics or responses are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
+If whichTaxa is "run" or "response" the taxa with the highest run statistics or steepest slopes of the response function are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
 }

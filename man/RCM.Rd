@@ -32,11 +32,14 @@ RCM(dat, k, round = FALSE, distribution = "NB", prevCutOff = 0.025,
 \item{...}{Further arguments passed on to the RCM.NB() function}
 }
 \value{
-see RCM.NB()
+see \code{\link{RCM_NB}}
 }
 \description{
 This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
 }
 \details{
 This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
+}
+\seealso{
+\code{\link{RCM_NB}},\code{\link{plot.RCM}}
 }

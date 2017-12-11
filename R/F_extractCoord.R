@@ -30,10 +30,8 @@ extractCoord = function(RCM, Dim = c(1,2)){
         slope1 = RCM$NB_params[2,,Dim[1]] , #The gradient
         slope2 = RCM$NB_params[2,,Dim[2]]
       )
-       dataTax = within(dataTax, {
-        end1 = origin1 + slope1
-        end2 = origin2 + slope2
-      })
+       dataTax$end1 = dataTax$origin1 + dataTax$slope1
+       dataTax$end2 = dataTax$origin2 + dataTax$slope2
        rownames(dataTax) = colnames(RCM$X)
     } else if (RCM$responseFun == "quadratic"){
       dataTax = data.frame(

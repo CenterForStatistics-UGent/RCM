@@ -23,14 +23,17 @@
 #' \item{taxonWiseFits}{A list of length p of normalized response curves of all the taxa. This may be useful to investigate the shape of the response function through plots.}
 #' \item{psi}{The importance parameter of the dimension}
 #' \item{taxonWise}{The taxonwise response function}
+#'
+#' @importFrom MASS negative.binomial
 estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefInitOverall, dfSpline, vgamMaxit, colWeights, verbose,...){
+  logOffset = log(muMarg)
   taxonWise = lapply(seq_len(ncols), function(i){
-    df = data.frame(x = X[,i], logMu = log(muMarg[,i]), sampleScore = sampleScore) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
-      tmp = try(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...), silent = TRUE)
+    df = data.frame(x = X[,i], sampleScore = sampleScore) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
+      tmp = try(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logOffset[,i], family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...), silent = TRUE)
     # }
     if(class(tmp)=="try-error") { #If still fails turn to parametric fit
       warning("GAM would not fit, turned to cubic parametric fit ")
-      tmp = try(glm.fit(y = X[,i], x = model.matrix(~sampleScore + I(sampleScore^2) + I(sampleScore^3) ), offset = log(muMarg[,i]), family = negative.binomial(thetas[i]), etastart = log(muMarg[,i])), silent = TRUE)
+      tmp = try(glm.fit(y = X[,i], x = model.matrix(~sampleScore + I(sampleScore^2) + I(sampleScore^3) ), offset = logOffset[,i], family = negative.binomial(thetas[i]), etastart = logOffset[,i]), silent = TRUE)
     }
     if(class(tmp)=="try-error") {
     tmp = list(coef = rep(0,4), fitted = muMarg[,i]) #If nothing will fit, stick to an independence model
@@ -40,7 +43,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   sumFit = sum(sapply(taxonWise, function(x){length(x$fit)==2}))
   if(verbose && sumFit) warning("A total number of",sumFit, "response functions did not converge! \n")
   samRep = rep(sampleScore,ncols)
-  overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(log(muMarg)), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
+  overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logOffset), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
   taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
   taxonCoef = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit$coef})
   psi = sqrt(sum(sapply(taxonWise, function(x){x$int})^2*colWeights))

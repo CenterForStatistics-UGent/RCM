@@ -17,11 +17,11 @@
 #' @param subdivisions the number of subdivisions for the integration
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
-#' @param ... Other argumens passed on to the ggplot() function
 #' @param legendLabSize size of the legend labels
 #' @param legendTitleSize size of the legend title
 #' @param axisLabSize size of the axis labels
 #' @param axisTitleSize size of the axis title
+#' @param ... Other argumens passed on to the ggplot() function
 #'
 #' @export
 #' @import ggplot2
@@ -48,8 +48,8 @@ df = data.frame(sampleScore = sampleScoreSeq, lapply(taxa, predictFun, x = sampl
 names(df)[-1] = taxa
 dfMolt = reshape2::melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
 
-plot = ggplot(data = dfMolt, aes(x = sampleScore, y = responseFun, group = Taxon, colour = Taxon),...) + geom_line()
-plot = plot + xlab(paste("Environmental score of dimension",Dim)) + ylab("Response function")
+plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line()
+plot = plot + xlab(paste("Environmental score of dimension", Dim)) + ylab("Response function")
 
 #Also add the associated elements of the environmental gradient in the upper margin
 textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))
@@ -59,7 +59,7 @@ plot = plot + geom_text(data = textDf, mapping = aes_string(x = "x", y = "y", la
 #Finally add a dashed line for the independence model, and a straight line for the 0 environmental gradient
 plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3) + geom_vline(xintercept = 0, size = 0.15, linetype = "dotted")
 
-#If samples required, add them too
+#If samples required, add them too, as marks
 if(addSamples){
 dfSam = data.frame(x = RCM$covariates %*% RCM$alpha[,Dim])
 dfSam$Shape = if(length(samShape)==1) get_variable(RCM$physeq, varName = samShape) else if(length(samShape)==ncol(RCM$X)) samShape else NULL
