@@ -1,4 +1,14 @@
 
+<!---
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    keep_md: true
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+--->
 RCM package: vignette
 =====================
 
@@ -13,9 +23,6 @@ The package can be installed using the following commands:
 library(devtools)
 install_github("CenterForStatistics-UGent/RCM")
 ```
-
-    ## Skipping install of 'RCM' from a github remote, the SHA1 (7c779092) has not changed since last install.
-    ##   Use `force = TRUE` to force installation
 
 ``` r
 library(RCM)

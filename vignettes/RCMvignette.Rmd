@@ -1,5 +1,13 @@
 ---
 output: 
+  github_document:
+    pandoc_args: [
+      "--output=../README.md"
+    ] 
+---
+
+<!---
+output: 
   rmarkdown::html_vignette:
     toc: true
     keep_md: true
@@ -7,14 +15,6 @@ vignette: >
   %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
----
-
-<!---
-output: 
-  github_document:
-    pandoc_args: [
-      "--output=../README.md"
-    ] 
 --->
 
 # RCM package: vignette
