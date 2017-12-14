@@ -1,13 +1,5 @@
 ---
 output: 
-  github_document:
-    pandoc_args: [
-      "--output=../README.md"
-    ] 
----
-
-<!---
-output: 
   rmarkdown::html_vignette:
     toc: true
     keep_md: true
@@ -15,7 +7,7 @@ vignette: >
   %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
---->
+---
 
 # RCM package: vignette
 
@@ -23,8 +15,6 @@ vignette: >
 \tableofcontents
 
 ## Install and load packages
-
-This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The functions used for simulation but which are outside outside the core RC(M) algorithm are present in the "pubFun" folder.
 
 The package can be installed using the following commands:
 
@@ -40,7 +30,7 @@ library(phyloseq)
 ```
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE, fig.path = "../README_figs/README-")
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE)
 knitr::opts_knit$set(root.dir = "/home/stijn/PhD/RCM")
 palStore = palette()
 ```
