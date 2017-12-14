@@ -11,8 +11,36 @@ library(devtools)
 install_github("CenterForStatistics-UGent/RCM")
 ```
 
-    ## Skipping install of 'RCM' from a github remote, the SHA1 (c58f0f6e) has not changed since last install.
-    ##   Use `force = TRUE` to force installation
+    ## Downloading GitHub repo CenterForStatistics-UGent/RCM@master
+    ## from URL https://api.github.com/repos/CenterForStatistics-UGent/RCM/zipball/master
+
+    ## Installing RCM
+
+    ## Installing reshape2
+
+    ## Installing Rcpp
+
+    ## '/usr/lib/R/bin/R' --no-site-file --no-environ --no-save --no-restore  \
+    ##   --quiet CMD INSTALL '/tmp/RtmpyPQtkR/devtools1198250f7c93/Rcpp'  \
+    ##   --library='/home/stijn/R/x86_64-pc-linux-gnu-library/3.4'  \
+    ##   --install-tests
+
+    ## 
+
+    ## '/usr/lib/R/bin/R' --no-site-file --no-environ --no-save --no-restore  \
+    ##   --quiet CMD INSTALL '/tmp/RtmpyPQtkR/devtools11982ca60368/reshape2'  \
+    ##   --library='/home/stijn/R/x86_64-pc-linux-gnu-library/3.4'  \
+    ##   --install-tests
+
+    ## 
+
+    ## '/usr/lib/R/bin/R' --no-site-file --no-environ --no-save --no-restore  \
+    ##   --quiet CMD INSTALL  \
+    ##   '/tmp/RtmpyPQtkR/devtools119878dd0bf6/CenterForStatistics-UGent-RCM-252f83a'  \
+    ##   --library='/home/stijn/R/x86_64-pc-linux-gnu-library/3.4'  \
+    ##   --install-tests
+
+    ## 
 
 ``` r
 library(RCM)

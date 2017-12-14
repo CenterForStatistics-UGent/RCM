@@ -70,7 +70,7 @@ plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x 
 } else {
   plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y"),shape = 124, data = dfSam, size = 1)
 }
-plot = plot + scale_size_discrete(name = if(!is.null(samSize)) samSize else "", solid = FALSE)
+plot = plot + scale_size_discrete(name = if(!is.null(samSize)) samSize else "")
 }
 #Adapt the text sizes
 plot = plot + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize))
