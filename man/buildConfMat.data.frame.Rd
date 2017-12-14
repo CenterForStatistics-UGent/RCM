@@ -19,6 +19,3 @@ see buidConfMat.numeric
 \description{
 buildConfMat.data.frame
 }
-\seealso{
-\code{\link{buidConfMat.numeric}}
-}

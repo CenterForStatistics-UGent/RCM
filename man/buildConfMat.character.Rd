@@ -21,6 +21,3 @@ see buidConfMat.numeric
 \description{
 buildConfMat.character
 }
-\seealso{
-\code{\link{buidConfMat.numeric}}
-}
