@@ -11,7 +11,7 @@ vignette: >
 
 # RCM package: vignette
 
-\setcounter{tocdepth}{4}
+\setcounter{tocdepth}{5}
 \tableofcontents
 
 ## Install and load packages
