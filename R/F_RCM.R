@@ -15,7 +15,7 @@
 #'@description This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
 #'
 #'@details This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
-#'@seealso \code{\link{RCM_NB}},\code{\link{plot.RCM}}
+#'@seealso \code{\link{RCM_NB}},\code{\link{plot.RCM}},\code{\link{residualPlot}},\code{\link{plotRespFun}}
 #'
 #' @return see \code{\link{RCM_NB}}
 #' @importFrom nleqslv nleqslv
@@ -25,6 +25,12 @@
 #' @import phyloseq
 #' @importFrom stats as.formula contrasts dnbinom dpois glm.fit integrate quantile
 #' @export
+#' @examples
+#' data(Zeller)
+#' require(phyloseq)
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
 RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
   classDat = class(dat) #The class provided
 
@@ -64,6 +70,7 @@ rm(tmp)
   if(!is.null(covariates)){
     tmp = buildCovMat(covariates, n, dat)
     covModelMat = tmp$covModelMat
+    covariates = tmp$covariates
     #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
     tmp = buildCentMat(tmp$datFrame)
     centMat = tmp$centMat

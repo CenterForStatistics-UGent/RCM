@@ -55,3 +55,16 @@ Plots a ggplot2-object to output
 \description{
 Plots a number of response functions over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
 }
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+prune_samples(sample_names(Zeller)[1:50], Zeller))
+#Subset for a quick fit
+zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
+round = TRUE, responseFun = "nonparametric")
+plotRespFun(zellerRCMnp)
+}
+\seealso{
+\code{\link{RCM}}
+}

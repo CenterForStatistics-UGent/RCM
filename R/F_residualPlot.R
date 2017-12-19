@@ -19,6 +19,16 @@
 #'@import ggplot2
 #'@import phyloseq
 #'@importFrom tseries runs.test
+#'@seealso \code{\link{RCM}}
+#'@examples
+#'data(Zeller)
+#' require(phyloseq)
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#' #Subset for a quick fit
+#' zellerRCMlin = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
+#' responseFun = "linear", round = TRUE)
+#' residualPlot(zellerRCMlin)
 residualPlot = function(RCM, Dim = 1, whichTaxa = "response", resid = "Deviance", numTaxa = 9, mfrow = NULL, samColour = NULL, samShape = NULL, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, taxTitle = TRUE){
   sampleScore = RCM$covariates %*% RCM$alpha[,Dim, drop = FALSE]
   if(resid == "Deviance"){

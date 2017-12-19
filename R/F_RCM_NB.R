@@ -63,6 +63,15 @@
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
 #' @export
+#' @examples
+#' data(Zeller)
+#' require(phyloseq)
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#' mat = otu_table(tmpPhy)@.Data
+#' mat = mat[rowSums(mat)>0, colSums(mat)>0]
+#' zellerRCM = RCM_NB(mat, k = 2)
+#' #Needs to be called directly onto a matrix
 RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs

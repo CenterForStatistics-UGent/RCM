@@ -111,3 +111,13 @@ A list with elements
 A function to fit the RC(M) model with the negative binomial distribution.
 Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.
 }
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+prune_samples(sample_names(Zeller)[1:50], Zeller))
+mat = otu_table(tmpPhy)@.Data
+mat = mat[rowSums(mat)>0, colSums(mat)>0]
+zellerRCM = RCM_NB(mat, k = 2)
+#Needs to be called directly onto a matrix
+}

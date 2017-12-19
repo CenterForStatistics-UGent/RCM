@@ -23,3 +23,11 @@ A list with components
 \description{
 A function to extract plotting coordinates, either for plot.RCM or to export to other plotting software
 }
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+prune_samples(sample_names(Zeller)[1:50], Zeller))
+zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+coordsZeller = extractCoord(zellerRCM)
+}

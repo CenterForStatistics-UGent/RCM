@@ -10,6 +10,15 @@
 #' @export
 #' @import ggplot2
 #' @import phyloseq
+#' @seealso \code{\link{plot.RCM}}
+#' @examples
+#' data(Zeller)
+#' require(phyloseq)
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+#' zellerPlot = plot(zellerRCM, returnCoords = TRUE)
+#' addOrthProjection(zellerPlot, species = c(-0.35,1.1), sample = c(1,1.2))
 addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = NULL, Dims = 1:2, addLabel = FALSE, labPos = NULL){
   nulls = is.null(sample) + is.null(species) + is.null(variable)
   if(nulls != 1) stop("Provide two variables categories for a projection! \n")

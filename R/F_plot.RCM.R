@@ -33,7 +33,7 @@
 #' @param Influence a boolean, should the influence of the observation on the variable be plotted
 #' @param inflDim an integer, the dimension for which the influence should be calculated
 #' @param richSupported A character vector of supported richness measures
-#' @param returnCoords a boolea, should final coordinates be returned?
+#' @param returnCoords a boolean, should final coordinates be returned?
 #' @param varExpFactor a scalar, the factor by which to expand the variable coordinates
 #' @param manExpFactorTaxa a manual expansion factor for the taxa Setting it to a high value allows you to plot the taxa around the samples
 #' @param nPhyl an integer, number of phylogenetic levels to show
@@ -55,6 +55,14 @@
 #' @importFrom graphics par text
 #' @importFrom RColorBrewer brewer.pal
 #' @method plot RCM
+#' @examples
+#' data(Zeller)
+#' require(phyloseq)
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#'  #Subset for a quick fit
+#' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+#' plot(zellerRCM)
 plot.RCM = function(x, ..., Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,

@@ -26,14 +26,15 @@
 #'
 #' @importFrom MASS negative.binomial
 estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefInitOverall, dfSpline, vgamMaxit, colWeights, verbose,...){
-  logOffset = log(muMarg)
-  taxonWise = lapply(seq_len(ncols), function(i){
-    df = data.frame(x = X[,i], sampleScore = sampleScore) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
-      tmp = try(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logOffset[,i], family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...), silent = TRUE)
+  logMu = log(muMarg)
+    taxonWise = lapply(seq_len(ncols), function(i){
+    df = data.frame(x = X[,i], sampleScore = sampleScore, logMu = log(muMarg[,i])) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
+      tmp = try(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...), silent = TRUE)
     # }
     if(class(tmp)=="try-error") { #If still fails turn to parametric fit
+      cat(tmp, "\n")
       warning("GAM would not fit, turned to cubic parametric fit ")
-      tmp = try(glm.fit(y = X[,i], x = model.matrix(~sampleScore + I(sampleScore^2) + I(sampleScore^3) ), offset = logOffset[,i], family = negative.binomial(thetas[i]), etastart = logOffset[,i]), silent = TRUE)
+      tmp = try(glm.fit(y = X[,i], x = model.matrix(~sampleScore + I(sampleScore^2) + I(sampleScore^3) ), offset = logMu[,i], family = negative.binomial(thetas[i]), etastart = logMu[,i]), silent = TRUE)
     }
     if(class(tmp)=="try-error") {
     tmp = list(coef = rep(0,4), fitted = muMarg[,i]) #If nothing will fit, stick to an independence model
@@ -43,7 +44,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   sumFit = sum(sapply(taxonWise, function(x){length(x$fit)==2}))
   if(verbose && sumFit) warning("A total number of",sumFit, "response functions did not converge! \n")
   samRep = rep(sampleScore,ncols)
-  overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logOffset), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
+  overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
   taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
   taxonCoef = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit$coef})
   psi = sqrt(sum(sapply(taxonWise, function(x){x$int})^2*colWeights))

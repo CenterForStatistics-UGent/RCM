@@ -91,7 +91,7 @@
 
 \item{richSupported}{A character vector of supported richness measures}
 
-\item{returnCoords}{a boolea, should final coordinates be returned?}
+\item{returnCoords}{a boolean, should final coordinates be returned?}
 
 \item{varExpFactor}{a scalar, the factor by which to expand the variable coordinates}
 
@@ -122,4 +122,13 @@ plots a ggplot2-object to output
 }
 \description{
 A function to plot RC(M) ordination result with the help of ggplot2
+}
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+prune_samples(sample_names(Zeller)[1:50], Zeller))
+ #Subset for a quick fit
+zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+plot(zellerRCM)
 }

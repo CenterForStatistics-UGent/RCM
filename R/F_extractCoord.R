@@ -11,6 +11,13 @@
 #' \item{species}{A dataframe of column scores, with origin, slope, end and ellipse coordinates as needed}
 #' \item{variables}{A dataframe of variable scores, loadings of the environmental gradient}
 #' @export
+#' @examples
+#' data(Zeller)
+#' require(phyloseq)
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+#' coordsZeller = extractCoord(zellerRCM)
 extractCoord = function(RCM, Dim = c(1,2)){
   # Samples
   constrained = !is.null(RCM$covariates)

@@ -13,3 +13,4 @@ Imports: RColorBrewer, alabama, edgeR, reshape2, tseries, vegan, VGAM, ggplot2, 
 Suggests: knitr,
     rmarkdown
 VignetteBuilder: knitr
+biocViews: Metagenomics, DimensionReduction, Microbiome, Visualization

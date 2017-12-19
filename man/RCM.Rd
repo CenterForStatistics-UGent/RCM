@@ -40,6 +40,13 @@ This is a wrapper function, which currently only fits the negative binomial dist
 \details{
 This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
 }
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+prune_samples(sample_names(Zeller)[1:50], Zeller))
+zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+}
 \seealso{
-\code{\link{RCM_NB}},\code{\link{plot.RCM}}
+\code{\link{RCM_NB}},\code{\link{plot.RCM}},\code{\link{residualPlot}},\code{\link{plotRespFun}}
 }

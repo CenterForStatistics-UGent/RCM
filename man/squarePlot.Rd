@@ -4,7 +4,7 @@
 \alias{squarePlot}
 \title{Enforces squareness off a ggplot}
 \usage{
-squarePlot(plt, xInd, yInd)
+squarePlot(plt, xInd = 0, yInd = 0)
 }
 \arguments{
 \item{plt}{a ggplot object}

@@ -43,3 +43,16 @@ Make residual plots of the taxa with the strongest response to the environmental
 \details{
 If whichTaxa is "run" or "response" the taxa with the highest run statistics or steepest slopes of the response function are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
 }
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+prune_samples(sample_names(Zeller)[1:50], Zeller))
+#Subset for a quick fit
+zellerRCMlin = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
+responseFun = "linear", round = TRUE)
+residualPlot(zellerRCMlin)
+}
+\seealso{
+\code{\link{RCM}}
+}
