@@ -29,7 +29,7 @@ estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersio
   thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(y = t(X), design = NULL,
                                         prior.df = prior.df, offset = logMeansMat, dispersion = trended.dispersion, weights = dispWeights)
 
-thetaEsts = if(is.list(thetaEstsTmp)) thetaEstsTmp$tagwise.dispersion else thetaEstsTmp
+thetaEsts = if(is.list(thetaEstsTmp)) 1/thetaEstsTmp$tagwise.dispersion else 1/thetaEstsTmp
   if (anyNA(thetaEsts)) {
     idNA = is.na(thetaEsts)
     thetaEsts[idNA] = mean(thetaEsts[!idNA])
