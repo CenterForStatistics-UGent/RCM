@@ -24,7 +24,8 @@
 #' @param square A boolean, should the plot be square? This is highly preferred to honestly represent differences
 #' @param xInd a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side
 #' @param yInd a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side
-#' @param labSize the size of the variable and taxon labels
+#' @param taxLabSize the size of taxon labels
+#' @param varLabSize the size of the variable label
 #' @param taxRegExp a character vector indicating which taxa to plot
 #' @param varNum an integer, number of variable arrows to draw
 #' @param alpha a boolean, should small arrows be made transparent?
@@ -46,7 +47,8 @@
 #' @param legendTitleSize size of the legend title
 #' @param axisLabSize size of the axis labels
 #' @param axisTitleSize size of the axis title
-#' @param plotPsi a boolean, should the value of the importace parameter be plotted?
+#' @param plotPsi a boolean, should the value of the importance parameter be plotted?
+#' @param breakChar a character string indicating how the taxon names should be broken
 #'
 #' @return plots a ggplot2-object to output
 #' @export
@@ -61,13 +63,13 @@
 #' require(phyloseq)
 #' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
-#'  #Subset for a quick fit
+#' # Subset for a quick fit
 #' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
 #' plot(zellerRCM)
 plot.RCM = function(x, ..., Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), labSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = FALSE) {
+                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), taxLabSize = 2, varLabSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = FALSE, breakChar = "\n") {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(x$covariates) #Constrained plot?
@@ -136,7 +138,7 @@ plot.RCM = function(x, ..., Dim = c(1,2),
       scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
       varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
     }
-    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = labSize)
+    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = varLabSize)
   } else {varData = NULL}
 
   ## TAXA
@@ -210,7 +212,7 @@ plot.RCM = function(x, ..., Dim = c(1,2),
     dataTax[, c("end1","end2")] = dataTax[, c("end1","end2")] * scalingFactor
   } # End scaling needed
   }
-  dataTax$labels = sub(" ", "\n", rownames(dataTax))
+  dataTax$labels = sub(" ", breakChar, rownames(dataTax))
 if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     #Add arrows or labels
     if(length(taxCol)>1 && length(unique(taxCol))<10){
@@ -246,12 +248,12 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
 if(taxLabels){
     plot <- plot +  if(is.null(dataTax$taxCol)){geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), color =  taxColSingle, show.legend=FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
     } else {
-      geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), show.legend=TRUE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+      geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), show.legend=TRUE, nudge_y = nudge_y, size = taxLabSize, inherit.aes = FALSE)
     }
 } else if(taxDots){
-  if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, show.legend = FALSE, nudge_y = nudge_y, size = labSize, inherit.aes = FALSE)
+  if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, show.legend = FALSE, nudge_y = nudge_y, size = taxLabSize, inherit.aes = FALSE)
   } else {
-    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = labSize, inherit.aes = FALSE) + if(!is.numeric(dataTax$taxCol)) scale_colour_manual(values = c(brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) else scale_colour_continuous(name = colLegend) # "Other" is made grey
+    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = taxLabSize, inherit.aes = FALSE) + if(!is.numeric(dataTax$taxCol)) scale_colour_manual(values = c(brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) else scale_colour_continuous(name = colLegend) # "Other" is made grey
   }
 }
   if(!"samples" %in% plotType){

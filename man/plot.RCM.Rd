@@ -22,7 +22,8 @@
   varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
   phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
   crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 15,
-  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16)
+  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
+  plotPsi = FALSE)
 }
 \arguments{
 \item{x}{an RCM object}
@@ -116,6 +117,8 @@
 \item{axisLabSize}{size of the axis labels}
 
 \item{axisTitleSize}{size of the axis title}
+
+\item{plotPsi}{a boolean, should the value of the importace parameter be plotted?}
 }
 \value{
 plots a ggplot2-object to output
