@@ -103,10 +103,16 @@ plot.RCM = function(x, ..., Dim = c(1,2),
    }
 
    plot = ggplot(dataSam, aes_string(x=names(dataSam)[1], y=names(dataSam)[2], dotList, col = "colourPlot", shape = "shapePlot")) +
-     geom_point(size = samSize ) + #point size
-     xlab(paste0(names(dataSam)[1], if(plotPsi) paste0(": ", expression(psi),Dim[1], " = ",round(x$psis[Dim[1]],1)) else "")) + #xlabel
-     ylab(paste0(names(dataSam)[2], if(plotPsi) paste0(": ", expression(psi),Dim[2], " = ",round(x$psis[Dim[2]],1)) else "")) + #ylabel
+     geom_point(size = samSize ) +#point size
      if(noLegend) {guides(colour=FALSE)}  #Legend
+
+      if(plotPsi) {
+        plot = plot + xlab(bquote(psi[.(Dim[1])] == .(round(x$psis[Dim[1]],1)))) + #xlabel
+          ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
+      } else {
+  plot = plot + xlab(paste0(names(dataSam)[1])) + ylab(paste0(names(dataSam)[2]))
+}
+
 
    #add legend names
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
