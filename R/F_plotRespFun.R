@@ -48,7 +48,7 @@ plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL, Dim 
 
   #The range of sample scores
 sampleScoreRange = range(RCM$covariates %*% RCM$alpha[,Dim])
-sampleScoreSeq = x = seq(sampleScoreRange[1], sampleScoreRange[2], length.out = nPoints)
+sampleScoreSeq = seq(sampleScoreRange[1], sampleScoreRange[2], length.out = nPoints)
 if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongly
   intsNonParam = sapply(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]], function(x){getInt(x$fit, sampleScore =c( RCM$covariates %*% RCM$alpha[,1]), subdivisions = subdivisions)}) #The integrals
   taxa = taxa_names(RCM$physeq)[intsNonParam > quantile(intsNonParam, (ntaxa(RCM$physeq)-nTaxa)/ntaxa(RCM$physeq))]
