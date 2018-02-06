@@ -20,7 +20,8 @@ estDisp = function (X, cMat = NULL, rMat = NULL, muMarg, psis, trended.dispersio
       t(log(muMarg)) #Non-parametric
       } else {#Constrained
       t(log(muMarg) + psis* rowMat)
-    }
+      }
+  if(any(is.infinite(logMeansMat))) stop("Overflow! Try trimming more lowly abundant taxa prior to model fitting. \n See prevCutOff argument in ?RCM.")
   trended.dispersion = if(is.null(trended.dispersion)){
     edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = logMeansMat, weights = NULL)
     } else {trended.dispersion}
