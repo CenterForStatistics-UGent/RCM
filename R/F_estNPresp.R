@@ -29,7 +29,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   logMu = log(muMarg)
     taxonWise = lapply(seq_len(ncols), function(i){
     df = data.frame(x = X[,i], sampleScore = sampleScore, logMu = log(muMarg[,i])) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
-      tmp = try(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[,i], maxit = vgamMaxit,...), silent = TRUE)
+      tmp = try(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[[i]], maxit = vgamMaxit,...), silent = TRUE)
     # }
     if(class(tmp)=="try-error") { #If still fails turn to parametric fit
       cat(tmp, "\n")
@@ -46,7 +46,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   samRep = rep(sampleScore,ncols)
   overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
   taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
-  taxonCoef = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit$coef})
+  taxonCoef = lapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit$coef})
   psi = sqrt(sum(sapply(taxonWise, function(x){x$int})^2*colWeights))
   names(taxonWise) = colnames(X)
   list(taxonWiseFitted = taxonWiseFitted, taxonCoef = taxonCoef, overallFitted = matrix(fitted(overall), ncol = ncols), overallCoef = coef(overall), psi = psi, taxonWise = taxonWise)

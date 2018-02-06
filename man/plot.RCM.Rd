@@ -15,15 +15,16 @@
   taxLabels = !all(plotType == "species"), taxDots = FALSE,
   taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08,
   square = TRUE, xInd = if (all(plotType == "samples")) c(0, 0) else
-  c(-0.75, 0.75), yInd = c(0, 0), labSize = 2, taxRegExp = NULL,
-  varNum = 15, alpha = TRUE, alphaRange = c(0.2, 1), arrowSize = 0.25,
-  Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1",
-  "ACE", "Shannon", "Simpson", "InvSimpson", "Fisher"), returnCoords = FALSE,
-  varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
-  phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
-  crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 15,
+  c(-0.75, 0.75), yInd = c(0, 0), taxLabSize = 2, varLabSize = 2,
+  taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2, 1),
+  arrowSize = 0.25, Influence = FALSE, inflDim = 1,
+  richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
+  "InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10,
+  manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""),
+  legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,
+  contCol = c("orange", "darkgreen"), legendLabSize = 15,
   legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
-  plotPsi = FALSE)
+  plotPsi = TRUE, breakChar = "\\n")
 }
 \arguments{
 \item{x}{an RCM object}
@@ -74,7 +75,9 @@
 
 \item{yInd}{a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side}
 
-\item{labSize}{the size of the variable and taxon labels}
+\item{taxLabSize}{the size of taxon labels}
+
+\item{varLabSize}{the size of the variable label}
 
 \item{taxRegExp}{a character vector indicating which taxa to plot}
 
@@ -118,7 +121,9 @@
 
 \item{axisTitleSize}{size of the axis title}
 
-\item{plotPsi}{a boolean, should the value of the importace parameter be plotted?}
+\item{plotPsi}{a boolean, should the value of the importance parameter be plotted?}
+
+\item{breakChar}{a character string indicating how the taxon names should be broken}
 }
 \value{
 plots a ggplot2-object to output
@@ -131,7 +136,7 @@ data(Zeller)
 require(phyloseq)
 tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 prune_samples(sample_names(Zeller)[1:50], Zeller))
- #Subset for a quick fit
+# Subset for a quick fit
 zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
 plot(zellerRCM)
 }
