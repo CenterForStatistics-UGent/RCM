@@ -28,6 +28,7 @@
 #' @param varLabSize the size of the variable label
 #' @param taxRegExp a character vector indicating which taxa to plot
 #' @param varNum an integer, number of variable arrows to draw
+#' @param varPlot the names of the variable arrows to plot. Overrides the varNum argument
 #' @param alpha a boolean, should small arrows be made transparent?
 #' @param alphaRange The range of transparency
 #' @param arrowSize a scalar, the size of the arrows
@@ -69,7 +70,7 @@
 plot.RCM = function(x, ..., Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,
                     taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, scalingFactor = NULL, plotType = c("samples","species","variables"), quadDrop = 0.995, nPoints = 1e3, plotEllipse = TRUE, taxaScale = 0.5,
-                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), taxLabSize = 2, varLabSize = 2, taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = TRUE, breakChar = "\n") {
+                    Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), taxLabSize = 2, varLabSize = 2, taxRegExp = NULL, varNum = 15, varPlot = NULL, alpha = TRUE, alphaRange = c(0.2,1), arrowSize = 0.25, Influence = FALSE, inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = TRUE, breakChar = "\n") {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   constrained = !is.null(x$covariates) #Constrained plot?
@@ -128,17 +129,17 @@ plot.RCM = function(x, ..., Dim = c(1,2),
   ## VARIABLES
   if("variables" %in% plotType && constrained){
     #Add variable labels
+    if(is.null(varPlot)){
     arrowLenghtsVar = rowSums(x$alpha[,Dim]^2) #All arrow lenghts
     attribs = attr(x$covariates, "assign")
     arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
     CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
     varID = attr(x$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
+    } else {varID = attr(x$covariates, "dimnames")[[2]] %in% unlist(sapply(varPlot, grep, value = TRUE, x = attr(x$covariates, "dimnames")[[2]]))}
     varData = data.frame(x$alpha * if(!all(plotType=="variables")) 1 else varExpFactor)
     varData$label = rownames(x$alpha)
-    # varID = attribs %in% unique(attribs)[idVar]
     #Include all levels from important factors, not just the long arrows
     varData = varData[varID,]
-    # scalingFactorAlpha = min(abs(apply(dataSam[, paste0("Dim", Dim)],2, range)))/max(abs(varData[, paste0("Dim", Dim)]))*0.99
     if("samples" %in% plotType){
       scalingFactorAlphaTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
       scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
