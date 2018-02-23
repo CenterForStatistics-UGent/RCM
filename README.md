@@ -1,6 +1,6 @@
 
-RCM package: vignette
-=====================
+Manual for the use of the RCM functions
+=======================================
 
 Install and load packages
 -------------------------
@@ -12,16 +12,8 @@ The package can be installed using the following commands:
 ``` r
 library(devtools)
 install_github("CenterForStatistics-UGent/RCM")
-```
-
-``` r
 library(RCM)
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
-```
-
-    ## RCM package version 0.1.0
-
-``` r
 library(phyloseq)
 ```
 
@@ -33,6 +25,8 @@ As example data we use a study on the microbiome of colorectal cancer patients "
 ``` r
 data(Zeller)
 ```
+
+The *Zeller* object is a phyloseq object, which contains all the information of a microbiome experiment. The *RCM* package is tailor-made for phyloseq objects. More information on building the phyloseq object can be found at .
 
 Unconstrained RCM
 -----------------

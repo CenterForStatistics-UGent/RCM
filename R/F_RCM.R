@@ -31,7 +31,7 @@
 #' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
 #' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
-RCM = function(dat, k, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
+RCM = function(dat, k = 2, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
   classDat = class(dat) #The class provided
 
   ##The count data##
