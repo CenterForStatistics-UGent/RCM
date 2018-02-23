@@ -54,7 +54,8 @@ RCM = function(dat, k = 2, round=FALSE, distribution= "NB", prevCutOff = 0.025, 
   colnames(X)=colNames; rownames(X)=rowNames
   X=X[rowSums(X)>0, ] #Remove empty samples
   X=X[, (colMeans(X==0)<(1-prevCutOff)) & (colSums(X)>(n*minFraction))] #Remove txa with low prevalence and those who do not meet the minFraction requirement
-  if (distribution %in% c("ZIP","ZINB")) X = X[rowSums(X==0)>0, colSums(X==0)>0] #For a zero-inflated model, make sure every row and column has zeroes
+  if(any(rowSums(X)==0)){warning(immediate. = TRUE, paste0("Samples \n", paste(collapse = ", ", rownames(X)[rowSums(X)==0]), "\n contained no more reads after trimming taxa with low prevalence, and were excluded from the fit"))}
+  X=X[rowSums(X)>0, ] #Remove empty samples
 
   ##Build confounder matrix if applicable. ##
   if(!is.null(confounders)){
