@@ -11,10 +11,8 @@ getInt = function(fitObj, sampleScore, stop.on.error = FALSE,...){
   #Absolute values assure positive outcomes
   integrate(f = function(y, fitObj){
     # requireNamespace("splines")
-    if(class(fitObj)=="vgam"){
+    if(class(fitObj) %in% c("vgam", "glm")){
     abs(predict(fitObj, type = "link", newdata = data.frame(sampleScore = y, logMu = 0))) #logMu = 0 for departure from uniformity
-    } else if(class(fitObj) == "list"){
-      c(abs(model.matrix(~ y + I(y^2) + I(y^3)) %*% fitObj$coef))
-    } else {stop("GLM fit failed! \n")}
+    } else {stop("GAM and GLM fits failed! \n")}
     },lower = min(sampleScore), upper = max(sampleScore), fitObj = fitObj, stop.on.error = stop.on.error,...)$value
 }
