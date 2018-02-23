@@ -16,13 +16,13 @@
   taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08,
   square = TRUE, xInd = if (all(plotType == "samples")) c(0, 0) else
   c(-0.75, 0.75), yInd = c(0, 0), taxLabSize = 2, varLabSize = 2,
-  taxRegExp = NULL, varNum = 15, alpha = TRUE, alphaRange = c(0.2, 1),
-  arrowSize = 0.25, Influence = FALSE, inflDim = 1,
-  richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson",
-  "InvSimpson", "Fisher"), returnCoords = FALSE, varExpFactor = 10,
-  manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""),
-  legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,
-  contCol = c("orange", "darkgreen"), legendLabSize = 15,
+  taxRegExp = NULL, varNum = 15, varPlot = NULL, alpha = TRUE,
+  alphaRange = c(0.2, 1), arrowSize = 0.25, Influence = FALSE,
+  inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon",
+  "Simpson", "InvSimpson", "Fisher"), returnCoords = FALSE,
+  varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
+  phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
+  crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 15,
   legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
   plotPsi = TRUE, breakChar = "\\n")
 }
@@ -82,6 +82,8 @@
 \item{taxRegExp}{a character vector indicating which taxa to plot}
 
 \item{varNum}{an integer, number of variable arrows to draw}
+
+\item{varPlot}{the names of the variable arrows to plot. Overrides the varNum argument}
 
 \item{alpha}{a boolean, should small arrows be made transparent?}
 

@@ -32,13 +32,12 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
       tmp = try(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[[i]], maxit = vgamMaxit,...), silent = TRUE)
     # }
     if(class(tmp)=="try-error") { #If still fails turn to parametric fit
-      cat(tmp, "\n")
       warning("GAM would not fit, turned to cubic parametric fit ")
-      tmp = try(glm.fit(y = X[,i], x = model.matrix(~sampleScore + I(sampleScore^2) + I(sampleScore^3) ), offset = logMu[,i], family = negative.binomial(thetas[i]), etastart = logMu[,i]), silent = TRUE)
+      tmp = try(glm(X[,i]~sampleScore + I(sampleScore^2) + I(sampleScore^3), offset = logMu[,i], family = negative.binomial(thetas[i]), etastart = logMu[,i]), silent = TRUE)
     }
-    if(class(tmp)=="try-error") {
-    tmp = list(coef = rep(0,4), fitted = muMarg[,i]) #If nothing will fit, stick to an independence model
-    }
+    # if(class(tmp)=="try-error") {
+    # tmp = list(coef = rep(0,4), fitted = muMarg[,i]) #If nothing will fit, stick to an independence model
+    # }
     list(fit = tmp, int = getInt(tmp, sampleScore = sampleScore))
   })
   sumFit = sum(sapply(taxonWise, function(x){length(x$fit)==2}))
