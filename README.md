@@ -28,7 +28,7 @@ As example data we use a study on the microbiome of colorectal cancer patients "
 data(Zeller)
 ```
 
-The *Zeller* object is a phyloseq object, which contains all the information of a microbiome experiment. The *RCM* package is tailor-made for phyloseq objects. More information on building the phyloseq object can be found [here](http://joey711.github.io/phyloseq/import-data.html).
+The *Zeller* object is a phyloseq object, which contains all the information of a microbiome experiment. The *RCM* package is tailor-made for phyloseq objects. We therefore strongly recommend biulding a phyloseq object out of your data, and feeding that object into the *RCM()* function. More information on building the phyloseq object can be found [here](http://joey711.github.io/phyloseq/import-data.html).
 
 Unconstrained RCM
 -----------------
