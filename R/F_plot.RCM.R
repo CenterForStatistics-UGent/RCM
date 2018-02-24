@@ -65,7 +65,7 @@
 #' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
 #' # Subset for a quick fit
-#' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+#' zellerRCM = RCM(tmpPhy)
 #' plot(zellerRCM)
 plot.RCM = function(x, ..., Dim = c(1,2),
                     samColour = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 1.5,

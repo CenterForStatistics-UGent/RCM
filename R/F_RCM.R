@@ -48,14 +48,21 @@ RCM = function(dat, k = 2, round=FALSE, distribution= "NB", prevCutOff = 0.025, 
   if(round) {X=round(X, 0) }#Round to integer
 
   #Check X type
-  if(!all(floor(X)==X)){stop("Please provide integer count matrix, or set 'round' to TRUE! \n")
+  if(!all(floor(X)==X)){stop("Please provide integer count matrix (not a matrix of proportions!), or set 'round' to TRUE! \n")
   } else{X=matrix(as.integer(X), ncol=p, nrow=n)}
 
   colnames(X)=colNames; rownames(X)=rowNames
-  X=X[rowSums(X)>0, ] #Remove empty samples
   X=X[, (colMeans(X==0)<(1-prevCutOff)) & (colSums(X)>(n*minFraction))] #Remove txa with low prevalence and those who do not meet the minFraction requirement
   if(any(rowSums(X)==0)){warning(immediate. = TRUE, paste0("Samples \n", paste(collapse = ", ", rownames(X)[rowSums(X)==0]), "\n contained no more reads after trimming taxa with low prevalence, and were excluded from the fit"))}
-  X=X[rowSums(X)>0, ] #Remove empty samples
+  rowIDkeep = rowSums(X)>0
+  X=X[rowIDkeep, ] #Remove empty samples
+  n=nrow(X)
+  if(classDat=="phyloseq"){
+    dat = prune_samples(x = dat, samples = rowIDkeep)
+  } else {
+  confounders = confounders[rowIDkeep, ]
+  covariates = covariates[rowIDkeep, ]
+  }
 
   ##Build confounder matrix if applicable. ##
   if(!is.null(confounders)){
