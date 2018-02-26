@@ -5,17 +5,16 @@ Manual for the use of the RCM functions
 Install and load packages
 -------------------------
 
-This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The functions used for simulation but which are outside outside the core RC(M) algorithm are present in the "pubFun" folder.
+This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial.
 
-The package can be installed using the following commands:
+The package can be installed and loaded using the following commands:
 
 ``` r
-library(devtools)
-install_github("CenterForStatistics-UGent/RCM")
 library(RCM)
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
-library(phyloseq)
 ```
+
+    ## RCM package version 0.1.0
 
 Dataset
 -------
@@ -23,6 +22,7 @@ Dataset
 As example data we use a study on the microbiome of colorectal cancer patients "Potential of fecal microbiota for early-stage detection of colorectal cancer" (2014) by Zeller *et al.*.
 
 ``` r
+library(phyloseq)
 data(Zeller)
 ```
 
@@ -39,7 +39,7 @@ The unconstrained RC(M) method represents all variability present in the data, r
 ZellerRCM = RCM(Zeller)
 ```
 
-which took 1.3 minutes. Here we supplied a phyloseq object to the RCM function which is preferable. Alternatively one can also provide a count matrix with samples in the rows and taxa in the columns, but then all plotting variables should be supplied manually as vectors later on.
+which took 1.3 minutes.
 
 ### Plotting the unconstrained RCM
 
@@ -56,7 +56,7 @@ Samples are represented by dots, taxa by arrows. Both represent vectors with the
 Valid interpretatations are the following:
 
 -   Samples (endpoints of sample vectors, the red dots) close together depart from independence in a similar way
--   The orthogonal projection of the taxon arrows on the sample arrows are proportional to the departure from independence of that taxon in that sample on the log scale, in the first two dimensions. For example Fusobacterium mortiferum is more abundant than average in samples on the left side of the plot, and more abundant in samples on the right side.
+-   Taxa are more abundant than average in samples to which their arrows point, and less abundant when their arrows point away from the samples. For example Fusobacterium mortiferum is more abundant than average in samples on the left side of the plot, and more abundant in samples on the right side.
 -   The importance parameters *ψ* shown for every axis reflect the relative importance of the dimensions
 
 Distances between endpoints of taxon vectors are meaningless.
@@ -125,11 +125,11 @@ plot(ZellerRCMconstr, plotType = c("species", "variables"))
 
 ![](README_figs/README-plotlin3-1.png)
 
-The projection of species arrows on environmental variables (starting from the origin) represents the sensitivity of this taxon to changes in this variables. Note that the fact that the arrows of BMI and gender are of similar length indicates that one *standard deviation* in BMI has a similar effect to gender.
+The projection of species arrows on environmental variables (starting from the origin) represents the sensitivity of this taxon to changes in this variables. E.g. Pseudomonas fluorescens is much more abundant in healthy and small adenoma patients than in cancer patients. Note that the fact that the arrows of BMI and gender are of similar length indicates that one *standard deviation* in BMI has a similar effect to gender.
 
-We observe that country and diagnosis are the main drivers of the environmental gradient. We also see that the healthy status has a very similar to the small adenoma status, but that they are very different from cancer patients.
+We observe that country and diagnosis are the main drivers of the environmental gradient. We also see that healthy and small adenoma patients have similar taxon compositions, which are very different from the taxon composition of cancer patients.
 
-#### Triplot
+#### Triplot: linear response functions
 
 Triplots combine all the three components in a single plot. This is the default behaviour of the *plot.RCM* function.
 
@@ -149,6 +149,8 @@ plot(ZellerRCMconstrNonParam, samColour = "Diagnosis")
 
 ![](README_figs/README-plotNP3Biplot-1.png)
 
+#### Triplot: Non-parametric response functions
+
 For the non-parametric response functions we can only plot one dimensional triplots, whereby the shape of the response functions of the most strongly reacting taxa is shown. For this we use the *plotRespFun* function.
 
 ``` r
@@ -157,6 +159,6 @@ plotRespFun(ZellerRCMconstrNonParam)
 
 ![](README_figs/README-plotNPTriplot-1.png)
 
-The first dimension is shown by default, the environmental scores of the samples are shown below as ticks, the y-axis shows the response functions of the 8 most reacting species, whereby the x-axis represents the independence model.
+The first dimension is shown by default, the environmental scores of the samples are shown below as ticks, the y-axis shows the response functions of the 8 most reacting species, whereby the x-axis represents the independence model. This graph demonstrates the power of non-parametric response function modelling to unravel differences in species niches.
 
 This document covers only the more basic use of the RCM plotting functions. Discover more advanced features in [RCM manual](http://http://users.ugent.be/~shawinke/RCMmanual) or in the help pages of the functions used.

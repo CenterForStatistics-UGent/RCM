@@ -6,7 +6,7 @@
 #' @param addLabel a boolean, should the r-s-psi label be added?
 #' @param labPos the position of the label. Will be calculated if not provided
 #'
-#' @return a geom_segment object that draws the projection
+#' @return a modified ggplot object that contains the geom_segment object that draws the projection
 #' @export
 #' @import ggplot2
 #' @import phyloseq
