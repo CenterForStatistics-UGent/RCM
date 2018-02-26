@@ -114,7 +114,6 @@ plot.RCM = function(x, ..., Dim = c(1,2),
   plot = plot + xlab(paste0(names(dataSam)[1])) + ylab(paste0(names(dataSam)[2]))
 }
 
-
    #add legend names
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
      plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
@@ -125,28 +124,6 @@ plot.RCM = function(x, ..., Dim = c(1,2),
      plot = plot + scale_shape_discrete(name = shapeLegend)
    } else {plot = plot + guides(shape=FALSE)}
 } else {dataSam=NULL;plot = ggplot()}# END if samples %in% plotType
-
-  ## VARIABLES
-  if("variables" %in% plotType && constrained){
-    #Add variable labels
-    if(is.null(varPlot)){
-    arrowLenghtsVar = rowSums(x$alpha[,Dim]^2) #All arrow lenghts
-    attribs = attr(x$covariates, "assign")
-    arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
-    CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
-    varID = attr(x$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
-    } else {varID = attr(x$covariates, "dimnames")[[2]] %in% unlist(sapply(varPlot, grep, value = TRUE, x = attr(x$covariates, "dimnames")[[2]]))}
-    varData = data.frame(x$alpha * if(!all(plotType=="variables")) 1 else varExpFactor)
-    varData$label = rownames(x$alpha)
-    #Include all levels from important factors, not just the long arrows
-    varData = varData[varID,]
-    if("samples" %in% plotType){
-      scalingFactorAlphaTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
-      scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
-      varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
-    }
-    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = varLabSize)
-  } else {varData = NULL}
 
   ## TAXA
   if("species" %in% plotType){
@@ -163,8 +140,8 @@ plot.RCM = function(x, ..., Dim = c(1,2),
       id = dataTax$arrowLength >= quantile(dataTax$arrowLength,1-taxFrac)
       #Filter out small arrows
       dataTax = dataTax[id,]
-      if(!all(plotType=="species")){
-      scalingFactorTmp = apply(if("samples" %in% plotType) {dataSam[, paste0("Dim", Dim)]} else {varData[, paste0("Dim", Dim)]},2,range)/apply(dataTax[, c("end1","end2")]-dataTax[, c("origin1","origin2")],2,range)
+      if("samples" %in% plotType){
+      scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")]-dataTax[, c("origin1","origin2")],2,range)
       scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
       #Scale the arrows
       dataTax[,c("end1","end2")] = dataTax[,c("origin1","origin2")] + dataTax[,c("slope1","slope2")] * scalingFactor
@@ -269,6 +246,33 @@ if(taxLabels){
       ylab(paste("Dim",Dim[2]))
   }
   } #END if "species" %in% plotType
+
+  ## VARIABLES
+  if("variables" %in% plotType && constrained){
+    #Add variable labels
+    if(is.null(varPlot)){
+      arrowLenghtsVar = rowSums(x$alpha[,Dim]^2) #All arrow lenghts
+      attribs = attr(x$covariates, "assign")
+      arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
+      CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
+      varID = attr(x$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
+    } else {varID = attr(x$covariates, "dimnames")[[2]] %in% unlist(sapply(varPlot, grep, value = TRUE, x = attr(x$covariates, "dimnames")[[2]]))}
+    varData = data.frame(x$alpha * if(!all(plotType=="variables")) 1 else varExpFactor)
+    varData$label = rownames(x$alpha)
+    #Include all levels from important factors, not just the long arrows
+    varData = varData[varID,]
+    if(!all(plotType=="variables")){
+      if("samples" %in% plotType){
+        scalingFactorAlphaTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
+        scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
+      } else if("species" %in% plotType){
+        scalingFactorAlphaTmp = apply(dataTax[, c("end1","end2")],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
+        scalingFactorAlpha = max(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
+      }
+      varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
+    }
+    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = varLabSize)
+  } else {varData = NULL}
 
   #Add cross in the centre
   plot = plot + geom_point(data=data.frame(x=0,y=0), aes_string(x="x",y="y"), size = crossSize, inherit.aes = FALSE, shape=3)
