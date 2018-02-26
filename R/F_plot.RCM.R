@@ -80,7 +80,6 @@ plot.RCM = function(x, ..., Dim = c(1,2),
 
 ## SAMPLES
   if("samples" %in% plotType){
-  # taxCol = NULL #No species colours if samples are plotted
    dataSam = coords$samples
   #Get the sample colours
   if(length(samColour)==1){
@@ -211,8 +210,12 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     }
     if((!constrained || x$responseFun=="linear") ){
       if(arrowSize > 0){
-      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = if(alpha) "arrowLength" else NULL, colour = if("samples" %in% plotType) NULL else  "taxCol"), colour = taxColSingle, arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
-      if(!"species" %in% plotType){
+        if("samples" %in% plotType | length(taxCol)==1){
+      plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = if(alpha) "arrowLength" else NULL), colour = taxColSingle, arrow = arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
+        } else {
+          plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = if(alpha) "arrowLength" else NULL, colour = "taxCol"), arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
+        }
+      if(!("samples" %in% plotType| length(taxCol)==1)){
       plot = plot + if(is.factor(taxCol)) scale_colour_discrete(name = colLegend) else scale_colour_continuous(name = colLegend, low = contCol[1], high = contCol[2])
       }
       plot = plot +  if(alpha) scale_alpha_continuous(range = alphaRange)
