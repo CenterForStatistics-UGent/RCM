@@ -210,12 +210,12 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     }
     if((!constrained || x$responseFun=="linear") ){
       if(arrowSize > 0){
-        if("samples" %in% plotType | length(taxCol)==1){
+        if("samples" %in% plotType | (length(taxCol)==1 && taxCol!="Deviance")){
       plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = if(alpha) "arrowLength" else NULL), colour = taxColSingle, arrow = arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
         } else {
           plot <- plot + geom_segment(data=dataTax, aes_string(x='origin1', y = 'origin2', xend="end1", yend = "end2", alpha = if(alpha) "arrowLength" else NULL, colour = "taxCol"), arrow=arrow(length=unit(0.1,"cm")), inherit.aes = FALSE, size = arrowSize) +  guides(alpha = FALSE)
         }
-      if(!("samples" %in% plotType| length(taxCol)==1)){
+      if(!("samples" %in% plotType| (length(taxCol)==1 && taxCol!="Deviance"))){
       plot = plot + if(is.factor(taxCol)) scale_colour_discrete(name = colLegend) else scale_colour_continuous(name = colLegend, low = contCol[1], high = contCol[2])
       }
       plot = plot +  if(alpha) scale_alpha_continuous(range = alphaRange)
