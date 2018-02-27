@@ -10,7 +10,7 @@
 getInt = function(fitObj, sampleScore, stop.on.error = FALSE,...){
   #Absolute values assure positive outcomes
   integrate(f = function(y, fitObj){
-    if(class(fitObj) %in% c("vgam", "glm")){
+    if(class(fitObj)[[1]] %in% c("vgam", "glm")){
     abs(predict(fitObj, type = "link", newdata = data.frame(sampleScore = y, logMu = 0))) #logMu = 0 for departure from uniformity
     } else {
       #GAM and GLM fits failed, turn to indepedence model!

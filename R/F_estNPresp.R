@@ -33,9 +33,9 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
     # }
     if(class(tmp)=="try-error") { #If still fails turn to parametric fit
       warning("GAM would not fit, turned to cubic parametric fit ")
-      tmp = try(glm(X[,i]~sampleScore + I(sampleScore^2) + I(sampleScore^3), offset = logMu[,i], family = negative.binomial(thetas[i]), etastart = logMu[,i]), silent = TRUE)
+      tmp = try(glm(x~sampleScore + I(sampleScore^2) + I(sampleScore^3), offset = logMu, family = negative.binomial(thetas[i]), etastart = logMu, data = df), silent = TRUE)
     }
-    if(class(tmp)=="try-error") {
+    if(class(tmp)[[1]]=="try-error") {
     tmp = list(coef = rep(0,4), fitted = muMarg[,i]) #If nothing will fit, stick to an independence model
     }
     list(fit = tmp, int = getInt(tmp, sampleScore = sampleScore))
