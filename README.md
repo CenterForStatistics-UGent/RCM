@@ -5,9 +5,14 @@ Manual for the use of the RCM functions
 Install and load packages
 -------------------------
 
-This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial.
+This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The basic usage is demonstrated here, for more advanced examples see the [RCM manual](http://http://users.ugent.be/~shawinke/RCMmanual) and the help pages of *RCM()*, *RCM\_NB()*, and *plot.RCM*.
 
 The package can be installed and loaded using the following commands:
+
+``` r
+library(devtools)
+install_github("CenterForStatistics-UGent/RCM")
+```
 
 ``` r
 library(RCM)
@@ -68,6 +73,14 @@ plot(ZellerRCM, samColour = "Diagnosis")
 ```
 
 ![](README_figs/README-plotUnconstrainedRCMallColour-1.png)
+
+Any richness measure defined in the *phyloseq* package (see *?estimateRichness*) can also be supplied as sample colour.
+
+``` r
+plot(ZellerRCM, samColour = "Shannon")
+```
+
+![](README_figs/README-plotRichness-1.png)
 
 #### Conditioning
 
@@ -161,4 +174,4 @@ plotRespFun(ZellerRCMconstrNonParam)
 
 The first dimension is shown by default, the environmental scores of the samples are shown below as ticks, the y-axis shows the response functions of the 8 most reacting species, whereby the x-axis represents the independence model. This graph demonstrates the power of non-parametric response function modelling to unravel differences in species niches.
 
-This document covers only the more basic use of the RCM plotting functions. Discover more advanced features in [RCM manual](http://http://users.ugent.be/~shawinke/RCMmanual) or in the help pages of the functions used.
+This document covers only the more basic use of the RCM plotting functions. Discover more advanced features in the [RCM manual](http://users.ugent.be/~shawinke/RCMmanual) or in the help pages of the functions used.
