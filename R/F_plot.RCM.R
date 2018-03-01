@@ -160,7 +160,7 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
           return("purple")
         }
       })
-      dataEllipseTmp = vapply(seq_along(taxa_names(x$physeq)), FUN.VALUE = matrix(0,nPoints,3),function(tax){
+      dataEllipseTmp = vapply(seq_along(taxa_names(x$physeq)), FUN.VALUE = matrix(0,1000L,3),function(tax){
         x = coords$species[tax,]
         cbind(ellipseCoord(a = unlist(x[paste0("a", Dim)]) * x$psis[Dim], b = unlist(x[paste0("b", Dim)]) * x$psis[Dim], c = unlist(x[paste0("a", Dim)]) * x$psis[Dim], quadDrop = quadDrop, nPoints = 1000L), taxon = tax)
       })

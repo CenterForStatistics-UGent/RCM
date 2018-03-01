@@ -19,7 +19,7 @@ RCM(dat, k = 2, round = FALSE, prevCutOff = 0.025, minFraction = 0.1,
 
 \item{minFraction}{a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10\%}
 
-\item{rowWeights, }{colWeights character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
+\item{rowWeights, colWeights}{character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
 
 \item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
 
