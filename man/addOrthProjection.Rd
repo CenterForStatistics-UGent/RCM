@@ -12,14 +12,14 @@ addOrthProjection(RCMplot, sample = NULL, species = NULL, variable = NULL,
 
 \item{sample, species, variable}{names or approximate coordinates of sample, species or variable}
 
-\item{Dims}{the dimensions}
+\item{Dims}{The dimensions of the solutions that have been plotted}
 
 \item{addLabel}{a boolean, should the r-s-psi label be added?}
 
 \item{labPos}{the position of the label. Will be calculated if not provided}
 }
 \value{
-a geom_segment object that draws the projection
+a modified ggplot object that contains the geom_segment object that draws the projection
 }
 \description{
 This function adds orthogonal projections to a given plot based on coordinates or sample/taxon/variable names

@@ -3,17 +3,17 @@
 #'
 #' @param X a nxp data matrix
 #' @param k an scalar, number of dimensions in the RC(M) model
-#' @param rowWeights a character string, either "uniform" or "marginal" row weights. Defaults to "uniform"
-#' @param colWeights a character string, either "uniform" or "marginal" column weights. Defaults to "uniform "marginal"
-#' @param tol a scalar, the relative convergende tolerance for the row scores and column scores parameters, defaults to 1e-3
-#' @param maxItOut an integer, the maximum number of iteration in the outer loop, defaults to 500
-#' @param Psitol a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4
-#' @param verbose a boolean, should information on iterations be printed? Defaults to TRUE
+#' @param rowWeights a character string, either "uniform" or "marginal" row weights.
+#' @param colWeights a character string, either "uniform" or "marginal" column weights.
+#' @param tol a scalar, the relative convergende tolerance for the row scores and column scores parameters.
+#' @param maxItOut an integer, the maximum number of iteration in the outer loop.
+#' @param Psitol a scalar, the relative convergence tolerance for the psi parameters.
+#' @param verbose a boolean, should information on iterations be printed?
 #' @param NBRCM a previously fitted NBRCM object, from which the lower dimensions can be extracted. Only useful if NBRCM$xk < k
 #' @param global global strategy for solving non-linear systems, see ?nleqslv
 #' @param nleqslv.control a list with control options, see nleqslv
 #' @param jacMethod Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm
-#' @param dispFreq an integer, how many iterations the algorithm should wait before reestimationg the dispersions. Defaults to 20
+#' @param dispFreq an integer, how many iterations the algorithm should wait before reestimationg the dispersions.
 #' @param convNorm a scalar, the norm to use to determine convergence
 #' @param prior.df an integer, see estDisp()
 #' @param marginEst a character string, either "MLE" or "marginSums", indicating how the independence model should be estimated

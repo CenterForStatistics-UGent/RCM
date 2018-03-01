@@ -2,17 +2,17 @@
 #'
 #' @description Plots a number of response functions over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
 #'
-#' @param RCM and RCM object
+#' @param RCM an RCM object
 #' @param taxa a character vector of taxa to be plotted
 #' @param addSamples a boolean, should sample points be shown?
 #' @param samSize a sample variable name or a vector of length equal to the number of samples, for the sample sizes
-#' @param Dim the dimension to be plotted
+#' @param Dim An integer, the dimension to be plotted
 #' @param nPoints the number of points to be used to plot the lines
 #' @param labSize the label size for the variables
 #' @param yLocVar the y-location of the variables, recycled if necessary
 #' @param yLocSam the y-location of the samples, recycled if necessary
 #' @param Palette which color palette to use
-#' @param addJitter should variable names be jittered to make them more readable
+#' @param addJitter A boolean, should variable names be jittered to make them more readable
 #' @param subdivisions the number of subdivisions for the integration
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
@@ -37,7 +37,7 @@
 #' zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
 #' round = TRUE, responseFun = "nonparametric")
 #' plotRespFun(zellerRCMnp)
-plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL, Dim = 1, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
+plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -58,8 +58,7 @@ df = data.frame(sampleScore = sampleScoreSeq, lapply(taxa, predictFun, x = sampl
 names(df)[-1] = taxa
 dfMolt = reshape2::melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
 
-plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line()
-plot = plot + xlab(paste("Environmental score of dimension", Dim)) + ylab("Response function")
+plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line() + xlab(paste("Environmental score of dimension", Dim)) + ylab("Response function")
 
 #Also add the associated elements of the environmental gradient in the upper margin
 textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))

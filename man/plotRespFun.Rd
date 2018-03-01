@@ -5,13 +5,13 @@
 \title{Plot the non-parametric response functions of a prespecified set of taxa}
 \usage{
 plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL,
-  Dim = 1, nPoints = 1000L, labSize = 2.5, yLocVar = NULL,
+  Dim = 1L, nPoints = 100L, labSize = 2.5, yLocVar = NULL,
   yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
-  subdivisions = 50L, nTaxa = 8L, angle = 90, legendLabSize = 15,
+  subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,
   legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, ...)
 }
 \arguments{
-\item{RCM}{and RCM object}
+\item{RCM}{an RCM object}
 
 \item{taxa}{a character vector of taxa to be plotted}
 
@@ -19,7 +19,7 @@ plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL,
 
 \item{samSize}{a sample variable name or a vector of length equal to the number of samples, for the sample sizes}
 
-\item{Dim}{the dimension to be plotted}
+\item{Dim}{An integer, the dimension to be plotted}
 
 \item{nPoints}{the number of points to be used to plot the lines}
 
@@ -31,7 +31,7 @@ plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL,
 
 \item{Palette}{which color palette to use}
 
-\item{addJitter}{should variable names be jittered to make them more readable}
+\item{addJitter}{A boolean, should variable names be jittered to make them more readable}
 
 \item{subdivisions}{the number of subdivisions for the integration}
 

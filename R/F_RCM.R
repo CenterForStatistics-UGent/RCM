@@ -3,18 +3,17 @@
 #' @param dat an nxp count matrix or a phyloseq object with an otu_table slot
 #' @param k an integer, the number of dimensions of the RCM solution
 #' @param round a boolean, whether to round to nearest integer. Defaults to FALSE.
-#' @param distribution a character string, the error distribution of the RC(M) model. Defaults to NB
 #' @param prevCutOff a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2
 #' @param minFraction a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10\%
-#' @param rowWeights,colWeights character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
-#' @param covariates In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
-#' @param confounders In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case dat is a matrix, a nxf matrix or dataframe of confounders Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
+#' @param rowWeights, colWeights character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
+#' @param covariates In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
+#' @param confounders In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
 #' @param prevFit An object with a previous fit, normally from a lower dimension, that should be extended.
 #' @param ... Further arguments passed on to the RCM.NB() function
 #'
 #'@description This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
 #'
-#'@details This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
+#'@details This function should be called on a raw count matrix, without rarefying or normalization to proportions. This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
 #'@seealso \code{\link{RCM_NB}},\code{\link{plot.RCM}},\code{\link{residualPlot}},\code{\link{plotRespFun}}
 #'
 #' @return see \code{\link{RCM_NB}}
@@ -30,8 +29,8 @@
 #' require(phyloseq)
 #' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
-#' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
-RCM = function(dat, k = 2, round=FALSE, distribution= "NB", prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
+#' zellerRCM = RCM(tmpPhy, round = TRUE)
+RCM = function(dat, k = 2, round=FALSE, prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
   classDat = class(dat) #The class provided
 
   ##The count data##

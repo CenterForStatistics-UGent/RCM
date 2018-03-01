@@ -2,7 +2,7 @@
 #'
 #' @param RCMplot the RCMplot object
 #' @param sample,species,variable names or approximate coordinates of sample, species or variable
-#' @param Dims the dimensions
+#' @param Dims The dimensions of the solutions that have been plotted
 #' @param addLabel a boolean, should the r-s-psi label be added?
 #' @param labPos the position of the label. Will be calculated if not provided
 #'

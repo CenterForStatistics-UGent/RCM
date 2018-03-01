@@ -4,36 +4,55 @@
 \alias{plot.RCM}
 \title{A function to plot RC(M) ordination result with the help of ggplot2}
 \usage{
-\method{plot}{RCM}(x, ..., Dim = c(1, 2), samColour = NULL, colLegend = if
+\method{plot}{RCM}(x, ..., Dim = c(1, 2), plotType = c("samples", "species",
+  "variables"), samColour = NULL, taxNum = if (all(plotType == "species") ||
+  !is.null(taxRegExp)) {     ncol(x$X) } else {     10 }, taxRegExp = NULL,
+  varNum = 15, arrowSize = 0.25, Influence = FALSE, inflDim = 1,
+  returnCoords = FALSE, alpha = TRUE, varPlot = NULL, colLegend = if
   (Influence) paste0("Influence on\\n", samColour,
   "\\nparameter \\nin dimension", inflDim) else samColour, samShape = NULL,
-  shapeLegend = samShape, samSize = 1.5, taxNum = if (all(plotType ==
-  "species") || !is.null(taxRegExp)) {     ncol(x$X) } else {     10 },
-  scalingFactor = NULL, plotType = c("samples", "species", "variables"),
-  quadDrop = 0.995, nPoints = 1000, plotEllipse = TRUE, taxaScale = 0.5,
-  Palette = if (!all(plotType == "species")) "Set1" else "Paired",
+  shapeLegend = samShape, samSize = 1.5, scalingFactor = NULL,
+  quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if
+  (!all(plotType == "species")) "Set1" else "Paired",
   taxLabels = !all(plotType == "species"), taxDots = FALSE,
   taxCol = "blue", taxColSingle = "blue", nudge_y = -0.08,
   square = TRUE, xInd = if (all(plotType == "samples")) c(0, 0) else
   c(-0.75, 0.75), yInd = c(0, 0), taxLabSize = 2, varLabSize = 2,
-  taxRegExp = NULL, varNum = 15, varPlot = NULL, alpha = TRUE,
-  alphaRange = c(0.2, 1), arrowSize = 0.25, Influence = FALSE,
-  inflDim = 1, richSupported = c("Observed", "Chao1", "ACE", "Shannon",
-  "Simpson", "InvSimpson", "Fisher"), returnCoords = FALSE,
-  varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
-  phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
-  crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 15,
-  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
-  plotPsi = TRUE, breakChar = "\\n")
+  alphaRange = c(0.2, 1), varExpFactor = 10, manExpFactorTaxa = 0.975,
+  nPhyl = 10, phylOther = c(""), legendSize = samSize,
+  noLegend = is.null(samColour), crossSize = 4, contCol = c("orange",
+  "darkgreen"), legendLabSize = 15, legendTitleSize = 16,
+  axisLabSize = 14, axisTitleSize = 16, plotPsi = TRUE,
+  breakChar = "\\n")
 }
 \arguments{
 \item{x}{an RCM object}
 
 \item{...}{further arguments, passed on to aes in the the ggplot() function}
 
-\item{Dim}{A vector two dimensions to plot, defaults to the first two}
+\item{Dim}{An integer vector of length two, which dimensions to plot}
 
-\item{samColour}{a character string, the variable to use for the colour of the sample dots}
+\item{plotType}{a character string: which components to plot. Can be any combination of "samples","species" and "variables"}
+
+\item{samColour}{a character string, the variable to use for the colour of the sample dots. Alternatively, a vector equal to the number of samples in the RCM object can be supplied}
+
+\item{taxNum}{an integer, the number of taxa to be plotted}
+
+\item{taxRegExp}{a character vector indicating which taxa to plot. Any taxa matcing this regular expression will be plotted}
+
+\item{varNum}{an integer, number of variable arrows to draw}
+
+\item{arrowSize}{a scalar, the size of the arrows}
+
+\item{Influence}{a boolean, should the influence of the observation on the variable be plotted}
+
+\item{inflDim}{an integer, the dimension for which the influence should be calculated}
+
+\item{returnCoords}{a boolean, should final coordinates be returned?}
+
+\item{alpha}{a boolean, should small arrows be made transparent?}
+
+\item{varPlot}{the names of the variable arrows to plot. Overrides the varNum argument}
 
 \item{colLegend}{a character string, the legend text for the sample colour. Defaults to the name of the colour variable}
 
@@ -43,15 +62,9 @@
 
 \item{samSize}{a scalar, the size of the sample dots}
 
-\item{taxNum}{an integer, the number of taxa to be plotted}
-
 \item{scalingFactor}{a scalar, a user supplied scaling factor for the taxon arrows If not supplied it will be calculated to make sample and taxon plots on the same scale}
 
-\item{plotType}{a character string: which components to plot}
-
 \item{quadDrop}{a number between 0 and 1. At this fraction of the peak height are the ellipses of the quadratic response functions drawn}
-
-\item{nPoints}{an integer, number of points to evaluate for the ellipse}
 
 \item{plotEllipse}{a boolean, whether to add the ellipses}
 
@@ -79,25 +92,7 @@
 
 \item{varLabSize}{the size of the variable label}
 
-\item{taxRegExp}{a character vector indicating which taxa to plot}
-
-\item{varNum}{an integer, number of variable arrows to draw}
-
-\item{varPlot}{the names of the variable arrows to plot. Overrides the varNum argument}
-
-\item{alpha}{a boolean, should small arrows be made transparent?}
-
 \item{alphaRange}{The range of transparency}
-
-\item{arrowSize}{a scalar, the size of the arrows}
-
-\item{Influence}{a boolean, should the influence of the observation on the variable be plotted}
-
-\item{inflDim}{an integer, the dimension for which the influence should be calculated}
-
-\item{richSupported}{A character vector of supported richness measures}
-
-\item{returnCoords}{a boolean, should final coordinates be returned?}
 
 \item{varExpFactor}{a scalar, the factor by which to expand the variable coordinates}
 
@@ -133,12 +128,20 @@ plots a ggplot2-object to output
 \description{
 A function to plot RC(M) ordination result with the help of ggplot2
 }
+\details{
+This function relies on the ggplot2 machinery to produce the plots, and the result can be modified accordingly. Monoplots, biplots and for constrained analysis even triplots can be produced, depending on the "plotType" argument.
+
+When one of either "Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson" or "Fisher" are supplied to the "samColour" argument, the according richness measure (as calculated by phyloseq::estimate_richness) is mapped to the sample colour
+}
 \examples{
 data(Zeller)
 require(phyloseq)
 tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 prune_samples(sample_names(Zeller)[1:50], Zeller))
 # Subset for a quick fit
-zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+zellerRCM = RCM(tmpPhy)
 plot(zellerRCM)
+}
+\seealso{
+\code{\link{RCM}},\code{\link{addOrthProjection}}
 }

@@ -21,17 +21,17 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 
 \item{k}{an scalar, number of dimensions in the RC(M) model}
 
-\item{rowWeights}{a character string, either "uniform" or "marginal" row weights. Defaults to "uniform"}
+\item{rowWeights}{a character string, either "uniform" or "marginal" row weights.}
 
-\item{colWeights}{a character string, either "uniform" or "marginal" column weights. Defaults to "uniform "marginal"}
+\item{colWeights}{a character string, either "uniform" or "marginal" column weights.}
 
-\item{tol}{a scalar, the relative convergende tolerance for the row scores and column scores parameters, defaults to 1e-3}
+\item{tol}{a scalar, the relative convergende tolerance for the row scores and column scores parameters.}
 
-\item{maxItOut}{an integer, the maximum number of iteration in the outer loop, defaults to 500}
+\item{maxItOut}{an integer, the maximum number of iteration in the outer loop.}
 
-\item{Psitol}{a scalar, the relative convergence tolerance for the psi parameters, defaults to 1e-4}
+\item{Psitol}{a scalar, the relative convergence tolerance for the psi parameters.}
 
-\item{verbose}{a boolean, should information on iterations be printed? Defaults to TRUE}
+\item{verbose}{a boolean, should information on iterations be printed?}
 
 \item{NBRCM}{a previously fitted NBRCM object, from which the lower dimensions can be extracted. Only useful if NBRCM$xk < k}
 
@@ -41,7 +41,7 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 0.001,
 
 \item{jacMethod}{Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm}
 
-\item{dispFreq}{an integer, how many iterations the algorithm should wait before reestimationg the dispersions. Defaults to 20}
+\item{dispFreq}{an integer, how many iterations the algorithm should wait before reestimationg the dispersions.}
 
 \item{convNorm}{a scalar, the norm to use to determine convergence}
 

@@ -4,9 +4,9 @@
 \alias{RCM}
 \title{A simple wrapper function for the RC(M) object for phyloseq objects and matrices.}
 \usage{
-RCM(dat, k, round = FALSE, distribution = "NB", prevCutOff = 0.025,
-  minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",
-  covariates = NULL, confounders = NULL, prevFit = NULL, ...)
+RCM(dat, k = 2, round = FALSE, prevCutOff = 0.025, minFraction = 0.1,
+  rowWeights = "uniform", colWeights = "marginal", covariates = NULL,
+  confounders = NULL, prevFit = NULL, ...)
 }
 \arguments{
 \item{dat}{an nxp count matrix or a phyloseq object with an otu_table slot}
@@ -15,17 +15,15 @@ RCM(dat, k, round = FALSE, distribution = "NB", prevCutOff = 0.025,
 
 \item{round}{a boolean, whether to round to nearest integer. Defaults to FALSE.}
 
-\item{distribution}{a character string, the error distribution of the RC(M) model. Defaults to NB}
-
 \item{prevCutOff}{a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2}
 
 \item{minFraction}{a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10\%}
 
-\item{rowWeights, colWeights}{character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
+\item{rowWeights, }{colWeights character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
 
-\item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case dat is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
+\item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
 
-\item{confounders}{In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case dat is a matrix, a nxf matrix or dataframe of confounders Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.}
+\item{confounders}{In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.}
 
 \item{prevFit}{An object with a previous fit, normally from a lower dimension, that should be extended.}
 
@@ -38,14 +36,14 @@ see \code{\link{RCM_NB}}
 This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
 }
 \details{
-This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
+This function should be called on a raw count matrix, without rarefying or normalization to proportions. This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
 }
 \examples{
 data(Zeller)
 require(phyloseq)
 tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 prune_samples(sample_names(Zeller)[1:50], Zeller))
-zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
+zellerRCM = RCM(tmpPhy, round = TRUE)
 }
 \seealso{
 \code{\link{RCM_NB}},\code{\link{plot.RCM}},\code{\link{residualPlot}},\code{\link{plotRespFun}}
