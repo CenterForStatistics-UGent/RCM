@@ -109,7 +109,7 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
      geom_point(size = samSize ) +#point size
      if(noLegend) {guides(colour=FALSE)}  #Legend
 
-      if(plotPsi) {
+  if(plotPsi) {
         plot = plot + xlab(bquote(psi[.(Dim[1])] == .(round(x$psis[Dim[1]],1)))) + #xlabel
           ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
       } else {
@@ -283,7 +283,7 @@ if(taxLabels){
   #Add cross in the centre
   plot = plot + geom_point(data=data.frame(x=0,y=0), aes_string(x="x",y="y"), size = crossSize, inherit.aes = FALSE, shape=3)
   # Enlarge most text
-  plot = plot + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize))
+  plot = plot + theme_bw() + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize), panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
   #Expand limits to show all text
   plot = if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
