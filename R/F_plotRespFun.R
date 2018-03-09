@@ -4,6 +4,7 @@
 #'
 #' @param RCM an RCM object
 #' @param taxa a character vector of taxa to be plotted
+#' @param type a character string, plot the response function on the log-scale ("link") or the abundance scale "response", similar to predict.glm().
 #' @param addSamples a boolean, should sample points be shown?
 #' @param samSize a sample variable name or a vector of length equal to the number of samples, for the sample sizes
 #' @param Dim An integer, the dimension to be plotted
@@ -37,9 +38,12 @@
 #' zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
 #' round = TRUE, responseFun = "nonparametric")
 #' plotRespFun(zellerRCMnp)
-plotRespFun = function(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
+plotRespFun = function(RCM, taxa = NULL, type = "link", addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
+  }
+  if(!type %in% c("link","response")){
+    stop("Specify type = 'link' or 'response'!\n")
   }
   names(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]]) = taxa_names(RCM$physeq)
   # A function to predict new values
@@ -57,8 +61,9 @@ if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongl
 df = data.frame(sampleScore = sampleScoreSeq, lapply(taxa, predictFun, x = sampleScoreSeq))
 names(df)[-1] = taxa
 dfMolt = reshape2::melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
+if(type=="response"){dfMolt$responseFun = exp(dfMolt$responseFun)}
 
-plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line() + xlab(paste("Environmental score of dimension", Dim)) + ylab("Response function")
+plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line() + xlab(paste("Environmental score of dimension", Dim)) + ylab(ifelse(type=="link","Response function", "Response function on count scale"))
 
 #Also add the associated elements of the environmental gradient in the upper margin
 textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))
