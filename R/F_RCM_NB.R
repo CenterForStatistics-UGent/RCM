@@ -418,7 +418,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     CCA = vegan::cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
     if(sum(!colnames(covariates) %in% CCA$alias)<k) {
       k = sum(!colnames(covariates) %in% CCA$alias)
-      warning(.immediate = TRUE, paste("Can only fit an ordination with", k,"dimensions with so few covariates!"))
+      warning(immediate. = TRUE, paste("Can only fit an ordination with", k,"dimensions with so few covariates!"))
     }
     alpha = matrix(0,d,k)
     alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,1:k] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
@@ -543,8 +543,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     ## 3) Termination
 
     rownames(alpha) = colnames(covariates)
-    colnames(cMat) = colnames(X)
-    rownames(cMat) = colnames(alpha) = paste0("Dim",1:k)
+    colnames(alpha) = paste0("Dim",1:k)
 
     returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha)
   }
