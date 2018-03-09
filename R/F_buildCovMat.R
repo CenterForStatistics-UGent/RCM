@@ -42,7 +42,7 @@ buildCovMat = function(covariates, n,  dat){
   nFactorLevels = sapply(datFrame, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
   covariatesNames = covariatesNames[!(sapply(datFrame, is.factor) & (nFactorLevels < 2))] #Drop factors with one level
   nFactorLevels = nFactorLevels[covariatesNames]
-  datFrame = datFrame[,covariatesNames]
+  datFrame = datFrame[,covariatesNames, drop=FALSE]
   if(any(sapply(datFrame, is.factor) & (nFactorLevels < 2))){
     warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[sapply(datFrame, is.factor) & (nFactorLevels < 2)], sep = " \n"),immediate. = TRUE)
       }
