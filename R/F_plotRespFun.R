@@ -5,6 +5,7 @@
 #' @param RCM an RCM object
 #' @param taxa a character vector of taxa to be plotted
 #' @param type a character string, plot the response function on the log-scale ("link") or the abundance scale "response", similar to predict.glm().
+#' @param logTransformYAxis a boolean, should y-axis be log transformed?
 #' @param addSamples a boolean, should sample points be shown?
 #' @param samSize a sample variable name or a vector of length equal to the number of samples, for the sample sizes
 #' @param Dim An integer, the dimension to be plotted
@@ -38,7 +39,7 @@
 #' zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
 #' round = TRUE, responseFun = "nonparametric")
 #' plotRespFun(zellerRCMnp)
-plotRespFun = function(RCM, taxa = NULL, type = "link", addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
+plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -61,9 +62,9 @@ if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongl
 df = data.frame(sampleScore = sampleScoreSeq, lapply(taxa, predictFun, x = sampleScoreSeq))
 names(df)[-1] = taxa
 dfMolt = reshape2::melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
-if(type=="response"){dfMolt$responseFun = exp(dfMolt$responseFun)}
+if(type=="response"){dfMolt$responseFun = exp(dfMolt$responseFun) +1e-9}
 
-plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line() + xlab(paste("Environmental score of dimension", Dim)) + ylab(ifelse(type=="link","Response function", "Response function on count scale"))
+plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line() + xlab(paste("Environmental score of dimension", Dim)) + ylab(ifelse(type=="link","Response function", "Response function on count scale")) + scale_y_continuous(trans = if (logTransformYAxis) "log10" else "identity", labels = if (logTransformYAxis) function(x) {sprintf("%.4f", x)} else NULL)
 
 #Also add the associated elements of the environmental gradient in the upper margin
 textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))
@@ -71,7 +72,7 @@ textDf = textDf[order(textDf$x),]
 textDf$y = (if(is.null(yLocVar)) (max(dfMolt$responseFun)+min(dfMolt$responseFun))/2 else yLocVar)
 plot = plot + geom_text(data = textDf, mapping = aes_string(x = "x", y = "y", label = "text"), inherit.aes = FALSE, angle = angle, size = labSize) + scale_colour_brewer(palette = Palette)
 #Finally add a dashed line for the independence model, and a straight line for the 0 environmental gradient
-plot = plot + geom_hline(yintercept = 0, linetype = "dashed", size = 0.3) + geom_vline(xintercept = 0, size = 0.15, linetype = "dotted")
+plot = plot + geom_hline(yintercept = switch(type, "link" = 0, "response" =1), linetype = "dashed", size = 0.3) + geom_vline(xintercept = 0, size = 0.15, linetype = "dotted")
 
 #If samples required, add them too, as marks of different heights
 if(addSamples){
