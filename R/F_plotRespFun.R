@@ -22,6 +22,7 @@
 #' @param legendTitleSize size of the legend title
 #' @param axisLabSize size of the axis labels
 #' @param axisTitleSize size of the axis title
+#' @param lineSize size of the response function lines
 #' @param ... Other argumens passed on to the ggplot() function
 #'
 #' @return Plots a ggplot2-object to output
@@ -39,7 +40,7 @@
 #' zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
 #' round = TRUE, responseFun = "nonparametric")
 #' plotRespFun(zellerRCMnp)
-plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,...){
+plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, lineSize = 0.75,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -64,7 +65,7 @@ names(df)[-1] = taxa
 dfMolt = reshape2::melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
 if(type=="response"){dfMolt$responseFun = exp(dfMolt$responseFun) +1e-9}
 
-plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line() + xlab(paste("Environmental score of dimension", Dim)) + ylab(ifelse(type=="link","Response function", "Response function on count scale")) + scale_y_continuous(trans = if (logTransformYAxis) "log10" else "identity", labels = if (logTransformYAxis) function(x) {sprintf("%.4f", x)} else identity)
+plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line(size = lineSize) + xlab(paste("Environmental score of dimension", Dim)) + ylab(ifelse(type=="link","Response function", "Response function on count scale")) + scale_y_continuous(trans = if (logTransformYAxis) "log10" else "identity", labels = if (logTransformYAxis) function(x) {sprintf("%.4f", x)} else identity)
 
 #Also add the associated elements of the environmental gradient in the upper margin
 textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))
