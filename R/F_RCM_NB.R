@@ -63,6 +63,7 @@
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
 #' @export
+#' @note Plotting is not supported for quadratic response functions
 #' @examples
 #' data(Zeller)
 #' require(phyloseq)
