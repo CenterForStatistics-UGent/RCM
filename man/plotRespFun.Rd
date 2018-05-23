@@ -4,16 +4,21 @@
 \alias{plotRespFun}
 \title{Plot the non-parametric response functions of a prespecified set of taxa}
 \usage{
-plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL,
-  Dim = 1L, nPoints = 100L, labSize = 2.5, yLocVar = NULL,
-  yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
-  subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,
-  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, ...)
+plotRespFun(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE,
+  addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 100L,
+  labSize = 2.5, yLocVar = NULL, yLocSam = NULL, Palette = "Set3",
+  addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90,
+  legendLabSize = 15, legendTitleSize = 16, axisLabSize = 14,
+  axisTitleSize = 16, lineSize = 0.75, ...)
 }
 \arguments{
 \item{RCM}{an RCM object}
 
 \item{taxa}{a character vector of taxa to be plotted}
+
+\item{type}{a character string, plot the response function on the log-scale ("link") or the abundance scale "response", similar to predict.glm().}
+
+\item{logTransformYAxis}{a boolean, should y-axis be log transformed?}
 
 \item{addSamples}{a boolean, should sample points be shown?}
 
@@ -46,6 +51,8 @@ plotRespFun(RCM, taxa = NULL, addSamples = TRUE, samSize = NULL,
 \item{axisLabSize}{size of the axis labels}
 
 \item{axisTitleSize}{size of the axis title}
+
+\item{lineSize}{size of the response function lines}
 
 \item{...}{Other argumens passed on to the ggplot() function}
 }

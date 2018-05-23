@@ -86,7 +86,7 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
    dataSam = coords$samples
   #Get the sample colours
   if(length(samColour)==1){
-    dataSam$colourPlot = if(Influence) rowSums(NBalphaInfl(x, inflDim)[,,samColour]) else if(samColour == "Deviance") rowSums(getDevianceRes(x, Dim)^2) else if(samColour %in% richSupported) estimate_richness(x$physeq, measures = samColour) else get_variable(x$physeq, samColour)
+    dataSam$colourPlot = if(Influence) rowSums(NBalphaInfl(x, inflDim)[,,samColour]) else if(samColour == "Deviance") rowSums(getDevianceRes(x, Dim)^2) else if(samColour %in% richSupported) estimate_richness(x$physeq, measures = samColour)[[1]] else get_variable(x$physeq, samColour)
   } else if(!is.null(samColour)){
     dataSam$colourPlot = samColour
   } else {dataSam$colourPlot = factor(rep(1, nrow(dataSam)))}
