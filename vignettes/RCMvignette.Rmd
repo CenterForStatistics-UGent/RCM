@@ -35,6 +35,12 @@ knitr::opts_knit$set(root.dir = "/home/stijn/PhD/RCM")
 palStore = palette()
 ```
 
+\textbf{Important note:} The package has been upgraded for use with the future 2.3.0 version of the $ggplot2$ package. This version can be installed as:
+
+```{r ggplot2Install, echo = TRUE, eval = FALSE}
+devtools::install_github("tidyverse/ggplot2")
+```
+
 ## Dataset
 
 As example data we use a study on the microbiome of colorectal cancer patients "Potential of fecal microbiota for early-stage detection of colorectal cancer" (2014) by Zeller _et al._.

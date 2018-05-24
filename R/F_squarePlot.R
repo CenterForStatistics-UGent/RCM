@@ -7,6 +7,6 @@
 #' @return a ggplot object, squared
 squarePlot <- function(plt, xInd = 0, yInd = 0){
   return(plt + coord_fixed() +
-           expand_limits(x=ggplot_build(plt)$layout$panel_ranges[[1]]$x.range + if(length(xInd)==1) xInd*c(-1,1) else xInd,
-                         y=ggplot_build(plt)$layout$panel_ranges[[1]]$y.range + if(length(yInd)==1) yInd*c(-1,1) else yInd))
+           expand_limits(x=ggplot_build(plt)$layout$panel_params[[1]]$x.range + if(length(xInd)==1) xInd*c(-1,1) else xInd,
+                         y=ggplot_build(plt)$layout$panel_params[[1]]$y.range + if(length(yInd)==1) yInd*c(-1,1) else yInd))
 }
