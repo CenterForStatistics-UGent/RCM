@@ -15,7 +15,7 @@
 
 #' @return A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
 dNBllcol = function(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK, ...) {
-  cMat = matrix(beta[1:p], byrow=TRUE, ncol=p, nrow=1)
+  cMat = matrix(beta[seq_len(p)], byrow=TRUE, ncol=p, nrow=1)
   mu = exp(reg %*% cMat) * muMarg
 
   lambda1 = beta[p+1] #Lagrangian multiplier for centering restrictions sum(abunds*r_{ik}) = 0
