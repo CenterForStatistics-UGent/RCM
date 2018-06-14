@@ -15,7 +15,6 @@
 #' @param yLocSam the y-location of the samples, recycled if necessary
 #' @param Palette which color palette to use
 #' @param addJitter A boolean, should variable names be jittered to make them more readable
-#' @param subdivisions the number of subdivisions for the integration
 #' @param nTaxa an integer, number of taxa to plot
 #' @param angle angle at which variable labels should be turned
 #' @param legendLabSize size of the legend labels
@@ -40,7 +39,7 @@
 #' zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
 #' round = TRUE, responseFun = "nonparametric")
 #' plotRespFun(zellerRCMnp)
-plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, lineSize = 0.75,...){
+plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, lineSize = 0.75,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
@@ -56,7 +55,7 @@ plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALS
 sampleScoreRange = range(RCM$covariates %*% RCM$alpha[,Dim])
 sampleScoreSeq = seq(sampleScoreRange[1], sampleScoreRange[2], length.out = nPoints)
 if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongly
-  intsNonParam = sapply(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]], function(x){getInt(x$fit, sampleScore =c( RCM$covariates %*% RCM$alpha[,1]), subdivisions = subdivisions)}) #The integrals
+  intsNonParam = sapply(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]], function(x){x$int}) #The integrals
   taxa = taxa_names(RCM$physeq)[intsNonParam > quantile(intsNonParam, (ntaxa(RCM$physeq)-nTaxa)/ntaxa(RCM$physeq))]
 }
 
