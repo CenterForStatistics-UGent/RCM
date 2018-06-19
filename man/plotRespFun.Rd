@@ -7,9 +7,9 @@
 plotRespFun(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE,
   addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 100L,
   labSize = 2.5, yLocVar = NULL, yLocSam = NULL, Palette = "Set3",
-  addJitter = FALSE, subdivisions = 40L, nTaxa = 8L, angle = 90,
-  legendLabSize = 15, legendTitleSize = 16, axisLabSize = 14,
-  axisTitleSize = 16, lineSize = 0.75, ...)
+  addJitter = FALSE, nTaxa = 8L, angle = 90, legendLabSize = 15,
+  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
+  lineSize = 0.75, ...)
 }
 \arguments{
 \item{RCM}{an RCM object}
@@ -37,8 +37,6 @@ plotRespFun(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE,
 \item{Palette}{which color palette to use}
 
 \item{addJitter}{A boolean, should variable names be jittered to make them more readable}
-
-\item{subdivisions}{the number of subdivisions for the integration}
 
 \item{nTaxa}{an integer, number of taxa to plot}
 

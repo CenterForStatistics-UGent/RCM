@@ -11,13 +11,13 @@
   returnCoords = FALSE, alpha = TRUE, varPlot = NULL, colLegend = if
   (Influence) paste0("Influence on\\n", samColour,
   "\\nparameter \\nin dimension", inflDim) else samColour, samShape = NULL,
-  shapeLegend = samShape, samSize = 1.5, scalingFactor = NULL,
+  shapeLegend = samShape, samSize = 2, scalingFactor = NULL,
   quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if
   (!all(plotType == "species")) "Set1" else "Paired",
   taxLabels = !all(plotType == "species"), taxDots = FALSE,
   taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08, square = TRUE,
   xInd = if (all(plotType == "samples")) c(0, 0) else c(-0.75, 0.75),
-  yInd = c(0, 0), taxLabSize = 2, varLabSize = 2, alphaRange = c(0.2,
+  yInd = c(0, 0), taxLabSize = 4, varLabSize = 3.5, alphaRange = c(0.2,
   1), varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
   phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
   crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 15,
