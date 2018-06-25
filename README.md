@@ -5,7 +5,7 @@ Manual for the use of the RCM functions
 Install and load packages
 -------------------------
 
-This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The basic usage is demonstrated here, for more advanced examples see the [RCM manual](http://http://users.ugent.be/~shawinke/RCMmanual) and the help pages of *RCM()*, *RCM\_NB()*, and *plot.RCM()* functions.
+This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The basic usage is demonstrated here, for more advanced examples see the [RCM manual](http://users.ugent.be/~shawinke/RCMmanual) and the help pages of *RCM()*, *RCM\_NB()*, and *plot.RCM()* functions.
 
 The package can be installed and loaded using the following commands:
 
@@ -13,6 +13,8 @@ The package can be installed and loaded using the following commands:
 library(devtools)
 install_github("CenterForStatistics-UGent/RCM")
 ```
+
+Note that you may have to install the *ggplot2* devel version, which can be found at. We have upgraded the code in anticipation to breaking changes in the *ggplot2* package.
 
 ``` r
 library(RCM)
