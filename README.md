@@ -14,7 +14,13 @@ library(devtools)
 install_github("CenterForStatistics-UGent/RCM")
 ```
 
-Note that you may have to install the *ggplot2* devel version, which can be found at. We have upgraded the code in anticipation to breaking changes in the *ggplot2* package.
+Note that you may have to install the *ggplot2* devel version, which can be installed as
+
+``` r
+devtools::install_github("tidyverse/ggplot2")
+```
+
+We have upgraded the RCM-package already in anticipation to breaking changes in the *ggplot2* package.
 
 ``` r
 library(RCM)
