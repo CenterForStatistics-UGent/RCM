@@ -46,7 +46,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
   taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
   taxonCoef = lapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit$coef})
-  psi = sqrt(sum(sapply(taxonWise, function(x){x$int})^2*colWeights))
+  psi = sqrt(mean(sapply(taxonWise, function(x){x$int})^2*colWeights))
   names(taxonWise) = colnames(X)
   list(taxonWiseFitted = taxonWiseFitted, taxonCoef = taxonCoef, overallFitted = matrix(fitted(overall), ncol = ncols), overallCoef = coef(overall), psi = psi, taxonWise = taxonWise)
 }
