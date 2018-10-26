@@ -84,7 +84,7 @@
 
 \item{axesFixed}{A boolean, should the aspect ratio of the plot (the scale between the x and y-axis) be fixed. It is highly recommended to keep this argument at TRUE  for honest representation of the ordination. If set to FALSE, the plotting space will be optimally used but the plot may be deformed in the process.}
 
-\item{aspRatio}{The aspect ratio of the plot when 'axesfixed' is TRUE (otherwise this argument is ignored). It is highly recommended to keep this argument at 1 for honest representation of the ordination.}
+\item{aspRatio}{The aspect ratio of the plot when 'axesfixed' is TRUE (otherwise this argument is ignored), passde on to ggplot2::coord_fixed(). It is highly recommended to keep this argument at 1 for honest representation of the ordination.}
 
 \item{xInd}{a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side}
 
