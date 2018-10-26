@@ -29,7 +29,7 @@
 #' @param taxColSingle the taxon colour if there is only one
 #' @param nudge_y a scalar, the offet for the taxon labels
 #' @param axesFixed A boolean, should the aspect ratio of the plot (the scale between the x and y-axis) be fixed. It is highly recommended to keep this argument at TRUE  for honest representation of the ordination. If set to FALSE, the plotting space will be optimally used but the plot may be deformed in the process.
-#' @param aspRatio The aspect ratio of the plot when 'axesfixed' is TRUE (otherwise this argument is ignored). It is highly recommended to keep this argument at 1 for honest representation of the ordination.
+#' @param aspRatio The aspect ratio of the plot when 'axesfixed' is TRUE (otherwise this argument is ignored), passde on to ggplot2::coord_fixed(). It is highly recommended to keep this argument at 1 for honest representation of the ordination.
 #' @param xInd a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side
 #' @param yInd a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side
 #' @param taxLabSize the size of taxon labels
@@ -287,8 +287,9 @@ if(taxLabels){
   # Enlarge most text
   plot = plot + theme_bw() + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize), panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
-  # Fix coordinates at a certain aspect ratio if required
+  # Fix coordinates at a certain aspect ratio if required, and throw warning if not
   if(axesFixed) plot = plot + coord_fixed(ratio = aspRatio)
+  if(!(axesFixed & (aspRatio==1))) warning("Axes not squared, plot may be deformed!\nConsider setting aspRatio = 1 and axesFixed = TRUE.")
   #Expand limits to show all text
   plot = indentPlot(plot, xInd = xInd, yInd = yInd)
   if(returnCoords){

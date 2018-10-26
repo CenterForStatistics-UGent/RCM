@@ -15,12 +15,13 @@
   quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if
   (!all(plotType == "species")) "Set1" else "Paired",
   taxLabels = !all(plotType == "species"), taxDots = FALSE,
-  taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08, square = TRUE,
-  xInd = if (all(plotType == "samples")) c(0, 0) else c(-0.75, 0.75),
-  yInd = c(0, 0), taxLabSize = 4, varLabSize = 3.5, alphaRange = c(0.2,
-  1), varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10,
-  phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour),
-  crossSize = 4, contCol = c("orange", "darkgreen"), legendLabSize = 15,
+  taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08,
+  axesFixed = TRUE, aspRatio = 1, xInd = if (all(plotType == "samples"))
+  c(0, 0) else c(-0.75, 0.75), yInd = c(0, 0), taxLabSize = 4,
+  varLabSize = 3.5, alphaRange = c(0.2, 1), varExpFactor = 10,
+  manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""),
+  legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,
+  contCol = c("orange", "darkgreen"), legendLabSize = 15,
   legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
   plotPsi = TRUE, breakChar = "\\n")
 }
@@ -81,7 +82,9 @@
 
 \item{nudge_y}{a scalar, the offet for the taxon labels}
 
-\item{square}{A boolean, should the plot be square? This is highly preferred to honestly represent differences}
+\item{axesFixed}{A boolean, should the aspect ratio of the plot (the scale between the x and y-axis) be fixed. It is highly recommended to keep this argument at TRUE  for honest representation of the ordination. If set to FALSE, the plotting space will be optimally used but the plot may be deformed in the process.}
+
+\item{aspRatio}{The aspect ratio of the plot when 'axesfixed' is TRUE (otherwise this argument is ignored). It is highly recommended to keep this argument at 1 for honest representation of the ordination.}
 
 \item{xInd}{a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side}
 
