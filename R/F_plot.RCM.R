@@ -28,7 +28,8 @@
 #' @param taxCol the taxon colour
 #' @param taxColSingle the taxon colour if there is only one
 #' @param nudge_y a scalar, the offet for the taxon labels
-#' @param square A boolean, should the plot be square? This is highly preferred to honestly represent differences
+#' @param axesFixed A boolean, should the aspect ratio of the plot (the scale between the x and y-axis) be fixed. It is highly recommended to keep this argument at TRUE  for honest representation of the ordination. If set to FALSE, the plotting space will be optimally used but the plot may be deformed in the process.
+#' @param aspRatio The aspect ratio of the plot when 'axesfixed' is TRUE (otherwise this argument is ignored). It is highly recommended to keep this argument at 1 for honest representation of the ordination.
 #' @param xInd a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side
 #' @param yInd a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side
 #' @param taxLabSize the size of taxon labels
@@ -72,7 +73,7 @@
 #' zellerRCM = RCM(tmpPhy)
 #' plot(zellerRCM)
 plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","variables"),
-                    samColour = NULL, taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, taxRegExp = NULL, varNum = 15, arrowSize = 0.25, Influence = FALSE, inflDim = 1, returnCoords = FALSE, alpha = TRUE, varPlot = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 2, scalingFactor = NULL, quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08, square = TRUE, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), taxLabSize = 4, varLabSize = 3.5, alphaRange = c(0.2,1), varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = TRUE, breakChar = "\n") {
+                    samColour = NULL, taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, taxRegExp = NULL, varNum = 15, arrowSize = 0.25, Influence = FALSE, inflDim = 1, returnCoords = FALSE, alpha = TRUE, varPlot = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 2, scalingFactor = NULL, quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08, axesFixed = TRUE, aspRatio = 1, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), taxLabSize = 4, varLabSize = 3.5, alphaRange = c(0.2,1), varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = TRUE, breakChar = "\n") {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher")
@@ -286,8 +287,10 @@ if(taxLabels){
   # Enlarge most text
   plot = plot + theme_bw() + theme(axis.title = element_text(size = axisTitleSize), axis.text = element_text(size = axisLabSize), legend.title = element_text(size = legendTitleSize), legend.text = element_text(size = legendLabSize), panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
+  # Fix coordinates at a certain aspect ratio if required
+  if(axesFixed) plot = plot + coord_fixed(ratio = aspRatio)
   #Expand limits to show all text
-  plot = if(square) squarePlot(plot, xInd = xInd, yInd = yInd) else plot
+  plot = indentPlot(plot, xInd = xInd, yInd = yInd)
   if(returnCoords){
   list(plot = plot, samples = dataSam, species = dataTax, variables  = varData)
   } else {plot}
