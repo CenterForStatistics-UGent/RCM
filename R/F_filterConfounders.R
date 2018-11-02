@@ -34,6 +34,8 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
       return(nleq)
     }) #Estimate response functions
 
+    if(anyNA(NB_params)) {stop("Filtering on confounders failed because of failed fits. Consider more stringent filtering by increasing the prevCutOff parameter.\n")}
+
     thetas = estDisp(X = X, cMat = matrix(0, ncol=p), rMat = matrix(0, nrow=n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params), trended.dispersion = trended.dispersion) #Estimate overdispersion
 
     iter = iter +1

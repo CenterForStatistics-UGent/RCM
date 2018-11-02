@@ -4,8 +4,8 @@
 \alias{addOrthProjection}
 \title{This function adds orthogonal projections to a given plot based on coordinates or sample/taxon/variable names}
 \usage{
-addOrthProjection(RCMplot, sample = NULL, species = NULL, variable = NULL,
-  Dims = 1:2, addLabel = FALSE, labPos = NULL)
+addOrthProjection(RCMplot, sample = NULL, species = NULL,
+  variable = NULL, Dims = 1:2, addLabel = FALSE, labPos = NULL)
 }
 \arguments{
 \item{RCMplot}{the RCMplot object}

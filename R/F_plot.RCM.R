@@ -18,12 +18,12 @@
 #' @param samShape a character string, the variable to use for the shape of the sample dots
 #' @param shapeLegend a character string, the text to use for the shapeLegend. Defaults to the name of the shape variable
 #' @param samSize a scalar, the size of the sample dots
-#' @param scalingFactor a scalar, a user supplied scaling factor for the taxon arrows If not supplied it will be calculated to make sample and taxon plots on the same scale
+#' @param scalingFactor a scalar, a user supplied scaling factor for the taxon arrows. If not supplied it will be calculated to make sample and taxon plots on the same scale
 #' @param quadDrop a number between 0 and 1. At this fraction of the peak height are the ellipses of the quadratic response functions drawn
 #' @param plotEllipse a boolean, whether to add the ellipses
 #' @param taxaScale a scalar, by which to scale the rectangles of the quadratic taxon plot
 #' @param Palette the colour palette
-#' @param taxLabels a boolean, should taxon labels be plotted
+#' @param taxLabels a boolean, should taxon labels be plotted?
 #' @param taxDots a boolean, should taxa be plotted as dots?
 #' @param taxCol the taxon colour
 #' @param taxColSingle the taxon colour if there is only one
@@ -36,7 +36,7 @@
 #' @param varLabSize the size of the variable label
 #' @param alphaRange The range of transparency
 #' @param varExpFactor a scalar, the factor by which to expand the variable coordinates
-#' @param manExpFactorTaxa a manual expansion factor for the taxa Setting it to a high value allows you to plot the taxa around the samples
+#' @param manExpFactorTaxa a manual expansion factor for the taxa. Setting it to a high value allows you to plot the taxa around the samples
 #' @param nPhyl an integer, number of phylogenetic levels to show
 #' @param phylOther a character vector of phylogenetic levels to be included in the "other" group
 #' @param legendSize a size for the coloured dots in the legend

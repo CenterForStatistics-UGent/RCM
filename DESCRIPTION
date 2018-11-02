@@ -8,7 +8,7 @@ Description: Combine ideas of log-linear analysis of contingency table, flexible
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
 Imports: RColorBrewer, alabama, edgeR, reshape2, tseries, vegan, VGAM, ggplot2 (>= 2.2.1.9000), nleqslv, phyloseq, tensor, MASS, stats, grDevices, graphics
 Suggests: knitr,
     rmarkdown

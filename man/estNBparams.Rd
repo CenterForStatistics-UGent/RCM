@@ -4,8 +4,8 @@
 \alias{estNBparams}
 \title{A function to estimate the taxon-wise NB-params}
 \usage{
-estNBparams(design, thetas, muMarg, psi, X, nleqslv.control, ncols, initParam,
-  v, dynamic = FALSE, envRange)
+estNBparams(design, thetas, muMarg, psi, X, nleqslv.control, ncols,
+  initParam, v, dynamic = FALSE, envRange)
 }
 \arguments{
 \item{design}{an n-by-v design matrix}

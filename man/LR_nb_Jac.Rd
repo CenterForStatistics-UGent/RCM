@@ -5,8 +5,8 @@
 \title{A function that returns the Jacobian of the likelihood ratio}
 \usage{
 LR_nb_Jac(Alpha, X, CC, responseFun = c("linear", "quadratic",
-  "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK, k,
-  centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, preFabMat,
+  "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK,
+  k, centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, preFabMat,
   envGradEst, ...)
 }
 \arguments{

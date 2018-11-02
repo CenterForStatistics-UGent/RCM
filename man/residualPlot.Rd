@@ -4,10 +4,10 @@
 \alias{residualPlot}
 \title{Make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic}
 \usage{
-residualPlot(RCM, Dim = 1, whichTaxa = "response", resid = "Deviance",
-  numTaxa = 9, mfrow = NULL, samColour = NULL, samShape = NULL,
-  legendLabSize = 15, legendTitleSize = 16, axisLabSize = 14,
-  axisTitleSize = 16, taxTitle = TRUE)
+residualPlot(RCM, Dim = 1, whichTaxa = "response",
+  resid = "Deviance", numTaxa = 9, mfrow = NULL, samColour = NULL,
+  samShape = NULL, legendLabSize = 15, legendTitleSize = 16,
+  axisLabSize = 14, axisTitleSize = 16, taxTitle = TRUE)
 }
 \arguments{
 \item{RCM}{an RCM object}

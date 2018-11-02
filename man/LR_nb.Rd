@@ -4,9 +4,10 @@
 \alias{LR_nb}
 \title{A function that returns the value of the log-likelihood ratio of alpha, keeping the response functions fixed}
 \usage{
-LR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric",
-  "dynamic"), muMarg, psi, nleqslv.control = list(trace = FALSE), n,
-  NB_params, NB_params_noLab, thetaMat, ncols, nonParamRespFun, envGradEst, ...)
+LR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
+  "nonparametric", "dynamic"), muMarg, psi, nleqslv.control = list(trace
+  = FALSE), n, NB_params, NB_params_noLab, thetaMat, ncols,
+  nonParamRespFun, envGradEst, ...)
 }
 \arguments{
 \item{Alpha}{a vector of length d, the environmental gradient}

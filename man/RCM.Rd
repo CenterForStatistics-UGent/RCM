@@ -4,9 +4,9 @@
 \alias{RCM}
 \title{A simple wrapper function for the RC(M) object for phyloseq objects and matrices.}
 \usage{
-RCM(dat, k = 2, round = FALSE, prevCutOff = 0.025, minFraction = 0.1,
-  rowWeights = "uniform", colWeights = "marginal", covariates = NULL,
-  confounders = NULL, prevFit = NULL, ...)
+RCM(dat, k = 2, round = FALSE, prevCutOff = 0.025,
+  minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",
+  covariates = NULL, confounders = NULL, prevFit = NULL, ...)
 }
 \arguments{
 \item{dat}{an nxp count matrix or a phyloseq object with an otu_table slot}

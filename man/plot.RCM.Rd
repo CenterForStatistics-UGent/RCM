@@ -4,21 +4,22 @@
 \alias{plot.RCM}
 \title{A function to plot RC(M) ordination result with the help of ggplot2}
 \usage{
-\method{plot}{RCM}(x, ..., Dim = c(1, 2), plotType = c("samples", "species",
-  "variables"), samColour = NULL, taxNum = if (all(plotType == "species") ||
-  !is.null(taxRegExp)) {     ncol(x$X) } else {     10 }, taxRegExp = NULL,
-  varNum = 15, arrowSize = 0.25, Influence = FALSE, inflDim = 1,
-  returnCoords = FALSE, alpha = TRUE, varPlot = NULL, colLegend = if
-  (Influence) paste0("Influence on\\n", samColour,
-  "\\nparameter \\nin dimension", inflDim) else samColour, samShape = NULL,
-  shapeLegend = samShape, samSize = 2, scalingFactor = NULL,
-  quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if
-  (!all(plotType == "species")) "Set1" else "Paired",
-  taxLabels = !all(plotType == "species"), taxDots = FALSE,
-  taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08,
-  axesFixed = TRUE, aspRatio = 1, xInd = if (all(plotType == "samples"))
-  c(0, 0) else c(-0.75, 0.75), yInd = c(0, 0), taxLabSize = 4,
-  varLabSize = 3.5, alphaRange = c(0.2, 1), varExpFactor = 10,
+\method{plot}{RCM}(x, ..., Dim = c(1, 2), plotType = c("samples",
+  "species", "variables"), samColour = NULL, taxNum = if (all(plotType
+  == "species") || !is.null(taxRegExp)) {     ncol(x$X) } else {     10 },
+  taxRegExp = NULL, varNum = 15, arrowSize = 0.25,
+  Influence = FALSE, inflDim = 1, returnCoords = FALSE,
+  alpha = TRUE, varPlot = NULL, colLegend = if (Influence)
+  paste0("Influence on\\n", samColour, "\\nparameter \\nin dimension",
+  inflDim) else samColour, samShape = NULL, shapeLegend = samShape,
+  samSize = 2, scalingFactor = NULL, quadDrop = 0.995,
+  plotEllipse = TRUE, taxaScale = 0.5, Palette = if (!all(plotType ==
+  "species")) "Set1" else "Paired", taxLabels = !all(plotType ==
+  "species"), taxDots = FALSE, taxCol = "blue",
+  taxColSingle = "blue", nudge_y = 0.08, axesFixed = TRUE,
+  aspRatio = 1, xInd = if (all(plotType == "samples")) c(0, 0) else
+  c(-0.75, 0.75), yInd = c(0, 0), taxLabSize = 4, varLabSize = 3.5,
+  alphaRange = c(0.2, 1), varExpFactor = 10,
   manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""),
   legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,
   contCol = c("orange", "darkgreen"), legendLabSize = 15,
@@ -62,7 +63,7 @@
 
 \item{samSize}{a scalar, the size of the sample dots}
 
-\item{scalingFactor}{a scalar, a user supplied scaling factor for the taxon arrows If not supplied it will be calculated to make sample and taxon plots on the same scale}
+\item{scalingFactor}{a scalar, a user supplied scaling factor for the taxon arrows. If not supplied it will be calculated to make sample and taxon plots on the same scale}
 
 \item{quadDrop}{a number between 0 and 1. At this fraction of the peak height are the ellipses of the quadratic response functions drawn}
 
@@ -72,7 +73,7 @@
 
 \item{Palette}{the colour palette}
 
-\item{taxLabels}{a boolean, should taxon labels be plotted}
+\item{taxLabels}{a boolean, should taxon labels be plotted?}
 
 \item{taxDots}{a boolean, should taxa be plotted as dots?}
 
@@ -98,7 +99,7 @@
 
 \item{varExpFactor}{a scalar, the factor by which to expand the variable coordinates}
 
-\item{manExpFactorTaxa}{a manual expansion factor for the taxa Setting it to a high value allows you to plot the taxa around the samples}
+\item{manExpFactorTaxa}{a manual expansion factor for the taxa. Setting it to a high value allows you to plot the taxa around the samples}
 
 \item{nPhyl}{an integer, number of phylogenetic levels to show}
 

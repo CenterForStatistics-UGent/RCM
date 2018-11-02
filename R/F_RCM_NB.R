@@ -358,7 +358,11 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         if (verbose) cat("\n Estimating psis \n")
         regPsis = outer(rMat[,KK] ,cMat[KK,])
 
-        psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method=jacMethod, preFabMat = preFabMat)$x)
+        psiTry = try(abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method=jacMethod, preFabMat = preFabMat)$x))
+        if(class(psiTry)=="try-error"){
+          stop("Fit failed, likely due to numeric reasons. Consider more stringent filtering by increasing the prevCutOff parameter.\n")
+          } else {psis[KK] = psiTry}
+
         #Column scores
         if (verbose) cat("\n Estimating column scores \n")
         regCol = rMat[,KK, drop=FALSE]*psis[KK]

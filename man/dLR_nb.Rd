@@ -4,9 +4,9 @@
 \alias{dLR_nb}
 \title{A function that returns the value of the partial derivative of the log-likelihood ratio to alpha, keeping the response functions fixed}
 \usage{
-dLR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic", "nonparametric",
-  "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK, k, centMat, nLambda,
-  nLambda1s, thetaMat, muMarg, ncols, envGradEst, ...)
+dLR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
+  "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK,
+  k, centMat, nLambda, nLambda1s, thetaMat, muMarg, ncols, envGradEst, ...)
 }
 \arguments{
 \item{Alpha}{a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers}

@@ -30,7 +30,7 @@
 #' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
 #' zellerRCM = RCM(tmpPhy, round = TRUE)
-RCM = function(dat, k = 2, round=FALSE, prevCutOff = 0.025, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
+RCM = function(dat, k = 2, round=FALSE, prevCutOff = 0.05, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
   classDat = class(dat) #The class provided
 
   ##The count data##
@@ -99,7 +99,7 @@ rm(tmp)
   } else {
     covModelMat = centMat = NULL
   }
-
+if(anyNA(X)) {stop("NA values present in count matrix, please filter these out first!\n")}
   tic = proc.time() #Time the calculation
   tmp = RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k,
                          confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim),
