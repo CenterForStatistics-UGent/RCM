@@ -44,7 +44,7 @@ buildCovMat = function(covariates, n,  dat){
   nFactorLevels = nFactorLevels[covariatesNames]
   datFrame = datFrame[,covariatesNames, drop=FALSE]
   if(any(sapply(datFrame, is.factor) & (nFactorLevels < 2))){
-    warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[sapply(datFrame, is.factor) & (nFactorLevels < 2)], sep = " \n"),immediate. = TRUE)
+    warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[sapply(datFrame, is.factor) & (nFactorLevels < 2)], sep = " \n"),immediate. = TRUE, call. = FALSE)
       }
   # Center and scale the continuous covariates
   datFrame[sapply(datFrame, is.numeric)] = scale(datFrame[sapply(datFrame, is.numeric)])
@@ -54,7 +54,7 @@ buildCovMat = function(covariates, n,  dat){
     data = datFrame,
     contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor)],
                            contrasts, contrasts=FALSE))
-  if(NCOL(covModelMat)==1) stop("A constrained ordination with only one variable is meaningless.\nPlease provide more covariates or perform an unconstrained analysis.")
+  if(NCOL(covModelMat)==1) stop("A constrained ordination with only one variable is meaningless.\nPlease provide more covariates or perform an unconstrained analysis.", call. = FALSE)
 
   list(covModelMat = covModelMat, datFrame = datFrame)
 }
