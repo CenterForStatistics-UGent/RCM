@@ -54,6 +54,7 @@ buildCovMat = function(covariates, n,  dat){
     data = datFrame,
     contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor)],
                            contrasts, contrasts=FALSE))
+  if(NCOL(covModelMat)==1) stop("A constrained ordination with only one variable is meaningless.\nPlease provide more covariates or perform an unconstrained analysis.")
 
   list(covModelMat = covModelMat, datFrame = datFrame)
 }
