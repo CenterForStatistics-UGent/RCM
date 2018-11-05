@@ -11,5 +11,5 @@
 #' @return A vector of length v with the evaluation of the score functions
 dNBllcol_constr = function(betas, X, reg, theta, muMarg, psi) {
   mu = exp(c(reg %*% betas)*psi) * muMarg
-  crossprod((X-mu)/(1+mu/theta) , reg) * psi
+  crossprod((X-mu)/(1+mu/theta) , reg)
 }
