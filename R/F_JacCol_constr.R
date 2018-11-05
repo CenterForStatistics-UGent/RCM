@@ -1,4 +1,4 @@
-#' Returns the jacobian of this function
+#' Returns the jacobian of the score function of the constrained analysis with linear response function.
 #'
 #' @param betas a vector of v parameters of the response function of a single taxon
 #' @param X the count vector of length n
