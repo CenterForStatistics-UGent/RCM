@@ -73,7 +73,7 @@
 #' mat = mat[rowSums(mat)>0, colSums(mat)>0]
 #' zellerRCM = RCM_NB(mat, k = 2)
 #' #Needs to be called directly onto a matrix
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 500L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 1000L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -553,7 +553,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha)
   }
   if(!all(convergence)){
-    warning("Algorithm did not converge for all dimensions! Check for errors or consider changing tolerances or number of iterations")
+    warning(paste0("Algorithm did not converge for dimensions ", paste(which(!convergence), collapse = ","), "! Check for errors or consider changing tolerances or number of iterations"))
   }
   return(returnList)
 }

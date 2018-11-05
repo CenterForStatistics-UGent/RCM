@@ -31,7 +31,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
     df = data.frame(x = X[,i], sampleScore = sampleScore, logMu = log(muMarg[,i])) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
       tmp = try(suppressWarnings(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[[i]], maxit = vgamMaxit,...)), silent = TRUE)
     # }
-    if(class(tmp)=="try-error") { #If still fails turn to parametric fit
+    if(class(tmp)=="try-error") { #If this fails turn to parametric fit
       warning("GAM would not fit, turned to cubic parametric fit ")
       tmp = try(glm(x~sampleScore + I(sampleScore^2) + I(sampleScore^3), offset = logMu, family = negative.binomial(thetas[i]), etastart = logMu, data = df), silent = TRUE)
     }
