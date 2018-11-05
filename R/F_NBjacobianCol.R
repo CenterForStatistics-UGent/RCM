@@ -15,7 +15,7 @@
 #' @param Jac an empty Jacobian matrix
 
 #' @return A matrix of dimension p+1+1+(k-1) with evaluations of the Jacobian
-NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n ,p, colWeights, nLambda, cMatK, preFabMat, Jac){
+NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda, cMatK, preFabMat, Jac){
   cMat = beta[1:p]
 
   #Calculate the mean

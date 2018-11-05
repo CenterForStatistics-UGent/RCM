@@ -73,7 +73,7 @@
 #' mat = mat[rowSums(mat)>0, colSums(mat)>0]
 #' zellerRCM = RCM_NB(mat, k = 2)
 #' #Needs to be called directly onto a matrix
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 1000L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 1000L, Psitol = 1e-2, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 20L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -215,7 +215,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
       initIter = 1
 
-      if(verbose) cat("Estimating the independence model \n")
+      if(verbose) cat("\nEstimating the independence model \n\n")
 
       while((initIter ==1) || ((initIter <= maxItOut) && (!convergenceInit))){
         logLibsOld = logLibSizesMLE
@@ -463,7 +463,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         muMarg = if(responseFun %in% c("linear","quadratic", "dynamic")){
           exp(getRowMat(responseFun = responseFun, sampleScore = covariates %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,KK-1])*psis[KK-1])*muMarg
         } else {
-          nonParamRespFun[[KK-1]]$taxonWiseFitted
+          exp(nonParamRespFun[[KK-1]]$rowMat*psis[KK-1]) * muMarg#nonParamRespFun[[KK-1]]$taxonWiseFitted
         }
       }
 
@@ -519,12 +519,15 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, colWeights = colWeights, verbose = verbose)
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, psi = psis[KK], ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, colWeights = colWeights, verbose = verbose)
+
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst, psi = psis[KK])
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
-          psis[KK] = nonParamRespFun[[KK]]$psi #Get the psis based on the integrals
+          #Psis
+          if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
+          psis[KK] = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = nonParamRespFun[[KK]]$rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod, preFabMat = preFabMat)$x)#nonParamRespFun[[KK]]$psi #Get the psis based on the integrals
         }
 
         #Store intermediate estimates

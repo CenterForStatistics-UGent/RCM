@@ -49,7 +49,7 @@ plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALS
   names(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]]) = taxa_names(RCM$physeq)
   # A function to predict new values
   predictFun = function(taxon, x){
-    predict(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]$fit, newdata = data.frame(sampleScore=x, logMu = 0))}
+    predict(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]$fit, newdata = data.frame(sampleScore=x, logMu = 0))} #Fix me!
 
   #The range of sample scores
 sampleScoreRange = range(RCM$covariates %*% RCM$alpha[,Dim])
