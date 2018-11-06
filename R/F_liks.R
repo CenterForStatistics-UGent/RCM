@@ -7,7 +7,7 @@
 #'
 #'@return a named array log-likelihoods of the independence model and all models with dimension 1 to k, or a vector with summed log-likelihoods
 #'@export
-liks = function(rcm, Sum = FALSE){
+liks = function(rcm, Sum = TRUE){
   outnames = c("independence", paste0("Dim ", 1:rcm$k),"saturated")
   if(Sum) {
     tmp = sapply(c(0:rcm$k, Inf), FUN = function(i){
