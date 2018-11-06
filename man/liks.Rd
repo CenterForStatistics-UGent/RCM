@@ -4,7 +4,7 @@
 \alias{liks}
 \title{Calculate the log-likelihoods of the indepence and saturated models and all fitted submodels}
 \usage{
-liks(rcm, Sum = FALSE)
+liks(rcm, Sum = TRUE)
 }
 \arguments{
 \item{rcm}{an object of the RCM class}

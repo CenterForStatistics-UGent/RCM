@@ -422,7 +422,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
     returnList = list(converged = convergence, rMat = rMat, cMat=cMat, psis = psis, thetas = thetas,  rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
                       libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds),
-                      confounders = confounders, confParams = confParams)
+                      confounders = confounders, confParams = confParams, devFilt = devFilt, llFilt = llFilt)
 
   } else { #If covariates provided, do a constrained analysis
     d = ncol(covariates)

@@ -111,6 +111,7 @@ A list with elements
 \item{nonParamRespFun}{A list of the non parametric response functions}
 \item{degree}{The degree of the alternative parametric fit}
 \item{devFilt}{The deviance after filtering confounders}
+\item{llFilt}{The likelihood of the model after filtering on confounders}
 }
 \description{
 A function to fit the RC(M) model with the negative binomial distribution.
