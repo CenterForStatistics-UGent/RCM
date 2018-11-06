@@ -49,7 +49,13 @@ plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALS
   names(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]]) = taxa_names(RCM$physeq)
   # A function to predict new values
   predictFun = function(taxon, x){
-    predict(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]$fit, newdata = data.frame(sampleScore=x, logMu = 0))} #Fix me!
+    fit = RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]$fit
+    if(class(fit)[[1]]=="vgam"){
+    predict(fit, newdata = data.frame(sampleScore=x, logMu = 0))
+    } else {
+      getModelMat(x, RCM$degree) %*% fit
+    }
+    }
 
   #The range of sample scores
 sampleScoreRange = range(RCM$covariates %*% RCM$alpha[,Dim])
@@ -78,7 +84,6 @@ plot = plot + geom_hline(yintercept = switch(type, "link" = 0, "response" =1), l
 if(addSamples){
 dfSam = data.frame(x = RCM$covariates %*% RCM$alpha[,Dim])
 dfSam$Size = if(length(samSize)==1) get_variable(RCM$physeq, varName = samSize) else if(length(samSize)==ncol(RCM$X)) samSize else NULL
-# dfSam$Fill = if(length(samColour)==1) get_variable(RCM$physeq, varName = samColour) else if(length(samColour)==ncol(RCM$X)) samColour else NULL
 dfSam$y = (if(is.null(yLocSam)) min(dfMolt$responseFun)*0.8 else yLocSam) + if(addJitter) runif(min = -1,max =1, n = nrow(RCM$alpha))*diff(range(dfMolt$responseFun))/20 else 0
 if(!is.null(samSize)){
 plot = plot + geom_point(inherit.aes = FALSE, fill = NA, mapping = aes_string(x = "x", y = "y", size = "Size"), data = dfSam, shape = 124)

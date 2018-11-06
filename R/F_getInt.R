@@ -13,7 +13,7 @@ getInt = function(fitObj, sampleScore, stop.on.error = FALSE,...){
     if(class(fitObj)[[1]] == "vgam"){
     abs(predict(fitObj, type = "link", newdata = data.frame(sampleScore = y, logMu = 0))) #logMu = 0 for departure from uniformity
     } else if(class(fitObj) == "numeric"){#If GAM fails, GLM fit
-abs(model.matrix(~y+I(y^2)+I(y^3)) %*% fitObj)
+abs(getModelMat(y, degree = length(fitObj)-1) %*% fitObj)
     } else {#If GAM and GLM fail, fit indepedence model!
       rep.int(0L, length(y))
       }

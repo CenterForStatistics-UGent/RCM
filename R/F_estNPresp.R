@@ -10,7 +10,7 @@
 #' @param coefInitOverall a vector of length 2 with current overall parameters
 #' @param dfSpline a scalar, the degrees of freedom for the smoothing spline.
 #' @param vgamMaxit Maximal number of iterations in the fitting of the GAM model
-#' @param colWeights a vector of length p with column weights
+#' @param degree an integer, the degree of the polynomial fit if the spline fit fails
 #' @param verbose a boolean, should number of failed fits be reported
 #' @param ... further arguments, passed on to the VGAM:::vgam() function
 #'
@@ -25,33 +25,31 @@
 #' \item{taxonWise}{The taxonwise response function}
 #'
 #' @importFrom MASS negative.binomial
-estNPresp = function(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit, coefInitOverall, dfSpline, vgamMaxit, colWeights, verbose,...){
+estNPresp = function(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit, coefInitOverall, dfSpline, vgamMaxit, degree, verbose,...){
   logMu = log(muMarg)
+  MM = getModelMat(sampleScore, degree) #The model matrix for the parametric fit
     taxonWise = lapply(seq_len(ncols), function(i){
     df = data.frame(x = X[,i], sampleScore = sampleScore, logMu = log(muMarg[,i])) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
       tmp = try(suppressWarnings(vgam.edit(data = df,x ~ s(sampleScore, df = dfSpline), psi = psi, offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[[i]], maxit = vgamMaxit,...)), silent = TRUE)
     # }
     if(class(tmp)=="try-error") { #If this fails turn to parametric fit
-      warning("GAM would not fit, turned to cubic parametric fit ")
-      tmp = try(nleqslv(fn =  dNBllcolNP, x = rep(1,4), X = X[,i], reg = model.matrix(~sampleScore + I(sampleScore^2) + I(sampleScore^3)), theta = thetas[i], muMarg = muMarg[,i], jac = NBjacobianColNP)$x)
-
-       # try(glm(x~sampleScore + I(sampleScore^2) + I(sampleScore^3), offset = logMu, family = negative.binomial(thetas[i]), etastart = logMu, data = df), silent = TRUE)
+      warning("GAM would not fit, turned to parametric fit of 7th degree ")
+      tmp = try(nleqslv(fn =  dNBllcolNP, x = rep(1,degree+1), X = X[,i], reg = MM, theta = thetas[i], muMarg = muMarg[,i], jac = NBjacobianColNP)$x)
     }
     if(class(tmp)[[1]]=="try-error") {
       warning("GLM would not fit either, returning independence model! ")
-    tmp = list(coef = rep(0,4), fitted = muMarg[,i]) #If nothing will fit, stick to an independence model
+    tmp = numeric(degree+1)#If nothing will fit, stick to an independence model
     }
     list(fit = tmp, int = getInt(tmp, sampleScore = sampleScore))
   })
-  sumFit = sum(sapply(taxonWise, function(x){length(x$fit)==2}))
+  sumFit = sum(sapply(taxonWise, function(x){class(x$fit)!="vgam"}))
   if(verbose && sumFit) warning("A total number of",sumFit, "response functions did not converge! \n")
   samRep = rep(sampleScore, ncols)
   overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit, ...)
-  #taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
-  rowMat = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") predict(x$fit, type ="link") else model.matrix(~sampleScore + I(sampleScore^2) + I(sampleScore^3)) %*% x$fit})
+  rowMat = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") predict(x$fit, type ="link") else MM %*% x$fit})
   taxonCoef = lapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit})
-  #psi = sqrt(mean(sapply(taxonWise, function(x){x$int})^2*colWeights))
   names(taxonWise) = colnames(X)
-  list(rowMat = rowMat, rowMatOverall = matrix(predict(overall, type = "link"), ncol = ncols), taxonCoef = taxonCoef, overallCoef = coef(overall), taxonWise = taxonWise)
-  #overallFitted = matrix(fitted(overall), ncol = ncols),
+  list(rowMat = rowMat, rowMatOverall = matrix(predict(overall, type = "link"), ncol = ncols), taxonWise = taxonWise)
+  #overallFitted = matrix(fitted(overall), ncol = ncols), taxonCoef = taxonCoef, overallCoef = coef(overall),
+  #taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
 }
