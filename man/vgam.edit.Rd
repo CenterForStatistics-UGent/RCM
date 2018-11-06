@@ -25,6 +25,8 @@ vgam.edit(formula, psi,
 \item{offset}{the offset, depending on lower dimensions}
 
 \item{method}{A character string, the fitting method}
+
+\item{...}{Additional arguments, passed on to the vgam.fit.edit() function}
 }
 \value{
 an object of class vgam

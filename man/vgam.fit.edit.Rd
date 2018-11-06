@@ -5,8 +5,7 @@
 \title{A modified version of the vgam.fit() function from the VGAM pacakage}
 \usage{
 vgam.fit.edit(x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NULL,
-  etastart = NULL, mustart = NULL, offset = 0, family,
-  control = vgam.control(), Terms, smooth.labels,
+  offset = 0, family, control = vgam.control(), Terms, smooth.labels,
   function.name = "vgam", ...)
 }
 \arguments{
@@ -28,7 +27,7 @@ vgam.fit.edit(x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NULL,
 
 \item{control}{a list of control parameters}
 
-\item{Terms, smooth.labels, function.name}{Other, orginal arguments of the vgam.fit() function}
+\item{Terms, smooth.labels, function.name, ...}{Other, orginal arguments of the vgam.fit() function}
 }
 \description{
 A modified version of the vgam.fit() function from the VGAM pacakage

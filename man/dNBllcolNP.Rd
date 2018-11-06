@@ -7,7 +7,7 @@
 dNBllcolNP(beta, X, reg, theta, muMarg, ...)
 }
 \arguments{
-\item{beta}{A vector of any lenght}
+\item{beta}{A vector of any length}
 
 \item{X}{the data vector of length n}
 
@@ -20,7 +20,7 @@ dNBllcolNP(beta, X, reg, theta, muMarg, ...)
 \item{...}{further arguments passed on to the jacobian}
 }
 \value{
-A vector of length 8 with evaluations of the score function
+A vector of the same length as beta with evaluations of the score function
 }
 \description{
 A score function for the estimation of the parameters of a third degree GLM in a constrained RC(M) model, if the GAM fit fails

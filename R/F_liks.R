@@ -13,11 +13,12 @@ liks = function(rcm, Sum = FALSE){
       sum(getLogLik(rcm, i))
     })
     names(tmp) = outnames
+    return(tmp)
   } else {
   tmp = vapply(c(0:rcm$k, Inf), FUN.VALUE = matrix(0, nrow(rcm$X), ncol(rcm$X)), FUN = function(i){
 getLogLik(rcm, i)
   })
   dimnames(tmp)[[3]] = outnames
-  tmp
+  return(tmp)
   }
 }

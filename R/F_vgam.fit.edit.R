@@ -8,14 +8,16 @@
 #' @param offset the offset, based on previous dimensions
 #' @param family the distributional family
 #' @param control a list of control parameters
-#' @param Terms,smooth.labels,function.name Other, orginal arguments of the vgam.fit() function
+#' @param Terms,smooth.labels,function.name,... Other, orginal arguments of the vgam.fit() function
+#'
+#' @importFrom stats .getXlevels is.empty.model model.offset model.response
 
-vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NULL, etastart = NULL, mustart = NULL, offset = 0, family, control = vgam.control(), Terms, smooth.labels, function.name = "vgam", ...)
+vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NULL, offset = 0, family, control = vgam.control(), Terms, smooth.labels, function.name = "vgam", ...)
 {
   if (is.null(criterion <- control$criterion))
     criterion <- "coefficients"
   eff.n <- nrow(x)
-  specialCM <- NULL
+  specialCM = constraints = etastart = mustart = NULL
   post <- list()
   check.rank <- control$Check.rank
   epsilon <- control$epsilon
@@ -38,12 +40,12 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
     eta <- etastart
     mu <- if (length(mustart))
       mustart
-    else slot(family, "linkinv")(eta, extra = extra)
+    else slot(family, "linkinv")(eta, extra = NULL)
   }
   if (length(mustart)) {
     mu <- mustart
     if (length(body(slot(family, "linkfun")))) {
-      eta <- slot(family, "linkfun")(mu, extra = extra)
+      eta <- slot(family, "linkfun")(mu, extra = NULL)
     }
     else {
       warning("argument 'mustart' assigned a value ", "but there is no 'linkfun' slot to use it")
@@ -52,14 +54,16 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
   validparams <- validfitted <- TRUE
   if (length(body(slot(family, "validparams"))))
     validparams <- slot(family, "validparams")(eta, y = y,
-                                               extra = extra)
+                                               extra = NULL)
   if (length(body(slot(family, "validfitted"))))
     validfitted <- slot(family, "validfitted")(mu, y = y,
-                                               extra = extra)
+                                               extra = NULL)
   if (!(validparams && validfitted))
     stop("could not obtain valid initial values. ", "Try using 'etastart', 'coefstart' or 'mustart', else ",
          "family-specific arguments such as 'imethod'.")
-  Hlist <- process.constraints(NULL, x = x, M = M, specialCM = specialCM, Check.cm.rank = control$Check.cm.rank)
+  if (length(family@constraints))
+    eval(slot(family, "constraints"))
+  Hlist <- process.constraints(constraints, x = x, M = M, specialCM = specialCM, Check.cm.rank = control$Check.cm.rank)
   ncolHlist <- unlist(lapply(Hlist, ncol))
   M <- NCOL(eta)
     smooth.frame <- mf
@@ -84,7 +88,7 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
     tfit <- list(smomat = smomat, smooth.frame = smooth.frame)
 
   X.vlm.save <- lm2vlm.model.matrix(x, Hlist, xij = control$xij,
-                                    Xm2 = Xm2)
+                                    Xm2 = NULL)
   if (length(coefstart)) {
     eta <- if (ncol(X.vlm.save) > 1) {
       matrix(X.vlm.save %*% coefstart, n, M, byrow = TRUE) +
@@ -96,14 +100,14 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
     }
     if (M == 1)
       eta <- c(eta)
-    mu <- slot(family, "linkinv")(eta, extra = extra)
+    mu <- slot(family, "linkinv")(eta, extra = NULL)
   }
   if (criterion != "coefficients") {
     tfun <- slot(family, criterion)
   }
   iter <- 1
   new.crit <- switch(criterion, coefficients = 1, tfun(mu = mu,
-                                                       y = y, w = w, res = FALSE, eta = eta, extra = extra))
+                                                       y = y, w = w, res = FALSE, eta = eta, extra = NULL))
   old.crit <- ifelse(minimize.criterion, 10 * new.crit + 10,
                      -10 * new.crit - 10)
   deriv.mu <- eval(slot(family, "deriv"))
@@ -119,10 +123,6 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
   for (iter.outer in 1:control$Maxit.outer) {
     if (fully.cvged)
       break
-    if (trace) {
-      cat("VGAM outer iteration ", iter.outer, " =============================================\n")
-      flush.console()
-    }
     iter <- 1
     one.more <- TRUE
     while (one.more) {
@@ -132,13 +132,13 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
       if (length(slot(family, "middle")))
         eval(slot(family, "middle"))
       eta <- fv * psi + offset #Added psi
-      mu <- slot(family, "linkinv")(eta, extra = extra)
+      mu <- slot(family, "linkinv")(eta, extra = NULL)
       if (length(family@middle2))
         eval(family@middle2)
       old.crit <- new.crit
       new.crit <- switch(criterion, coefficients = new.coeffs,
                          tfun(mu = mu, y = y, w = w, res = FALSE, eta = eta,
-                              extra = extra))
+                              extra = NULL))
       if (trace) {
         cat("VGAM ", bf, " loop ", iter, ": ", criterion,
             "= ")
@@ -151,7 +151,6 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
         }, cat(UUUU, fill = TRUE, sep = ", "))
       }
       one.more <- eval(control$convergence)
-      flush.console()
       if (!is.logical(one.more))
         one.more <- FALSE
       if (one.more) {
@@ -252,7 +251,7 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
     if (ii != criterion && any(slotNames(family) == ii) &&
         length(body(slot(family, ii)))) {
       fit[[ii]] <- crit.list[[ii]] <- (slot(family, ii))(mu = mu,
-                                                         y = y, w = w, res = FALSE, eta = eta, extra = extra)
+                                                         y = y, w = w, res = FALSE, eta = eta, extra = NULL)
     }
   }
   if (w[1] != 1 || any(w != w[1]))

@@ -7,6 +7,7 @@
 #' @param control a list of control arguments
 #' @param offset the offset, depending on lower dimensions
 #' @param method A character string, the fitting method
+#' @param ... Additional arguments, passed on to the vgam.fit.edit() function
 #'
 #' @return an object of class vgam
 vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be assigned"),
@@ -35,7 +36,20 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
   x <- if (!is.empty.model(mt))
     model.matrix(mt, mf, contrasts)
   else matrix(, NROW(y), 0)
-  attr(x, "assign") <- VGAM:::attrassigndefault(x, mt)
+  attrassigndefault = function (mmat, tt)
+  {
+    if (!inherits(tt, "terms"))
+      stop("need terms object")
+    aa <- attr(mmat, "assign")
+    if (is.null(aa))
+      stop("argument is not really a model matrix")
+    ll <- attr(tt, "term.labels")
+    if (attr(tt, "intercept") > 0)
+      ll <- c("(Intercept)", ll)
+    aaa <- factor(aa, labels = ll)
+    split(order(aa), aaa)
+  }
+  attr(x, "assign") <- attrassigndefault(x, mt)
   offset <- model.offset(mf)
   if (is.null(offset))
     offset <- 0

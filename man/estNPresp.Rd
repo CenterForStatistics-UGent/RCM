@@ -30,7 +30,7 @@ estNPresp(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit,
 
 \item{vgamMaxit}{Maximal number of iterations in the fitting of the GAM model}
 
-\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails}
+\item{degree}{The degree if the parametric fit if the VGAM fit fails}
 
 \item{verbose}{a boolean, should number of failed fits be reported}
 

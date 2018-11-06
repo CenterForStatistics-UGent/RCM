@@ -11,7 +11,7 @@
 #' @param coefInitOverall a vector of length 2 with current overall parameters
 #' @param dfSpline a scalar, the degrees of freedom for the smoothing spline.
 #' @param vgamMaxit Maximal number of iterations in the fitting of the GAM model
-#' @param degree an integer, the degree of the polynomial fit if the spline fit fails
+#' @param degree The degree if the parametric fit if the VGAM fit fails
 #' @param verbose a boolean, should number of failed fits be reported
 #' @param ... further arguments, passed on to the VGAM:::vgam() function
 #'
