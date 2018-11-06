@@ -65,6 +65,7 @@
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
 #' \item{degree}{The degree of the alternative parametric fit}
 #' \item{devFilt}{The deviance after filtering confounders}
+#' \item{llFilt}{The likelihood of the model after filtering on confounders}
 #' @export
 #' @note Plotting is not supported for quadratic response functions
 #' @examples
@@ -273,8 +274,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       thetas[,1] = filtObj$thetas
       confParams = filtObj$NB_params
       devFilt = getDevMat(X = X, thetaMat = matrix(filtObj$thetas, nrow = n, ncol = p, byrow = TRUE), mu = muMarg)#The deviance after filtering the confounders
+      llFilt = dnbinom(x = X, mu = muMarg, size = matrix(filtObj$thetas, nrow = n, ncol = p, byrow = TRUE), log = TRUE) #The likelihood after filtering the confounders
     } else {
-      confParams=devFilt=NULL
+      confParams = devFilt = llFilt = NULL
     }
     ## 1) Initialization
     svdX = svd(diag(1/libSizes) %*% (X-muMarg) %*% diag(1/colSums(X)))
@@ -557,7 +559,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     rownames(alpha) = colnames(covariates)
     colnames(alpha) = paste0("Dim",1:k)
 
-    returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, degree = degree, devFilt = devFilt)
+    returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, degree = degree, devFilt = devFilt, llFilt = llFilt)
   }
   if(!all(convergence)){
     warning(paste0("Algorithm did not converge for dimensions ", paste(which(!convergence), collapse = ","), "! Check for errors or consider changing tolerances or number of iterations"))
