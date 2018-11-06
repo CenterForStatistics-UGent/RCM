@@ -6,6 +6,7 @@
 #'Dispersions are re-estimated for every dimension of the model.
 #'
 #'@return a named array log-likelihoods of the independence model and all models with dimension 1 to k, or a vector with summed log-likelihoods
+#'@export
 liks = function(rcm, Sum = FALSE){
   outnames = c("independence", paste0("Dim ", 1:rcm$k),"saturated")
   if(Sum) {

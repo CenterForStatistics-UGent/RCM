@@ -4,7 +4,7 @@
 \alias{extractE}
 \title{A function to extract a matrix of expected values for any dimension of the fit}
 \usage{
-extractE(rcm, Dim = seq_len(rcm$k))
+extractE(rcm, Dim = rcm$k)
 }
 \arguments{
 \item{rcm}{an object of class RCM}
