@@ -14,18 +14,12 @@ library(devtools)
 install_github("CenterForStatistics-UGent/RCM")
 ```
 
-We have upgraded the RCM-package already in anticipation to breaking changes in the *ggplot2* package. As a result, you may have to install the *ggplot2* devel version, as follows:
-
-``` r
-devtools::install_github("tidyverse/ggplot2")
-```
-
 ``` r
 library(RCM)
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 0.1.0
+    ## RCM package version 0.2.0
 
 Dataset
 -------
