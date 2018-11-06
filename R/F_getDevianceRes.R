@@ -10,7 +10,5 @@
 getDevianceRes = function(RCM, Dim = c(1,2)){
   mu = extractE(RCM,Dim)
   thetaMat = extractDisp(RCM, mu)
-  tmpMat = sqrt(2*(RCM$X*log(RCM$X/mu)-(RCM$X+thetaMat)*log((1+RCM$X/thetaMat)/(1+mu/thetaMat))))*sign(RCM$X-mu)
-  tmpMat[RCM$X==0] = -sqrt((2*thetaMat*log(1+mu/thetaMat))[RCM$X==0]) #zero observations are always smaller than the mean
-  tmpMat
+  getDevMat(X = RCM$X, thetaMat = thetaMat, mu = mu)
 }

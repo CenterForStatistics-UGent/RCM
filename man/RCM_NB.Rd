@@ -6,7 +6,7 @@
 Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.}
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
-  tol = 0.001, maxItOut = 500L, Psitol = 0.001, verbose = FALSE,
+  tol = 0.001, maxItOut = 1000L, Psitol = 0.01, verbose = FALSE,
   NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit =
   500L, cndtol = 1 - 16), jacMethod = "Broyden", dispFreq = 20L,
   convNorm = 2, prior.df = 10, marginEst = "MLE",
@@ -14,7 +14,8 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   covariates = NULL, centMat = NULL, responseFun = c("linear",
   "quadratic", "dynamic", "nonparametric"), record = FALSE,
   control.outer = list(trace = FALSE), control.optim = list(),
-  envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L)
+  envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
+  degree = switch(responseFun[1], nonparametric = 1, NULL))
 }
 \arguments{
 \item{X}{a nxp data matrix}
@@ -73,7 +74,9 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
 
 \item{dfSpline}{a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see VGAM::s()}
 
-\item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function
+\item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function}
+
+\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails
 
 #'@seealso \code{\link{RCM}}
 
@@ -106,6 +109,8 @@ A list with elements
 \item{confounders}{(if provided) the confounder matrix}
 \item{confParams}{ the parameters used to filter out the confounders}
 \item{nonParamRespFun}{A list of the non parametric response functions}
+\item{degree}{The degree of the alternative parametric fit}
+\item{devFilt}{The deviance after filtering confounders}
 }
 \description{
 A function to fit the RC(M) model with the negative binomial distribution.

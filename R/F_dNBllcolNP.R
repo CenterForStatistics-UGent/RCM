@@ -3,7 +3,7 @@
 #' @param beta A vector of any lenght
 #' @param X the data vector of length n
 #' @param reg a nxlength(beta) regressor matrix
-#' @param thetas a scalar, the overdispersion
+#' @param theta a scalar, the overdispersion
 #' @param muMarg the offset of length n
 #' @param ... further arguments passed on to the jacobian
 

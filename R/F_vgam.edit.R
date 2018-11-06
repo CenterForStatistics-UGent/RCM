@@ -328,11 +328,10 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, Xm2 = NULL, Ym
 }
 
 vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be assigned"),
-                      data = list(), weights = NULL, subset = NULL, na.action = na.fail,
+                      data = list(), na.action = na.fail,
                       etastart = NULL, mustart = NULL, coefstart = NULL, control = vgam.control(criterion = "loglikelihood",...),
                       offset = NULL, method = "vgam.fit", model = FALSE, x.arg = TRUE,
-                      y.arg = TRUE, contrasts = NULL, constraints = NULL, extra = list(),
-                      form2 = NULL, qr.arg = FALSE, smart = TRUE, ...)
+                      y.arg = TRUE, smart = TRUE, ...)
 {
   dataname <- as.character(substitute(data))
   function.name <- "vgam"

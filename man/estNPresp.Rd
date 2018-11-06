@@ -4,8 +4,8 @@
 \alias{estNPresp}
 \title{A function to estimate the taxon-wise response functions non-parametrically, and return their fitted values}
 \usage{
-estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
-  coefInitOverall, dfSpline, vgamMaxit, colWeights, verbose, ...)
+estNPresp(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit,
+  coefInitOverall, dfSpline, vgamMaxit, degree, verbose, ...)
 }
 \arguments{
 \item{sampleScore}{a vector of length n with environmental scores}
@@ -28,7 +28,7 @@ estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
 
 \item{vgamMaxit}{Maximal number of iterations in the fitting of the GAM model}
 
-\item{colWeights}{a vector of length p with column weights}
+\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails}
 
 \item{verbose}{a boolean, should number of failed fits be reported}
 

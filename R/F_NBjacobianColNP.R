@@ -3,7 +3,7 @@
 #' @param beta vector of any length
 #' @param X the data vector of length n
 #' @param reg a nxlength(beta) regressor matrix
-#' @param thetas a scalar, the overdispersion
+#' @param theta a scalar, the overdispersion
 #' @param muMarg the offset of length n
 #'
 #' @return A matrix of dimension 8-by-8

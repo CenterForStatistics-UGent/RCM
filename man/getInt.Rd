@@ -7,7 +7,7 @@
 getInt(fitObj, sampleScore, stop.on.error = FALSE, ...)
 }
 \arguments{
-\item{fitObj}{a fitted object, either gam or glm}
+\item{fitObj}{a fitted object, either gam or a vector of parameters}
 
 \item{sampleScore}{the observed environmental scores}
 
