@@ -14,6 +14,8 @@ estNPresp(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit,
 
 \item{X}{the n-by-p data matrix}
 
+\item{psi}{the importance parameter}
+
 \item{ncols}{an integer, the number of columns of X}
 
 \item{thetas}{a vector of length p with dispersion parameters}
