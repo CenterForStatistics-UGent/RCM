@@ -328,16 +328,12 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, Xm2 = NULL, Ym
 }
 
 vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be assigned"),
-                      data = list(), na.action = na.fail,
-                      etastart = NULL, mustart = NULL, coefstart = NULL, control = vgam.control(criterion = "loglikelihood",...),
-                      offset = NULL, method = "vgam.fit", model = FALSE, x.arg = TRUE,
-                      y.arg = TRUE, smart = TRUE, ...)
+                      data = list(), na.action = na.fail,  coefstart = NULL, control = vgam.control(criterion = "loglikelihood",...),
+                      offset = NULL, method = "vgam.fit", model = FALSE,...)
 {
   dataname <- as.character(substitute(data))
   function.name <- "vgam"
   ocall <- match.call()
-  if (smart)
-    setup.smart("write")
   if (missing(data))
     data <- environment(formula)
   mtsave <- terms(formula, specials = c("s", "sm.os", "sm.ps"),
@@ -358,53 +354,11 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
     model.matrix(mt, mf, contrasts)
   else matrix(, NROW(y), 0)
   attr(x, "assign") <- VGAM:::attrassigndefault(x, mt)
-  if (!is.null(form2)) {
-    if (!is.null(subset))
-      stop("argument 'subset' cannot be used when ", "argument 'form2' is used")
-    retlist <- shadowvgam(formula = form2, family = family,
-                          data = data, na.action = na.action, control = vgam.control(...),
-                          method = method, model = model, x.arg = x.arg, y.arg = y.arg,
-                          contrasts = contrasts, constraints = constraints,
-                          extra = extra, qr.arg = qr.arg)
-    Ym2 <- retlist$Ym2
-    Xm2 <- retlist$Xm2
-    if (length(Ym2)) {
-      if (NROW(Ym2) != NROW(y))
-        stop("number of rows of 'y' and 'Ym2' are unequal")
-    }
-    if (length(Xm2)) {
-      if (NROW(Xm2) != NROW(x))
-        stop("number of rows of 'x' and 'Xm2' are unequal")
-    }
-  }
-  else {
-    Xm2 <- Ym2 <- NULL
-  }
   offset <- model.offset(mf)
   if (is.null(offset))
     offset <- 0
   mf2 <- mf
-  if (!missing(subset)) {
-    mf2$subset <- NULL
-    mf2 <- eval(mf2, parent.frame())
-    spars2 <- lapply(mf2, attr, "spar")
-    dfs2 <- lapply(mf2, attr, "df")
-    sx2 <- lapply(mf2, attr, "s.xargument")
-    for (ii in seq_along(mf)) {
-      if (length(sx2[[ii]])) {
-        attr(mf[[ii]], "spar") <- spars2[[ii]]
-        attr(mf[[ii]], "dfs2") <- dfs2[[ii]]
-        attr(mf[[ii]], "s.xargument") <- sx2[[ii]]
-      }
-    }
-    rm(mf2)
-  }
-  w <- model.weights(mf)
-  if (!length(w)) {
-    w <- rep_len(1, nrow(mf))
-  }
-  else if (NCOL(w) == 1 && any(w < 0))
-    stop("negative weights not allowed")
+  w <- rep_len(1, nrow(mf))
   if (is.character(family))
     family <- get(family)
   if (is.function(family))
@@ -418,17 +372,6 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
     eval(slot(family, "first"))
   aa <- attributes(mtsave)
   smoothers <- aa$specials
-  mgcv.sm.os <- length(smoothers$sm.os) > 0
-  mgcv.sm.ps <- length(smoothers$sm.ps) > 0
-  mgcv.sm.PS <- length(smoothers$sm.PS) > 0
-  any.sm.os.terms <- mgcv.sm.os
-  any.sm.ps.terms <- mgcv.sm.ps || mgcv.sm.PS
-  mgcv.s <- length(smoothers$s) > 0
-  if ((any.sm.os.terms || any.sm.ps.terms) && mgcv.s)
-    stop("cannot include both s() and any of sm.os() or ",
-         "sm.ps() (or sm.PS()) terms in the formula")
-  if (any.sm.os.terms && any.sm.ps.terms)
-    stop("cannot include both sm.os() and ", "sm.ps() (or sm.PS()) terms in the formula")
   nonparametric <- length(smoothers$s) > 0
   if (nonparametric) {
     ff <- apply(aa$factors[smoothers[["s"]], , drop = FALSE],
@@ -441,52 +384,11 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
   else {
     function.name <- "vglm"
   }
-  are.sm.os.terms <- length(smoothers$sm.os) > 0
-  are.sm.ps.terms <- (length(smoothers$sm.ps) + length(smoothers$sm.PS)) >
-    0
-  if (are.sm.os.terms || are.sm.ps.terms) {
-    control$criterion <- "coefficients"
-    if (length(smoothers$sm.os) > 0) {
-      ff.sm.os <- apply(aa$factors[smoothers[["sm.os"]],
-                                   , drop = FALSE], 2, any)
-      smoothers[["sm.os"]] <- if (any(ff.sm.os))
-        seq(along = ff.sm.os)[aa$order == 1 & ff.sm.os]
-      else NULL
-      smooth.labels <- aa$term.labels[unlist(smoothers)]
-    }
-    if (length(smoothers$sm.ps) > 0) {
-      ff.sm.ps <- apply(aa$factors[smoothers[["sm.ps"]],
-                                   , drop = FALSE], 2, any)
-      smoothers[["sm.ps"]] <- if (any(ff.sm.ps))
-        seq(along = ff.sm.ps)[aa$order == 1 & ff.sm.ps]
-      else NULL
-      smooth.labels <- aa$term.labels[unlist(smoothers)]
-    }
-    assignx <- attr(x, "assign")
-    which.X.sm.osps <- assignx[smooth.labels]
-    Data <- mf[, names(which.X.sm.osps), drop = FALSE]
-    attr(Data, "class") <- NULL
-    S.arg <- lapply(Data, attr, "S.arg")
-    sparlist <- lapply(Data, attr, "spar")
-    ridge.adj <- lapply(Data, attr, "ridge.adj")
-    fixspar <- lapply(Data, attr, "fixspar")
-    ps.int <- lapply(Data, attr, "ps.int")
-    knots <- lapply(Data, attr, "knots")
-    term.labels <- aa$term.labels
-  }
-  sm.osps.list <- if (any.sm.os.terms || any.sm.ps.terms)
-    list(indexterms = if (any.sm.os.terms) ff.sm.os else ff.sm.ps,
-         intercept = aa$intercept, which.X.sm.osps = which.X.sm.osps,
-         S.arg = S.arg, sparlist = sparlist, ridge.adj = ridge.adj,
-         term.labels = term.labels, fixspar = fixspar, orig.fixspar = fixspar,
-         ps.int = ps.int, knots = knots, assignx = assignx)
-  else NULL
-  fit <- vgam.fit.edit(x = x, y = y, psi = psi, w = w, mf = mf, Xm2 = Xm2,
-                  Ym2 = Ym2, etastart = etastart, mustart = mustart, coefstart = coefstart,
+  fit <- vgam.fit.edit(x = x, y = y, psi = psi, w = w, mf = mf,
                   offset = offset, family = family, control = control,
-                  constraints = constraints, extra = extra, qr.arg = qr.arg,
+               extra = list(), qr.arg = FALSE, coefstart = coefstart,
                   Terms = mtsave, nonparametric = nonparametric, smooth.labels = smooth.labels,
-                  function.name = function.name, sm.osps.list = sm.osps.list,
+                  function.name = function.name,
                   ...)
   if (is.Numeric(fit$nl.df) && any(fit$nl.df < 0)) {
     fit$nl.df[fit$nl.df < 0] <- 0
@@ -500,18 +402,10 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
   fit$call <- ocall
   if (model)
     fit$model <- mf
-  if (!x.arg)
-    fit$x <- NULL
-  if (!y.arg)
-    fit$y <- NULL
   if (nonparametric)
     fit$misc$smooth.labels <- smooth.labels
   fit$misc$dataname <- dataname
-  if (smart)
-    fit$smart.prediction <- get.smart.prediction()
-  answer <- new(if (any.sm.os.terms || any.sm.ps.terms)
-    "pvgam"
-    else "vgam", assign = attr(x, "assign"), call = fit$call,
+  answer <- new("vgam", assign = attr(x, "assign"), call = fit$call,
     coefficients = fit$coefficients, constraints = fit$constraints,
     criterion = fit$crit.list, df.residual = fit$df.residual,
     dispersion = 1, family = fit$family, misc = fit$misc,
@@ -520,14 +414,7 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
     else data.frame(), R = fit$R, rank = fit$rank, residuals = as.matrix(fit$residuals),
     ResSS = fit$ResSS, smart.prediction = as.list(fit$smart.prediction),
     terms = list(terms = fit$terms))
-  if (!smart)
-    answer@smart.prediction <- list(smart.arg = FALSE)
-  if (qr.arg) {
-    class(fit$qr) <- "list"
-    slot(answer, "qr") <- fit$qr
-  }
-  if (length(attr(x, "contrasts")))
-    slot(answer, "contrasts") <- attr(x, "contrasts")
+  answer@smart.prediction <- list(smart.arg = FALSE)
   if (length(fit$fitted.values))
     slot(answer, "fitted.values") <- as.matrix(fit$fitted.values)
   slot(answer, "na.action") <- if (length(aaa <- attr(mf, "na.action")))
@@ -535,10 +422,6 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
   else list()
   if (length(offset))
     slot(answer, "offset") <- as.matrix(offset)
-  if (length(fit$weights))
-    slot(answer, "weights") <- as.matrix(fit$weights)
-  if (x.arg)
-    slot(answer, "x") <- x
   if (length(fit$misc$Xvlm.aug)) {
     slot(answer, "ospsslot") <- list(Xvlm.aug = fit$misc$Xvlm.aug,
                                      sm.osps.list = fit$misc$sm.osps.list, magicfit = fit$misc$magicfit,
@@ -548,23 +431,10 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
     fit$misc$magicfit <- NULL
     fit$misc$iter.outer <- NULL
   }
-  if (x.arg && length(Xm2))
-    slot(answer, "Xm2") <- Xm2
-  if (y.arg && length(Ym2))
-    slot(answer, "Ym2") <- as.matrix(Ym2)
-  if (!is.null(form2))
-    slot(answer, "callXm2") <- retlist$call
   answer@misc$formula <- formula
-  answer@misc$form2 <- form2
-  if (length(xlev))
-    slot(answer, "xlevels") <- xlev
-  if (y.arg)
-    slot(answer, "y") <- as.matrix(fit$y)
+  answer@misc$form2 <- NULL
   answer@misc$formula <- formula
   slot(answer, "control") <- fit$control
-  if (length(fit$extra)) {
-    slot(answer, "extra") <- fit$extra
-  }
   slot(answer, "iter") <- fit$iter
   slot(answer, "post") <- fit$post
   fit$predictors <- as.matrix(fit$predictors)
@@ -586,10 +456,6 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
   }
   if (length(fit$effects))
     slot(answer, "effects") <- fit$effects
-  if (nonparametric && is.buggy.vlm(answer)) {
-    warning("some s() terms have constraint matrices that have columns",
-            " which are not orthogonal;", " try using sm.os() or sm.ps() instead of s().")
-  }
   else {
   }
   answer
