@@ -104,7 +104,7 @@ if(anyNA(X)) {stop("NA values present in count matrix, please filter these out f
   tmp = RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k,
                          confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim),
                          covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat, NBRCM = prevFit,...)
-  if(classDat=="phyloseq"){tmp$physeq = prune_samples(rownames(X),prune_taxa(colnames(X),dat)) }
+  if(classDat=="phyloseq"){tmp$physeq = prune_samples(rownames(tmp$X),prune_taxa(colnames(tmp$X),dat)) }
   tmp = within(tmp, {
     runtimeInMins = (proc.time()-tic)[1]/60 + if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} # Sum the runtimes
     k = k #Store number of dimensions
