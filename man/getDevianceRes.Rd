@@ -4,7 +4,7 @@
 \alias{getDevianceRes}
 \title{A function to calculate the matrix of deviance residuals from a RCM object.}
 \usage{
-getDevianceRes(RCM, Dim = c(1, 2))
+getDevianceRes(RCM, Dim = seq_len(RCM$k))
 }
 \arguments{
 \item{RCM}{an RCM object}

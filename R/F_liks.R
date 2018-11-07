@@ -5,7 +5,7 @@
 #'
 #'Dispersions are re-estimated for every dimension of the model.
 #'
-#'@return If Sum is FALSE, a named array log-likelihoods of the independence model and all models with dimension 1 to k. Otherwise a table with log-likelihoods, deviance explained and cumulative deviance explained.
+#'@return If Sum is FALSE, a named array log-likelihoods of the independence model and all models with dimension 1 to k, including after filtering on confounders. Otherwise a table with log-likelihoods, deviance explained and cumulative deviance explained.
 #'@export
 liks = function(rcm, Sum = TRUE){
   outnames = c("independence", paste0("Dim ", 1:rcm$k))#,"saturated")

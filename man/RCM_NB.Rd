@@ -8,7 +8,7 @@ Includes fitting of the independence model, filtering out the effect of confound
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   tol = 0.001, maxItOut = 1000L, Psitol = 0.01, verbose = FALSE,
   NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit =
-  500L, cndtol = 1 - 16), jacMethod = "Broyden", dispFreq = 20L,
+  500L, cndtol = 1 - 16), jacMethod = "Broyden", dispFreq = 10L,
   convNorm = 2, prior.df = 10, marginEst = "MLE",
   confounders = NULL, prevCutOff = 0.025, minFraction = 0.1,
   covariates = NULL, centMat = NULL, responseFun = c("linear",
