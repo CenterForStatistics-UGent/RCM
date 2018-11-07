@@ -22,10 +22,10 @@ getLogLik(rcm, i)
   dimnames(tmp)[[3]] = outnames
   }
   if(Sum){ #Also make cumulative comparisons
-    cumDevianceExplained = round((out-out[1])/(out[length(out)]-out[1]),3)
-  out = rbind(logLikelihood = out,
-              devianceExplained = c(0, diff(cumDevianceExplained)),
-              cumDevianceExplained = cumDevianceExplained)
+    cumDevianceExplained = round((tmp-tmp[1])/(tmp[length(tmp)]-tmp[1]),3)
+  out = rbind(logLikelihood = tmp,
+              logLikExplained = c(0, diff(cumDevianceExplained)),
+              logLikExplained = cumDevianceExplained)
 
   }
   return(out)
