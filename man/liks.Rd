@@ -9,7 +9,7 @@ liks(rcm, Sum = TRUE)
 \arguments{
 \item{rcm}{an object of the RCM class}
 
-\item{Sum}{a boolean, should likelihoods be summed?
+\item{Sum}{a boolean, should log-likelihoods be summed?
 
 Dispersions are re-estimated for every dimension of the model.}
 }
