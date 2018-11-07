@@ -442,7 +442,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
     NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
-    if(responseFun == "nonparametric") {nonParamRespFun =lapply(1:k,function(x){list(taxonWiseFitted = muMarg, taxonCoef = NULL, overallFitted = matrix(0,n,p), overallCoef = NULL)}); names(nonParamRespFun) = paste0("Dim",1:k)} else {nonParamRespFun =NULL}
+    if(responseFun == "nonparametric") {nonParamRespFun = lapply(1:k,function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)}); names(nonParamRespFun) = paste0("Dim",1:k)} else {nonParamRespFun =NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
@@ -465,7 +465,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         muMarg = if(responseFun %in% c("linear","quadratic", "dynamic")){
           exp(getRowMat(responseFun = responseFun, sampleScore = covariates %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,KK-1])*psis[KK-1])*muMarg
         } else {
-          exp(nonParamRespFun[[KK-1]]$rowMat*psis[KK-1]) * muMarg#nonParamRespFun[[KK-1]]$taxonWiseFitted
+          exp(getRowMat(nonParFit = nonParamRespFun[[KK-1]]$taxonWise, sampleScore = sampleScore, responseFun =responseFun)*psis[KK-1]) * muMarg
         }
       }
 
@@ -497,7 +497,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
         if((iterOut[KK] %% dispFreq) == 0 || iterOut[KK] == 1){
           if (verbose) cat(" Estimating overdispersions \n")
-          thetas[,KK+1] = estDisp(X = X, muMarg = if(responseFun == "nonparametric") nonParamRespFun[[KK]]$taxonWiseFitted else muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
+          thetas[,KK+1] = estDisp(X = X, muMarg = muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
           thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE)
           preFabMat = 1+X/thetasMat
         }
@@ -509,7 +509,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         if (verbose) cat("\n Estimating response function \n")
         NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
-        #NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(rowMultiply(NB_params[,,KK]^2,colWeights))) #The post-hoc normalization is much more efficient, since the equations are easier to solve. Crucially, we do not need orthogonality with other dimensions, which makes this approach feasible
         NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2))
 
         if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
@@ -521,15 +520,15 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, psi = psis[KK], ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef, coefInitOverall = nonParamRespFun[[KK]]$overallCoef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, verbose = verbose, degree = degree)
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, psi = psis[KK], ncols = p, thetas = thetas[,KK+1], n=n, coefInit = lapply(nonParamRespFun[[KK]]$taxonWise, function(tax){if(is.list(tax$fit)) tax$fit$coef else tax$fit}) , coefInitOverall = nonParamRespFun[[KK]]$overall$fit$coef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, verbose = verbose, degree = degree)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, nleqslv.control = nleqslv.control, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst, psi = psis[KK])
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst, psi = psis[KK])
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
           #Psis
           if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
-          psis[KK] = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = nonParamRespFun[[KK]]$rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod, preFabMat = preFabMat)$x)#nonParamRespFun[[KK]]$psi #Get the psis based on the integrals
+          psis[KK] = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = getRowMat(nonParFit = nonParamRespFun[[KK]]$taxonWise, sampleScore = sampleScore, responseFun = responseFun), muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod, preFabMat = preFabMat)$x)
         }
 
         #Store intermediate estimates
@@ -561,6 +560,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     warning(paste0("Algorithm did not converge for dimensions ", paste(which(!convergence), collapse = ","), "! Check for errors or consider changing tolerances or number of iterations"))
   }
   return(
-    c(returnList, list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, call = match.call(), rowWeights = rowWeights, colWeights = colWeights, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams))
+    c(returnList, list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, rowWeights = rowWeights, colWeights = colWeights, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams))
     )
 }

@@ -22,7 +22,6 @@
 #' \item{taxonCoef}{The fitted coefficients of the sample-wise response curves}
 #' \item{overallFitted}{The fitted values of all taxa combined}
 #' \item{taxonWiseFits}{A list of length p of normalized response curves of all the taxa. This may be useful to investigate the shape of the response function through plots.}
-#' \item{psi}{The importance parameter of the dimension}
 #' \item{taxonWise}{The taxonwise response function}
 #'
 #' @importFrom MASS negative.binomial
@@ -32,25 +31,57 @@ estNPresp = function(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit, co
     taxonWise = lapply(seq_len(ncols), function(i){
     df = data.frame(x = X[,i], sampleScore = sampleScore, logMu = log(muMarg[,i])) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
       tmp = try(suppressWarnings(vgam.edit(data = df,x ~ s(sampleScore, df = dfSpline), psi = psi, offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[[i]], maxit = vgamMaxit,...)), silent = TRUE)
-    # }
+    class = "vgam"
     if(class(tmp)=="try-error") { #If this fails turn to parametric fit
       warning("GAM would not fit, turned to parametric fit of degree ", degree, "!")
       tmp = try(nleqslv(fn =  dNBllcolNP, x = if(length(coefInit[[i]])==2) rep(1e-4, degree+1) else coefInit[[i]], X = X[,i], reg = MM, theta = thetas[i], muMarg = muMarg[,i], jac = NBjacobianColNP)$x)
+      class = "glm"
     }
     if(class(tmp)[[1]]=="try-error") {
       warning("GLM would not fit either, returning independence model! ")
     tmp = numeric(degree+1)#If nothing will fit, stick to an independence model
+    class = "independence"
     }
-    list(fit = tmp, int = getInt(tmp, sampleScore = sampleScore))
+    list(fit = tmp, int = getInt(tmp, sampleScore = sampleScore, class = class), class = class)
   })
-  sumFit = sum(sapply(taxonWise, function(x){class(x$fit)!="vgam"}))
+    names(taxonWise) = colnames(X)
+    #Report failed fits
+  sumFit = sum(sapply(taxonWise, function(x){x$class!="vgam"}))
   if(verbose && sumFit) warning("A total number of ",sumFit, " response functions did not converge! \n")
+#Overall fit
   samRep = rep(sampleScore, ncols)
-  overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit, ...)
-  rowMat = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") predict(x$fit, type ="link") else MM %*% x$fit})
-  taxonCoef = lapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit})
-  names(taxonWise) = colnames(X)
-  list(rowMat = rowMat, rowMatOverall = matrix(predict(overall, type = "link"), ncol = ncols), taxonWise = taxonWise, taxonCoef = taxonCoef, overallCoef = coef(overall))
-  #overallFitted = matrix(fitted(overall), ncol = ncols),
-  #taxonWiseFitted = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") fitted(x$fit) else x$fit$fitted})
+  overall = vgam.edit(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit, psi = psi,...)
+#
+#   rowMat = sapply(taxonWise, function(x){if(class(x$fit)=="vgam") predict(x$fit, type ="link") else MM %*% x$fit})
+#   taxonCoef = lapply(taxonWise, function(x){if(class(x$fit)=="vgam") coef(x$fit) else x$fit})
+
+  list(taxonWise = taxonWise, overall = list(fit = overall))
 }
+
+
+# n = 50
+# size = 2
+# psi = 1.45
+# s = 10^rnorm(n,3)
+# rel = 1e-3
+# samScore = rnorm(50, sd = 0.2)
+# mu = s*rel*exp(psi*samScore^3)
+# y = rnbinom(n, mu = mu, size = size)
+#
+# df = data.frame(x = y, sampleScore = samScore, logMu = log(s*rel))
+# vgamFit = RCM:::vgam.edit(data = df,x ~ s(sampleScore, df = dfSpline), psi = psi, offset = logMu, family = negbinomial.size(lmu = "loge", size = size), coefstart = NULL, maxit = 1e2)
+# newSam = seq(-0.6, 0.4, length.out = 20)
+# logMu = runif(20, 0.2,0.4)
+# vgamPred = predict(vgamFit, newdata = data.frame(sampleScore = newSam, logMu = logMu), type ="link")
+# spline = vgamFit@Bspline[[1]]
+# coefVgam = coef(vgamFit)
+# splinePred = cbind(1,newSam, predict(spline, x = newSam)$y) %*% c(coefVgam,1)
+# plot(vgamPred,splinePred);abline(0,1)
+# cbind(vgamPred,splinePred , splinePred+logMu)
+#
+#
+# splinePredY = exp(splinePred*psi+ logMu)
+# vgamPredY = c(predict(vgamFit, type = "response", newdata = data.frame(sampleScore = newSam, logMu = logMu)))
+# plot(splinePredY, vgamPredY);abline(0,1)
+# cbind(splinePredY, vgamPredY, exp(splinePred), exp(vgamPred))
+

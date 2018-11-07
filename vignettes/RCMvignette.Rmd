@@ -205,10 +205,10 @@ ZellerRCM2constr = RCM(Zeller, k = 2, round = TRUE, covariates = c("Age","Gender
 save(ZellerRCM2constr, file = "./results/ZellerRCM2constr.RData")
 } else {load(file = "./results/ZellerRCM2constr.RData")}
 #Nonparametric
-if(!file.exists(file = "./results/ZellerRCM2constrNonParam.RData")){
-ZellerRCM2constrNonParam = RCM(Zeller, round = TRUE, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
-save(ZellerRCM2constrNonParam, file = "./results/ZellerRCM2constrNonParam.RData")
-} else {load(file = "./results/ZellerRCM2constrNonParam.RData")}
+# if(!file.exists(file = "./results/ZellerRCM2constrNonParam.RData")){
+# ZellerRCM2constrNonParam = RCM(Zeller, round = TRUE, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
+# save(ZellerRCM2constrNonParam, file = "./results/ZellerRCM2constrNonParam.RData")
+# } else {load(file = "./results/ZellerRCM2constrNonParam.RData")}
 ```
 
 ### Plotting the constrained RCM model
@@ -229,7 +229,7 @@ plot(ZellerRCM2constr, plotType = c("samples"), samColour = "Diagnosis", samShap
 
 One group are the healthy patients, the other two are cancer patients. The cancer patients are separated by country. Note that from Germany there are only cancer patients in this dataset. We can make the same monoplot of samples for the non-parametric response functions.
 
-```{r plotnonParamCol}
+```{r plotnonParamCol, eval =FALSE}
 plot(ZellerRCM2constrNonParam, plotType = "samples", samColour = "Diagnosis")
 ```
 
@@ -241,7 +241,7 @@ plot(ZellerRCM2constr, plotType = "variables")
 
 Variables far away from the origin have a strong role in shaping the environmental gradient.
 
-```{r plotnonParamVar}
+```{r plotnonParamVar, eval = FALSE}
 plot(ZellerRCM2constrNonParam, plotType = "variables")
 ```
 
@@ -287,7 +287,7 @@ We observe that country and diagnosis are the main drivers of the environmental 
 
 Triplots combine all the three components in a single plot. This is the default behaviour of the _plot_ function.
 
-```{r plotlin3Triplot}
+```{r plotlin3Triplot, eval = FALSE}
 plot(ZellerRCM2constr)
 ```
 
@@ -295,7 +295,7 @@ Note that the samples and the environmental variables cannot be related to each 
 
 For the non-parametric response functions we can only plot one dimensional triplots, whereby the shape of the response functions of the most strongly reacting taxa is shown. For this we use the _plotRespFun_ function.
 
-```{r plotNPTriplot}
+```{r plotNPTriplot, eval = FALSE}
 plotRespFun(ZellerRCM2constrNonParam, taxa = NULL ,subdivisions = 50L, yLocVar = c(-30, -50,-75,-62.5,-30,-62.5,-70,-50,-30)*0.225, Palette = "Set1", angle = 90, yLocSam = -20,  axisTitleSize = 16, axisLabSize = 11, legendTitleSize = 18, legendLabSize = 12, samShape = "Diagnosis", labSize = 5)
 ```
 
@@ -303,7 +303,7 @@ The first dimension is shown by default, the environmental scores of the samples
 
  Let us have a look at how _Fusobacterium_ species react to this gradient, as the authors found them to be more abundant in cancer patients \cite{Zeller2014}.
 
-```{r plotnonParamRespFunFuso}
+```{r plotnonParamRespFunFuso, eval = FALSE}
 FusoSpecies = grep("Fusobacterium",value = TRUE,taxa_names(ZellerRCM2constrNonParam$physeq))
 plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = FusoSpecies, samShape = "Diagnosis")
 ```

@@ -258,7 +258,7 @@ vgam.fit.edit = function (x, y, psi, w = rep_len(1, nrow(x)), mf, coefstart = NU
     fit$prior.weights <- w
   if (length(slot(family, "last")))
     eval(slot(family, "last"))
-   fit$nl.chisq <- 0#VGAM:::vgam.nlchisq(fit$qr, fit$resid, wz = wz,smomat = fit$smomat, deriv = deriv.mu, U = U, smooth.labels,                                        attr(x, "assign"), M = M, n = n, constraints = Hlist)
+   fit$nl.chisq <- 0
   fit$qr <- NULL
   fit$misc <- NULL
   structure(c(fit, list(predictors = fv, contrasts = attr(x,

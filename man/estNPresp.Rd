@@ -44,7 +44,6 @@ A list with components
 \item{taxonCoef}{The fitted coefficients of the sample-wise response curves}
 \item{overallFitted}{The fitted values of all taxa combined}
 \item{taxonWiseFits}{A list of length p of normalized response curves of all the taxa. This may be useful to investigate the shape of the response function through plots.}
-\item{psi}{The importance parameter of the dimension}
 \item{taxonWise}{The taxonwise response function}
 }
 \description{

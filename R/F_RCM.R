@@ -109,6 +109,7 @@ if(anyNA(X)) {stop("NA values present in count matrix, please filter these out f
     runtimeInMins = (proc.time()-tic)[1]/60 + if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} # Sum the runtimes
     k = k #Store number of dimensions
   })
+  tmp$call = match.call()
   class(tmp) = "RCM"
   tmp
 }

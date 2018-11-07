@@ -27,8 +27,8 @@ LR_nb <- function(Alpha, X, CC, responseFun = c("linear","quadratic","nonparamet
     muT = muMarg * c(exp(design %*% NB_params *psi))
     if(envGradEst=="LR")  mu0 = muMarg * c(exp(design %*% NB_params_noLab *psi))
   } else { #Non-parametric response function
-    muT = exp(nonParamRespFun$rowMat*psi) * muMarg
-    if(envGradEst=="LR") mu0 = exp(nonParamRespFun$rowMatOverall*psi) * muMarg
+    muT = exp(getRowMat(nonParFit = nonParamRespFun$taxonWise, sampleScore = sampleScore, responseFun = responseFun)*psi) * muMarg
+    if(envGradEst=="LR") mu0 = c(exp(getRowMat(nonParFit = nonParamRespFun$overall, sampleScore = sampleScore, responseFun = responseFun)*psi)) * muMarg
   }
   logDensj = dnbinom(X, mu = muT, size = thetaMat, log = TRUE) #Likelihoods under species specific model
   #Immediately return log likelihoods

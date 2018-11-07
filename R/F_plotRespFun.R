@@ -49,11 +49,11 @@ plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALS
   names(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]]) = taxa_names(RCM$physeq)
   # A function to predict new values
   predictFun = function(taxon, x){
-    fit = RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]$fit
-    if(class(fit)[[1]]=="vgam"){
-    predict(fit, newdata = data.frame(sampleScore=x, logMu = 0))
+    fit = RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]
+    if(fit$class=="vgam"){
+      cbind(1,x, predict(fit$fit$spline, x = x)$y) %*% c(fit$fit$coef,1)*RCM$psis[Dim]
     } else {
-      getModelMat(x, RCM$degree) %*% fit
+      getModelMat(x, RCM$degree) %*% fit$fit
     }
     }
 

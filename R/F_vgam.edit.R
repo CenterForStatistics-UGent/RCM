@@ -150,5 +150,6 @@ vgam.edit = function (formula, psi, family = stop("argument 'family' needs to be
     slot(answer, "effects") <- fit$effects
   else {
   }
-  answer
+  list(coef = coef(answer), spline = answer@Bspline[[1]])
 }
+

@@ -11,6 +11,6 @@ buildDesign = function(sampleScore, responseFun){
                   linear = model.matrix(~ sampleScore),#With intercept
                   quadratic = model.matrix(~ sampleScore + I(sampleScore^2)),
                   dynamic = model.matrix(~ sampleScore + I(sampleScore^2)),
-                  stop('Unknown response function')
+                 stop('Unknown response function')
   )
 }

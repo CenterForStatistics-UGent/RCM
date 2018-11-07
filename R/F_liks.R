@@ -26,7 +26,6 @@ getLogLik(rcm, i)
   out = rbind(logLikelihood = tmp,
               logLikExplained = c(0, diff(cumDevianceExplained)),
               logLikExplained = cumDevianceExplained)
-
   }
   return(out)
 }

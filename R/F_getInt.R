@@ -3,16 +3,17 @@
 #' @param fitObj a fitted object, either gam or a vector of parameters
 #' @param sampleScore the observed environmental scores
 #' @param stop.on.error see ?integrate
+#' @param class the class of the fit
 #' @param ... additional arguments passed on to integrate()
 #'
 #' @return a scalar, the value of the integral
 #' @importFrom VGAM predict
-getInt = function(fitObj, sampleScore, stop.on.error = FALSE,...){
+getInt = function(fitObj, sampleScore, class, stop.on.error = FALSE,...){
   #Absolute values assure positive outcomes
   integrate(f = function(y, fitObj){
-    if(class(fitObj)[[1]] == "vgam"){
-    abs(predict(fitObj, type = "link", newdata = data.frame(sampleScore = y, logMu = 0))) #logMu = 0 for departure from uniformity
-    } else if(class(fitObj) == "numeric"){#If GAM fails, GLM fit
+    if(class == "vgam"){
+    abs(getRowMat(sampleScore = y, nonParFit = list(fit =fitObj), responseFun = "nonparametric")) #logMu = 0 for departure from uniformity
+    } else if(class == "glm"){#If GAM fails, GLM fit
 abs(getModelMat(y, degree = length(fitObj)-1) %*% fitObj)
     } else {#If GAM and GLM fail, fit indepedence model!
       rep.int(0L, length(y))
