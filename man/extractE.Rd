@@ -9,7 +9,7 @@ extractE(rcm, Dim = rcm$k)
 \arguments{
 \item{rcm}{an object of class RCM}
 
-\item{Dim}{the desired dimensions. Defaults to the maximum of the fit. Choose 0 for the independence model}
+\item{Dim}{the desired dimension. Defaults to the maximum of the fit. Choose 0 for the independence model, 0.5 for the confounders filter model.}
 }
 \value{
 The matrix of expected values

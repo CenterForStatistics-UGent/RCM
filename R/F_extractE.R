@@ -1,15 +1,18 @@
 #' A function to extract a matrix of expected values for any dimension of the fit
 #'
 #' @param rcm an object of class RCM
-#' @param Dim the desired dimensions. Defaults to the maximum of the fit. Choose 0 for the independence model
+#' @param Dim the desired dimension. Defaults to the maximum of the fit. Choose 0 for the independence model, 0.5 for the confounders filter model.
 #'
 #' @return The matrix of expected values
 extractE = function(rcm, Dim = rcm$k){
   #Expectations
   Eind = outer(rcm$libSizes, rcm$abunds) #Expected values under independence
-  if (Dim[1] %in% c(0,NA)){
+  if (Dim %in% c(0,NA)){
     Eind
+  } else if(Dim==0.5){
+Eind * exp(rcm$confounders$confounders %*% rcm$confParams)
   } else {
+    if(!is.null(rcm$confounders)) Eind = Eind * exp(rcm$confounders$confounders %*% rcm$confParams)
     Dim = seq_len(Dim)
     if(is.null(rcm$covariates)){
       Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))

@@ -15,7 +15,6 @@
 #'
 #' @return a list with components:
 #' \item{thetas}{new theta estimates}
-#' \item{muMarg}{a new offset matrix}
 #' \item{NB_params}{The estimated parameters of the interaction terms}
 
 filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, trended.dispersion, tol = 1e-3, maxIt = 20){
@@ -44,5 +43,5 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
 
   }
 
-  list(muMarg = muMarg * exp(confMat %*% NB_params), thetas = thetas, NB_params = NB_params)
+  list(thetas = thetas, NB_params = NB_params)
 }

@@ -270,13 +270,11 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     if(!is.null(confounders[[1]])){
       ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
       filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas[,1], nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
-      muMarg = filtObj$muMarg
+      muMarg = muMarg * exp(confounders$confounders %*% filtObj$NB_params)
       thetas[,1] = filtObj$thetas
       confParams = filtObj$NB_params
-      devFilt = getDevMat(X = X, thetaMat = matrix(filtObj$thetas, nrow = n, ncol = p, byrow = TRUE), mu = muMarg)#The deviance after filtering the confounders
-      llFilt = dnbinom(x = X, mu = muMarg, size = matrix(filtObj$thetas, nrow = n, ncol = p, byrow = TRUE), log = TRUE) #The likelihood after filtering the confounders
     } else {
-      confParams = devFilt = llFilt = NULL
+      confParams = NULL
     }
     ## 1) Initialization
     svdX = svd(diag(1/libSizes) %*% (X-muMarg) %*% diag(1/colSums(X)))
@@ -420,9 +418,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     colnames(cMat) = colnames(X)
     rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
 
-    returnList = list(converged = convergence, rMat = rMat, cMat=cMat, psis = psis, thetas = thetas,  rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X=X, Xorig = Xorig, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights,
-                      libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds),
-                      confounders = confounders, confParams = confParams, devFilt = devFilt, llFilt = llFilt)
+    returnList = list(rMat = rMat, cMat=cMat, rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol)
 
   } else { #If covariates provided, do a constrained analysis
     d = ncol(covariates)
@@ -559,10 +555,12 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     rownames(alpha) = colnames(covariates)
     colnames(alpha) = paste0("Dim",1:k)
 
-    returnList = list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, fit = "RCM_NB_constr", lambdaCol = lambdaCol, rowWeights = rowWeights, colWeights = colWeights, alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, degree = degree, devFilt = devFilt, llFilt = llFilt)
+    returnList = list( fit = "RCM_NB_constr", lambdaCol = lambdaCol,  alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, degree = degree)
   }
   if(!all(convergence)){
     warning(paste0("Algorithm did not converge for dimensions ", paste(which(!convergence), collapse = ","), "! Check for errors or consider changing tolerances or number of iterations"))
   }
-  return(returnList)
+  return(
+    c(returnList, list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, call = match.call(), rowWeights = rowWeights, colWeights = colWeights, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams))
+    )
 }

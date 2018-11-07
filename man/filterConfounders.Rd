@@ -33,7 +33,6 @@ Fits the negative binomial mean parameters and overdispersion parameters iterati
 \value{
 a list with components:
 \item{thetas}{new theta estimates}
-\item{muMarg}{a new offset matrix}
 \item{NB_params}{The estimated parameters of the interaction terms}
 }
 \description{
