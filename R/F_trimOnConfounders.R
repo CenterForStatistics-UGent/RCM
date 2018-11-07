@@ -16,8 +16,8 @@ trimOnConfounders = function(confounders, X, prevCutOff, minFraction, n){
     }))
   })
 
-  if(all(trimmingID)){
-    stop("All taxa would be trimmed, please provide a covariate with less levels! \n")
+  if(sum(!trimmingID)<=1){
+    stop("All taxa would be trimmed, please provide a covariate with less levels, or reduce the prevalence cut-off! \n")
   }
 
   X[, !trimmingID] #Return trimmed X
