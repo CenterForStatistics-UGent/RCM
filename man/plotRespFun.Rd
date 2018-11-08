@@ -71,5 +71,5 @@ round = TRUE, responseFun = "nonparametric")
 plotRespFun(zellerRCMnp)
 }
 \seealso{
-\code{\link{RCM}}
+\code{\link{RCM}}, \code{\link{plot.RCM}}, \code{\link{residualPlot}}
 }

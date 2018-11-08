@@ -47,7 +47,7 @@
 #' @param legendTitleSize size of the legend title
 #' @param axisLabSize size of the axis labels
 #' @param axisTitleSize size of the axis title
-#' @param plotPsi a boolean, should the value of the importance parameter be plotted?
+#' @param plotPsi a character vector, describing what to plot on the axis. Can be either "psi", "none" or "loglik". The latter plots the log-likelihood explained
 #' @param breakChar a character string indicating how the taxon names should be broken
 #'
 #' @details
@@ -63,7 +63,7 @@
 #' @importFrom graphics par text
 #' @importFrom RColorBrewer brewer.pal
 #' @method plot RCM
-#' @seealso \code{\link{RCM}},\code{\link{addOrthProjection}}
+#' @seealso \code{\link{RCM}},\code{\link{addOrthProjection}},\code{\link{extractCoord}},\code{\link{plotRespFun}}
 #' @examples
 #' data(Zeller)
 #' require(phyloseq)
@@ -73,13 +73,14 @@
 #' zellerRCM = RCM(tmpPhy)
 #' plot(zellerRCM)
 plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","variables"),
-                    samColour = NULL, taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, taxRegExp = NULL, varNum = 15, arrowSize = 0.25, Influence = FALSE, inflDim = 1, returnCoords = FALSE, alpha = TRUE, varPlot = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 2, scalingFactor = NULL, quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08, axesFixed = TRUE, aspRatio = 1, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), taxLabSize = 4, varLabSize = 3.5, alphaRange = c(0.2,1), varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = TRUE, breakChar = "\n") {
+                    samColour = NULL, taxNum = if(all(plotType=="species") || !is.null(taxRegExp)) {ncol(x$X)} else {10}, taxRegExp = NULL, varNum = 15, arrowSize = 0.25, Influence = FALSE, inflDim = 1, returnCoords = FALSE, alpha = TRUE, varPlot = NULL, colLegend = if(Influence) paste0("Influence on\n", samColour, "\nparameter \nin dimension",inflDim) else samColour, samShape = NULL, shapeLegend = samShape, samSize = 2, scalingFactor = NULL, quadDrop = 0.995, plotEllipse = TRUE, taxaScale = 0.5, Palette = if(!all(plotType=="species")) "Set1" else "Paired", taxLabels = !all(plotType=="species"), taxDots = FALSE, taxCol = "blue", taxColSingle = "blue", nudge_y = 0.08, axesFixed = TRUE, aspRatio = 1, xInd = if(all(plotType=="samples")) c(0,0) else c(-0.75, 0.75), yInd = c(0,0), taxLabSize = 4, varLabSize = 3.5, alphaRange = c(0.2,1), varExpFactor = 10, manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""), legendSize = samSize, noLegend = is.null(samColour), crossSize = 4, contCol = c("orange","darkgreen"), legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, plotPsi = "loglik", breakChar = "\n") {
   #Retrieve dots (will be passed on to aes())
   dotList = list(...)
   richSupported = c("Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson", "Fisher")
   constrained = !is.null(x$covariates) #Constrained plot?
   #Extract the coordinates
   coords = extractCoord(x, Dim)
+  Dimnames = paste0("Dim", Dim) # A text form of the dimensions
   if(constrained && x$responseFun  == "nonparametric") plotType = plotType[plotType!="species"] #For non-parametric response function we cannot plot the taxa
 
 ## SAMPLES
@@ -110,11 +111,21 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
      geom_point(size = samSize ) +#point size
      if(noLegend) {guides(colour=FALSE)}  #Legend
 
-  if(plotPsi) {
+  if(plotPsi=="psi") {
         plot = plot + xlab(bquote(psi[.(Dim[1])] == .(round(x$psis[Dim[1]],1)))) + #xlabel
           ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
-      } else {
+      } else if(plotPsi=="loglik"){
+liksTab = liks(x)
+if(length(x$confounders$confMat)){#If filtered on confounders, print in title.
+plot = plot + ggtitle(paste0("Confounders' deviance explained: ", liksTab["logLikExplained", "filtered"]*100,"%"))
+}
+plot = plot + xlab(paste0(Dimnames[1],": ",liksTab["logLikExplained", Dimnames[1]]*100, "%")) +
+  ylab(paste0(Dimnames[2],": ",liksTab["logLikExplained", Dimnames[2]]*100, "%"))
+
+      } else if(plotPsi== "none"){
   plot = plot + xlab(paste0(names(dataSam)[1])) + ylab(paste0(names(dataSam)[2]))
+  } else{
+  stop("'plotPsi' argument unknown!\n")
 }
 
    #add legend names
@@ -144,7 +155,7 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
       #Filter out small arrows
       dataTax = dataTax[id,]
       if("samples" %in% plotType){
-      scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")]-dataTax[, c("origin1","origin2")],2,range)
+      scalingFactorTmp = apply(dataSam[, Dimnames],2,range)/apply(dataTax[, c("end1","end2")]-dataTax[, c("origin1","origin2")],2,range)
       scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*0.975
       #Scale the arrows
       dataTax[,c("end1","end2")] = dataTax[,c("origin1","origin2")] + dataTax[,c("slope1","slope2")] * scalingFactor
@@ -193,7 +204,7 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
     #Filter out small arrows
     dataTax = dataTax[id,]
     if("samples" %in% plotType){
-    scalingFactorTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(dataTax[, c("end1","end2")],2,range)
+    scalingFactorTmp = apply(dataSam[, Dimnames],2,range)/apply(dataTax[, c("end1","end2")],2,range)
     scalingFactor = min(scalingFactorTmp[scalingFactorTmp>0])*manExpFactorTaxa
     #The scaling factor is the minimum of the ratios between the longest longest arrow and the longest species arrow in every direction of every dimension
     dataTax[, c("end1","end2")] = dataTax[, c("end1","end2")] * scalingFactor
@@ -250,8 +261,8 @@ if(taxLabels){
 }
   if(!"samples" %in% plotType){
     plot = plot +
-      xlab(paste("Dim",Dim[1])) + #xlabel
-      ylab(paste("Dim",Dim[2]))
+      xlab(Dimnames[1]) + #xlabel
+      ylab(Dimnames[2])
   }
   } #END if "species" %in% plotType
 
@@ -271,13 +282,13 @@ if(taxLabels){
     varData = varData[varID,]
     if(!all(plotType=="variables")){
       if("samples" %in% plotType){
-        scalingFactorAlphaTmp = apply(dataSam[, paste0("Dim", Dim)],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
+        scalingFactorAlphaTmp = apply(dataSam[, Dimnames],2,range)/apply(varData[, Dimnames],2,range)
         scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
       } else if("species" %in% plotType){
-        scalingFactorAlphaTmp = apply(dataTax[, c("end1","end2")],2,range)/apply(varData[, paste0("Dim", Dim)],2,range)
+        scalingFactorAlphaTmp = apply(dataTax[, c("end1","end2")],2,range)/apply(varData[, Dimnames],2,range)
         scalingFactorAlpha = max(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
       }
-      varData[, paste0("Dim", Dim)] = varData[, paste0("Dim", Dim)]*scalingFactorAlpha
+      varData[, Dimnames] = varData[, Dimnames]*scalingFactorAlpha
     }
     plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = varLabSize)
   } else {varData = NULL}

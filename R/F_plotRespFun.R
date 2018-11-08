@@ -29,7 +29,7 @@
 #' @import ggplot2
 #' @import phyloseq
 #' @importFrom stats runif
-#' @seealso \code{\link{RCM}}
+#' @seealso \code{\link{RCM}}, \code{\link{plot.RCM}}, \code{\link{residualPlot}}
 #' @examples
 #' data(Zeller)
 #' require(phyloseq)

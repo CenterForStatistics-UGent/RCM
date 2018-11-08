@@ -24,7 +24,7 @@
   legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,
   contCol = c("orange", "darkgreen"), legendLabSize = 15,
   legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
-  plotPsi = TRUE, breakChar = "\\n")
+  plotPsi = "loglik", breakChar = "\\n")
 }
 \arguments{
 \item{x}{an RCM object}
@@ -121,7 +121,7 @@
 
 \item{axisTitleSize}{size of the axis title}
 
-\item{plotPsi}{a boolean, should the value of the importance parameter be plotted?}
+\item{plotPsi}{a character vector, describing what to plot on the axis. Can be either "psi", "none" or "loglik". The latter plots the log-likelihood explained}
 
 \item{breakChar}{a character string indicating how the taxon names should be broken}
 }
@@ -146,5 +146,5 @@ zellerRCM = RCM(tmpPhy)
 plot(zellerRCM)
 }
 \seealso{
-\code{\link{RCM}},\code{\link{addOrthProjection}}
+\code{\link{RCM}},\code{\link{addOrthProjection}},\code{\link{extractCoord}},\code{\link{plotRespFun}}
 }

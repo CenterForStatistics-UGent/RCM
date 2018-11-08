@@ -8,8 +8,8 @@
 #'@return If Sum is FALSE, a named array log-likelihoods of the independence model and all models with dimension 1 to k, including after filtering on confounders. Otherwise a table with log-likelihoods, deviance explained and cumulative deviance explained.
 #'@export
 liks = function(rcm, Sum = TRUE){
-  vec = if(length(rcm$confounders)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
-  outnames = c("independence", if(length(rcm$confounders)) "filtered" else NULL, paste0("Dim ", 1:rcm$k))#,"saturated")
+  vec = if(length(rcm$confounders$confMat)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
+  outnames = c("independence", if(length(rcm$confounders$confMat)) "filtered" else NULL, paste0("Dim", 1:rcm$k))#,"saturated")
   if(Sum) {
     tmp = sapply(vec, FUN = function(i){
       sum(getLogLik(rcm, i))
@@ -25,7 +25,7 @@ getLogLik(rcm, i)
     cumDevianceExplained = round((tmp-tmp[1])/(tmp[length(tmp)]-tmp[1]),3)
   out = rbind(logLikelihood = tmp,
               logLikExplained = c(0, diff(cumDevianceExplained)),
-              logLikExplained = cumDevianceExplained)
+              cumLogLikExplained = cumDevianceExplained)
   }
   return(out)
 }
