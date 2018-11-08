@@ -6,7 +6,7 @@
 #' @return A matrix with logged likelihood of the size of the data matrix
 getLogLik = function(rcm, Dim){
   if(Dim == Inf) {return(dpois(x = rcm$X, lambda = rcm$X, log = TRUE))}
-  E = extractE(rcm, Dim)
+  E = extractE(rcm, if(Dim>=1) seq_len(Dim) else Dim)
   thetaMat = extractDisp(rcm, E)
   dnbinom(x = rcm$X, mu = E, size = thetaMat, log = TRUE)
 }

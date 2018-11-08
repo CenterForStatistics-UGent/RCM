@@ -59,31 +59,3 @@ splinesList = lapply(taxonWise, function(x){if(class(x)=="list") x$spline else N
 
   list(taxonCoef = taxonCoef, splinesList = splinesList, rowMat = rowMat, overall = overallList, rowVecOverall = rowVecOverall)
 }
-
-
-# n = 50
-# size = 2
-# psi = 1.45
-# s = 10^rnorm(n,3)
-# rel = 1e-3
-# samScore = rnorm(50, sd = 0.2)
-# mu = s*rel*exp(psi*samScore^3)
-# y = rnbinom(n, mu = mu, size = size)
-#
-# df = data.frame(x = y, sampleScore = samScore, logMu = log(s*rel))
-# vgamFit = RCM:::vgam.edit(data = df,x ~ s(sampleScore, df = dfSpline), psi = psi, offset = logMu, family = negbinomial.size(lmu = "loge", size = size), coefstart = NULL, maxit = 1e2)
-# newSam = seq(-0.6, 0.4, length.out = 20)
-# logMu = runif(20, 0.2,0.4)
-# vgamPred = predict(vgamFit, newdata = data.frame(sampleScore = newSam, logMu = logMu), type ="link")
-# spline = vgamFit@Bspline[[1]]
-# coefVgam = coef(vgamFit)
-# splinePred = cbind(1,newSam, predict(spline, x = newSam)$y) %*% c(coefVgam,1)
-# plot(vgamPred,splinePred);abline(0,1)
-# cbind(vgamPred,splinePred , splinePred+logMu)
-#
-#
-# splinePredY = exp(splinePred*psi+ logMu)
-# vgamPredY = c(predict(vgamFit, type = "response", newdata = data.frame(sampleScore = newSam, logMu = logMu)))
-# plot(splinePredY, vgamPredY);abline(0,1)
-# cbind(splinePredY, vgamPredY, exp(splinePred), exp(vgamPred))
-

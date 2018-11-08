@@ -7,12 +7,11 @@
 extractE = function(rcm, Dim = rcm$k){
   #Expectations
   Eind = outer(rcm$libSizes, rcm$abunds) #Expected values under independence
-  if (Dim %in% c(0,NA)){
+  if (Dim[1] %in% c(0,NA)){
     Eind
-  } else if(Dim==0.5){
+  } else if(Dim[1]==0.5){
 Eind * exp(rcm$confounders$confounders %*% rcm$confParams)
   } else {
-    Dim = seq_len(Dim)
     if(!is.null(rcm$confounders$confounders)) Eind = Eind * exp(rcm$confounders$confounders %*% rcm$confParams)
     if(is.null(rcm$covariates)){
       Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))
