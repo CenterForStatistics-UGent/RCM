@@ -8,17 +8,10 @@
 #' Multiplying the old offset with the exponent matrix times the importance parameter obtains the new one based on lower dimension
 #'
 #' @return a n-by-p matrix of scores
-getRowMat = function(sampleScore, responseFun, NB_params, nonParFit){
+getRowMat = function(sampleScore, responseFun, NB_params, taxonCoef, spline){
   if(responseFun=="nonparametric"){
-    sapply(nonParFit, function(Fit){
-      Fit = if(is.null(Fit$fit)) Fit else Fit$fit
-      if(is.numeric(Fit)){
-        cbind(1,sampleScore) %*% Fit
-      } else {
-      cbind(1,sampleScore, predict(Fit$spline, x = sampleScore)$y) %*% c(Fit$coef,1)}
-      })
+      cbind(1,sampleScore, predict(spline, x = sampleScore)$y) %*% c(taxonCoef,1)
   } else {
     buildDesign(sampleScore, responseFun) %*% NB_params
   }
-
 }
