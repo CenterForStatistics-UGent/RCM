@@ -116,7 +116,7 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
           ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
       } else if(plotPsi=="loglik"){
 liksTab = liks(x)
-if(length(x$confounders$confMat)){#If filtered on confounders, print in title.
+if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
 plot = plot + ggtitle(paste0("Confounders' deviance explained: ", liksTab["logLikExplained", "filtered"]*100,"%"))
 }
 plot = plot + xlab(paste0(Dimnames[1],": ",liksTab["logLikExplained", Dimnames[1]]*100, "%")) +
