@@ -81,6 +81,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
+  if(!responseFun %in% c("linear", "quadratic","dynamic","nonparametric")){
+    stop("Unknown response function provided! See ?RCM_NB for details.")
+  }
 
   #If previous fit provided with higher or equal dimension, stop here
   if((!is.null(NBRCM)) ){
