@@ -4,7 +4,7 @@
 \alias{estNPresp}
 \title{A function to estimate the taxon-wise response functions non-parametrically, and return their fitted values}
 \usage{
-estNPresp(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit,
+estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
   coefInitOverall, dfSpline, vgamMaxit, degree, verbose, ...)
 }
 \arguments{
@@ -13,8 +13,6 @@ estNPresp(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit,
 \item{muMarg}{the offset matrix}
 
 \item{X}{the n-by-p data matrix}
-
-\item{psi}{the importance parameter}
 
 \item{ncols}{an integer, the number of columns of X}
 
@@ -40,11 +38,11 @@ The negative binomial likelihood is still maximized, but now the response functi
 }
 \value{
 A list with components
-\item{taxonWiseFitted}{A n-by-p matrix of fitted valuesof the response curves per taxon at the observed values of the environmental scores}
 \item{taxonCoef}{The fitted coefficients of the sample-wise response curves}
-\item{overallFitted}{The fitted values of all taxa combined}
-\item{taxonWiseFits}{A list of length p of normalized response curves of all the taxa. This may be useful to investigate the shape of the response function through plots.}
-\item{taxonWise}{The taxonwise response function}
+\item{splinesList}{A list of all the B-spline objects}
+\item{rowMar}{The row matrix}
+\item{overall}{The overall fit ignoring taxon labels, as a list of coefficients and a spline}
+\item{rowVecOverall}{The overall row vector, ignoring taxon labels}
 }
 \description{
 A function to estimate the taxon-wise response functions non-parametrically, and return their fitted values

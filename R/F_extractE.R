@@ -16,7 +16,7 @@ Eind * exp(rcm$confounders$confounders %*% rcm$confParams)
     if(is.null(rcm$covariates)){
       Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))
     } else if(rcm$responseFun == "nonparametric"){
-      Eind*exp(apply(vapply(Dim,FUN.VALUE = Eind, function(j){rcm$psis[j]*getRowMat(sampleScore = rcm$covariates %*% rcm$alpha[,j], responseFun = rcm$responseFun, nonParFit = rcm$nonParamRespFun$taxonWise)}),c(1,2),sum))
+      Eind*exp(apply(vapply(Dim,FUN.VALUE = Eind, function(j){rcm$nonParamRespFun$rowMat}),c(1,2),sum))
     } else {
       Eind*exp(apply(vapply(Dim, FUN.VALUE = Eind, function(j){rcm$psis[j]*getRowMat(sampleScore = rcm$covariates %*% rcm$alpha[,j], responseFun = rcm$responseFun, NB_params = rcm$NB_params[,,j])}),c(1,2),sum))
     }

@@ -4,7 +4,7 @@
 \alias{getRowMat}
 \title{A function that returns a matrix of scores resulting from a response function and an environmental gradient.}
 \usage{
-getRowMat(sampleScore, responseFun, NB_params, nonParFit)
+getRowMat(sampleScore, responseFun, NB_params, taxonCoef, spline)
 }
 \arguments{
 \item{sampleScore}{a vector of length n with sample scores}
@@ -13,7 +13,9 @@ getRowMat(sampleScore, responseFun, NB_params, nonParFit)
 
 \item{NB_params}{a v-by-p matrix of parameters of theresponse function}
 
-\item{nonParFit}{A list of non parametric fits as returned by vgam.edit
+\item{taxonCoef}{A vector of coefficients}
+
+\item{spline}{The cubic smoothing spline
 
 Multiplying the old offset with the exponent matrix times the importance parameter obtains the new one based on lower dimension}
 }

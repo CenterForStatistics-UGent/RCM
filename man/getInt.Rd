@@ -4,14 +4,14 @@
 \alias{getInt}
 \title{A function to integrate the spline of an vgam object between the boundaries of observed environmental scores.}
 \usage{
-getInt(fitObj, sampleScore, class, stop.on.error = FALSE, ...)
+getInt(coef, spline, sampleScore, stop.on.error = FALSE, ...)
 }
 \arguments{
-\item{fitObj}{a fitted object, either gam or a vector of parameters}
+\item{coef}{A vector of coefficients}
+
+\item{spline}{The cubic smoothing spline}
 
 \item{sampleScore}{the observed environmental scores}
-
-\item{class}{the class of the fit}
 
 \item{stop.on.error}{see ?integrate}
 

@@ -39,21 +39,19 @@
 #' zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
 #' round = TRUE, responseFun = "nonparametric")
 #' plotRespFun(zellerRCMnp)
-plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, nTaxa = 8L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, lineSize = 0.75,...){
+plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL, Dim = 1L, nPoints = 1e2L, labSize = 2.5, yLocVar = NULL, yLocSam =  NULL, Palette = "Set3", addJitter = FALSE, nTaxa = 9L, angle = 90, legendLabSize = 15,  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16, lineSize = 0.75,...){
   if(is.null(RCM$nonParamRespFun)){
     stop("This function can only be called on non-parametric response functions! \n")
   }
   if(!type %in% c("link","response")){
     stop("Specify type = 'link' or 'response'!\n")
   }
-  names(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]]) = taxa_names(RCM$physeq)
   # A function to predict new values
   predictFun = function(taxon, x){
-    fit = RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]][[taxon]]
-    if(fit$class=="vgam"){
-      cbind(1,x, predict(fit$fit$spline, x = x)$y) %*% c(fit$fit$coef,1)*RCM$psis[Dim]
+    if(length(RCM$nonParamRespFun[[paste0("Dim", Dim)]]$splinesList[[taxon]])){
+      cbind(1,x, predict(RCM$nonParamRespFun[[paste0("Dim", Dim)]]$splinesList[[taxon]], x = x)$y) %*% c(RCM$nonParamRespFun[[paste0("Dim", Dim)]]$taxonCoef[[taxon]],1)
     } else {
-      getModelMat(x, RCM$degree) %*% fit$fit
+      getModelMat(x, RCM$degree) %*% RCM$nonParamRespFun[[paste0("Dim", Dim)]]$taxonCoef[[taxon]]
     }
     }
 
@@ -61,7 +59,7 @@ plotRespFun = function(RCM, taxa = NULL, type = "link", logTransformYAxis = FALS
 sampleScoreRange = range(RCM$covariates %*% RCM$alpha[,Dim])
 sampleScoreSeq = seq(sampleScoreRange[1], sampleScoreRange[2], length.out = nPoints)
 if(is.null(taxa)) { #If taxa not provided, pick the ones that react most strongly
-  intsNonParam = sapply(RCM$nonParamRespFun[[paste0("Dim", Dim)]][["taxonWise"]], function(x){x$int}) #The integrals
+  intsNonParam = RCM$nonParamRespFun[[paste0("Dim", Dim)]][["intList"]]#The integrals
   taxa = taxa_names(RCM$physeq)[intsNonParam > quantile(intsNonParam, (ntaxa(RCM$physeq)-nTaxa)/ntaxa(RCM$physeq))]
 }
 

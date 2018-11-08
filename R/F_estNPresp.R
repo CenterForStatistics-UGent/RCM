@@ -3,7 +3,6 @@
 #' @param sampleScore a vector of length n with environmental scores
 #' @param muMarg the offset matrix
 #' @param X the n-by-p data matrix
-#' @param psi the importance parameter
 #' @param ncols an integer, the number of columns of X
 #' @param thetas a vector of length p with dispersion parameters
 #' @param n an integer, the number of samples
@@ -25,14 +24,14 @@
 #' \item{rowVecOverall}{The overall row vector, ignoring taxon labels}
 #'
 #' @importFrom MASS negative.binomial
-estNPresp = function(sampleScore, muMarg, X, psi, ncols, thetas, n, coefInit, coefInitOverall, dfSpline, vgamMaxit, degree, verbose,...){
+estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefInitOverall, dfSpline, vgamMaxit, degree, verbose,...){
   logMu = log(muMarg)
   MM = getModelMat(sampleScore, degree) #The model matrix for the parametric fit
   MM1 = getModelMat(sampleScore, degree = 1) #The model matrix of the first degree
     taxonWise = lapply(seq_len(ncols), function(i){
     df = data.frame(x = X[,i], sampleScore = sampleScore, logMu = log(muMarg[,i])) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
       tmp = try(suppressWarnings(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[[i]], maxit = vgamMaxit,...)), silent = TRUE)
-    if(class(tmp)=="try-error") { #If this fails turn to parametric fit
+    if(class(tmp)[[1]]=="try-error") { #If this fails turn to parametric fit
       warning("GAM would not fit, turned to parametric fit of degree ", degree, "!")
       tmp = try(nleqslv(fn =  dNBllcolNP, x = if(length(coefInit[[i]])==2) rep(1e-4, degree+1) else coefInit[[i]], X = X[,i], reg = MM, theta = thetas[i], muMarg = muMarg[,i], jac = NBjacobianColNP)$x)
     } else {#if VGAM fit succeeds, retain only necessary information

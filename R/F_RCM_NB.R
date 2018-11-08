@@ -77,7 +77,7 @@
 #' mat = mat[rowSums(mat)>0, colSums(mat)>0]
 #' zellerRCM = RCM_NB(mat, k = 2)
 #' #Needs to be called directly onto a matrix
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 1000L, Psitol = 1e-2, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 10L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff = 2.5e-2, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L, degree = switch(responseFun[1], "nonparametric" = 1, NULL)){
+RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1e-3, maxItOut = 1000L, Psitol = 1e-3, verbose = FALSE, NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1-16), jacMethod = "Broyden", dispFreq = 10L, convNorm = 2, prior.df=10, marginEst = "MLE", confounders = NULL, prevCutOff, minFraction = 0.1, covariates = NULL, centMat = NULL, responseFun = c("linear", "quadratic","dynamic","nonparametric"), record = FALSE, control.outer = list(trace=FALSE), control.optim = list(), envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L, degree = switch(responseFun[1], "nonparametric" = 1, NULL)){
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -443,7 +443,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
     if(responseFun == "nonparametric") {
-      nonParamRespFun = lapply(1:k,function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)}); names(nonParamRespFun) = paste0("Dim",1:k)
+      nonParamRespFun = lapply(1:k,function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)})
     psis = rep.int(1L,k)
       } else {nonParamRespFun =NULL}
     rowMat = NULL
@@ -523,7 +523,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, psi = psis[KK], ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef , coefInitOverall = nonParamRespFun[[KK]]$overall$coef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, verbose = verbose, degree = degree)
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef , coefInitOverall = nonParamRespFun[[KK]]$overall$coef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, verbose = verbose, degree = degree)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
           AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
@@ -555,13 +555,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       nonParamRespFun = lapply(seq_len(k), function(KK){
         samScore = covariates %*% alpha[,KK]
         nonPar = nonParamRespFun[[KK]]
-nonPar$intList = lapply(seq_len(p), function(tax){
-getInt(coef = nonParamRespFun[[KK]]$taxonCoef[[tax]], spline = nonParamRespFun[[KK]]$splineList[[tax]], sampleScore = samScore)
-  })
-return(nonPar)
+        nonPar$intList = sapply(colnames(X), function(tax){
+          getInt(coef = nonParamRespFun[[KK]]$taxonCoef[[tax]], spline = nonParamRespFun[[KK]]$splineList[[tax]], sampleScore = samScore)
+        })
+        return(nonPar)
       })
-psis = sapply(nonParamRespFun, function(nonPar){
-  sqrt(sum(nonPar$intList^2))})
+      names(nonParamRespFun) = paste0("Dim",1:k)
+      psis = sapply(nonParamRespFun, function(nonPar){
+        sqrt(sum(nonPar$intList^2))})
     }
 
     rownames(alpha) = colnames(covariates)
