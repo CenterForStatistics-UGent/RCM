@@ -52,7 +52,7 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
   overallList = list(coef = coef(overall), spline = overall@Bspline[[1]])
   #Return lists of splines and of coefficients, and a row regression matrix
-rowMat = sapply(taxonWise, function(x){if(class(x)=="list") cbind(MM1, predict(x$spline, x = sampleScore)$y) %*% c(x$coef,1) else MM1 %*% x})
+rowMat = sapply(taxonWise, function(x){if(class(x)=="list") cbind(MM1, predict(x$spline, x = sampleScore)$y) %*% c(x$coef,1) else MM %*% x})
 rowVecOverall = cbind(MM1, predict(overallList$spline, x = sampleScore)$y) %*% c(overallList$coef,1)
 taxonCoef = lapply(taxonWise, function(x){if(class(x)=="list") x$coef else x})
 splinesList = lapply(taxonWise, function(x){if(class(x)=="list") x$spline else NULL})
