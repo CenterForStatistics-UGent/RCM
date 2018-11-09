@@ -6,7 +6,7 @@
 Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.}
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
-  tol = 0.001, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
+  tol = 1e-04, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
   NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit =
   500L, cndtol = 1 - 16), jacMethod = "Broyden", dispFreq = 10L,
   convNorm = 2, prior.df = 10, marginEst = "MLE",
@@ -15,7 +15,7 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   "quadratic", "dynamic", "nonparametric"), record = FALSE,
   control.outer = list(trace = FALSE), control.optim = list(),
   envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
-  degree = switch(responseFun[1], nonparametric = 1, NULL))
+  degree = switch(responseFun[1], nonparametric = 3, NULL))
 }
 \arguments{
 \item{X}{a nxp data matrix}
