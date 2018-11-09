@@ -6,7 +6,7 @@
 Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.}
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
-  tol = 1e-04, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
+  tol = 0.001, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
   NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit =
   500L, cndtol = 1 - 16), jacMethod = "Broyden", dispFreq = 10L,
   convNorm = 2, prior.df = 10, marginEst = "MLE",
