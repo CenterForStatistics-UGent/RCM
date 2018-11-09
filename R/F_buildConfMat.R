@@ -45,8 +45,8 @@ buildConfMat.data.frame = function(confounders, n,...){
     stop("Data and confounder matrix do not have the same number of samples! \n")
   }
   if(anyNA(confounders)){stop("Confounders contain missing values!\n")}
-  confModelMatTrim = model.matrix( #No intercept for preliminary trimming
-    object = as.formula(paste("~", paste(names(confounders), collapse="+"),"-1")),
+  confModelMatTrim = model.matrix( #No intercept or continuous variables for preliminary trimming
+    object = as.formula(paste("~", paste(names(confounders)[sapply(confounders, is.factor)], collapse="+"),"-1")),
     data = confounders,
     contrasts.arg = lapply(confounders[sapply(confounders, is.factor)],
                            contrasts, contrasts=FALSE))

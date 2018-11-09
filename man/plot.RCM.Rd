@@ -24,7 +24,7 @@
   legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,
   contCol = c("orange", "darkgreen"), legendLabSize = 15,
   legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
-  plotPsi = "loglik", breakChar = "\\n")
+  plotPsi = "psi", breakChar = "\\n")
 }
 \arguments{
 \item{x}{an RCM object}
