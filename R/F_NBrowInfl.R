@@ -12,7 +12,7 @@ NBrowInfl = function(rcm, Dim = 1){
   thetaMat = extractDisp(rcm, mu)
   lambdaRow = rcm$lambdaRow[seq_k(Dim)]
   rMatK = rcm$rMat[,seq_len(Dim-1),drop=FALSE]
-  tmp = if(Dim>1) rcm$lambdaRow[-(1:2)] %*% rMatK else 0
+  tmp = if(Dim>1) rcm$lambdaRow[-c(1,2)] %*% rMatK else 0
 
   score= reg*(rcm$X-mu)/(1+mu/thetaMat) + c(rcm$rowWeights*(lambdaRow[1] + lambdaRow[2]*2*rcm$rMat[,Dim] + tmp))
 

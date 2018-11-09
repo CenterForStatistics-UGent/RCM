@@ -11,7 +11,7 @@ NBcolInfl = function(rcm, Dim = 1){
   thetaMat = extractDisp(rcm, mu)
   lambdaCol = rcm$lambdaCol[seq_k(Dim)]
   cMatK = rcm$cMat[seq_len(Dim-1),,drop=FALSE]
-  tmp = if(Dim>1) lambdaCol[-(1:2)] %*% cMatK else 0
+  tmp = if(Dim>1) lambdaCol[-c(1,2)] %*% cMatK else 0
 
   score = (reg *(rcm$X-mu)/(1+mu/thetaMat)) + rcm$colWeights*(lambdaCol[1] + lambdaCol[2]*2*rcm$cMat + tmp)
 
@@ -19,5 +19,5 @@ NBcolInfl = function(rcm, Dim = 1){
 
   #After a long thought: The X's do not affect the estimation of the lambda parameters!
   #Matrix becomes too large: return score and inverse jacobian
-  return(list(score=score, InvJac = JacobianInv[1:ncol(rcm$X),1:ncol(rcm$X)]))
+  return(list(score=score, InvJac = JacobianInv[seq_len(ncol(rcm$X)),seq_len(ncol(rcm$X))]))
 }

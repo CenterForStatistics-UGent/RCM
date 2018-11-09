@@ -31,13 +31,13 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
     taxonWise = lapply(seq_len(ncols), function(i){
     df = data.frame(x = X[,i], sampleScore = sampleScore, logMu = log(muMarg[,i])) #Going through a dataframe slows things down, so ideally we should appeal directly to the vgam.fit function
       tmp = try(suppressWarnings(vgam(data = df,x ~ s(sampleScore, df = dfSpline), offset = logMu, family = negbinomial.size(lmu = "loge", size = thetas[i]), coefstart = coefInit[[i]], maxit = vgamMaxit,...)), silent = TRUE)
-    if(class(tmp)[[1]]=="try-error") { #If this fails turn to parametric fit
+    if(inherits(tmp,"try-error")) { #If this fails turn to parametric fit
       warning("GAM would not fit, turned to parametric fit of degree ", degree, "!")
       tmp = try(nleqslv(fn =  dNBllcolNP, x = if(length(coefInit[[i]])==2) rep(1e-4, degree+1) else coefInit[[i]], X = X[,i], reg = MM, theta = thetas[i], muMarg = muMarg[,i], jac = NBjacobianColNP)$x)
     } else {#if VGAM fit succeeds, retain only necessary information
       tmp = list(coef = coef(tmp), spline = tmp@Bspline[[1]])
     }
-    if(class(tmp)[[1]]=="try-error") {
+    if(inherits(tmp,"try-error")) {
       warning("GLM would not fit either, returning independence model! ")
     tmp = numeric(degree+1)#If nothing will fit, stick to an independence model
    }
@@ -45,17 +45,17 @@ estNPresp = function(sampleScore, muMarg, X, ncols, thetas, n, coefInit, coefIni
   })
     names(taxonWise) = colnames(X)
     #Report failed fits
-  sumFit = sum(sapply(taxonWise, class)!="list")
+  sumFit = sum(!sapply(taxonWise, is.list))
   if(verbose && sumFit) warning("A total number of ",sumFit, " response functions did not converge! \n")
 #Overall fit
   samRep = rep(sampleScore, ncols)
   overall = vgam(c(X) ~ s(samRep, df = dfSpline), offset = c(logMu), family = negbinomial.size(lmu = "loge", size = rep(thetas, each = n)), coefstart = coefInitOverall, maxit = vgamMaxit,...)
   overallList = list(coef = coef(overall), spline = overall@Bspline[[1]])
   #Return lists of splines and of coefficients, and a row regression matrix
-rowMat = sapply(taxonWise, function(x){if(class(x)=="list") cbind(MM1, predict(x$spline, x = sampleScore)$y) %*% c(x$coef,1) else MM %*% x})
+rowMat = sapply(taxonWise, function(x){if(is.list(x)) cbind(MM1, predict(x$spline, x = sampleScore)$y) %*% c(x$coef,1) else MM %*% x})
 rowVecOverall = cbind(MM1, predict(overallList$spline, x = sampleScore)$y) %*% c(overallList$coef,1)
-taxonCoef = lapply(taxonWise, function(x){if(class(x)=="list") x$coef else x})
-splinesList = lapply(taxonWise, function(x){if(class(x)=="list") x$spline else NULL})
+taxonCoef = lapply(taxonWise, function(x){if(is.list(x)) x$coef else x})
+splinesList = lapply(taxonWise, function(x){if(is.list(x)) x$spline else NULL})
 
   list(taxonCoef = taxonCoef, splinesList = splinesList, rowMat = rowMat, overall = overallList, rowVecOverall = rowVecOverall)
 }

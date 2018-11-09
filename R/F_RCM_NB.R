@@ -123,9 +123,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       if(is.null(covariates)){
         if(record){
           rowRec = array(0, dim = c(n,k,maxItOut))
-          rowRec[,1:Kprev,] = NBRCM$rowRec
+          rowRec[,seq_len(Kprev),] = NBRCM$rowRec
         } else {rowRec =  NULL}
-        lambdaRow[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
+        lambdaRow[seq_len(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaRow
         svdX = svd(diag(1/rowSums(X)) %*% (X-muMarg) %*% diag(1/colSums(X)))
         muMarg = muMarg * exp(rMat %*% (cMat*psis))
         rMat = cbind(rMat, svdX$u[,newK, drop=FALSE])
@@ -183,14 +183,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       }
       if(record){
         colRec = array(0, dim = c(k,p,maxItOut))
-        colRec[1:Kprev,,] = NBRCM$colRec
+        colRec[seq_len(Kprev),,] = NBRCM$colRec
         thetaRec = array(0, dim = c(k,p,maxItOut))
-        thetaRec[1:Kprev,,] = NBRCM$thetaRec
+        thetaRec[seq_len(Kprev),,] = NBRCM$thetaRec
         psiRec = array(0, dim = c(k,maxItOut))
-        psiRec[1:Kprev,] = NBRCM$psiRec
+        psiRec[seq_len(Kprev),] = NBRCM$psiRec
       } else {colRec = psiRec = thetaRec = NULL}
       lambdaCol = lambdaRow = rep(0, k*(2+(k-1)/2))
-      lambdaCol[1:(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
+      lambdaCol[seq_len(Kprev*(2+(Kprev-1)/2))] = NBRCM$lambdaCol
       convergence = c(NBRCM$converged, rep(FALSE, k-Kprev))
       iterOut = c(NBRCM$iter, rep(1,k-Kprev))
       trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(outer(logLibSizesMLE, logAbundsMLE, FUN = "+")), weights = NULL)
@@ -281,9 +281,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     }
     ## 1) Initialization
     svdX = svd(diag(1/libSizes) %*% (X-muMarg) %*% diag(1/colSums(X)))
-    rMat = svdX$u[,1:k, drop=FALSE]
-    cMat = t(svdX$v[,1:k, drop=FALSE])
-    psis = svdX$d[1:k]
+    rMat = svdX$u[,seq_len(k), drop=FALSE]
+    cMat = t(svdX$v[,seq_len(k), drop=FALSE])
+    psis = svdX$d[seq_len(k)]
 
     lambdaRow =  rep.int(0,nLambda)
     lambdaCol =  rep.int(0,nLambda )
@@ -327,17 +327,17 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(muMarg)), weights = NULL)
 
       JacR = matrix(0, nrow = n+KK+1, ncol = n+KK+1) #Prepare sparse Jacobians, and prefill what we can
-      JacR[1:n, n+1] = rowWeights
+      JacR[seq_len(n), n+1] = rowWeights
       if(KK>1){
-        JacR[1:n,(n+3):(n+KK+1)] = rMat[,1:(KK-1), drop=FALSE]*rowWeights
+        JacR[seq_len(n),(n+3):(n+KK+1)] = rMat[,seq_len(KK-1), drop=FALSE]*rowWeights
       }
       #Symmetrize
       JacR = JacR + t(JacR)
 
       JacC = matrix(0, nrow = p+KK+1, ncol = p+KK+1)
-      JacC[1:p, p+1] = colWeights
+      JacC[seq_len(p), p+1] = colWeights
       if(KK>1){
-        JacC[1:p,(p+3):(p+KK+1)] = t(cMat[1:(KK-1),, drop=FALSE])*colWeights
+        JacC[seq_len(p),(p+3):(p+KK+1)] = t(cMat[seq_len(KK-1),, drop=FALSE])*colWeights
       }
       #Symmetrize
       JacC = JacC + t(JacC)
@@ -369,7 +369,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         regPsis = outer(rMat[,KK] ,cMat[KK,])
 
         psiTry = try(abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method=jacMethod, preFabMat = preFabMat)$x))
-        if(class(psiTry)=="try-error"){
+        if(inherits(psiTry,"try-error")){
           stop("Fit failed, likely due to numeric reasons. Consider more stringent filtering by increasing the prevCutOff parameter.\n")
           } else {psis[KK] = psiTry}
 
@@ -379,7 +379,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,], lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], preFabMat = preFabMat, Jac = JacC)
 
         if(verbose) cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
-        cMat[KK,] = tmpCol$x[1:p]
+        cMat[KK,] = tmpCol$x[seq_len(p)]
         lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
 
         #Normalize (speeds up algorithm if previous step had not converged)
@@ -391,7 +391,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n = n, p = p, jac = NBjacobianRow, method = jacMethod, rowWeights = rowWeights, nLambda = (KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE], preFabMat = preFabMat, Jac = JacR)
 
         if(verbose) cat(ifelse(tmpRow$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
-        rMat[,KK] = tmpRow$x[1:n]
+        rMat[,KK] = tmpRow$x[seq_len(n)]
         lambdaRow[idK] = tmpRow$x[n + seq_along(idK)]
 
         #Normalize (speeds up algorithm if previous step had not converged)
@@ -422,7 +422,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
     rownames(rMat) = rownames(X)
     colnames(cMat) = colnames(X)
-    rownames(cMat) = colnames(rMat) = paste0("Dim",1:k)
+    rownames(cMat) = colnames(rMat) = paste0("Dim",seq_len(k))
 
     returnList = list(rMat = rMat, cMat=cMat, rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol)
 
@@ -434,14 +434,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       warning(immediate. = TRUE, paste("Can only fit an ordination with", k,"dimensions with so few covariates!"))
     }
     alpha = matrix(0,d,k)
-    alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,1:k] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
+    alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,seq_len(k)] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
     alpha = t(t(alpha)-colMeans(alpha))
     alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
     if(!is.null(NBRCM)){
       newK = (Kprev+1):k
       psis = c(psis, CCA$eig[newK])
     } else {
-      psis = CCA$eig[1:k]
+      psis = CCA$eig[seq_len(k)]
     }
     alphaRec = if(record){array(0, dim=c(d, k, maxItOut))} else {NULL}
     v = switch(responseFun, linear = 2, quadratic = 3, dynamic = 3, 1) #Number of parameters per taxon
@@ -449,16 +449,16 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params = if(responseFun != "nonparametric") vapply(seq_len(k),FUN.VALUE = matrix(0,v,p), function(x){x = NB_params[,,x, drop=FALSE];x/sqrt(rowSums(x^2))}) else NULL
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
     if(responseFun == "nonparametric") {
-      nonParamRespFun = lapply(1:k,function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)})
+      nonParamRespFun = lapply(seq_len(k),function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)})
     psis = rep.int(1L,k)
       } else {nonParamRespFun =NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
-      alpha[,1:Kprev] = NBRCM$alpha
-      if(record) alphaRec[,1:Kprev,] = NBRCM$alphaRec
-      NB_params[,,1:Kprev] = NBRCM$NB_params
-      if(envGradEst == "LR") {NB_params_noLab[,1:Kprev] = NBRCM$NB_params_noLab}
+      alpha[,seq_len(Kprev)] = NBRCM$alpha
+      if(record) alphaRec[,seq_len(Kprev),] = NBRCM$alphaRec
+      NB_params[,,seq_len(Kprev)] = NBRCM$NB_params
+      if(envGradEst == "LR") {NB_params_noLab[,seq_len(Kprev)] = NBRCM$NB_params_noLab}
     }
 
     #Number of lambda parameters for centering
@@ -566,13 +566,13 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         })
         return(nonPar)
       })
-      names(nonParamRespFun) = paste0("Dim",1:k)
+      names(nonParamRespFun) = paste0("Dim",seq_len(k))
       #psis = sapply(nonParamRespFun, function(nonPar){
         #sqrt(sum(nonPar$intList^2))})
     }
 
     rownames(alpha) = colnames(covariates)
-    colnames(alpha) = paste0("Dim",1:k)
+    colnames(alpha) = paste0("Dim",seq_len(k))
 
     returnList = list( fit = "RCM_NB_constr", lambdaCol = lambdaCol,  alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, degree = degree)
   }

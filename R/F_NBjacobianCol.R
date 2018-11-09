@@ -16,7 +16,7 @@
 
 #' @return A matrix of dimension p+1+1+(k-1) with evaluations of the Jacobian
 NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda, cMatK, preFabMat, Jac){
-  cMat = beta[1:p]
+  cMat = beta[seq_len(p)]
 
   #Calculate the mean
   mu = exp(reg %*% cMat) * muMarg
@@ -25,11 +25,11 @@ NBjacobianCol = function(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLam
 
   #dLag²/dr_{ik}dlambda_{1k}
   #Jac[1:(p*k),(p*k+1):((p+1)*k)] = sapply(1:k, function(K){c(rep(0,(K-1)*p),colWeights,rep(0,(k-K)*p))})
-  Jac[1:p,p+2] = Jac[p+2, 1:p] = colWeights*2 *cMat
+  Jac[seq_len(p),p+2] = Jac[p+2, seq_len(p)] = colWeights*2 *cMat
 
   #dLag²/ds_{ik}dlambda_{3kk'}
 
   #dLag²/dr_{ik}²
-  diag(Jac)[1:p] = -crossprod(preFabMat*mu/(1+mu/thetas)^2, reg^2) + 2*beta[p+2]*colWeights
+  diag(Jac)[seq_len(p)] = -crossprod(preFabMat*mu/(1+mu/thetas)^2, reg^2) + 2*beta[p+2]*colWeights
   Jac
 }

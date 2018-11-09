@@ -9,7 +9,7 @@
 #'@export
 liks = function(rcm, Sum = TRUE){
   vec = if(length(rcm$confounders$confounders)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
-  outnames = c("independence", if(length(rcm$confounders$confounders)) "filtered" else NULL, paste0("Dim", 1:rcm$k))#,"saturated")
+  outnames = c("independence", if(length(rcm$confounders$confounders)) "filtered" else NULL, paste0("Dim", seq_len(rcm$k)))#,"saturated")
   if(Sum) {
     tmp = sapply(vec, FUN = function(i){
       sum(getLogLik(rcm, i))

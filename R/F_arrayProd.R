@@ -7,7 +7,7 @@
 arrayprod <- function(x,y){
 
   xdim <- dim(x)
-  outdim <- xdim[1:2]
+  outdim <- xdim[c(1,2)]
   outn <- prod(outdim)
 
   yexpand <- rep(y, each = outn)

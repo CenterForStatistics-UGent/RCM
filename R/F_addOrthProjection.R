@@ -14,12 +14,12 @@
 #' @examples
 #' data(Zeller)
 #' require(phyloseq)
-#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
-#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
+#' prune_samples(sample_names(Zeller)[seq_len(50)], Zeller))
 #' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
 #' zellerPlot = plot(zellerRCM, returnCoords = TRUE)
 #' addOrthProjection(zellerPlot, species = c(-0.35,1.1), sample = c(1,1.2))
-addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = NULL, Dims = 1:2, addLabel = FALSE, labPos = NULL){
+addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = NULL, Dims = c(1,2), addLabel = FALSE, labPos = NULL){
   nulls = is.null(sample) + is.null(species) + is.null(variable)
   if(nulls != 1) stop("Provide two variables categories for a projection! \n")
   if(is.null(species)) stop("Species should be provided, cannot project sample onto variable vector! \n")

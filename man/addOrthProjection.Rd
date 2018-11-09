@@ -5,7 +5,7 @@
 \title{This function adds orthogonal projections to a given plot based on coordinates or sample/taxon/variable names}
 \usage{
 addOrthProjection(RCMplot, sample = NULL, species = NULL,
-  variable = NULL, Dims = 1:2, addLabel = FALSE, labPos = NULL)
+  variable = NULL, Dims = c(1, 2), addLabel = FALSE, labPos = NULL)
 }
 \arguments{
 \item{RCMplot}{the RCMplot object}
@@ -27,8 +27,8 @@ This function adds orthogonal projections to a given plot based on coordinates o
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
-prune_samples(sample_names(Zeller)[1:50], Zeller))
+tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
+prune_samples(sample_names(Zeller)[seq_len(50)], Zeller))
 zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
 zellerPlot = plot(zellerRCM, returnCoords = TRUE)
 addOrthProjection(zellerPlot, species = c(-0.35,1.1), sample = c(1,1.2))
