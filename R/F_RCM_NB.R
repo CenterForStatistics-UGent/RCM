@@ -212,7 +212,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     abunds = colSums(X)/sum(X)
     libSizes = rowSums(X)
 
-    #Get the trended-dispersion estimates. Very insensitive to the offset so only need to be calculated once
+    #Get the trended-dispersion estimates. Very insensitive to the offset so only need to be calculated once per dimension
     trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(outer(libSizes, abunds))), weights = NULL)
 
     if(marginEst == "MLE"){
@@ -322,6 +322,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       #Modify offset if needed
       if(KK>1 && (if(!is.null(NBRCM)) {Kprev != (KK-1)} else {TRUE})){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
       idK = seq_k(KK) #prepare an index
+
+      #Re-estimate the trended dispersions, once per dimensions
+      trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X), design = NULL, method = "bin.loess", offset = t(log(muMarg)), weights = NULL)
 
       JacR = matrix(0, nrow = n+KK+1, ncol = n+KK+1) #Prepare sparse Jacobians, and prefill what we can
       JacR[1:n, n+1] = rowWeights
