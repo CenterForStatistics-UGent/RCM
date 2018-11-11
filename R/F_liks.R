@@ -7,6 +7,13 @@
 #'
 #'@return If Sum is FALSE, a named array log-likelihoods of the independence model and all models with dimension 1 to k, including after filtering on confounders. Otherwise a table with log-likelihoods, deviance explained and cumulative deviance explained.
 #'@export
+#' @examples
+#' data(Zeller)
+#' require(phyloseq)
+#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+#' prune_samples(sample_names(Zeller)[1:50], Zeller))
+#' zellerRCM = RCM(tmpPhy, round = TRUE)
+#' liks(zellerRCM)
 liks = function(rcm, Sum = TRUE){
   vec = if(length(rcm$confounders$confounders)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
   outnames = c("independence", if(length(rcm$confounders$confounders)) "filtered" else NULL, paste0("Dim", seq_len(rcm$k)))#,"saturated")
