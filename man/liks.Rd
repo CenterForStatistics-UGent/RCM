@@ -19,3 +19,11 @@ If Sum is FALSE, a named array log-likelihoods of the independence model and all
 \description{
 Calculate the log-likelihoods of the indepence and saturated models and all fitted submodels
 }
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+prune_samples(sample_names(Zeller)[1:50], Zeller))
+zellerRCM = RCM(tmpPhy, round = TRUE)
+liks(zellerRCM)
+}
