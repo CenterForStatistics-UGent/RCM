@@ -68,7 +68,7 @@ names(df)[-1] = taxa
 dfMolt = reshape2::melt(df, id.vars ="sampleScore", value.name = "responseFun", variable.name = "Taxon")
 if(type=="response"){dfMolt$responseFun = exp(dfMolt$responseFun) +1e-9}
 
-plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line(size = lineSize) + xlab(paste("Environmental score of dimension", Dim)) + ylab(ifelse(type=="link","Response function", "Response function on count scale")) + scale_y_continuous(trans = if (logTransformYAxis) "log10" else "identity", labels = if (logTransformYAxis) function(x) {sprintf("%.4f", x)} else identity)
+plot = ggplot(data = dfMolt, aes_string(x = "sampleScore", y = "responseFun", group = "Taxon", colour = "Taxon"),...) + geom_line(size = lineSize) + xlab(paste("Environmental score of dimension", Dim)) + ylab(ifelse(type=="link","Expected abundance", "Response function on count scale")) + scale_y_continuous(trans = if (logTransformYAxis) "log10" else "identity", labels = if (logTransformYAxis) function(x) {sprintf("%.4f", x)} else identity)
 
 #Also add the associated elements of the environmental gradient in the upper margin
 textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[,Dim]*min(abs(sampleScoreRange))/max(abs(RCM$alpha[,Dim])))
