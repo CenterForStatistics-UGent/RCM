@@ -157,28 +157,28 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
             rowS/sqrt(sum(rowWeights * rowS^2))
           }))
         } else {
-        cMat[newK,, drop=FALSE] = t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
-          colS-sum(colS*colWeights)/sum(colWeights)
-        }))
-        rMat[,newK, drop=FALSE] = apply(rMat[,newK, drop=FALSE], 2, function(rowS){
-          rowS-sum(rowS*rowWeights)/sum(rowWeights)
-        })
+          cMat[newK,, drop=FALSE] = t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+            colS-sum(colS*colWeights)/sum(colWeights)
+          }))
+          rMat[,newK, drop=FALSE] = apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+            rowS-sum(rowS*rowWeights)/sum(rowWeights)
+          })
 
-        #Redistribute some weight to fit the constraints
-        psis[newK] = c(psis[newK] *t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
-          sqrt(sum(colWeights * colS^2))
-        })) * apply(rMat[,newK, drop=FALSE], 2, function(rowS){
-          sqrt(sum(rowWeights * rowS^2))
-        }))
+          #Redistribute some weight to fit the constraints
+          psis[newK] = c(psis[newK] *t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+            sqrt(sum(colWeights * colS^2))
+          })) * apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+            sqrt(sum(rowWeights * rowS^2))
+          }))
 
-        #Normalize
-        cMat[newK,, drop=FALSE] = t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
-          colS/sqrt(sum(colWeights * colS^2))
-        }))
+          #Normalize
+          cMat[newK,, drop=FALSE] = t(apply(cMat[newK,, drop=FALSE], 1, function(colS){
+            colS/sqrt(sum(colWeights * colS^2))
+          }))
 
-        rMat[,newK, drop=FALSE] = apply(rMat[,newK, drop=FALSE], 2, function(rowS){
-          rowS/sqrt(sum(rowWeights * rowS^2))
-        })
+          rMat[,newK, drop=FALSE] = apply(rMat[,newK, drop=FALSE], 2, function(rowS){
+            rowS/sqrt(sum(rowWeights * rowS^2))
+          })
         }
       }
       if(record){
@@ -287,29 +287,29 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
     lambdaRow =  rep.int(0,nLambda)
     lambdaCol =  rep.int(0,nLambda )
-  #Center
-  cMat = t(apply(cMat, 1, function(colS){
-    colS-sum(colS*colWeights)/sum(colWeights)
-  }))
-  rMat = apply(rMat, 2, function(rowS){
-    rowS-sum(rowS*rowWeights)/sum(rowWeights)
-  })
+    #Center
+    cMat = t(apply(cMat, 1, function(colS){
+      colS-sum(colS*colWeights)/sum(colWeights)
+    }))
+    rMat = apply(rMat, 2, function(rowS){
+      rowS-sum(rowS*rowWeights)/sum(rowWeights)
+    })
 
-  #Redistribute some weight to fit the constraints
-  psis = c(psis *t(apply(cMat, 1, function(colS){
-    sqrt(sum(colWeights * colS^2))
-  })) * apply(rMat, 2, function(rowS){
-    sqrt(sum(rowWeights * rowS^2))
-  }))
+    #Redistribute some weight to fit the constraints
+    psis = c(psis *t(apply(cMat, 1, function(colS){
+      sqrt(sum(colWeights * colS^2))
+    })) * apply(rMat, 2, function(rowS){
+      sqrt(sum(rowWeights * rowS^2))
+    }))
 
-  #Normalize
-  cMat = t(apply(cMat, 1, function(colS){
-    colS/sqrt(sum(colWeights * colS^2))
-  }))
+    #Normalize
+    cMat = t(apply(cMat, 1, function(colS){
+      colS/sqrt(sum(colWeights * colS^2))
+    }))
 
-  rMat = apply(rMat, 2, function(rowS){
-    rowS/sqrt(sum(rowWeights * rowS^2))
-  })
+    rMat = apply(rMat, 2, function(rowS){
+      rowS/sqrt(sum(rowWeights * rowS^2))
+    })
   } # END if-else: no previous fit provided
 
   if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
@@ -371,7 +371,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         psiTry = try(abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat, X = X, reg=regPsis, muMarg=muMarg, global=global, control = nleqslv.control, jac=NBjacobianPsi, method=jacMethod, preFabMat = preFabMat)$x))
         if(inherits(psiTry,"try-error")){
           stop("Fit failed, likely due to numeric reasons. Consider more stringent filtering by increasing the prevCutOff parameter.\n")
-          } else {psis[KK] = psiTry}
+        } else {psis[KK] = psiTry}
 
         #Column scores
         if (verbose) cat("\n Estimating column scores \n")
@@ -450,8 +450,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
     if(responseFun == "nonparametric") {
       nonParamRespFun = lapply(seq_len(k),function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)})
-    psis = rep.int(1L,k)
-      } else {nonParamRespFun =NULL}
+      psis = rep.int(1L,k)
+    } else {nonParamRespFun =NULL}
     rowMat = NULL
 
     if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
@@ -512,20 +512,20 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         }
 
         if(responseFun %in% c("linear","quadratic", "dynamic")){
-        #Psis
-        if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
-        psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod, preFabMat = preFabMat)$x)
+          #Psis
+          if (verbose) cat("\n Estimating psis (k = ", KK, ") \n", sep="")
+          psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod, preFabMat = preFabMat)$x)
 
-        if (verbose) cat("\n Estimating response function \n")
-        NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
-        NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2))
+          if (verbose) cat("\n Estimating response function \n")
+          NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
+          NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2))
 
-        if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
+          if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 
-        if (verbose) cat("\n Estimating environmental gradient \n")
-      AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha[seq_k(KK, nLambda1s)]), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
-      alpha[,KK] = AlphaTmp[seq_len(d)]
-      lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp[-seq_len(d)]
+          if (verbose) cat("\n Estimating environmental gradient \n")
+          AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha[seq_k(KK, nLambda1s)]), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
+          alpha[,KK] = AlphaTmp[seq_len(d)]
+          lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp[-seq_len(d)]
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")
@@ -568,7 +568,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       })
       names(nonParamRespFun) = paste0("Dim",seq_len(k))
       #psis = sapply(nonParamRespFun, function(nonPar){
-        #sqrt(sum(nonPar$intList^2))})
+      #sqrt(sum(nonPar$intList^2))})
     }
 
     rownames(alpha) = colnames(covariates)
@@ -581,5 +581,5 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
   }
   return(
     c(returnList, list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, rowWeights = rowWeights, colWeights = colWeights, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams))
-    )
+  )
 }
