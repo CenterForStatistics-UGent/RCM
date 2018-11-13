@@ -450,7 +450,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
     if(responseFun == "nonparametric") {
       nonParamRespFun = lapply(seq_len(k),function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)})
-      psis = rep.int(1L,k)
+      psis = sapply(nonParamRespFun, function(y){sqrt(sum(y$rowMat^2))})
     } else {nonParamRespFun =NULL}
     rowMat = NULL
 
