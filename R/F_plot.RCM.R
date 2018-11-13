@@ -201,7 +201,7 @@ if(!"samples" %in% plotType && length(taxCol)==1) colLegend = taxCol
     if(length(taxCol)>1 && length(unique(taxCol))<10){
       dataTax$taxCol = Palette[c(taxCol[id])]
     } else if(taxCol=="Deviance"){
-      dataTax$taxCol = colSums(getDevianceRes(x, Dim)^2)[id]
+      dataTax$taxCol = colSums(getDevianceRes(x, max(Dim))^2)[id]
     } else if(taxCol %in% colnames(tax_table(x$physeq, errorIfNULL = FALSE))){
       dataTax$taxCol = tax_table(x$physeq)[, taxCol]
       mostCommon = names(sort(table(dataTax$taxCol), decreasing = TRUE)[seq_len(nPhyl)])

@@ -102,7 +102,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       n=NROW(X)
       p=NCOL(X)
       thetas = NBRCM$thetas
-      thetasMat = matrix(thetas[,Kprev+1], byrow = TRUE, n, p)
+      thetasMat = matrix(thetas[,paste0("Dim",Kprev)], byrow = TRUE, n, p)
       rowWeights = NBRCM$rowWeights
       colWeights = NBRCM$colWeights
       libSizesMLE = NBRCM$libSizes
