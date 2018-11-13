@@ -7,7 +7,7 @@
 #' Standard dimensions used are only first and second, since these are also plotted
 #'
 #'@return A matrix with deviance residuals of the same size as the original data matrix
-getDevianceRes = function(RCM, Dim = seq_len(RCM$k)){
+getDevianceRes = function(RCM, Dim = RCM$k){
   mu = extractE(RCM,Dim)
   thetaMat = matrix(byrow = TRUE, nrow = nrow(RCM$X), ncol = ncol(RCM$X),
                     data = RCM$thetas[,switch(as.character(Dim), "0" = "Independence", "0.5" = "Filtered", paste0("Dim", Dim))])

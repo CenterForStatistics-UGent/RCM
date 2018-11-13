@@ -81,7 +81,9 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
   #Extract the coordinates
   coords = extractCoord(x, Dim)
   Dimnames = paste0("Dim", Dim) # A text form of the dimensions
-  if(constrained && x$responseFun  == "nonparametric") plotType = plotType[plotType!="species"] #For non-parametric response function we cannot plot the taxa
+  if(constrained && x$responseFun  == "nonparametric") {
+    plotType = "variables" #For non-parametric response function we, can only plot the variables meaningfully
+  }
 
 ## SAMPLES
   if("samples" %in% plotType){

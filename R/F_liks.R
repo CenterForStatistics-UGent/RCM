@@ -3,8 +3,6 @@
 #'@param rcm an object of the RCM class
 #'@param Sum a boolean, should log-likelihoods be summed?
 #'
-#'Dispersions are re-estimated for every dimension of the model.
-#'
 #'@return If Sum is FALSE, a named array log-likelihoods of the independence model and all models with dimension 1 to k, including after filtering on confounders. Otherwise a table with log-likelihoods, deviance explained and cumulative deviance explained.
 #'@export
 #' @examples
