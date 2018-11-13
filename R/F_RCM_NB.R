@@ -198,7 +198,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     }
     #Otherwise start the fit from scratch
   } else {
-    if(!is.null(confounders[[1]])){ #First and foremost: filter on confounders
+    if(!is.null(confounders$confounders)){ #First and foremost: filter on confounders
       Xorig = X
       X = trimOnConfounders(X, confounders = confounders$confoundersTrim, prevCutOff = prevCutOff, n=nrow(Xorig), minFraction = minFraction)
     }
@@ -206,7 +206,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     n=NROW(X)
     p=NCOL(X)
 
-    thetas = matrix(0,p, k+1+(!is.null(confounders)), dimnames = list(colnames(X), c("Independence",if(!is.null(confounders)) "Filtered" else NULL, paste0("Dim",seq_len(k))))) #Track the overdispersions, also the one associated to the independence model
+    thetas = matrix(0,p, k+1+(!is.null(confounders$confounders)), dimnames = list(colnames(X), c("Independence",if(!is.null(confounders$confounders)) "Filtered" else NULL, paste0("Dim",seq_len(k))))) #Track the overdispersions, also the one associated to the independence model
 
     #Initialize some parameters
     abunds = colSums(X)/sum(X)
@@ -270,7 +270,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     }
     convergence = rep(FALSE, k)
     iterOut = rep(1,k)
-    if(!is.null(confounders[[1]])){
+    if(!is.null(confounders$confounders)){
       ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
       filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas[,1], nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
       muMarg = muMarg * exp(confounders$confounders %*% filtObj$NB_params)
@@ -450,7 +450,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     NB_params_noLab = if(responseFun != "nonparametric" && envGradEst == "LR") matrix(0.1,v,k) else NULL #Initiate parameters of the response function, ignoring taxon-labels
     if(responseFun == "nonparametric") {
       nonParamRespFun = lapply(seq_len(k),function(x){list(taxonWise = lapply(integer(p), function(d){list(fit =list(coef=NULL))}), overall = NULL)})
-      psis = sapply(nonParamRespFun, function(y){sqrt(sum(y$rowMat^2))})
     } else {nonParamRespFun =NULL}
     rowMat = NULL
 
@@ -567,8 +566,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         return(nonPar)
       })
       names(nonParamRespFun) = paste0("Dim",seq_len(k))
-      #psis = sapply(nonParamRespFun, function(nonPar){
-      #sqrt(sum(nonPar$intList^2))})
     }
 
     rownames(alpha) = colnames(covariates)

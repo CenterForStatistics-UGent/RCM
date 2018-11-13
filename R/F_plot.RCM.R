@@ -113,29 +113,6 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
      geom_point(size = samSize ) +#point size
      if(noLegend) {guides(colour=FALSE)}  #Legend
 
-  if(plotPsi=="psi") {
-        plot = plot + xlab(bquote(psi[.(Dim[1])] == .(round(x$psis[Dim[1]],1)))) + #xlabel
-          ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
-      } else if(plotPsi=="loglik"){
-liksTab = liks(x)
-if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
-plot = plot + ggtitle(paste0("Confounders' deviance explained: ", liksTab["logLikExplained", "filtered"]*100,"%"))
-}
-plot = plot + xlab(paste0(Dimnames[1],": ",liksTab["logLikExplained", Dimnames[1]]*100, "%")) +
-  ylab(paste0(Dimnames[2],": ",liksTab["logLikExplained", Dimnames[2]]*100, "%"))
-      } else if(plotPsi == "inertia"){
-        inertTab = inertia(x)
-    if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
-        plot = plot + ggtitle(paste0("Confounders' inertia explained: ", inertTab["inertiaExplained", "filtered"]*100,"%"))
-      }
-   plot = plot + xlab(paste0(Dimnames[1],": ",inertTab["inertiaExplained", Dimnames[1]]*100, "%")) +
-     ylab(paste0(Dimnames[2],": ",inertTab["inertiaExplained", Dimnames[2]]*100, "%"))
-      } else if(plotPsi == "none"){
-  plot = plot + xlab(paste0(names(dataSam)[1])) + ylab(paste0(names(dataSam)[2]))
-  } else {
-  stop("'plotPsi' argument unknown!\n")
-}
-
    #add legend names
    if(!is.null(colLegend) & is.factor(dataSam$colourPlot) ){
      plot = plot + scale_colour_manual(name = colLegend, values = colorRampPalette(brewer.pal(max(3,length(unique(dataSam$colourPlot))), Palette))(length(unique(dataSam$colourPlot))))
@@ -300,6 +277,30 @@ if(taxLabels){
     }
     plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = varLabSize)
   } else {varData = NULL}
+
+  ## AXIS LABELS
+  if(plotPsi=="psi") {
+    plot = plot + xlab(bquote(psi[.(Dim[1])] == .(round(x$psis[Dim[1]],1)))) + #xlabel
+      ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
+  } else if(plotPsi=="loglik"){
+    liksTab = liks(x)
+    if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
+      plot = plot + ggtitle(paste0("Confounders' deviance explained: ", liksTab["logLikExplained", "filtered"]*100,"%"))
+    }
+    plot = plot + xlab(paste0(Dimnames[1],": ",liksTab["logLikExplained", Dimnames[1]]*100, "%")) +
+      ylab(paste0(Dimnames[2],": ",liksTab["logLikExplained", Dimnames[2]]*100, "%"))
+  } else if(plotPsi == "inertia"){
+    inertTab = inertia(x)
+    if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
+      plot = plot + ggtitle(paste0("Confounders' inertia explained: ", inertTab["inertiaExplained", "filtered"]*100,"%"))
+    }
+    plot = plot + xlab(paste0(Dimnames[1],": ",inertTab["inertiaExplained", Dimnames[1]]*100, "%")) +
+      ylab(paste0(Dimnames[2],": ",inertTab["inertiaExplained", Dimnames[2]]*100, "%"))
+  } else if(plotPsi == "none"){
+    plot = plot + xlab(paste0(names(dataSam)[1])) + ylab(paste0(names(dataSam)[2]))
+  } else {
+    stop("'plotPsi' argument unknown!\n")
+  }
 
   #Add cross in the centre
   plot = plot + geom_point(data=data.frame(x=0,y=0), aes_string(x="x",y="y"), size = crossSize, inherit.aes = FALSE, shape=3)
