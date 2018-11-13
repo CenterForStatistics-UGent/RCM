@@ -35,7 +35,8 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response", resid = "Deviance"
     resMat = getDevianceRes(RCM, seq_len(Dim))
     } else if(resid == "Pearson") {
       mu = extractE(RCM, seq_len(Dim)) #Residuals are also based on lower dimensions
-      thetaMat = extractDisp(RCM, mu)
+      thetaMat = matrix(byrow = TRUE, nrow = nrow(RCM$X), ncol = ncol(RCM$X),
+                        data = RCM$thetas[,switch(as.character(Dim), "0" = "Independence", "0.5" = "Filtered", paste0("Dim", Dim))])
     resMat = (RCM$X-mu)/sqrt(mu+mu^2/thetaMat)
       } else {stop("Unknown residual type!")}
 if(!whichTaxa %in% c("runs","response")){
