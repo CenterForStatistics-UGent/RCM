@@ -123,10 +123,16 @@ plot = plot + ggtitle(paste0("Confounders' deviance explained: ", liksTab["logLi
 }
 plot = plot + xlab(paste0(Dimnames[1],": ",liksTab["logLikExplained", Dimnames[1]]*100, "%")) +
   ylab(paste0(Dimnames[2],": ",liksTab["logLikExplained", Dimnames[2]]*100, "%"))
-
-      } else if(plotPsi== "none"){
+      } else if(plotPsi == "inertia"){
+        inertTab = inertia(x)
+    if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
+        plot = plot + ggtitle(paste0("Confounders' inertia explained: ", inertTab["inertiaExplained", "filtered"]*100,"%"))
+      }
+   plot = plot + xlab(paste0(Dimnames[1],": ",inertTab["inertiaExplained", Dimnames[1]]*100, "%")) +
+     ylab(paste0(Dimnames[2],": ",inertTab["inertiaExplained", Dimnames[2]]*100, "%"))
+      } else if(plotPsi == "none"){
   plot = plot + xlab(paste0(names(dataSam)[1])) + ylab(paste0(names(dataSam)[2]))
-  } else{
+  } else {
   stop("'plotPsi' argument unknown!\n")
 }
 
