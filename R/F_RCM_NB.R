@@ -206,7 +206,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     n=NROW(X)
     p=NCOL(X)
 
-    thetas = matrix(0,p,k+1) #Track the overdispersions, also the one associated to the independence model
+    thetas = matrix(0,p, k+1+(!is.null(confounders)), dimnames = list(colnames(X), c("Independence",if(!is.null(confounders)) "Filtered" else NULL, paste0("Dim",seq_len(k))))) #Track the overdispersions, also the one associated to the independence model
 
     #Initialize some parameters
     abunds = colSums(X)/sum(X)
@@ -228,8 +228,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         logLibsOld = logLibSizesMLE
         logAbsOld = logAbundsMLE
 
-        thetas[,1] = estDisp(X = X, rMat = as.matrix(rep(0,n)), cMat = t(as.matrix(rep(0,p))),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, prior.df = prior.df, trended.dispersion = trended.dispersion)
-        thetasMat = matrix(thetas[,1], n, p, byrow=TRUE)
+        thetas[,"Independence"] = estDisp(X = X, rMat = as.matrix(rep(0,n)), cMat = t(as.matrix(rep(0,p))),  muMarg=exp(outer(logLibSizesMLE, logAbundsMLE, "+")), psis = 0, prior.df = prior.df, trended.dispersion = trended.dispersion)
+        thetasMat = matrix(thetas[,"Independence"], n, p, byrow=TRUE)
 
         logLibSizesMLE = nleqslv(fn = dNBlibSizes, x = logLibSizesMLE, theta = thetasMat, X = X, reg=logAbundsMLE, global=global, control = nleqslv.control, jac=NBjacobianLibSizes, method=jacMethod)$x
         logAbundsMLE = nleqslv(fn = dNBabunds, x = logAbundsMLE, theta = thetasMat, X = X, reg=logLibSizesMLE, global=global, control = nleqslv.control, jac=NBjacobianAbunds, method=jacMethod)$x
@@ -274,7 +274,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
       ## Filter out the confounders by adding them to the intercept, also adapt overdispersions
       filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas[,1], nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
       muMarg = muMarg * exp(confounders$confounders %*% filtObj$NB_params)
-      thetas[,1] = filtObj$thetas
+      thetas[,"Filtered"] = filtObj$thetas
       confParams = filtObj$NB_params
     } else {
       confParams = NULL
@@ -361,7 +361,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         if((iterOut[KK] %% dispFreq) ==0 || (iterOut[KK]==1)){
           if (verbose) cat(" Estimating overdispersions \n")
           thetas[,KK+1] = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
-          thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
+          thetasMat = matrix(thetas[,paste0("Dim",KK)], n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
           preFabMat = 1+X/thetasMat # Another matrix that can be pre-calculated
         }
         #Psis
@@ -402,7 +402,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           #Store intermediate estimates
           rowRec[,KK, iterOut[KK]] = rMat[,KK]
           colRec[KK,, iterOut[KK]] = cMat[KK,]
-          thetaRec [KK,, iterOut[KK]] = thetas[,KK+1]
+          thetaRec [KK,, iterOut[KK]] = thetas[,paste0("Dim",KK)]
           psiRec[KK, iterOut[KK]] = psis[KK]
         }
 
@@ -507,7 +507,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         if((iterOut[KK] %% dispFreq) == 0 || iterOut[KK] == 1){
           if (verbose) cat(" Estimating overdispersions \n")
           thetas[,KK+1] = estDisp(X = X, muMarg = muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
-          thetasMat = matrix(thetas[,KK+1], n, p, byrow=TRUE)
+          thetasMat = matrix(thetas[,paste0("Dim",KK)], n, p, byrow=TRUE)
           preFabMat = 1+X/thetasMat
         }
 
@@ -517,7 +517,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
           psis[KK]  = abs(nleqslv(fn = dNBpsis, x = psis[KK], theta = thetasMat , X = X, reg = rowMat, muMarg = muMarg, global = global, control = nleqslv.control, jac = NBjacobianPsi, method = jacMethod, preFabMat = preFabMat)$x)
 
           if (verbose) cat("\n Estimating response function \n")
-          NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,KK+1], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
+          NB_params[,,KK] = estNBparams(design = design, thetas = thetas[,paste0("Dim",KK)], muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, ncols = p, initParam = NB_params[,,KK], v = v, dynamic = responseFun=="dynamic", envRange = envRange)
           NB_params[,,KK] = NB_params[,,KK]/sqrt(rowSums(NB_params[,,KK]^2))
 
           if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
@@ -529,7 +529,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
 
         } else {
           if (verbose) cat("\n Estimating response functions \n")
-          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,KK+1], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef , coefInitOverall = nonParamRespFun[[KK]]$overall$coef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, verbose = verbose, degree = degree)
+          nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,paste0("Dim",KK)], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef , coefInitOverall = nonParamRespFun[[KK]]$overall$coef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, verbose = verbose, degree = degree)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
           AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
@@ -540,7 +540,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Store intermediate estimates
         if(record){
           alphaRec[,KK, iterOut[KK]] = alpha[,KK]
-          thetaRec [KK,, iterOut[KK]] = thetas[,KK+1]
+          thetaRec [KK,, iterOut[KK]] = thetas[,paste0("Dim",KK)]
           psiRec[KK, iterOut[KK]] = psis[KK]
         }
         ## Change iterator
