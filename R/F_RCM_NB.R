@@ -360,7 +360,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Overdispersions (not at every iterations to speed things up, the estimates do not change a lot anyway)
         if((iterOut[KK] %% dispFreq) ==0 || (iterOut[KK]==1)){
           if (verbose) cat(" Estimating overdispersions \n")
-          thetas[,KK+1] = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
+          thetas[,paste0("Dim",KK)] = estDisp(X = X, rMat = rMat[,KK,drop=FALSE], cMat = cMat[KK,,drop=FALSE], muMarg=muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion)
           thetasMat = matrix(thetas[,paste0("Dim",KK)], n, p, byrow=TRUE) #Make a matrix for numerical reasons, it avoids excessive use of the t() function
           preFabMat = 1+X/thetasMat # Another matrix that can be pre-calculated
         }

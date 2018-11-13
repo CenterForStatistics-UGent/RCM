@@ -7,6 +7,7 @@
 getLogLik = function(rcm, Dim){
   if(Dim == Inf) {return(dpois(x = rcm$X, lambda = rcm$X, log = TRUE))}
   E = extractE(rcm, if(Dim>=1) seq_len(Dim) else Dim)
-  thetaMat = extractDisp(rcm, E)
+  thetaMat = matrix(byrow = TRUE, nrow = nrow(rcm$X), ncol = ncol(rcm$X),
+                    data = rcm$thetas[,switch(as.character(Dim), "0" = "Independence", "0.5" = "Filtered", paste0("Dim", Dim))])#extractDisp(rcm, E)
   dnbinom(x = rcm$X, mu = E, size = thetaMat, log = TRUE)
 }
