@@ -259,7 +259,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Column scores
         if (verbose) cat("\n Estimating column scores \n")
         regCol = rMat[,KK, drop=FALSE]*psis[KK]
-        tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,], lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[seq_len(KK-1),,drop=FALSE], preFabMat = preFabMat, Jac = JacC)
+        tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,], lambdaCol[idK]), thetas = thetasMat, X = X, reg = regCol, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n=n, p=p, jac = NBjacobianCol, method = jacMethod, colWeights = colWeights, nLambda = (KK+1), cMatK = cMat[1:(KK-1),,drop=FALSE], preFabMat = preFabMat, Jac = JacC)
 
         if(verbose) cat(ifelse(tmpCol$termcd==1, "Column scores converged \n", "Column scores DID NOT converge \n"))
         cMat[KK,] = tmpCol$x[seq_len(p)]
@@ -271,7 +271,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         #Row scores
         if (verbose) cat("\n Estimating row scores \n")
         regRow = cMat[KK,,drop=FALSE]*psis[KK]
-        tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n = n, p = p, jac = NBjacobianRow, method = jacMethod, rowWeights = rowWeights, nLambda = (KK+1), rMatK = rMat[,seq_len(KK-1), drop=FALSE], preFabMat = preFabMat, Jac = JacR)
+        tmpRow = nleqslv(fn = dNBllrow, x = c(rMat[,KK], lambdaRow[idK]), thetas=thetasMat, X = X, reg = regRow, muMarg = muMarg, k = KK,  global = global, control = nleqslv.control, n = n, p = p, jac = NBjacobianRow, method = jacMethod, rowWeights = rowWeights, nLambda = (KK+1), rMatK = rMat[,1:(KK-1), drop=FALSE], preFabMat = preFabMat, Jac = JacR)
 
         if(verbose) cat(ifelse(tmpRow$termcd==1, "Row scores converged \n", "Row scores DID NOT converge \n"))
         rMat[,KK] = tmpRow$x[seq_len(n)]

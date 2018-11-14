@@ -121,7 +121,7 @@ Plotting is not supported for quadratic response functions
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
+tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
 prune_samples(sample_names(Zeller)[1:50], Zeller))
 mat = otu_table(tmpPhy)@.Data
 mat = mat[rowSums(mat)>0, colSums(mat)>0]
