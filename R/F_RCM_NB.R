@@ -435,7 +435,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
         })
         return(nonPar)
       })
-      names(nonParamRespFun) = paste0("Dim",seq_len(k))
+      psis = sapply(nonParamRespFun, function(x){sqrt(sum(x$rowMat^2))})
+      names(nonParamRespFun) = names(psis) = paste0("Dim",seq_len(k))
     }
 
     rownames(alpha) = colnames(covariates)
