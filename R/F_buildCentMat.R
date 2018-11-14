@@ -13,7 +13,7 @@ if(is.data.frame(object)){
   if(any(oneLevelID)){
     warning("The following variables were not included in the analyses because they have only one value: \n", paste(object[oneLevelID], sep = " \n"),immediate. = TRUE)
   }
-} else if(class(object) == "RCM"){
+} else if(is(object, "RCM")){
   nFactorLevels = sapply(unique(attr(object$covariates, "assign")), function(x){sum(attr(object$covariates, "assign") == x)}) #Number of levels per factor
 
 } else {stop("Invalid object supplied! \n")}

@@ -65,7 +65,7 @@ buildConfMat.data.frame = function(confounders, n,...){
 #'
 #' @return see buidConfMat.numeric
 buildConfMat.character = function(confounders, n, physeq,...){
-  if(class(physeq) != "phyloseq"){
+  if(!is(physeq,"phyloseq")){
     stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
   }
   confounders = data.frame(get_variable(physeq, confounders)) # The dataframe with the confounders

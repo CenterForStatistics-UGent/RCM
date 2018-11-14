@@ -40,8 +40,8 @@ RCM = function(dat, k = 2, round=FALSE, prevCutOff = 0.05, minFraction = 0.1, ro
   } else {stop("Please provide a matrix or a phyloseq object! \n")}
   p=ncol(X); n=nrow(X)
 
-  if(is.null(colnames(X))){colnames(X)=1:ncol(X)}
-  if(is.null(rownames(X))){rownames(X)=1:nrow(X)}
+  if(is.null(colnames(X))){colnames(X)=seq_len(ncol(X))}
+  if(is.null(rownames(X))){rownames(X)=seq_len(nrow(X))}
   colNames = colnames(X); rowNames =rownames(X)
   if(round) {X=round(X, 0) }#Round to integer
 

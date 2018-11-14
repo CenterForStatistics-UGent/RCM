@@ -10,11 +10,11 @@
 #' \item{covModelMat}{The model matrix}
 #' \item{datFrame}{The dataframe used to construct the model matrix}
 buildCovMat = function(covariates, n,  dat){
-  if(class(covariates) == "data.frame"){
+  if(is.data.frame(covariates)){
     datFrame = covariates
     covariatesNames = names(covariates)
-  } else if(class(covariates)=="character"){
-    if(class(dat) != "phyloseq"){
+  } else if(is.character(covariates)){
+    if(!is(dat,"phyloseq")){
       stop("Providing covariates through variable names is only allowed if phyloseq object is provided! \n")
     }
     if(covariates[[1]]=="all"){covariates = sample_variables(dat)} #Enable the "all" option if phyloseq object is provided
