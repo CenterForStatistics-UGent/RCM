@@ -197,7 +197,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     rMat = apply(rMat, 2, function(rowS){
       rowS/sqrt(sum(rowWeights * rowS^2))
     })
-  } # END if-else: no previous fit provided
 
   if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
 
