@@ -343,3 +343,47 @@ Indeed, a few young subjects affect the estimation of the age parameter most. On
 ```{r inflAgeFast2}
 plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age", Influence = TRUE, inflDim = 2)
 ```
+
+## Importance of dimensions
+
+There are many quantities that reflect the (relative) importance of the different dimensions.
+
+### Importance parameters \psi
+
+The simplest axis labels are simply the importance parameters $\psi_m$ from the RC(M)-model. They directly reflect the impact on the mean counts in the respective dimension, as the factors to which they are multplied are normalized. Hence the $\psi_m$'s are the only components that can grow in size to add more weight to a dimension.
+
+On the other hand, the sample scores _have_ already been scaled with respect to these parameters, and they do not add addtional information to the plot itself. Also, their order is often but not necessarily strictly decreasing. Only the ratios of the different $\psi_m$'s are direclty interpretable. Still plotting the $\psi_m$'s is the default option of the _RCM_ package.
+
+```{r plotUnconstrainedRCMpsis, fig.height = 8, fig.width = 9}
+plot(ZellerRCM2cond, plotPsi = "psi")
+```
+
+### Log-likelihoods
+
+Another way to quantify the importance of the dimensions is to compare their differences in log-likelihoods of model m ($ll_m$) with respect to the saturated model ("deviances"). The log-likelihood saturared model ($ll_{sat}$) is calculated using the Poisson density, setting mean and variance equal to the observed counts. These differences in log-likelihood are then normalized with respect to the difference in loglikelihood between the independence model ($ll_{independence}$) and the saturated model. The terms obtained for dimension $m$ is then:
+
+$$\frac{ll_{m}-ll^*}{ll_{sat}-ll_{independence}}$$
+
+, with $ll^*$ the log-likelihood of the lower dimension, which can be the independence model, the model after filtering on confounders or simply the lower dimension of the RC(M) model.
+
+This approach has the advantages of also providing a measure of importance for the confounders. Also it uses the saturated model as a reference and thus provides a fraction of "total variability".
+
+Disadvantages are the difficulty in intepreting log-likelihoods, and the fact that in some corner case the log-likelihood drops with higher dimensions. This is because the estimation of the dispersions and environmental gradients is not full maximum likelihood.
+
+```{r plotUnconstrainedRCMlogliks, fig.height = 8, fig.width = 9}
+plot(ZellerRCM2cond, plotPsi = "loglik")
+```
+
+### Inertia
+
+As with correspondence analysis, the fraction of total inertia explained by the different dimensions can be plotted on the axes. The inertia is defined as the sum of squared Pearson residuals, or
+
+$$\sum_{i=1}^n\sum_{j=1}^p \frac{(x_{ij}-e_{ijm})^2}{e_{ijm}}$$
+
+with $x_{ij}$ the observed count and $e_{ijm}$ the expected count under the model with $m$ dimensions. The inertia has the advantage that also the variance explained by the filtering on confouders step can be plotted, and that there is a measure of residual variance.
+
+On the other hand, as we argue in the manuscript, the inertia is not a good measure of variability for overdispersed data, as it implicitly assumes the mean to equal the variance. Hence this criterion of dimension importance should be interpreted with caution.
+
+```{r plotUnconstrainedRCMinertia, fig.height = 8, fig.width = 9}
+plot(ZellerRCM2cond, plotPsi = "inertia")
+```
