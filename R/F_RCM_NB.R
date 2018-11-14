@@ -199,14 +199,12 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     })
 
   if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
-
-    minK = ifelse(is.null(NBRCM),1,Kprev+1)
-    for (KK in minK:k){
+    for (KK in seq_len(k)){
 
       if(verbose) cat("Dimension" ,KK, "is being esimated \n")
 
       #Modify offset if needed
-      if(KK>1 && (if(!is.null(NBRCM)) {Kprev != (KK-1)} else {TRUE})){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
+      if(KK>1){muMarg = muMarg * exp(rMat[,(KK-1), drop=FALSE] %*% (cMat[(KK-1),, drop=FALSE]*psis[(KK-1)]))}
       idK = seq_k(KK) #prepare an index
 
       #Re-estimate the trended dispersions, once per dimensions
@@ -323,12 +321,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,seq_len(k)] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
     alpha = t(t(alpha)-colMeans(alpha))
     alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
-    if(!is.null(NBRCM)){
-      newK = (Kprev+1):k
-      psis = c(psis, CCA$eig[newK])
-    } else {
-      psis = CCA$eig[seq_len(k)]
-    }
+    psis = CCA$eig[seq_len(k)]
     alphaRec = if(record){array(0, dim=c(d, k, maxItOut))} else {NULL}
     v = switch(responseFun, linear = 2, quadratic = 3, dynamic = 3, 1) #Number of parameters per taxon
     NB_params = array(0.1,dim=c(v,p,k)) #Initiate parameters of the response function, taxon-wise. No zeroes or trivial fit! Improved starting values may be possible.
@@ -339,19 +332,11 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal", tol = 1
     } else {nonParamRespFun =NULL}
     rowMat = NULL
 
-    if(!is.null(NBRCM)){ #If fit provided, replace lower dimension starting values
-      alpha[,seq_len(Kprev)] = NBRCM$alpha
-      if(record) alphaRec[,seq_len(Kprev),] = NBRCM$alphaRec
-      NB_params[,,seq_len(Kprev)] = NBRCM$NB_params
-      if(envGradEst == "LR") {NB_params_noLab[,seq_len(Kprev)] = NBRCM$NB_params_noLab}
-    }
-
     #Number of lambda parameters for centering
     nLambda1s = NROW(centMat)
 
-    minK = ifelse(is.null(NBRCM),1,Kprev+1) #Next dimension to fit
-    lambdasAlpha = c(NBRCM$lambdasAlpha, rep(0, (k*(1+nLambda1s+(k-1)/2) - (minK-1)*(1+nLambda1s+(minK-2)/2))))
-    for (KK in minK:k){
+    lambdasAlpha = c(NBRCM$lambdasAlpha, rep(0, (k*(1+nLambda1s+(k-1)/2))))
+    for (KK in seq_len(k)){
       if(verbose) cat("Dimension" ,KK, "is being esimated \n")
 
       #Modify offset if needed
