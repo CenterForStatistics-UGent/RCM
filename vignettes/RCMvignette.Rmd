@@ -35,12 +35,6 @@ knitr::opts_knit$set(root.dir = "/home/stijn/PhD/RCM")
 palStore = palette()
 ```
 
-<!-- \textbf{Important note:} The package has been upgraded for use with the future 2.3.0 version of the $ggplot2$ package. This version can be installed as: -->
-
-<!-- ```{r ggplot2Install, echo = TRUE, eval = FALSE} -->
-<!-- devtools::install_github("tidyverse/ggplot2") -->
-<!-- ``` -->
-
 ## Dataset
 
 As example data we use a study on the microbiome of colorectal cancer patients "Potential of fecal microbiota for early-stage detection of colorectal cancer" (2014) by Zeller _et al._.
@@ -66,8 +60,6 @@ which took `r round(ZellerRCM2$runtime,1)` minutes. Here we supplied a phyloseq 
 
 #### Adding dimensions
 
-<!-- Since the model is fitted dimension per dimension, we only have information on the first two dimension. If we want to add a third dimension, we do not have to start from scratch but can use the previously fitted model in two dimension as a starting point and additionally estimate the third dimension. The result is identical as when the three dimensional model had been fitted from scratch. -->
-
 By default, only 2 dimensions are fitted, but more can be requested throught the _k_ argument.
 
 ```{r ThreeDimensions}
@@ -90,7 +82,7 @@ save(ZellerRCM2cond, file = "./results/ZellerRCM2cond.RData")
 } else {load(file = "./results/ZellerRCM2cond.RData")}
 ```
 
-Conditioning can be applied for unconstrained as well as constrained RCM, the ensuiing plots have exactly the same interpretation save for the conditioning.
+Conditioning can be applied for unconstrained as well as constrained RCM, the ensuing plots have exactly the same interpretation as before, only now the variability due to the confounding variable has been filtered out.
 
 ### Plotting the uconstrained RCM
 
@@ -229,13 +221,9 @@ we clearly see three groups of samples appearing.
 plot(ZellerRCM2constr, plotType = c("samples"), samColour = "Diagnosis", samShape = "Country")
 ```
 
-One group are the healthy patients, the other two are cancer patients. The cancer patients are separated by country. Note that from Germany there are only cancer patients in this dataset. We can make the same monoplot of samples for the non-parametric response functions.
+One group are the healthy patients, the other two are cancer patients. The cancer patients are separated by country. Note that from Germany there are only cancer patients in this dataset. In case of non-parametric response functions, the samples mononoplot is not interpretable.
 
-```{r plotnonParamCol}
-plot(ZellerRCM2constrNonParam, plotType = "samples", samColour = "Diagnosis")
-```
-
-Unique to the constrained ordinations are monoplots of the variables
+Unique to the constrained ordinations are monoplots of the variables. Do note however, that the axes have not been scaled, and trends on the x-and y-axis should be interpreted independently.
 
 ```{r plotLinVar}
 plot(ZellerRCM2constr, plotType = "variables")
