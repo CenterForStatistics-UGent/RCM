@@ -2,4 +2,12 @@
 0.2.0
 =====
 
--   Importance parameters *ψ* are no longer calculated when non-parametric response functions are used. <!-- - By default, explained deviances are plotted on the axes, rather than the importance parameters. The old behaviour can be recovered by setting plotPsi ="psi". -->
+-   Importance parameters *ψ* are no longer calculated when non-parametric response functions are used.
+
+0.3.0
+=====
+
+-   Importance parameters *ψ* are enabled again, but not used for plotting.
+-   2D sample plots for constrained ordination with non-parametric response functions have been disabled, as they are not interpretable. Variable plots are the only 2D plots still allowed
+-   Explained deviance and inertia can be plotted on the axes rahter than the *ψ*'s using the "plotPsi" argument to the plot.RCM() function.
+-   Possibility to provide lower dimensional fits has been disabled. *RCM* is fast enough to fit the whole model.

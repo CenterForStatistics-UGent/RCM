@@ -6,7 +6,7 @@
 \usage{
 RCM(dat, k = 2, round = FALSE, prevCutOff = 0.05,
   minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",
-  covariates = NULL, confounders = NULL, prevFit = NULL, ...)
+  covariates = NULL, confounders = NULL, ...)
 }
 \arguments{
 \item{dat}{an nxp count matrix or a phyloseq object with an otu_table slot}
@@ -24,8 +24,6 @@ RCM(dat, k = 2, round = FALSE, prevCutOff = 0.05,
 \item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
 
 \item{confounders}{In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.}
-
-\item{prevFit}{An object with a previous fit, normally from a lower dimension, that should be extended.}
 
 \item{...}{Further arguments passed on to the RCM.NB() function}
 }

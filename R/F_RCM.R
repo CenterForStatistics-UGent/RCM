@@ -8,7 +8,6 @@
 #' @param rowWeights,colWeights character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively
 #' @param covariates In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.
 #' @param confounders In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.
-#' @param prevFit An object with a previous fit, normally from a lower dimension, that should be extended.
 #' @param ... Further arguments passed on to the RCM.NB() function
 #'
 #'@description This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
@@ -30,7 +29,7 @@
 #' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
 #' zellerRCM = RCM(tmpPhy, round = TRUE)
-RCM = function(dat, k = 2, round=FALSE, prevCutOff = 0.05, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, prevFit = NULL, ...){
+RCM = function(dat, k = 2, round=FALSE, prevCutOff = 0.05, minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal", covariates = NULL, confounders = NULL, ...){
   classDat = class(dat) #The class provided
 
   ##The count data##
@@ -103,10 +102,10 @@ if(anyNA(X)) {stop("NA values present in count matrix, please filter these out f
   tic = proc.time() #Time the calculation
   tmp = RCM_NB(X, rowWeights = rowWeights, colWeights = colWeights, k = k,
                          confounders  = list(confounders = confModelMat, confoundersTrim = confModelMatTrim),
-                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat, NBRCM = prevFit,...)
+                         covariates = covModelMat, prevCutOff = prevCutOff, minFraction = minFraction, centMat = centMat,...)
   if(classDat=="phyloseq"){tmp$physeq = prune_samples(rownames(tmp$X),prune_taxa(colnames(tmp$X),dat)) }
   tmp = within(tmp, {
-    runtimeInMins = (proc.time()-tic)[1]/60 + if(is.null(prevFit)) {0} else {prevFit$runtimeInMins} # Sum the runtimes
+    runtimeInMins = (proc.time()-tic)[1]/60 # Sum the runtimes
     k = k #Store number of dimensions
   })
   tmp$call = match.call()

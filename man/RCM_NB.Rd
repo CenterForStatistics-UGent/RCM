@@ -7,15 +7,15 @@ Includes fitting of the independence model, filtering out the effect of confound
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   tol = 0.001, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
-  NBRCM = NULL, global = "dbldog", nleqslv.control = list(maxit =
-  500L, cndtol = 1 - 16), jacMethod = "Broyden", dispFreq = 10L,
-  convNorm = 2, prior.df = 10, marginEst = "MLE",
-  confounders = NULL, prevCutOff, minFraction = 0.1,
-  covariates = NULL, centMat = NULL, responseFun = c("linear",
-  "quadratic", "dynamic", "nonparametric"), record = FALSE,
-  control.outer = list(trace = FALSE), control.optim = list(),
-  envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
-  degree = switch(responseFun[1], nonparametric = 3, NULL))
+  global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1 -
+  16), jacMethod = "Broyden", dispFreq = 10L, convNorm = 2,
+  prior.df = 10, marginEst = "MLE", confounders = NULL, prevCutOff,
+  minFraction = 0.1, covariates = NULL, centMat = NULL,
+  responseFun = c("linear", "quadratic", "dynamic", "nonparametric"),
+  record = FALSE, control.outer = list(trace = FALSE),
+  control.optim = list(), envGradEst = "LR", dfSpline = 3,
+  vgamMaxit = 100L, degree = switch(responseFun[1], nonparametric = 3,
+  NULL))
 }
 \arguments{
 \item{X}{a nxp data matrix}
@@ -33,8 +33,6 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
 \item{Psitol}{a scalar, the relative convergence tolerance for the psi parameters.}
 
 \item{verbose}{a boolean, should information on iterations be printed?}
-
-\item{NBRCM}{a previously fitted NBRCM object, from which the lower dimensions can be extracted. Only useful if NBRCM$xk < k}
 
 \item{global}{global strategy for solving non-linear systems, see ?nleqslv}
 
