@@ -1,10 +1,10 @@
 Package: RCM
 Type: Package
 Title: Fit row-column association models with the negative binomial distribution for the microbiome
-Version: 0.3.0
+Version: 0.99.0
 Author: Stijn Hawinkel <stijn.hawinkel@ugent.be>
 Maintainer: Joris Meys <joris.meys@ugent.be>
-Description: Combine ideas of log-linear analysis of contingency table, flexible response function estimation and empirical Bayes dispersion estimation for explorative visualization of microbiome datasets. includes unconstrained as well as constrained analysis.
+Description: Combine ideas of log-linear analysis of contingency table, flexible response function estimation and empirical Bayes dispersion estimation for explorative visualization of microbiome datasets. The package includes unconstrained as well as constrained analysis.
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
@@ -14,3 +14,5 @@ Suggests: knitr,
     rmarkdown
 VignetteBuilder: knitr
 biocViews: Metagenomics, DimensionReduction, Microbiome, Visualization
+BugReports: https://github.com/CenterForStatistics-UGent/RCM/issues
+URL: http://users.ugent.be/~shawinke/RCMmanual/
