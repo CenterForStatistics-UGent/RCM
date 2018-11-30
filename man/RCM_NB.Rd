@@ -148,7 +148,7 @@ data(Zeller)
 require(phyloseq)
 tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
 prune_samples(sample_names(Zeller)[seq_len(50)], Zeller))
-mat = otu_table(tmpPhy)@.Data
+mat = matrix(otu_table(tmpPhy), nsamples(tmpPhy), ntaxa(tmpPhy))
 mat = mat[rowSums(mat)>0, colSums(mat)>0]
 zellerRCM = RCM_NB(mat, k = 2)
 #Needs to be called directly onto a matrix
