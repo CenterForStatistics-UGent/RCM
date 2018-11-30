@@ -14,19 +14,19 @@ vignette: >
 \setcounter{tocdepth}{5}
 \tableofcontents
 
-## Install and load packages
+# Introduction
 
-The package can be installed using the following commands:
+The RCM package combines unconstrained and constrained ordination of microbiome read count data into a single package. The package functions allow fitting of the ordination model, plotting it and performing diagnostic checks.
 
-```{r installRCMpackage, eval = FALSE}
-library(devtools)
-install_github("CenterForStatistics-UGent/RCM")
-```
+# Installation
+
+The package can be installed and loaded using the following commands:
 
 ```{r loadRCMpackage}
+# library(BiocManager)
+# BiocManager::install("RCM")
 library(RCM)
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
-library(phyloseq)
 ```
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
@@ -41,6 +41,7 @@ As example data we use a study on the microbiome of colorectal cancer patients "
 
 ```{r loadZellerData}
 data(Zeller)
+library(phyloseq)
 ```
 
 ## Unconstrained RCM

@@ -26,33 +26,36 @@ buildCovMat = function(covariates, n,  dat){
   if(n!=NROW(datFrame)){ #Check dimensions
     stop("Data and covariate matrix do not have the same number of samples! \n")
   }
+  logVec = vapply(FUN.VALUE = TRUE, datFrame, is.logical)
+  intVec = vapply(FUN.VALUE = TRUE, datFrame, is.integer)
+  charVec = vapply(FUN.VALUE = TRUE, datFrame, is.character)
 
-  if(any(sapply(datFrame, is.logical))){
-    datFrame[,sapply(datFrame, is.logical)] = lapply(datFrame[sapply(datFrame, is.logical)], as.factor) #Convert logicals to factors
+  if(any(logVec)){
+    datFrame[,logVec] = lapply(datFrame[logVec], as.factor) #Convert logicals to factors
     #warning("Logicals converted to factors! \n", immediate. = TRUE). No warning needed
   }
-  if(any(sapply(datFrame, is.integer))){
-    datFrame[,sapply(datFrame, is.integer)] = lapply(datFrame[sapply(datFrame, is.integer)], as.numeric) #Convert integers to numeric
+  if(any(intVec)){
+    datFrame[,intVec] = lapply(datFrame[intVec], as.numeric) #Convert integers to numeric
     warning("Integer values treated as numeric! \n", immediate. = TRUE)
   }
-  if(any(sapply(datFrame, is.character))){
-    datFrame[,sapply(datFrame, is.character)] = lapply(datFrame[sapply(datFrame, is.character)], factor) #Convert characters to factor
+  if(any(charVec)){
+    datFrame[,charVec] = lapply(datFrame[charVec], factor) #Convert characters to factor
     warning("Character vectors treated as factors! \n", immediate. = TRUE)
   }
-  nFactorLevels = sapply(datFrame, function(x){if(is.factor(x)) nlevels(x) else 1}) #Number of levels per factor
-  covariatesNames = covariatesNames[!(sapply(datFrame, is.factor) & (nFactorLevels < 2))] #Drop factors with one level
+  nFactorLevels = vapply(FUN.VALUE = integer(1), datFrame, function(x){if(is.factor(x)) nlevels(x) else 1L}) #Number of levels per factor
+  covariatesNames = covariatesNames[!(vapply(FUN.VALUE = TRUE, datFrame, is.factor) & (nFactorLevels < 2L))] #Drop factors with one level
   nFactorLevels = nFactorLevels[covariatesNames]
   datFrame = datFrame[,covariatesNames, drop=FALSE]
-  if(any(sapply(datFrame, is.factor) & (nFactorLevels < 2))){
-    warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[sapply(datFrame, is.factor) & (nFactorLevels < 2)], sep = " \n"),immediate. = TRUE, call. = FALSE)
+  if(any(vapply(FUN.VALUE = TRUE, datFrame, is.factor) & (nFactorLevels < 2))){
+    warning("The following variables were not included in the analyses because they are factors with only one level: \n", paste(covariates[vapply(FUN.VALUE = TRUE, datFrame, is.factor) & (nFactorLevels < 2)], sep = " \n"),immediate. = TRUE, call. = FALSE)
       }
   # Center and scale the continuous covariates
-  datFrame[sapply(datFrame, is.numeric)] = scale(datFrame[sapply(datFrame, is.numeric)])
+  datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)] = scale(datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)])
 
   covModelMat = model.matrix(
     object = formula(paste("~", paste(covariatesNames, collapse="+"),"-1")),
     data = datFrame,
-    contrasts.arg = lapply(datFrame[sapply(datFrame, is.factor)],
+    contrasts.arg = lapply(datFrame[vapply(datFrame, is.factor, FUN.VALUE = TRUE)],
                            contrasts, contrasts=FALSE))
   if(NCOL(covModelMat)==1) stop("A constrained ordination with only one variable is meaningless.\nPlease provide more covariates or perform an unconstrained analysis.", call. = FALSE)
 

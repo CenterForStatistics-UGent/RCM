@@ -10,7 +10,7 @@ deviances = function(rcm, squaredSum = FALSE){
   vec = if(length(rcm$confounders$confounders)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
   outnames = c("independence", if(length(rcm$confounders$confounders)) "filtered" else NULL, paste0("Dim ", seq_len(rcm$k)))
   if(squaredSum) {
-    tmp = sapply(vec, FUN = function(i){
+    tmp = vapply(FUN.VALUE = numeric(1), vec, FUN = function(i){
       sum(getDevianceRes(rcm, i)^2)
     })
     names(tmp) = outnames

@@ -127,7 +127,7 @@ plot.RCM = function(x, ..., Dim = c(1,2), plotType = c("samples","species","vari
   ## TAXA
   if("species" %in% plotType){
   idTaxRegExp = if(!is.null(taxRegExp)){  #Filter out certain taxa
-    apply(sapply(taxRegExp, grepl, ignore.case = TRUE, x = rownames(coords$species)),1,any) #Display only required taxa
+    apply(vapply(FUN.VALUE = logical(nrow(coords$species)), taxRegExp, grepl, ignore.case = TRUE, x = rownames(coords$species)),1,any) #Display only required taxa
   } else {rep(TRUE, ncol(x$X))}
   if(!any(idTaxRegExp)) {stop("Species not found! \n Check the dimnames of your x$X slot! \n")}
   taxFrac = min(taxNum/sum(idTaxRegExp),1)
@@ -260,7 +260,7 @@ if(taxLabels){
       arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
       CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
       varID = attr(x$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
-    } else {varID = attr(x$covariates, "dimnames")[[2]] %in% unlist(sapply(varPlot, grep, value = TRUE, x = attr(x$covariates, "dimnames")[[2]]))}
+    } else {varID = attr(x$covariates, "dimnames")[[2]] %in% unlist(lapply(varPlot, grep, value = TRUE, x = attr(x$covariates, "dimnames")[[2]]))}
     varData = data.frame(x$alpha * if(!all(plotType=="variables")) 1 else varExpFactor)
     varData$label = rownames(x$alpha)
     #Include all levels from important factors, not just the long arrows

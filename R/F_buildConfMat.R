@@ -46,14 +46,14 @@ buildConfMat.data.frame = function(confounders, n,...){
   }
   if(anyNA(confounders)){stop("Confounders contain missing values!\n")}
   confModelMatTrim = model.matrix( #No intercept or continuous variables for preliminary trimming
-    object = as.formula(paste("~", paste(names(confounders)[sapply(confounders, is.factor)], collapse="+"),"-1")),
+    object = as.formula(paste("~", paste(names(confounders)[vapply(FUN.VALUE = TRUE,confounders, is.factor)], collapse="+"),"-1")),
     data = confounders,
-    contrasts.arg = lapply(confounders[sapply(confounders, is.factor)],
+    contrasts.arg = lapply(confounders[vapply(FUN.VALUE = TRUE, confounders, is.factor)],
                            contrasts, contrasts=FALSE))
   confModelMat = model.matrix( #With intercept for filtering
     object = as.formula(paste("~", paste(names(confounders), collapse="+"))),
     data = confounders,
-    contrasts.arg = lapply(confounders[sapply(confounders, is.factor)],
+    contrasts.arg = lapply(confounders[vapply(FUN.VALUE = TRUE,confounders, is.factor)],
                            contrasts, contrasts = TRUE))
   list(confModelMatTrim  = confModelMatTrim, confModelMat = confModelMat)
 }

@@ -52,7 +52,7 @@ if(!whichTaxa %in% c("runs","response")){
   par(mfrow = mfrow)
   resMat = resMat[,idTaxa, drop = FALSE]
   if(length(idTaxa)>1){
-  sapply(colnames(resMat), function(tax){
+  lapply(colnames(resMat), function(tax){
     plot(x = sampleScore, y = resMat[,tax], ylab = paste(resid,"residuals"), xlab = paste("Environmental score in dimension",Dim), main = tax)
   })
   } else {

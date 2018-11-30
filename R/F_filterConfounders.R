@@ -25,7 +25,7 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control, 
 
     NB_params_old = NB_params
 
-    NB_params = sapply(seq_len(p), function(i){
+    NB_params = vapply(FUN.VALUE = numeric(nrow(NB_params)), seq_len(p), function(i){
       nleq = try(nleqslv(NB_params[,i] , reg = confMat,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], X = X[,i], control = nleqslv.control, jac = JacCol_constr, psi = 1)$x)  # , ... Fit the taxon-by taxon NB with given overdispersion parameters and return predictions
       if(inherits(nleq,"try-error")| anyNA(nleq)| any(is.infinite(nleq))){
         nleq = nleqslv(NB_params[,i] , reg = confMat,  fn = dNBllcol_constr, theta = thetas[i], muMarg = muMarg[,i], X = X[,i], control = nleqslv.control, psi = 1)$x # If fails try with numeric jacobian

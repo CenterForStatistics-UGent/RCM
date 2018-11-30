@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_addOrthProjection.R
 \name{addOrthProjection}
 \alias{addOrthProjection}
-\title{This function adds orthogonal projections to a given plot based on coordinates or sample/taxon/variable names}
+\title{This function adds orthogonal projections to a given plot}
 \usage{
 addOrthProjection(RCMplot, sample = NULL, species = NULL,
   variable = NULL, Dims = c(1, 2), addLabel = FALSE, labPos = NULL)
@@ -22,7 +22,7 @@ addOrthProjection(RCMplot, sample = NULL, species = NULL,
 a modified ggplot object that contains the geom_segment object that draws the projection
 }
 \description{
-This function adds orthogonal projections to a given plot based on coordinates or sample/taxon/variable names
+This function adds orthogonal projections to a given plot
 }
 \examples{
 data(Zeller)

@@ -3,7 +3,9 @@
 \name{RCM_NB}
 \alias{RCM_NB}
 \title{A function to fit the RC(M) model with the negative binomial distribution.
-Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.}
+Includes fitting of the independence model, filtering out the
+effect of confounders and fitting the RC(M) components in a constrained
+ or an unconstrained way for any dimension k.}
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   tol = 0.001, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
@@ -26,7 +28,8 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
 
 \item{colWeights}{a character string, either "uniform" or "marginal" column weights.}
 
-\item{tol}{a scalar, the relative convergende tolerance for the row scores and column scores parameters.}
+\item{tol}{a scalar, the relative convergende tolerance for the row scores
+and column scores parameters.}
 
 \item{maxItOut}{an integer, the maximum number of iteration in the outer loop.}
 
@@ -38,27 +41,40 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
 
 \item{nleqslv.control}{a list with control options, see nleqslv}
 
-\item{jacMethod}{Method for solving non-linear equations, ?see nleqslv. Defaults to Broyden. The difference with the newton method is that the Jacobian is not recalculated at every iteration, thereby speeding up the algorithm}
+\item{jacMethod}{Method for solving non-linear equations, ?see nleqslv.
+Defaults to Broyden. The difference with the newton method is that
+ the Jacobian is not recalculated at every iteration,
+ thereby speeding up the algorithm}
 
-\item{dispFreq}{an integer, how many iterations the algorithm should wait before reestimationg the dispersions.}
+\item{dispFreq}{an integer, how many iterations the algorithm should wait
+before reestimationg the dispersions.}
 
 \item{convNorm}{a scalar, the norm to use to determine convergence}
 
 \item{prior.df}{an integer, see estDisp()}
 
-\item{marginEst}{a character string, either "MLE" or "marginSums", indicating how the independence model should be estimated}
+\item{marginEst}{a character string, either "MLE" or "marginSums",
+indicating how the independence model should be estimated}
 
 \item{confounders}{a list with
 -confounders an nxg matrix with confounders
--confoundersFilt an nxh matrix with confounders for filtering, with all levels and without intercept}
+-confoundersFilt an nxh matrix with confounders for filtering,
+with all levels and without intercept}
 
-\item{prevCutOff}{a scalar the minimum prevalence needed to retain a taxon before the the confounder filtering}
+\item{prevCutOff}{a scalar the minimum prevalence needed to retain a taxon
+before the the confounder filtering}
 
-\item{minFraction}{a scalar, total taxon abundance should equal minFraction*n if it wants to be retained before the confounder filtering}
+\item{minFraction}{a scalar, total taxon abundance should equal minFraction*n
+if it wants to be retained before the confounder filtering}
 
-\item{covariates}{an nxd matrix with covariates. If set to null an unconstrained analysis is carried out, otherwise a constrained one. Factors must have been converted to dummy variables already}
+\item{covariates}{an nxd matrix with covariates.
+If set to null an unconstrained analysis is carried out,
+otherwise a constrained one.
+Factors must have been converted to dummy variables already}
 
-\item{centMat}{a fxd matrix containing the contrasts to center the categorical variables. f equals the number of continuous variables + the total number of levels of the categorical variables.}
+\item{centMat}{a fxd matrix containing the contrasts to center
+the categorical variables. f equals the number of continuous variables +
+the total number of levels of the categorical variables.}
 
 \item{responseFun}{a characters string indicating the shape of the response function}
 
@@ -68,9 +84,12 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
 
 \item{control.optim}{a list of control options for the optim() function}
 
-\item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
+\item{envGradEst}{a character string, indicating how the
+environmental gradient should be fitted. "LR" using the likelihood-ratio
+ criterion, or "ML" a full maximum likelihood solution}
 
-\item{dfSpline}{a scalar, the number of degrees of freedom for the splines of the non-parametric response function, see VGAM::s()}
+\item{dfSpline}{a scalar, the number of degrees of freedom for the splines
+of the non-parametric response function, see VGAM::s()}
 
 \item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function}
 
@@ -82,15 +101,18 @@ Not intended to be called directly but only through the RCM() function}
 }
 \value{
 A list with elements
-\item{converged}{a vector of booleans of length k indicating if the algorithm converged for every dimension}
+\item{converged}{a vector of booleans of length k indicating if the algorithm
+ converged for every dimension}
 \item{rMat}{(if not constrained a nxk matrix with estimated row scores}
 \item{cMat}{ a kxp matrix with estimated column scores}
 \item{psis}{ a vector of length k with estimates for the importance parameters psi}
 \item{thetas}{ a vector of length p with estimates for the overdispersion}
-\item{rowRec}{(if not constrained) a n x k x maxItOut array with a record of all rMat estimates through the iterations}
+\item{rowRec}{(if not constrained) a n x k x maxItOut array with a record
+ of all rMat estimates through the iterations}
 \item{colRec}{a k x p x maxItOut array with a record of all cMat estimates through the iterations}
 \item{psiRec}{a k x maxItOut array with a record of all psi estimates through the iterations}
-\item{thetaRec}{ a matrix of dimension pxmaxItOut with estimates for the overdispersion along the way}
+\item{thetaRec}{ a matrix of dimension pxmaxItOut with estimates for
+ the overdispersion along the way}
 \item{iter}{ number of iterations}
 \item{Xorig}{ (if confounders provided) the original fitting matrix}
 \item{X}{ the trimmed matrix if confounders provided, otherwise the original one}
@@ -100,7 +122,8 @@ A list with elements
 \item{rowWeights}{(if not constrained) the row weights used}
 \item{colWeights}{ the column weights used}
 \item{alpha}{(if constrained) the kxd matrix of environmental gradients}
-\item{alphaRec}{(if constrained) the kxdxmaxItOut array of alpha estimates along the iterations}
+\item{alphaRec}{(if constrained) the kxdxmaxItOut array of alpha estimates
+ along the iterations}
 \item{covariates}{(if constrained) the matrix of covariates}
 \item{libSizes}{ a vector of length n with estimated library sizes}
 \item{abunds}{ a vector of length p with estimated mean relative abundances}
@@ -113,7 +136,9 @@ A list with elements
 }
 \description{
 A function to fit the RC(M) model with the negative binomial distribution.
-Includes fitting of the independence model, filtering out the effect of confounders and fitting the RC(M) components in a constrained or an unconstrained way for any dimension k.
+Includes fitting of the independence model, filtering out the
+effect of confounders and fitting the RC(M) components in a constrained
+ or an unconstrained way for any dimension k.
 }
 \note{
 Plotting is not supported for quadratic response functions
@@ -122,7 +147,7 @@ Plotting is not supported for quadratic response functions
 data(Zeller)
 require(phyloseq)
 tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
-prune_samples(sample_names(Zeller)[1:50], Zeller))
+prune_samples(sample_names(Zeller)[seq_len(50)], Zeller))
 mat = otu_table(tmpPhy)@.Data
 mat = mat[rowSums(mat)>0, colSums(mat)>0]
 zellerRCM = RCM_NB(mat, k = 2)

@@ -1,4 +1,4 @@
-#' This function adds orthogonal projections to a given plot based on coordinates or sample/taxon/variable names
+#' This function adds orthogonal projections to a given plot
 #'
 #' @param RCMplot the RCMplot object
 #' @param sample,species,variable names or approximate coordinates of sample, species or variable
@@ -47,7 +47,7 @@ addOrthProjection = function(RCMplot, sample = NULL, species = NULL, variable = 
   }
 
   mat1 = unlist(if(is.null(variable)) RCMplot$samples[sampName, dimNames] else RCMplot$variables[varName, dimNames])
-  mat2 = unlist(RCMplot$species[speciesName, c(sapply(Dims, function(x){c(paste0("end",x), paste0("origin",x))}))])
+  mat2 = unlist(RCMplot$species[speciesName, c(vapply(Dims, FUN.VALUE =character(2), function(x){c(paste0("end",x), paste0("origin",x))}))])
 
   RCMplot$plot = RCMplot$plot + geom_segment(inherit.aes = FALSE, mapping = aes_string(x=0, y= 0, xend = "Dim1", yend = "Dim2"), data = data.frame(t(mat1))) #The sample or variable vector
   IntCoordsXTip = (mat2["end1"] + mat2["end2"]*mat1[2]/mat1[1])/((mat1[2]/mat1[1])^2+1)

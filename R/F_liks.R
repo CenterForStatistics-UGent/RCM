@@ -16,7 +16,7 @@ liks = function(rcm, Sum = TRUE){
   vec = if(length(rcm$confounders$confounders)) c(0,0.5, seq_len(rcm$k), Inf) else c(0:rcm$k, Inf)
   outnames = c("independence", if(length(rcm$confounders$confounders)) "filtered" else NULL, paste0("Dim", seq_len(rcm$k)),"saturated")
   if(Sum) {
-    tmp = sapply(vec, FUN = function(i){
+    tmp = vapply(FUN.VALUE = numeric(1), vec, FUN = function(i){
       sum(getLogLik(rcm, i))
     })
     names(tmp) = outnames
