@@ -1,4 +1,4 @@
-#' Plot the non-parametric response functions of a prespecified set of taxa
+#' Plot the non-parametric response functions
 #'
 #' @description Plots a number of response functions over the observed range of
 #'  the environmental score. If no taxa are provided those who react most

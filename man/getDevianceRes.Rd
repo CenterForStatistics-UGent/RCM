@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_getDevianceRes.R
 \name{getDevianceRes}
 \alias{getDevianceRes}
-\title{A function to calculate the matrix of deviance residuals from a RCM object.}
+\title{A function to calculate the matrix of deviance residuals.}
 \usage{
 getDevianceRes(RCM, Dim = RCM$k)
 }
@@ -20,5 +20,5 @@ A matrix with deviance residuals of the same size
 as the original data matrix
 }
 \description{
-A function to calculate the matrix of deviance residuals from a RCM object.
+A function to calculate the matrix of deviance residuals.
 }

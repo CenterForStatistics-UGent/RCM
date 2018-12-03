@@ -1,5 +1,4 @@
-#'A jacobian function for the estimation f the parameters of
-#'a third degree GLM in a constrained RC(M) model, if the GAM fit fails
+#' Jacobian function for the estimation of a third degree GLM
 #'
 #' @param beta vector of any length
 #' @param X the data vector of length n

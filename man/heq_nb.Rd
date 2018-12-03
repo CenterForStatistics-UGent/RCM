@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_heq_nb.R
 \name{heq_nb}
 \alias{heq_nb}
-\title{Defines linear equality constraints function
- for the estimation of the environmental gradient}
+\title{Define linear equality constraints for env. gradient}
 \usage{
 heq_nb(Alpha, alphaK, d, k, centMat, ...)
 }
@@ -29,6 +28,5 @@ a vector of with current values of the constraints,
  should evolve to zeroes only
 }
 \description{
-Defines linear equality constraints function
- for the estimation of the environmental gradient
+Define linear equality constraints for env. gradient
 }

@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_trimOnConfounders.R
 \name{trimOnConfounders}
 \alias{trimOnConfounders}
-\title{Trim based on confounders to ensure there are no taxa with only zero counts
- in one of the subgroups defined by the confounders.}
+\title{Trim based on confounders to avoid taxa with only zero counts}
 \usage{
 trimOnConfounders(confounders, X, prevCutOff, minFraction, n)
 }
@@ -26,6 +25,5 @@ Should be called prior to fitting the independence model}
 A trimmed data matrix nxp'
 }
 \description{
-Trim based on confounders to ensure there are no taxa with only zero counts
- in one of the subgroups defined by the confounders.
+Trim based on confounders to avoid taxa with only zero counts
 }

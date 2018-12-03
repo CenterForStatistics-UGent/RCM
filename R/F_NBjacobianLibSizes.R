@@ -1,5 +1,4 @@
-#'Evaluates the jacobian for the row components of the independence model
-#' (library sizes)
+#' Jacobian for the raw components of the independence model
 #'
 #'@param beta a vector of length n with current library size estimates
 #'@param X a n-by-p count matrix

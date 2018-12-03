@@ -1,5 +1,4 @@
-#' Make residual plots of the taxa with the strongest response
-#'  to the environmental gradient, or with the highest run statistic
+#' Make residual plots
 #'
 #' @param RCM an RCM object
 #' @param Dim an integer, which dimension?

@@ -1,5 +1,4 @@
-#' A function that returns the value of the log-likelihood ratio of alpha,
-#'  keeping the response functions fixed
+#' Get the value of the log-likelihood ratio of alpha
 #'
 #' @param Alpha a vector of length d, the environmental gradient
 #' @param X the n-by-p count matrix

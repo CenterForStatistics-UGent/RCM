@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_plotRespFun.R
 \name{plotRespFun}
 \alias{plotRespFun}
-\title{Plot the non-parametric response functions of a prespecified set of taxa}
+\title{Plot the non-parametric response functions}
 \usage{
 plotRespFun(RCM, taxa = NULL, type = "link",
   logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL,

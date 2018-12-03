@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_RCM.R
 \name{RCM}
 \alias{RCM}
-\title{A simple wrapper function for the RC(M) object for
-phyloseq objects and matrices.}
+\title{Wrapper function for the RCM() function}
 \usage{
 RCM(dat, k = 2, round = FALSE, prevCutOff = 0.05,
   minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",

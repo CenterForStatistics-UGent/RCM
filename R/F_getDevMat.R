@@ -1,5 +1,4 @@
-#' A function to calculate the matrix of deviance residuals for given mean
-#'  and dispersion matrix
+#' ACalculate the matrix of deviance residuals
 #'
 #'@param X the data matrix
 #'@param thetaMat the matrix of dispersions

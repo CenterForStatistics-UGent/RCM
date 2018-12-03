@@ -1,4 +1,4 @@
-#' A function to calculate the matrix of deviance residuals from a RCM object.
+#' A function to calculate the matrix of deviance residuals.
 #'
 #' @param RCM an RCM object
 #' @param Dim The dimensions to use

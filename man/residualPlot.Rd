@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_residualPlot.R
 \name{residualPlot}
 \alias{residualPlot}
-\title{Make residual plots of the taxa with the strongest response
- to the environmental gradient, or with the highest run statistic}
+\title{Make residual plots}
 \usage{
 residualPlot(RCM, Dim = 1, whichTaxa = "response",
   resid = "Deviance", numTaxa = 9, mfrow = NULL, samColour = NULL,
@@ -43,8 +42,7 @@ the variables with this name is extracted from the phyloseq object in RCM}
 Plots a ggplot2-object to output
 }
 \description{
-Make residual plots of the taxa with the strongest response
- to the environmental gradient, or with the highest run statistic
+Make residual plots
 }
 \details{
 If whichTaxa is "run" or "response" the taxa with the highest

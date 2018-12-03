@@ -1,5 +1,4 @@
-#' Trim based on confounders to ensure there are no taxa with only zero counts
-#'  in one of the subgroups defined by the confounders.
+#' Trim based on confounders to avoid taxa with only zero counts
 #'
 #' @param confounders a nxt confounder matrix
 #' @param X the nxp data matrix

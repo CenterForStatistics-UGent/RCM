@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_NBjacobianCol.R
 \name{NBjacobianCol}
 \alias{NBjacobianCol}
-\title{A jacobian function for the estimation of the column scores
-in an unconstrained RC(M) model}
+\title{Jacobian for the estimation of the column scores}
 \usage{
 NBjacobianCol(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda,
   cMatK, preFabMat, Jac)
@@ -42,6 +41,5 @@ and (k-1) orhtogonality lagrangian multipliers}
 A matrix of dimension p+1+1+(k-1) with evaluations of the Jacobian
 }
 \description{
-A jacobian function for the estimation of the column scores
-in an unconstrained RC(M) model
+Jacobian for the estimation of the column scores
 }

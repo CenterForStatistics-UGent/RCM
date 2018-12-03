@@ -1,5 +1,4 @@
-#'A simple wrapper function for the RC(M) object for
-#' phyloseq objects and matrices.
+#' Wrapper function for the RCM() function
 #'
 #' @param dat an nxp count matrix or a phyloseq object with an otu_table slot
 #' @param k an integer, the number of dimensions of the RCM solution

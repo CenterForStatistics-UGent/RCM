@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_liks.R
 \name{liks}
 \alias{liks}
-\title{Calculate the log-likelihoods of the indepence and saturated models
-and all fitted submodels}
+\title{Calculate the log-likelihoods of all possible models}
 \usage{
 liks(rcm, Sum = TRUE)
 }
@@ -20,8 +19,7 @@ Otherwise a table with log-likelihoods,
 deviance explained and cumulative deviance explained.
 }
 \description{
-Calculate the log-likelihoods of the indepence and saturated models
-and all fitted submodels
+Calculate the log-likelihoods of all possible models
 }
 \examples{
 data(Zeller)

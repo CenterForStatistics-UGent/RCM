@@ -1,5 +1,4 @@
-#' A function to integrate the spline of an vgam object between
-#'  the boundaries of observed environmental scores.
+#' Integrate the spline of an vgam object
 #'
 #' @param coef A vector of coefficients
 #' @param spline The cubic smoothing spline

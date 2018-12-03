@@ -1,4 +1,4 @@
-#' A function to extract the influence of all observations on a given row score
+#' Extract the influence of all observations on a given row score
 #'
 #' @param score the score function evaluated for every observation
 #' @param InvJac The inverse jacobian

@@ -1,5 +1,4 @@
-#' A function that returns a matrix of scores resulting
-#'  from a response function and an environmental gradient.
+#' Return a matrix of row scores
 #'
 #' @param sampleScore a vector of length n with sample scores
 #' @param responseFun a character string, the type of response function,

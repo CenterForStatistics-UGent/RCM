@@ -1,5 +1,4 @@
-#' A function to extract the logged likelihood of every cell
-#' of the data matrix from an RCM object
+#' Extract the logged likelihood of every count
 #'
 #' @param rcm an RCM object
 #' @param Dim A vector of integers indicating which dimensions to take along,

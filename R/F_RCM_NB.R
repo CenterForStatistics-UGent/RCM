@@ -1,5 +1,6 @@
-#' A function to fit the RC(M) model with the negative binomial distribution.
-#' Includes fitting of the independence model, filtering out the
+#' Fit the RC(M) model with the negative binomial distribution.
+#'
+#' @details Includes fitting of the independence model, filtering out the
 #' effect of confounders and fitting the RC(M) components in a constrained
 #'  or an unconstrained way for any dimension k.
 #'

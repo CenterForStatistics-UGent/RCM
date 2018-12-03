@@ -1,6 +1,4 @@
-#' Calculates the Jacobian of the score functions of the paramaters
-#'  of parametric response functions  (a polynomial of any degree).
-#'  Parameters are sorted per taxon, than with increasing degree.
+#' Calculates the Jacobian of the parametric response functions
 #'
 #' @param betas a vector of length (deg+1)*(p+1) with regression parameters
 #'  with deg the degree of the response function and the lagrangian multipliers

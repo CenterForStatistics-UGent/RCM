@@ -2,10 +2,7 @@
 % Please edit documentation in R/F_RCM_NB.R
 \name{RCM_NB}
 \alias{RCM_NB}
-\title{A function to fit the RC(M) model with the negative binomial distribution.
-Includes fitting of the independence model, filtering out the
-effect of confounders and fitting the RC(M) components in a constrained
- or an unconstrained way for any dimension k.}
+\title{Fit the RC(M) model with the negative binomial distribution.}
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   tol = 0.001, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
@@ -148,7 +145,9 @@ A list with elements
 \item{llFilt}{The likelihood of the model after filtering on confounders}
 }
 \description{
-A function to fit the RC(M) model with the negative binomial distribution.
+Fit the RC(M) model with the negative binomial distribution.
+}
+\details{
 Includes fitting of the independence model, filtering out the
 effect of confounders and fitting the RC(M) components in a constrained
  or an unconstrained way for any dimension k.

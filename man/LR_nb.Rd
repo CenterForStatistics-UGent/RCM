@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_LR_nb.R
 \name{LR_nb}
 \alias{LR_nb}
-\title{A function that returns the value of the log-likelihood ratio of alpha,
- keeping the response functions fixed}
+\title{Get the value of the log-likelihood ratio of alpha}
 \usage{
 LR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
   "nonparametric", "dynamic"), muMarg, psi, nleqslv.control = list(trace
@@ -53,6 +52,5 @@ DON'T USE "p" as variable name,
  at the given alpha
 }
 \description{
-A function that returns the value of the log-likelihood ratio of alpha,
- keeping the response functions fixed
+Get the value of the log-likelihood ratio of alpha
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_plot.RCM.R
 \name{plot.RCM}
 \alias{plot.RCM}
-\title{A function to plot RC(M) ordination result with the help of ggplot2}
+\title{Plot RC(M) ordination result with the help of ggplot2}
 \usage{
 \method{plot}{RCM}(x, ..., Dim = c(1, 2), plotType = c("samples",
   "species", "variables"), samColour = NULL, taxNum = if (all(plotType
@@ -10,8 +10,7 @@
   taxRegExp = NULL, varNum = 15, arrowSize = 0.25,
   Influence = FALSE, inflDim = 1, returnCoords = FALSE,
   alpha = TRUE, varPlot = NULL, colLegend = if (Influence)
-  paste0("Influence on\\n", samColour,
-  "\\nparameter \\nin\\n                                                     dimension",
+  paste0("Influence on\\n", samColour, "\\nparameter \\nin dimension",
   inflDim) else samColour, samShape = NULL, shapeLegend = samShape,
   samSize = 2, scalingFactor = NULL, quadDrop = 0.995,
   plotEllipse = TRUE, taxaScale = 0.5, Palette = if (!all(plotType ==
@@ -46,7 +45,7 @@ a vector equal to the number of samples in the RCM object can be supplied}
 \item{taxRegExp}{a character vector indicating which taxa to plot.
 Any taxa matcing this regular expression will be plotted}
 
-\item{varNum}{an integer, number of variable arrows to draw}
+\item{varNum}{an integehr, number of variable arrows to draw}
 
 \item{arrowSize}{a scalar, the size of the arrows}
 
@@ -163,7 +162,7 @@ should be broken}
 plots a ggplot2-object to output
 }
 \description{
-A function to plot RC(M) ordination result with the help of ggplot2
+Plot RC(M) ordination result with the help of ggplot2
 }
 \details{
 This function relies on the ggplot2 machinery to produce the plots,

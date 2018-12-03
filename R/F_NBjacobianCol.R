@@ -1,5 +1,4 @@
-#'A jacobian function for the estimation of the column scores
-#' in an unconstrained RC(M) model
+#' Jacobian for the estimation of the column scores
 #'
 #' @param beta vector of length p+1+1+(k-1): p row scores, 1 centering,
 #'  one normalization

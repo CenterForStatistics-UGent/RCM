@@ -1,5 +1,4 @@
-#' Calculate the log-likelihoods of the indepence and saturated models
-#' and all fitted submodels
+#' Calculate the log-likelihoods of all possible models
 #'
 #'@param rcm an object of the RCM class
 #'@param Sum a boolean, should log-likelihoods be summed?

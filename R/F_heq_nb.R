@@ -1,5 +1,4 @@
-#' Defines linear equality constraints function
-#'  for the estimation of the environmental gradient
+#' Define linear equality constraints for env. gradient
 #'
 #' @param Alpha the current estimate of the environmental gradient
 #' @param alphaK a matrix with the environmental gradients

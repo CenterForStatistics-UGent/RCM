@@ -1,6 +1,4 @@
-#' Returns the derivative of the Lagrangian of the parameters of the parametric
-#' response function (a polynomial of any degree).
-#'  In practice this approach is very slow and we do not use it.
+#' Derivative of the Lagrangian of the parametric response function
 #'
 #' @param betas a vector of length (deg+1)*(p+1) with regression parameters with
 #'  deg the degree of the response function and the lagrangian multipliers

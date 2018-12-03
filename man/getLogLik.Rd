@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_getLogLik.R
 \name{getLogLik}
 \alias{getLogLik}
-\title{A function to extract the logged likelihood of every cell
-of the data matrix from an RCM object}
+\title{Extract the logged likelihood of every count}
 \usage{
 getLogLik(rcm, Dim)
 }
@@ -17,6 +16,5 @@ or Inf for the saturated model, or 0 for the independence model}
 A matrix with logged likelihood of the size of the data matrix
 }
 \description{
-A function to extract the logged likelihood of every cell
-of the data matrix from an RCM object
+Extract the logged likelihood of every count
 }

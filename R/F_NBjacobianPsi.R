@@ -1,4 +1,4 @@
-#' A jacobian function for the psi of a given dimension (importance parameters)
+#' Jacobian for the psi of a given dimension
 #'
 #' @param beta a scalar, the current estimate
 #' @param X the n-by-p count matrix

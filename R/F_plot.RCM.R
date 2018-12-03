@@ -1,4 +1,4 @@
-#' A function to plot RC(M) ordination result with the help of ggplot2
+#' Plot RC(M) ordination result with the help of ggplot2
 #'
 #' @param x an RCM object
 #' @param ... further arguments, passed on to aes in the the ggplot() function
@@ -11,7 +11,7 @@
 #' @param taxNum an integer, the number of taxa to be plotted
 #' @param taxRegExp a character vector indicating which taxa to plot.
 #' Any taxa matcing this regular expression will be plotted
-#' @param varNum an integer, number of variable arrows to draw
+#' @param varNum an integehr, number of variable arrows to draw
 #' @param varPlot the names of the variable arrows to plot.
 #'  Overrides the varNum argument
 #' @param arrowSize a scalar, the size of the arrows
@@ -119,11 +119,9 @@ plot.RCM = function(x, ..., Dim = c(1,2),
                       ncol(x$X)} else {10}, taxRegExp = NULL, varNum = 15,
                     arrowSize = 0.25, Influence = FALSE, inflDim = 1,
                     returnCoords = FALSE, alpha = TRUE, varPlot = NULL,
-                    colLegend = if(Influence) paste0("Influence on\n",
-                                                     samColour,
-                                                     "\nparameter \nin
-                                                     dimension",inflDim) else
-                                                       samColour,
+                    colLegend = if(Influence)paste0("Influence on\n", samColour,
+                                "\nparameter \nin dimension",inflDim) else
+                                  samColour,
                     samShape = NULL, shapeLegend = samShape, samSize = 2,
                     scalingFactor = NULL, quadDrop = 0.995, plotEllipse = TRUE,
                     taxaScale = 0.5,

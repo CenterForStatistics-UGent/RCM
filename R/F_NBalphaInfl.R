@@ -1,5 +1,4 @@
-#' A function that the components of the influence functions
-#'  of the environmental gradient.
+#' Calculate the components of the influence functions
 #'
 #' @param rcm an rcm object
 #' @param Dim the required dimension

@@ -2,9 +2,7 @@
 % Please edit documentation in R/F_respFunScoreMat.R
 \name{respFunScoreMat}
 \alias{respFunScoreMat}
-\title{Returns the derivative of the Lagrangian of the parameters of the parametric
-response function (a polynomial of any degree).
- In practice this approach is very slow and we do not use it.}
+\title{Derivative of the Lagrangian of the parametric response function}
 \usage{
 respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v, ...)
 }
@@ -36,7 +34,5 @@ The evaluation of the score functions, a vector of length (p+1)*
 (deg+1)
 }
 \description{
-Returns the derivative of the Lagrangian of the parameters of the parametric
-response function (a polynomial of any degree).
- In practice this approach is very slow and we do not use it.
+Derivative of the Lagrangian of the parametric response function
 }

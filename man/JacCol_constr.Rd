@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_JacCol_constr.R
 \name{JacCol_constr}
 \alias{JacCol_constr}
-\title{Returns the jacobian of the score function of the constrained analysis
-with linear response function.}
+\title{Jacobian of the constrained analysis with linear response function.}
 \usage{
 JacCol_constr(betas, X, reg, theta, muMarg, psi)
 }
@@ -29,6 +28,5 @@ the parameters of all taxa, it is very fast
 The jacobian, a square symmetric matrix of dimension v
 }
 \description{
-Returns the jacobian of the score function of the constrained analysis
-with linear response function.
+Jacobian of the constrained analysis with linear response function.
 }

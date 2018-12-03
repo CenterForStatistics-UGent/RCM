@@ -2,8 +2,7 @@
 % Please edit documentation in R/F_NBjacobianLibSizes.R
 \name{NBjacobianLibSizes}
 \alias{NBjacobianLibSizes}
-\title{Evaluates the jacobian for the row components of the independence model
-(library sizes)}
+\title{Jacobian for the raw components of the independence model}
 \usage{
 NBjacobianLibSizes(beta, X, reg, thetas)
 }
@@ -20,6 +19,5 @@ NBjacobianLibSizes(beta, X, reg, thetas)
 a diagonal matrix of dimension n: the Fisher information matrix
 }
 \description{
-Evaluates the jacobian for the row components of the independence model
-(library sizes)
+Jacobian for the raw components of the independence model
 }
