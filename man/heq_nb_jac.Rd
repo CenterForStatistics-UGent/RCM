@@ -9,9 +9,11 @@ heq_nb_jac(Alpha, alphaK, d, k, centMat, ...)
 \arguments{
 \item{Alpha}{the current estimate of the environmental gradient}
 
-\item{alphaK}{a matrix with the environmental gradients of the lower dimensions}
+\item{alphaK}{a matrix with the environmental gradients
+of the lower dimensions}
 
-\item{d}{an integer, the number of environmental variables, including dummies}
+\item{d}{an integer, the number of environmental variables,
+including dummies}
 
 \item{k}{an integer, the current dimension}
 

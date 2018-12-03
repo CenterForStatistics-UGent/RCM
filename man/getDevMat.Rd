@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_getDevMat.R
 \name{getDevMat}
 \alias{getDevMat}
-\title{A function to calculate the matrix of deviance residuals for given mean and dispersion matrix}
+\title{A function to calculate the matrix of deviance residuals for given mean
+ and dispersion matrix}
 \usage{
 getDevMat(X, thetaMat, mu)
 }
@@ -17,5 +18,6 @@ getDevMat(X, thetaMat, mu)
 The matrix of deviance residuals
 }
 \description{
-A function to calculate the matrix of deviance residuals for given mean and dispersion matrix
+A function to calculate the matrix of deviance residuals for given mean
+ and dispersion matrix
 }

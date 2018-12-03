@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_dNBpsis.R
 \name{dNBpsis}
 \alias{dNBpsis}
-\title{A score function for the psi of a given dimension (importance parameters)}
+\title{A score function for the psi of a given dimension}
 \usage{
 dNBpsis(beta, X, reg, theta, muMarg, ...)
 }
@@ -11,7 +11,8 @@ dNBpsis(beta, X, reg, theta, muMarg, ...)
 
 \item{X}{the n-by-p count matrix}
 
-\item{reg}{the regressor matrix, the outer product of current row and column scores}
+\item{reg}{the regressor matrix, the outer product of current row
+and column scores}
 
 \item{theta}{a n-by-p matrix with the dispersion parameters}
 
@@ -23,5 +24,5 @@ dNBpsis(beta, X, reg, theta, muMarg, ...)
 The evaluation of the score function at beta, a scalar
 }
 \description{
-A score function for the psi of a given dimension (importance parameters)
+A score function for the psi of a given dimension
 }

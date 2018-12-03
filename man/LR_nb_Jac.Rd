@@ -10,13 +10,15 @@ LR_nb_Jac(Alpha, X, CC, responseFun = c("linear", "quadratic",
   envGradEst, ...)
 }
 \arguments{
-\item{Alpha}{a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers}
+\item{Alpha}{a vector of length d + k*(2+(k-1)/2),
+the environmental gradient plus the lagrangian multipliers}
 
 \item{X}{the n-by-p count matrix}
 
 \item{CC}{a n-by-d covariate vector}
 
-\item{responseFun}{a character string indicating the type of response function}
+\item{responseFun}{a character string indicating
+the type of response function}
 
 \item{psi}{a scalar, an importance parameter}
 
@@ -46,9 +48,12 @@ LR_nb_Jac(Alpha, X, CC, responseFun = c("linear", "quadratic",
 
 \item{preFabMat}{a prefabricated matrix}
 
-\item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
+\item{envGradEst}{a character string,
+indicating how the environmental gradient should be fitted.
+"LR" using the likelihood-ratio criterion,
+or "ML" a full maximum likelihood solution}
 
-\item{...}{Further arguments passed on to other functionss}
+\item{...}{Further arguments passed on to other functions}
 }
 \value{
 A symmetric matrix, the evaluated Jacobian

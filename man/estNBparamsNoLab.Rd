@@ -26,13 +26,17 @@ estNBparamsNoLab(design, thetasMat, muMarg, psi, X, nleqslv.control,
 
 \item{v}{an integer, the number of parameters per taxon}
 
-\item{dynamic}{a boolean, should response function be determined dynamically? See details}
+\item{dynamic}{a boolean, should response function be determined dynamically?
+See details}
 
-\item{envRange}{a vector of length 2, giving the range of observed environmental scores}
+\item{envRange}{a vector of length 2,
+giving the range of observed environmental scores}
 
 \item{preFabMat}{a pre-fabricated auxiliary matrix
 
-If dynamic is TRUE, quadratic response functions are fitted for every taxon. If the optimum falls outside of the observed range of environmental scores, a linear response function is fitted instead}
+If dynamic is TRUE, quadratic response functions are fitted for every taxon.
+ If the optimum falls outside of the observed range of environmental scores,
+ a linear response function is fitted instead}
 }
 \value{
 a v-by-p matrix of parameters of the response function

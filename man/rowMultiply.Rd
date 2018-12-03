@@ -2,7 +2,9 @@
 % Please edit documentation in R/F_rowMultiply.R
 \name{rowMultiply}
 \alias{rowMultiply}
-\title{A function to efficiently row multiply a a-by-b matrix by a vector of length b. More memory intensive but that does not matter with given matrix sizes}
+\title{A function to efficiently row multiply a a-by-b matrix
+ by a vector of length b.
+ More memory intensive but that does not matter with given matrix sizes}
 \usage{
 rowMultiply(matrix, vector)
 }
@@ -17,5 +19,7 @@ t(t(matrix)*vector) but then faster}
 a matrix, row multplied by the vector
 }
 \description{
-A function to efficiently row multiply a a-by-b matrix by a vector of length b. More memory intensive but that does not matter with given matrix sizes
+A function to efficiently row multiply a a-by-b matrix
+ by a vector of length b.
+ More memory intensive but that does not matter with given matrix sizes
 }

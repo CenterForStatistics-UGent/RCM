@@ -1,4 +1,5 @@
-#' The jacobian of the estimating function for the response function without taxon labels
+#' The jacobian of the estimating function for the response function
+#'  without taxon labels
 #'
 #' @param betas a vector of regression parameters with length v
 #' @param X the nxp data matrix
@@ -11,8 +12,10 @@
 #' @param v an integer, the number of parameters of the response function
 #'
 #' @return The jacobian (a v-by-v matrix)
-JacCol_constr_noLab = function(betas, X, reg, thetasMat, muMarg, psi, n ,v, preFabMat) {
+JacCol_constr_noLab = function(betas, X, reg, thetasMat, muMarg, psi, n ,v,
+                               preFabMat) {
   mu = c(exp(reg %*% betas*psi)) * muMarg
   tmp = preFabMat*mu/(1+(mu/thetasMat))^2*psi^2 #Don't forget to square psi!
-  -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric", n), function(x){rowSums(reg[,x]*tmp)}))
+  -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric", n),
+                         function(x){rowSums(reg[,x]*tmp)}))
 }

@@ -2,14 +2,16 @@
 % Please edit documentation in R/F_heq_nb.R
 \name{heq_nb}
 \alias{heq_nb}
-\title{Defines linear equality constraints function for the estimation of the environmental gradient}
+\title{Defines linear equality constraints function
+ for the estimation of the environmental gradient}
 \usage{
 heq_nb(Alpha, alphaK, d, k, centMat, ...)
 }
 \arguments{
 \item{Alpha}{the current estimate of the environmental gradient}
 
-\item{alphaK}{a matrix with the environmental gradients of the lower dimensions}
+\item{alphaK}{a matrix with the environmental gradients
+of the lower dimensions}
 
 \item{d}{an integer, the number of environmental variables, including dummies}
 
@@ -19,11 +21,14 @@ heq_nb(Alpha, alphaK, d, k, centMat, ...)
 
 \item{...}{further arguments for other methods, not needed in this one
 
-The centering matrix centMat ensures that the parameters of the dummies of the same categorical variable sum to zero}
+The centering matrix centMat ensures that the parameters of the dummies
+of the same categorical variable sum to zero}
 }
 \value{
-a vector of with current values of the constraints, should evolve to zeroes only
+a vector of with current values of the constraints,
+ should evolve to zeroes only
 }
 \description{
-Defines linear equality constraints function for the estimation of the environmental gradient
+Defines linear equality constraints function
+ for the estimation of the environmental gradient
 }

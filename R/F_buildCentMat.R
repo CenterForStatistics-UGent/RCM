@@ -1,5 +1,4 @@
-#' A function to build a centering matrix based on a dataframe or an rcm object.
-#' It also drops factors with one level from the dataframe
+#' A function to build a centering matrix based on a dataframe
 #'
 #' @param object an rcm object or dataframe
 #'

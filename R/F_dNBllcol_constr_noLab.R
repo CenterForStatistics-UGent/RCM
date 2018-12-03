@@ -1,4 +1,4 @@
-#' Evaluate the score function of the response function ignoring taxon labels
+#' The score function of the general response function
 #'
 #' @param betas a vector of regression parameters with length v
 #' @param X the nxp data matrix

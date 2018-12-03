@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_JacCol_constr_noLab.R
 \name{JacCol_constr_noLab}
 \alias{JacCol_constr_noLab}
-\title{The jacobian of the estimating function for the response function without taxon labels}
+\title{The jacobian of the estimating function for the response function
+ without taxon labels}
 \usage{
 JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat)
 }
@@ -29,5 +30,6 @@ JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat)
 The jacobian (a v-by-v matrix)
 }
 \description{
-The jacobian of the estimating function for the response function without taxon labels
+The jacobian of the estimating function for the response function
+ without taxon labels
 }

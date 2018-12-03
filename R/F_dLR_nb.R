@@ -48,17 +48,25 @@ dLR_nb <- function(Alpha, X, CC,
   mu0 = muMarg * c(exp(design %*% NB_params_noLab*psi))
   tmp0 = (X-mu0)/(1+mu0/thetaMat)
   }
-  lag = switch(responseFun, #The lagrangian depends on the shape of the response function
-               "linear" = if(envGradEst == "LR"){psi * (crossprod(CC, tmp) %*% (NB_params[2,])  - rowSums(crossprod(CC, tmp0*NB_params_noLab[2])))} else {psi * (crossprod(CC, tmp) %*% (NB_params[2,]))},
+  lag = switch(responseFun,
+               #The lagrangian depends on the shape of the response function
+               "linear" = if(envGradEst == "LR"){
+                 psi * (crossprod(CC, tmp) %*%(NB_params[2,]) -
+                          rowSums(crossprod(CC, tmp0*NB_params_noLab[2])))
+                 } else {psi * (crossprod(CC, tmp) %*% (NB_params[2,]))},
                "quadratic" = if(envGradEst == "LR"){psi * (
                  c(crossprod(CC, tmp) %*% (NB_params[2,])) +
-                   c(crossprod(CC * c(sampleScore), tmp) %*% (NB_params[3,]) * 2)  -
+                   c(crossprod(CC * c(sampleScore), tmp) %*% (NB_params[3,]) *
+                       2)  -
                    rowSums(crossprod(CC, tmp0) *NB_params_noLab[2]) -
-                   rowSums(crossprod(CC * c(sampleScore), tmp0) * NB_params_noLab[3])*2)} else {
+                   rowSums(crossprod(CC * c(sampleScore), tmp0) *
+                             NB_params_noLab[3])*2)} else {
                 psi * (c(crossprod(CC, tmp) %*% (NB_params[2,])) +
-                         c(crossprod(CC * c(sampleScore), tmp) %*% (NB_params[3,]) * 2))
+                         c(crossprod(CC * c(sampleScore), tmp) %*%
+                             (NB_params[3,]) * 2))
                    },
-               stop("Unknown response function provided! \n")) + #Restrictions do not depend on response function
+               stop("Unknown response function provided! \n")) +
+    #Restrictions do not depend on response function
     c(lambda1s %*% centMat) +
     lambda2 * 2 * alpha +
     if(k>1) alphaK %*% lambda3 else 0

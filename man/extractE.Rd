@@ -2,18 +2,21 @@
 % Please edit documentation in R/F_extractE.R
 \name{extractE}
 \alias{extractE}
-\title{A function to extract a matrix of expected values for any dimension of the fit}
+\title{A function to extract a matrix of expected values
+ for any dimension of the fit}
 \usage{
 extractE(rcm, Dim = rcm$k)
 }
 \arguments{
 \item{rcm}{an object of class RCM}
 
-\item{Dim}{the desired dimension. Defaults to the maximum of the fit. Choose 0 for the independence model, 0.5 for the confounders filter model.}
+\item{Dim}{the desired dimension. Defaults to the maximum of the fit.
+Choose 0 for the independence model, 0.5 for the confounders filter model.}
 }
 \value{
 The matrix of expected values
 }
 \description{
-A function to extract a matrix of expected values for any dimension of the fit
+A function to extract a matrix of expected values
+ for any dimension of the fit
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_estNPresp.R
 \name{estNPresp}
 \alias{estNPresp}
-\title{A function to estimate the taxon-wise response functions non-parametrically, and return their fitted values}
+\title{Estimate the taxon-wise response functions non-parametrically}
 \usage{
 estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
   coefInitOverall, dfSpline, vgamMaxit, degree, verbose, ...)
@@ -34,16 +34,24 @@ estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
 
 \item{...}{further arguments, passed on to the VGAM:::vgam() function
 
-The negative binomial likelihood is still maximized, but now the response function is a non-parametric one. To avoid a perfect fit and overly flexible functions, we enforce smoothness restrictions. In practice we use a generalized additive model (GAM), i.e. with splines.  The same fitting procedure is carried out ignoring species labels. We do not normalize the parameters related to the splines: the psis can be calculated afterwards.}
+The negative binomial likelihood is still maximized,
+ but now the response function is a non-parametric one.
+ To avoid a perfect fit and overly flexible functions,
+ we enforce smoothness restrictions. In practice we use a
+ generalized additive model (GAM), i.e. with splines.
+ The same fitting procedure is carried out ignoring species labels.
+  We do not normalize the parameters related to the splines:
+  the psis can be calculated afterwards.}
 }
 \value{
 A list with components
 \item{taxonCoef}{The fitted coefficients of the sample-wise response curves}
 \item{splinesList}{A list of all the B-spline objects}
 \item{rowMar}{The row matrix}
-\item{overall}{The overall fit ignoring taxon labels, as a list of coefficients and a spline}
+\item{overall}{The overall fit ignoring taxon labels,
+ as a list of coefficients and a spline}
 \item{rowVecOverall}{The overall row vector, ignoring taxon labels}
 }
 \description{
-A function to estimate the taxon-wise response functions non-parametrically, and return their fitted values
+Estimate the taxon-wise response functions non-parametrically
 }

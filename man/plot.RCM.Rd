@@ -10,7 +10,8 @@
   taxRegExp = NULL, varNum = 15, arrowSize = 0.25,
   Influence = FALSE, inflDim = 1, returnCoords = FALSE,
   alpha = TRUE, varPlot = NULL, colLegend = if (Influence)
-  paste0("Influence on\\n", samColour, "\\nparameter \\nin dimension",
+  paste0("Influence on\\n", samColour,
+  "\\nparameter \\nin\\n                                                     dimension",
   inflDim) else samColour, samShape = NULL, shapeLegend = samShape,
   samSize = 2, scalingFactor = NULL, quadDrop = 0.995,
   plotEllipse = TRUE, taxaScale = 0.5, Palette = if (!all(plotType ==
@@ -33,43 +34,57 @@
 
 \item{Dim}{An integer vector of length two, which dimensions to plot}
 
-\item{plotType}{a character string: which components to plot. Can be any combination of "samples","species" and "variables"}
+\item{plotType}{a character string: which components to plot.
+Can be any combination of "samples","species" and "variables"}
 
-\item{samColour}{a character string, the variable to use for the colour of the sample dots. Alternatively, a vector equal to the number of samples in the RCM object can be supplied}
+\item{samColour}{a character string, the variable to use for the colour
+of the sample dots. Alternatively,
+a vector equal to the number of samples in the RCM object can be supplied}
 
 \item{taxNum}{an integer, the number of taxa to be plotted}
 
-\item{taxRegExp}{a character vector indicating which taxa to plot. Any taxa matcing this regular expression will be plotted}
+\item{taxRegExp}{a character vector indicating which taxa to plot.
+Any taxa matcing this regular expression will be plotted}
 
 \item{varNum}{an integer, number of variable arrows to draw}
 
 \item{arrowSize}{a scalar, the size of the arrows}
 
-\item{Influence}{a boolean, should the influence of the observation on the variable be plotted}
+\item{Influence}{a boolean, should the influence of the observation
+on the variable be plotted}
 
-\item{inflDim}{an integer, the dimension for which the influence should be calculated}
+\item{inflDim}{an integer, the dimension for which the influence
+should be calculated}
 
 \item{returnCoords}{a boolean, should final coordinates be returned?}
 
 \item{alpha}{a boolean, should small arrows be made transparent?}
 
-\item{varPlot}{the names of the variable arrows to plot. Overrides the varNum argument}
+\item{varPlot}{the names of the variable arrows to plot.
+Overrides the varNum argument}
 
-\item{colLegend}{a character string, the legend text for the sample colour. Defaults to the name of the colour variable}
+\item{colLegend}{a character string, the legend text for the sample colour.
+Defaults to the name of the colour variable}
 
-\item{samShape}{a character string, the variable to use for the shape of the sample dots}
+\item{samShape}{a character string, the variable to use for the shape
+of the sample dots}
 
-\item{shapeLegend}{a character string, the text to use for the shapeLegend. Defaults to the name of the shape variable}
+\item{shapeLegend}{a character string, the text to use for the shapeLegend.
+Defaults to the name of the shape variable}
 
 \item{samSize}{a scalar, the size of the sample dots}
 
-\item{scalingFactor}{a scalar, a user supplied scaling factor for the taxon arrows. If not supplied it will be calculated to make sample and taxon plots on the same scale}
+\item{scalingFactor}{a scalar, a user supplied scaling factor
+for the taxon arrows. If not supplied it will be calculated to make sample
+ and taxon plots on the same scale}
 
-\item{quadDrop}{a number between 0 and 1. At this fraction of the peak height are the ellipses of the quadratic response functions drawn}
+\item{quadDrop}{a number between 0 and 1. At this fraction of the peak height
+are the ellipses of the quadratic response functions drawn}
 
 \item{plotEllipse}{a boolean, whether to add the ellipses}
 
-\item{taxaScale}{a scalar, by which to scale the rectangles of the quadratic taxon plot}
+\item{taxaScale}{a scalar, by which to scale the rectangles
+of the quadratic taxon plot}
 
 \item{Palette}{the colour palette}
 
@@ -83,13 +98,25 @@
 
 \item{nudge_y}{a scalar, the offet for the taxon labels}
 
-\item{axesFixed}{A boolean, should the aspect ratio of the plot (the scale between the x and y-axis) be fixed. It is highly recommended to keep this argument at TRUE  for honest representation of the ordination. If set to FALSE, the plotting space will be optimally used but the plot may be deformed in the process.}
+\item{axesFixed}{A boolean, should the aspect ratio of the plot
+(the scale between the x and y-axis) be fixed.
+It is highly recommended to keep this argument at TRUE
+for honest representation of the ordination. If set to FALSE,
+the plotting space will be optimally used but the plot
+ may be deformed in the process.}
 
-\item{aspRatio}{The aspect ratio of the plot when 'axesfixed' is TRUE (otherwise this argument is ignored), passde on to ggplot2::coord_fixed(). It is highly recommended to keep this argument at 1 for honest representation of the ordination.}
+\item{aspRatio}{The aspect ratio of the plot when 'axesfixed' is TRUE
+(otherwise this argument is ignored), passde on to ggplot2::coord_fixed().
+It is highly recommended to keep this argument at 1 for honest
+ representation of the ordination.}
 
-\item{xInd}{a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely. Defaults to 0.75 at every side}
+\item{xInd}{a scalar or a vector of length 2, specifying the indentation
+left and right of the plot to allow for the labels to be printed entirely.
+ Defaults to 0.75 at every side}
 
-\item{yInd}{a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely. Defaults to 0 at every side}
+\item{yInd}{a scalar or a vector of length 2, specifying the indentation
+top and bottom of the plot to allow for the labels to be printed entirely.
+ Defaults to 0 at every side}
 
 \item{taxLabSize}{the size of taxon labels}
 
@@ -97,13 +124,16 @@
 
 \item{alphaRange}{The range of transparency}
 
-\item{varExpFactor}{a scalar, the factor by which to expand the variable coordinates}
+\item{varExpFactor}{a scalar, the factor by which to expand
+the variable coordinates}
 
-\item{manExpFactorTaxa}{a manual expansion factor for the taxa. Setting it to a high value allows you to plot the taxa around the samples}
+\item{manExpFactorTaxa}{a manual expansion factor for the taxa.
+Setting it to a high value allows you to plot the taxa around the samples}
 
 \item{nPhyl}{an integer, number of phylogenetic levels to show}
 
-\item{phylOther}{a character vector of phylogenetic levels to be included in the "other" group}
+\item{phylOther}{a character vector of phylogenetic levels
+to be included in the "other" group}
 
 \item{legendSize}{a size for the coloured dots in the legend}
 
@@ -111,7 +141,8 @@
 
 \item{crossSize}{the size of the central cross}
 
-\item{contCol}{a character vector of length two, giving the low and high values of the continuous colour scale}
+\item{contCol}{a character vector of length two, giving the low
+and high values of the continuous colour scale}
 
 \item{legendLabSize}{size of the legend labels}
 
@@ -121,9 +152,12 @@
 
 \item{axisTitleSize}{size of the axis title}
 
-\item{plotPsi}{a character vector, describing what to plot on the axis. Can be either "psi", "none" or "loglik". The latter plots the log-likelihood explained}
+\item{plotPsi}{a character vector, describing what to plot on the axis.
+Can be either "psi", "none" or "loglik".
+The latter plots the log-likelihood explained}
 
-\item{breakChar}{a character string indicating how the taxon names should be broken}
+\item{breakChar}{a character string indicating how the taxon names
+should be broken}
 }
 \value{
 plots a ggplot2-object to output
@@ -132,9 +166,15 @@ plots a ggplot2-object to output
 A function to plot RC(M) ordination result with the help of ggplot2
 }
 \details{
-This function relies on the ggplot2 machinery to produce the plots, and the result can be modified accordingly. Monoplots, biplots and for constrained analysis even triplots can be produced, depending on the "plotType" argument.
+This function relies on the ggplot2 machinery to produce the plots,
+and the result can be modified accordingly. Monoplots,
+biplots and for constrained analysis even triplots can be produced,
+depending on the "plotType" argument.
 
-When one of either "Observed", "Chao1", "ACE", "Shannon", "Simpson","InvSimpson" or "Fisher" are supplied to the "samColour" argument, the according richness measure (as calculated by phyloseq::estimate_richness) is mapped to the sample colour
+When one of either "Observed", "Chao1", "ACE", "Shannon", "Simpson",
+"InvSimpson" or "Fisher" are supplied to the "samColour" argument,
+the according richness measure (as calculated by phyloseq::estimate_richness)
+ is mapped to the sample colour
 }
 \examples{
 data(Zeller)
@@ -146,5 +186,6 @@ zellerRCM = RCM(tmpPhy)
 plot(zellerRCM)
 }
 \seealso{
-\code{\link{RCM}},\code{\link{addOrthProjection}},\code{\link{extractCoord}},\code{\link{plotRespFun}}
+\code{\link{RCM}},\code{\link{addOrthProjection}},
+\code{\link{extractCoord}},\code{\link{plotRespFun}}
 }

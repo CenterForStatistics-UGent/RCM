@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_inertia.R
 \name{inertia}
 \alias{inertia}
-\title{Calculate the log-likelihoods of the indepence and saturated models and all fitted submodels}
+\title{Calculate the log-likelihoods of the indepence and saturated models
+and all fitted submodels}
 \usage{
 inertia(rcm)
 }
@@ -10,10 +11,12 @@ inertia(rcm)
 \item{rcm}{an object of the RCM class}
 }
 \value{
-A table with inertias, proportion inertia explained and cumulative proportion of inertia explained.
+A table with inertias, proportion inertia explained
+and cumulative proportion of inertia explained.
 }
 \description{
-Calculate the log-likelihoods of the indepence and saturated models and all fitted submodels
+Calculate the log-likelihoods of the indepence and saturated models
+and all fitted submodels
 }
 \examples{
 data(Zeller)

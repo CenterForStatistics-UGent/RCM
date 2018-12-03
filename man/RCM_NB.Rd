@@ -24,16 +24,20 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
 
 \item{k}{an scalar, number of dimensions in the RC(M) model}
 
-\item{rowWeights}{a character string, either "uniform" or "marginal" row weights.}
+\item{rowWeights}{a character string, either "uniform" or "marginal"
+row weights.}
 
-\item{colWeights}{a character string, either "uniform" or "marginal" column weights.}
+\item{colWeights}{a character string, either "uniform" or "marginal"
+column weights.}
 
 \item{tol}{a scalar, the relative convergende tolerance for the row scores
 and column scores parameters.}
 
-\item{maxItOut}{an integer, the maximum number of iteration in the outer loop.}
+\item{maxItOut}{an integer, the maximum number
+of iterations in the outer loop.}
 
-\item{Psitol}{a scalar, the relative convergence tolerance for the psi parameters.}
+\item{Psitol}{a scalar, the relative convergence tolerance
+for the psi parameters.}
 
 \item{verbose}{a boolean, should information on iterations be printed?}
 
@@ -76,11 +80,13 @@ Factors must have been converted to dummy variables already}
 the categorical variables. f equals the number of continuous variables +
 the total number of levels of the categorical variables.}
 
-\item{responseFun}{a characters string indicating the shape of the response function}
+\item{responseFun}{a characters string indicating the shape
+of the response function}
 
 \item{record}{A boolean, should intermediate parameter estimates be stored?}
 
-\item{control.outer}{a list of control options for the outer loop constrOptim.nl function}
+\item{control.outer}{a list of control options
+for the outer loop constrOptim.nl function}
 
 \item{control.optim}{a list of control options for the optim() function}
 
@@ -91,9 +97,11 @@ environmental gradient should be fitted. "LR" using the likelihood-ratio
 \item{dfSpline}{a scalar, the number of degrees of freedom for the splines
 of the non-parametric response function, see VGAM::s()}
 
-\item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function}
+\item{vgamMaxit}{an integer,
+the maximum number of iteration in the vgam() function}
 
-\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails
+\item{degree}{an integer,
+ the degree of the polynomial fit if the spline fit fails
 
 #'@seealso \code{\link{RCM}}
 
@@ -105,19 +113,24 @@ A list with elements
  converged for every dimension}
 \item{rMat}{(if not constrained a nxk matrix with estimated row scores}
 \item{cMat}{ a kxp matrix with estimated column scores}
-\item{psis}{ a vector of length k with estimates for the importance parameters psi}
-\item{thetas}{ a vector of length p with estimates for the overdispersion}
+\item{psis}{a vector of length k
+ with estimates for the importance parameters psi}
+\item{thetas}{a vector of length p with estimates for the overdispersion}
 \item{rowRec}{(if not constrained) a n x k x maxItOut array with a record
  of all rMat estimates through the iterations}
-\item{colRec}{a k x p x maxItOut array with a record of all cMat estimates through the iterations}
-\item{psiRec}{a k x maxItOut array with a record of all psi estimates through the iterations}
+\item{colRec}{a k x p x maxItOut array with a record of all cMat
+ estimates through the iterations}
+\item{psiRec}{a k x maxItOut array with a record of all psi estimates
+ through the iterations}
 \item{thetaRec}{ a matrix of dimension pxmaxItOut with estimates for
  the overdispersion along the way}
 \item{iter}{ number of iterations}
 \item{Xorig}{ (if confounders provided) the original fitting matrix}
-\item{X}{ the trimmed matrix if confounders provided, otherwise the original one}
+\item{X}{ the trimmed matrix if confounders provided,
+ otherwise the original one}
 \item{fit}{ type of fit, either "RCM_NB" or "RCM_NB_constr"}
-\item{lambdaRow}{(if not constrained) vector of Lagrange multipliers for the rows}
+\item{lambdaRow}{(if not constrained)
+ vector of Lagrange multipliers for the rows}
 \item{lambdaCol}{ vector of Lagrange multipliers for the columns}
 \item{rowWeights}{(if not constrained) the row weights used}
 \item{colWeights}{ the column weights used}

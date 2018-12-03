@@ -1,5 +1,5 @@
 #'A score function for the estimation of the column scores
-#'in an unconstrained RC(M) model
+#' in an unconstrained RC(M) model
 #'
 #' @param beta vector of length p+1+1+(k-1): p row scores,
 #' 1 centering, one normalization and (k-1) orhtogonality lagrangian multipliers

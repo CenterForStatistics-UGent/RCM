@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_LR_nb.R
 \name{LR_nb}
 \alias{LR_nb}
-\title{A function that returns the value of the log-likelihood ratio of alpha, keeping the response functions fixed}
+\title{A function that returns the value of the log-likelihood ratio of alpha,
+ keeping the response functions fixed}
 \usage{
 LR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
   "nonparametric", "dynamic"), muMarg, psi, nleqslv.control = list(trace
@@ -16,7 +17,8 @@ LR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
 
 \item{CC}{the n-by-d covariate matrix}
 
-\item{responseFun}{a character string indicating the type of response function}
+\item{responseFun}{a character string indicating
+the type of response function}
 
 \item{muMarg}{an n-by-p offset matrix}
 
@@ -36,15 +38,21 @@ LR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
 
 \item{nonParamRespFun}{A list, the result of the estNPresp() function}
 
-\item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
+\item{envGradEst}{a character string,
+indicating how the environmental gradient should be fitted.
+"LR" using the likelihood-ratio criterion,
+or "ML" a full maximum likelihood solution}
 
 \item{...}{Further arguments passed on to other functions
 
-DON'T USE "p" as variable name, partial matching in the grad-function in the numDeriv package}
+DON'T USE "p" as variable name,
+ partial matching in the grad-function in the numDeriv package}
 }
 \value{
-: a scalar, the evaluation of the log-likelihood ratio at the given alpha
+: a scalar, the evaluation of the log-likelihood ratio
+ at the given alpha
 }
 \description{
-A function that returns the value of the log-likelihood ratio of alpha, keeping the response functions fixed
+A function that returns the value of the log-likelihood ratio of alpha,
+ keeping the response functions fixed
 }

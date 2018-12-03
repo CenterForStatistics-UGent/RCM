@@ -11,7 +11,8 @@ NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat)
 
 \item{X}{the n-by-p count matrix}
 
-\item{reg}{the regressor matrix, the outer product of current row and column scores}
+\item{reg}{the regressor matrix,
+the outer product of current row and column scores}
 
 \item{muMarg}{the nxp offset matrix}
 

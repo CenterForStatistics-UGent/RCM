@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_NBjacobianAbunds.R
 \name{NBjacobianAbunds}
 \alias{NBjacobianAbunds}
-\title{A jacobian function for the column components of the independence model (mean relative abundances)}
+\title{A jacobian function for the column components of the independence model
+(mean relative abundances)}
 \usage{
 NBjacobianAbunds(beta, X, reg, thetas)
 }
@@ -16,8 +17,10 @@ NBjacobianAbunds(beta, X, reg, thetas)
 \item{thetas}{a n-by-p matrix with overdispersion estimates in the rows}
 }
 \value{
-a diagonal matrix of dimension p with evaluations of the jacobian function
+a diagonal matrix of dimension p with evaluations
+of the jacobian function
 }
 \description{
-A jacobian function for the column components of the independence model (mean relative abundances)
+A jacobian function for the column components of the independence model
+(mean relative abundances)
 }
