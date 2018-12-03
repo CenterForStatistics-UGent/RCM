@@ -10,8 +10,10 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.1.1
 Imports: RColorBrewer, alabama, edgeR, reshape2, tseries, vegan, VGAM, ggplot2 (>= 2.2.1.9000), nleqslv, phyloseq, tensor, MASS, stats, grDevices, graphics
-Suggests: knitr,
-    rmarkdown
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat
 VignetteBuilder: knitr
 biocViews: Metagenomics, DimensionReduction, Microbiome, Visualization
 BugReports: https://github.com/CenterForStatistics-UGent/RCM/issues
