@@ -1,4 +1,5 @@
-#' An auxiliary R function to "array" multiply an array with a vector, kindly provided by Joris Meys
+#' An auxiliary R function to "array" multiply an array with a vector,
+#'  kindly provided by Joris Meys
 #'
 #' @param x a axbxc array
 #' @param y a vector of length c

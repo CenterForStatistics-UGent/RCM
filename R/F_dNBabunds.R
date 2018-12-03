@@ -1,4 +1,5 @@
-#'A score function for the column components of the independence model (mean relative abundances)
+#'A score function for the column components of the independence model
+#' (mean relative abundances)
 #'
 #'@param beta a vector of length p with current abundance estimates
 #'@param X a n-by-p count matrix

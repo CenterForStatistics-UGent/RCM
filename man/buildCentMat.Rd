@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_buildCentMat.R
 \name{buildCentMat}
 \alias{buildCentMat}
-\title{A function to build a centering matrix based on a dataframe or an rcm object. It also drops factors with one level from the dataframe}
+\title{A function to build a centering matrix based on a dataframe or an rcm object.
+It also drops factors with one level from the dataframe}
 \usage{
 buildCentMat(object)
 }
@@ -10,10 +11,12 @@ buildCentMat(object)
 \item{object}{an rcm object or dataframe}
 }
 \value{
-a centering matrix consisting of ones and zeroes, or a list with components
+a centering matrix consisting of ones and zeroes,
+ or a list with components
 \item{centMat}{a centering matrix consisting of ones and zeroes}
 \item{datFrame}{The dataframe with factors with one level removed}
 }
 \description{
-A function to build a centering matrix based on a dataframe or an rcm object. It also drops factors with one level from the dataframe
+A function to build a centering matrix based on a dataframe or an rcm object.
+It also drops factors with one level from the dataframe
 }

@@ -1,6 +1,8 @@
 #' Microbiomes of colorectal cancer patients and healthy controls
 #'
-#' Microbiome sequencing data of colorectal cancer patients, patients with small adenoma and healthy controls, together with otehr baseline covariates
+#' Microbiome sequencing data of colorectal cancer patients,
+#' patients with small adenoma and healthy controls,
+#'  together with otehr baseline covariates
 #'
 #' @format A phyloseq object with an OTU-table and sample data
 #' \describe{

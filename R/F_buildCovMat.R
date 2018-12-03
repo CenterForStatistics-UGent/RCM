@@ -4,7 +4,12 @@
 #' @param n the number of samples
 #' @param dat the phyloseq object
 #'
-#' In this case we will 1) Include dummy's for every level of the categorical variable, and force them to sum to zero. This is needed for plotting and required for reference level indepenent normalization. 2) Exclude an intercept. The density function f() will provide this already. See introduction.
+#' In this case we will 1) Include dummy's for every level of the
+#'  categorical variable, and force them to sum to zero.
+#'  This is needed for plotting and required for
+#'   reference level indepenent normalization.
+#'   2) Exclude an intercept. The density function f()
+#'   will provide this already.
 #'
 #' @return a list with components
 #' \item{covModelMat}{The model matrix}

@@ -2,20 +2,23 @@
 % Please edit documentation in R/F_dLR_nb.R
 \name{dLR_nb}
 \alias{dLR_nb}
-\title{A function that returns the value of the partial derivative of the log-likelihood ratio to alpha, keeping the response functions fixed}
+\title{A function that returns the value of the partial derivative of the
+ log-likelihood ratio to alpha, keeping the response functions fixed}
 \usage{
 dLR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
   "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK,
   k, centMat, nLambda, nLambda1s, thetaMat, muMarg, ncols, envGradEst, ...)
 }
 \arguments{
-\item{Alpha}{a vector of length d + k*(2+(k-1)/2), the environmental gradient plus the lagrangian multipliers}
+\item{Alpha}{a vector of length d + k*(2+(k-1)/2),
+the environmental gradient plus the lagrangian multipliers}
 
 \item{X}{the n-by-p count matrix}
 
 \item{CC}{a n-by-d covariate vector}
 
-\item{responseFun}{a character string indicating the type of response function}
+\item{responseFun}{a character string indicating
+the type of response function}
 
 \item{psi}{a scalar, an importance parameter}
 
@@ -41,7 +44,10 @@ dLR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
 
 \item{ncols}{a scalar, the number of columns of X}
 
-\item{envGradEst}{a character string, indicating how the environmental gradient should be fitted. "LR" using the likelihood-ratio criterion, or "ML" a full maximum likelihood solution}
+\item{envGradEst}{a character string, indicating how the
+environmental gradient should be fitted.
+"LR" using the likelihood-ratio criterion,
+or "ML" a full maximum likelihood solution}
 
 \item{...}{further arguments passed on to other methods}
 }
@@ -49,5 +55,6 @@ dLR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
 : The value of the lagrangian and the constraining equations
 }
 \description{
-A function that returns the value of the partial derivative of the log-likelihood ratio to alpha, keeping the response functions fixed
+A function that returns the value of the partial derivative of the
+ log-likelihood ratio to alpha, keeping the response functions fixed
 }
