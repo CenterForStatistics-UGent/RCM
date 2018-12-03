@@ -20,22 +20,26 @@
 #'  a linear response function is fitted instead
 #'
 #' @return a v-by-p matrix of parameters of the response function
-estNBparamsNoLab = function(design, thetasMat, muMarg, psi,
-                            X, nleqslv.control, initParam, n, v, dynamic,
-                            envRange, preFabMat){
-  #Without taxon Labels
-  nleq = nleqslv(x = initParam , reg = design,  fn = dNBllcol_constr_noLab,
-                 thetasMat = thetasMat, muMarg = muMarg, psi = psi,
-                 X = X, control = nleqslv.control, jac = JacCol_constr_noLab,
-                 n=n, v=v, preFabMat = preFabMat)$x
-  if(dynamic && ((-nleq[2]/(2*nleq[3]) < envRange[1]) ||
-                 (-nleq[2]/(2*nleq[3]) > envRange[2]))){
-    #If out of observed range, fit a linear model
-  nleq = c(nleqslv(initParam[-3] , reg = design[,-3],
-                   fn = dNBllcol_constr_noLab, thetasMat = thetasMat,
-                   muMarg = muMarg, psi = psi, X = X, control = nleqslv.control,
-                   jac = JacCol_constr_noLab, preFabMat = preFabMat,
-                   n=n, v=v-1)$x,0)
-  }
-  return(nleq)
+estNBparamsNoLab = function(design, thetasMat, 
+    muMarg, psi, X, nleqslv.control, initParam, 
+    n, v, dynamic, envRange, preFabMat) {
+    # Without taxon Labels
+    nleq = nleqslv(x = initParam, reg = design, 
+        fn = dNBllcol_constr_noLab, thetasMat = thetasMat, 
+        muMarg = muMarg, psi = psi, X = X, 
+        control = nleqslv.control, jac = JacCol_constr_noLab, 
+        n = n, v = v, preFabMat = preFabMat)$x
+    if (dynamic && ((-nleq[2]/(2 * nleq[3]) < 
+        envRange[1]) || (-nleq[2]/(2 * nleq[3]) > 
+        envRange[2]))) {
+        # If out of observed range, fit a linear
+        # model
+        nleq = c(nleqslv(initParam[-3], reg = design[, 
+            -3], fn = dNBllcol_constr_noLab, 
+            thetasMat = thetasMat, muMarg = muMarg, 
+            psi = psi, X = X, control = nleqslv.control, 
+            jac = JacCol_constr_noLab, preFabMat = preFabMat, 
+            n = n, v = v - 1)$x, 0)
+    }
+    return(nleq)
 }

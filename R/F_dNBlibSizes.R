@@ -7,7 +7,7 @@
 #'@param thetas a n-by-p matrix with overdispersion estimates in the rows
 #'
 #'@return a vector of length n with evaluations of the score function
-dNBlibSizes = function(beta, X, reg, thetas){
-  mu = exp(outer(beta,reg, "+"))
-  rowSums((X-mu)/(1+(mu/thetas)))
+dNBlibSizes = function(beta, X, reg, thetas) {
+    mu = exp(outer(beta, reg, "+"))
+    rowSums((X - mu)/(1 + (mu/thetas)))
 }

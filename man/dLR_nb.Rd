@@ -46,8 +46,8 @@ the type of response function}
 
 \item{envGradEst}{a character string, indicating how the
 environmental gradient should be fitted.
-"LR" using the likelihood-ratio criterion,
-or "ML" a full maximum likelihood solution}
+'LR' using the likelihood-ratio criterion,
+or 'ML' a full maximum likelihood solution}
 
 \item{...}{further arguments passed on to other methods}
 }

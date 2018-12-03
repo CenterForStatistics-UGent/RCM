@@ -17,7 +17,7 @@ plotRespFun(RCM, taxa = NULL, type = "link",
 \item{taxa}{a character vector of taxa to be plotted}
 
 \item{type}{a character string, plot the response function on the log-scale
-("link") or the abundance scale "response", similar to predict.glm().}
+('link') or the abundance scale 'response', similar to predict.glm().}
 
 \item{logTransformYAxis}{a boolean, should y-axis be log transformed?}
 
@@ -72,8 +72,8 @@ tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 prune_samples(sample_names(Zeller)[1:50], Zeller))
 #Subset for a quick fit
 zellerRCMnp = RCM(tmpPhy, k = 2,
-covariates = c("BMI","Age","Country","Diagnosis","Gender"),
-round = TRUE, responseFun = "nonparametric")
+covariates = c('BMI','Age','Country','Diagnosis','Gender'),
+round = TRUE, responseFun = 'nonparametric')
 plotRespFun(zellerRCMnp)
 }
 \seealso{

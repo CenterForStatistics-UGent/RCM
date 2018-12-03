@@ -17,7 +17,7 @@ residualPlot(RCM, Dim = 1, whichTaxa = "response",
 \item{whichTaxa}{a character string or a character vector,
 for which taxa to plot the diagnostic plots}
 
-\item{resid}{the type of residuals to use, either "Deviance" or "Pearson"}
+\item{resid}{the type of residuals to use, either 'Deviance' or 'Pearson'}
 
 \item{numTaxa}{an integer, the number of taxa to plot}
 
@@ -45,7 +45,7 @@ Plots a ggplot2-object to output
 Make residual plots
 }
 \details{
-If whichTaxa is "run" or "response" the taxa with the highest
+If whichTaxa is 'run' or 'response' the taxa with the highest
 run statistics or steepest slopes of the response function are plotted,
  numTax indicates the number. If whichTaxa is a character vector,
  these are interpreted as taxon names to plot.
@@ -60,8 +60,8 @@ tmpPhy = prune_taxa(taxa_names(Zeller)[1:120],
 prune_samples(sample_names(Zeller)[1:75], Zeller))
 #Subset for a quick fit
 zellerRCMlin = RCM(tmpPhy, k = 2,
-covariates = c("BMI","Age","Country","Diagnosis","Gender"),
-responseFun = "linear", round = TRUE, prevCutOff = 0.03)
+covariates = c('BMI','Age','Country','Diagnosis','Gender'),
+responseFun = 'linear', round = TRUE, prevCutOff = 0.03)
 residualPlot(zellerRCMlin)
 }
 \seealso{

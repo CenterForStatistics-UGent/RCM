@@ -5,6 +5,6 @@
 #' @param sample the row score or  sample index
 #'
 #' @return A matrix with all observations' influence on the row score
-getInflRow = function(score, InvJac, sample){
-  score* InvJac[, sample]
+getInflRow = function(score, InvJac, sample) {
+    score * InvJac[, sample]
 }

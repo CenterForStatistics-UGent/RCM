@@ -13,7 +13,7 @@ buildConfMat(x, ...)
 
 For the preliminary trimming, we do not include an intercept,
 but we do include all the levels of the factors using contrasts=FALSE:
- we want to do the trimming in every subgroup, so no hidden reference levels.
+ we want to do the trimming in every subgroup, so no hidden reference levels
   For the filtering we just use a model with an intercept and
    treatment coding, here the interest is only in adjusting the offset}
 }

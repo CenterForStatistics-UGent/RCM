@@ -2,9 +2,7 @@
 % Please edit documentation in R/F_estDisp.R
 \name{estDisp}
 \alias{estDisp}
-\title{A function to estimate the overdispersion of the negative binomial
-distribution. Hereby information between taxa is shared with empirical Bayes
- using the edgeR pacakage, where the time-limiting steps are programmed in C.}
+\title{Estimate the overdispersion}
 \usage{
 estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
   trended.dispersion = NULL, prior.df = 10, dispWeights = NULL,
@@ -37,7 +35,9 @@ in a zero-inflated model}
 A vector of length p with dispersion estimates
 }
 \description{
-A function to estimate the overdispersion of the negative binomial
-distribution. Hereby information between taxa is shared with empirical Bayes
+Estimate the overdispersion
+}
+\details{
+Information between taxa is shared with empirical Bayes
  using the edgeR pacakage, where the time-limiting steps are programmed in C.
 }

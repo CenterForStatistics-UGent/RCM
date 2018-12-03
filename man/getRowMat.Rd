@@ -10,7 +10,7 @@ getRowMat(sampleScore, responseFun, NB_params, taxonCoef, spline)
 \item{sampleScore}{a vector of length n with sample scores}
 
 \item{responseFun}{a character string, the type of response function,
-either "linear" or "quadratic"}
+either 'linear' or 'quadratic'}
 
 \item{NB_params}{a v-by-p matrix of parameters of theresponse function}
 

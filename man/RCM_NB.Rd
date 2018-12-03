@@ -21,10 +21,10 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
 
 \item{k}{an scalar, number of dimensions in the RC(M) model}
 
-\item{rowWeights}{a character string, either "uniform" or "marginal"
+\item{rowWeights}{a character string, either 'uniform' or 'marginal'
 row weights.}
 
-\item{colWeights}{a character string, either "uniform" or "marginal"
+\item{colWeights}{a character string, either 'uniform' or 'marginal'
 column weights.}
 
 \item{tol}{a scalar, the relative convergende tolerance for the row scores
@@ -54,7 +54,7 @@ before reestimationg the dispersions.}
 
 \item{prior.df}{an integer, see estDisp()}
 
-\item{marginEst}{a character string, either "MLE" or "marginSums",
+\item{marginEst}{a character string, either 'MLE' or 'marginSums',
 indicating how the independence model should be estimated}
 
 \item{confounders}{a list with
@@ -88,8 +88,8 @@ for the outer loop constrOptim.nl function}
 \item{control.optim}{a list of control options for the optim() function}
 
 \item{envGradEst}{a character string, indicating how the
-environmental gradient should be fitted. "LR" using the likelihood-ratio
- criterion, or "ML" a full maximum likelihood solution}
+environmental gradient should be fitted. 'LR' using the likelihood-ratio
+ criterion, or 'ML' a full maximum likelihood solution}
 
 \item{dfSpline}{a scalar, the number of degrees of freedom for the splines
 of the non-parametric response function, see VGAM::s()}
@@ -125,7 +125,7 @@ A list with elements
 \item{Xorig}{ (if confounders provided) the original fitting matrix}
 \item{X}{ the trimmed matrix if confounders provided,
  otherwise the original one}
-\item{fit}{ type of fit, either "RCM_NB" or "RCM_NB_constr"}
+\item{fit}{ type of fit, either 'RCM_NB' or 'RCM_NB_constr'}
 \item{lambdaRow}{(if not constrained)
  vector of Lagrange multipliers for the rows}
 \item{lambdaCol}{ vector of Lagrange multipliers for the columns}

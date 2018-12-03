@@ -16,21 +16,31 @@
 
 #' @return A vector of length n + k +1 with evaluations of the
 #'  derivative of the lagrangian
-dNBllrow = function(beta, X, reg, thetas, muMarg, k, n , p, rowWeights,
-                    nLambda, rMatK, ...){
-
-  rMat = matrix(beta[seq_len(n)], byrow=FALSE, ncol=1, nrow=n)
-  mu = exp(rMat %*% reg)* muMarg
-
-  lambda1 = beta[n+1] #Centering restrictions sum(abunds*r_{ik}) = 0
-  lambda2 = beta[n+2] #normalization restrictions sum(abunds*r^2_{ik}) = 1
-  lambda3 = if(k==1){0} else {beta[(n+3):length(beta)]}
-
-  score = c(tcrossprod(reg, (X-mu)/(1+(mu/thetas)))) +
-    rowWeights*(lambda1 + lambda2* 2*rMat + (rMatK %*% lambda3))
-  center = sum(rMat*rowWeights)
-  unitSum = sum(rMat^2*rowWeights)-1
-  if(k==1){ return(c(score,center, unitSum))}
-  orthogons = crossprod(rMatK, rMat*rowWeights)
-  return(c(score,center, unitSum, orthogons))
+dNBllrow = function(beta, X, reg, thetas, 
+    muMarg, k, n, p, rowWeights, nLambda, 
+    rMatK, ...) {
+    
+    rMat = matrix(beta[seq_len(n)], byrow = FALSE, 
+        ncol = 1, nrow = n)
+    mu = exp(rMat %*% reg) * muMarg
+    
+    lambda1 = beta[n + 1]  #Centering restrictions sum(abunds*r_{ik}) = 0
+    lambda2 = beta[n + 2]  #normalization restrictions sum(abunds*r^2_{ik}) = 1
+    lambda3 = if (k == 1) {
+        0
+    } else {
+        beta[(n + 3):length(beta)]
+    }
+    
+    score = c(tcrossprod(reg, (X - mu)/(1 + 
+        (mu/thetas)))) + rowWeights * (lambda1 + 
+        lambda2 * 2 * rMat + (rMatK %*% lambda3))
+    center = sum(rMat * rowWeights)
+    unitSum = sum(rMat^2 * rowWeights) - 
+        1
+    if (k == 1) {
+        return(c(score, center, unitSum))
+    }
+    orthogons = crossprod(rMatK, rMat * rowWeights)
+    return(c(score, center, unitSum, orthogons))
 }

@@ -9,7 +9,8 @@
 
 #' @return A vector of the same length as beta with evaluations
 #'  of the score function
-dNBllcolNP = function(beta, X, reg, theta, muMarg, ...) {
-  mu = exp(reg %*% beta) * muMarg
- crossprod(reg,((X-mu)/(1+mu/theta)))
+dNBllcolNP = function(beta, X, reg, theta, 
+    muMarg, ...) {
+    mu = exp(reg %*% beta) * muMarg
+    crossprod(reg, ((X - mu)/(1 + mu/theta)))
 }

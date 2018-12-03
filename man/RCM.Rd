@@ -25,18 +25,18 @@ at leat the number of samples n times minFraction, otherwise it is trimmed.
 
 \item{rowWeights, colWeights}{character strings, the weighting procedures
 for the normalization of row and column scores.
-Defaults to "uniform" and "marginal" respectively}
+Defaults to 'uniform' and 'marginal' respectively}
 
-\item{covariates}{In case "dat" is a phyloseq object,
+\item{covariates}{In case 'dat' is a phyloseq object,
 the names of the sample variables to be used as covariates
- in the constrained analysis, or "all" to indicate all variables to be used.
-  In case "dat" is a matrix, a nxf matrix or dataframe of covariates.
+ in the constrained analysis, or 'all' to indicate all variables to be used.
+  In case 'dat' is a matrix, a nxf matrix or dataframe of covariates.
    Character variables will be converted to factors, with a warning.
    Defaults to NULL, in which case an unconstrained analysis is carried out.}
 
-\item{confounders}{In case "dat" is a phyloseq object,
+\item{confounders}{In case 'dat' is a phyloseq object,
 the names of the sample variables to be used as confounders
- to be filtered out. In case "dat" is a matrix,
+ to be filtered out. In case 'dat' is a matrix,
   a nxf matrix or dataframe of confounders.
    Character variables will be converted to factors, with a warning.
     Defaults to NULL, in which case no filtering occurs.}

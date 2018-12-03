@@ -34,7 +34,7 @@
 \item{Dim}{An integer vector of length two, which dimensions to plot}
 
 \item{plotType}{a character string: which components to plot.
-Can be any combination of "samples","species" and "variables"}
+Can be any combination of 'samples','species' and 'variables'}
 
 \item{samColour}{a character string, the variable to use for the colour
 of the sample dots. Alternatively,
@@ -132,7 +132,7 @@ Setting it to a high value allows you to plot the taxa around the samples}
 \item{nPhyl}{an integer, number of phylogenetic levels to show}
 
 \item{phylOther}{a character vector of phylogenetic levels
-to be included in the "other" group}
+to be included in the 'other' group}
 
 \item{legendSize}{a size for the coloured dots in the legend}
 
@@ -152,7 +152,7 @@ and high values of the continuous colour scale}
 \item{axisTitleSize}{size of the axis title}
 
 \item{plotPsi}{a character vector, describing what to plot on the axis.
-Can be either "psi", "none" or "loglik".
+Can be either 'psi', 'none' or 'loglik'.
 The latter plots the log-likelihood explained}
 
 \item{breakChar}{a character string indicating how the taxon names
@@ -168,10 +168,10 @@ Plot RC(M) ordination result with the help of ggplot2
 This function relies on the ggplot2 machinery to produce the plots,
 and the result can be modified accordingly. Monoplots,
 biplots and for constrained analysis even triplots can be produced,
-depending on the "plotType" argument.
+depending on the 'plotType' argument.
 
-When one of either "Observed", "Chao1", "ACE", "Shannon", "Simpson",
-"InvSimpson" or "Fisher" are supplied to the "samColour" argument,
+When one of either 'Observed', 'Chao1', 'ACE', 'Shannon', 'Simpson',
+'InvSimpson' or 'Fisher' are supplied to the 'samColour' argument,
 the according richness measure (as calculated by phyloseq::estimate_richness)
  is mapped to the sample colour
 }
