@@ -57,11 +57,8 @@ estNPresp = function(sampleScore, muMarg,
             warning("GAM would not fit, turned to parametric fit of degree ",
                 degree, "!")
             tmp = try(nleqslv(fn = dNBllcolNP,
-                x = if (length(coefInit[[i]]) ==
-                  2) {
-                  rep(1e-04, degree + 1)
-                } else coefInit[[i]], X = X[,
-                  i], reg = MM, theta = thetas[i],
+                x = if (length(coefInit[[i]]) ==2) {rep(1e-04, degree + 1)
+                } else coefInit[[i]], X = X[,i], reg = MM, theta = thetas[i],
                 muMarg = muMarg[, i], jac = NBjacobianColNP)$x)
         } else {
             # if VGAM fit succeeds, retain only
@@ -98,13 +95,11 @@ estNPresp = function(sampleScore, muMarg,
     rowMat = vapply(FUN.VALUE = numeric(n),
         taxonWise, function(x) {
             if (is.list(x))
-                cbind(MM1, predict(x$spline,
-                  x = sampleScore)$y) %*%
-                  c(x$coef, 1) else MM %*% x
+                cbind(MM1, predict(x$spline,x = sampleScore)$y) %*%
+                c(x$coef, 1) else MM %*% x
         })
     rowVecOverall = cbind(MM1, predict(overallList$spline,
-        x = sampleScore)$y) %*% c(overallList$coef,
-        1)
+        x = sampleScore)$y) %*% c(overallList$coef,1)
     taxonCoef = lapply(taxonWise, function(x) {
         if (is.list(x))
             x$coef else x

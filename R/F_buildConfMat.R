@@ -31,7 +31,7 @@ buildConfMat.numeric = function(confounders, n, ...) {
     if (n != NROW(confounders)) {
         # Check dimensions
         stop("Data and confounder matrix do not
-             have the same number of samples!\n")
+        have the same number of samples!\n")
     }
     if (is.vector(confounders)) {
         confounders = as.matrix(confounders)

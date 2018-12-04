@@ -24,55 +24,48 @@
 #' \item{thetas}{new theta estimates}
 #' \item{NB_params}{The estimated parameters of the interaction terms}
 
-filterConfounders = function(muMarg, confMat, 
-    X, thetas, p, n, nleqslv.control, trended.dispersion, 
-    tol = 0.001, maxIt = 20) {
-    NB_params = matrix(0, ncol(confMat), 
-        p)
-    
+filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
+    trended.dispersion, tol = 0.001, maxIt = 20) {
+    NB_params = matrix(0, ncol(confMat), p)
+
     iter = 1
-    while ((iter == 1) || ((iter <= maxIt) && 
-        (!convergence))) {
-        
+    while ((iter == 1) || ((iter <= maxIt) && (!convergence))) {
+
         NB_params_old = NB_params
-        
-        NB_params = vapply(FUN.VALUE = numeric(nrow(NB_params)), 
-            seq_len(p), function(i) {
-                nleq = try(nleqslv(NB_params[, 
-                  i], reg = confMat, fn = dNBllcol_constr, 
-                  theta = thetas[i], muMarg = muMarg[, 
-                    i], X = X[, i], control = nleqslv.control, 
-                  jac = JacCol_constr, psi = 1)$x)
-                # Fit the taxon-by taxon NB with given
-                # overdispersion parameters and return
-                # predictions
-                if (inherits(nleq, "try-error") | 
-                  anyNA(nleq) | any(is.infinite(nleq))) {
-                  nleq = nleqslv(NB_params[, 
-                    i], reg = confMat, fn = dNBllcol_constr, 
-                    theta = thetas[i], muMarg = muMarg[, 
-                      i], X = X[, i], control = nleqslv.control, 
-                    psi = 1)$x
-                  
+
+        NB_params = vapply(FUN.VALUE = numeric(nrow(NB_params)), seq_len(p),
+            function(i) {
+                nleq = try(nleqslv(NB_params[, i], reg = confMat,
+                fn = dNBllcol_constr,
+                theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
+                control = nleqslv.control,
+                jac = JacCol_constr, psi = 1)$x)
+        # Fit the taxon-by taxon NB with given overdispersion parameters and
+                # return predictions
+                if (inherits(nleq, "try-error") | anyNA(nleq) |
+                    any(is.infinite(nleq))) {
+                nleq = nleqslv(NB_params[, i], reg = confMat,
+                fn = dNBllcol_constr,
+                theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
+                control = nleqslv.control, psi = 1)$x
+
                 }
                 # If fails try with numeric jacobian
                 return(nleq)
             })  #Estimate response functions
-        
+
         if (anyNA(NB_params)) {
             stop("Filtering on confounders failed because of
-                               failed fits. Consider more stringent filtering by
-                               increasing the prevCutOff parameter.\n")
+            failed fits. Consider more stringent filtering by
+            increasing the prevCutOff parameter.\n")
         }
-        
-        thetas = estDisp(X = X, cMat = matrix(0, 
-            ncol = p), rMat = matrix(0, nrow = n), 
-            psis = 0, muMarg = muMarg * exp(confMat %*% 
-                NB_params), trended.dispersion = trended.dispersion)
+
+        thetas = estDisp(X = X, cMat = matrix(0, ncol = p), rMat = matrix(0,
+            nrow = n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params),
+            trended.dispersion = trended.dispersion)
         # Estimate overdispersion
         iter = iter + 1
-        convergence = sqrt(mean((1 - NB_params/NB_params_old)^2)) < 
-            tol
+        convergence = sqrt(mean((1 - NB_params/NB_params_old)^2)) < tol
         # Check for convergence, L2-norm
     }
     list(thetas = thetas, NB_params = NB_params)

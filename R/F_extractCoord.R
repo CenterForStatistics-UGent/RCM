@@ -65,27 +65,18 @@ extractCoord = function(RCM, Dim = c(1, 2)) {
                 A = x[3, ]
                 B = x[2, ]
                 C = x[1, ]
-                vapply(FUN.VALUE = numeric(1),
-                  exp(B^2 - 4 * A * C)/(4 *
-                    A), function(y) {
-                    max(y, 1/y)
-                  })
+                vapply(FUN.VALUE = numeric(1),exp(B^2 - 4 * A * C)/(4 *A),
+                    function(y) {max(y, 1/y)})
             })
             # select largest relative departure
-            rownames(peakHeights) = c("peak1",
-                "peak2")
+            rownames(peakHeights) = c("peak1","peak2")
             dataTax = cbind(dataTax, t(peakHeights))
 
             # Get ellipse parameters
             dataEllipse = t(Reduce(x = lapply(Dim,
-                function(x) {
-                  RCM$NB_params[, , x]
-                }), f = rbind))
+                function(x) {RCM$NB_params[, , x]}), f = rbind))
             colnames(dataEllipse) = c(vapply(FUN.VALUE =character(length(Dim)),
-                Dim, function(x) {
-                  paste0(c("c", "b", "a"),
-                    x)
-                }))
+                Dim, function(x) {paste0(c("c", "b", "a"),x)}))
 
             # Rescale peak heights for plotting
             dataTax[, c("peak1", "peak2")] = rowMultiply(dataTax[,

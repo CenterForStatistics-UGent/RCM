@@ -15,7 +15,7 @@ NBrowInfl = function(rcm, Dim = 1) {
         ncol = ncol(rcm$X), data = rcm$thetas[,
             switch(as.character(Dim), `0` = "Independence",
                 `0.5` = "Filtered", paste0("Dim",
-                  Dim))])
+                Dim))])
     lambdaRow = rcm$lambdaRow[seq_k(Dim)]
     rMatK = rcm$rMat[, seq_len(Dim - 1),
         drop = FALSE]

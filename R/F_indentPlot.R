@@ -11,8 +11,8 @@
 #' @return a ggplot object, squared
 indentPlot <- function(plt, xInd = 0, yInd = 0) {
     return(plt +
-             expand_limits(
-               x = ggplot_build(plt)$layout$panel_params[[1]]$x.range +
+            expand_limits(
+            x = ggplot_build(plt)$layout$panel_params[[1]]$x.range +
         if (length(xInd) == 1) xInd * c(-1,
             1) else xInd,
         y = ggplot_build(plt)$layout$panel_params[[1]]$y.range +

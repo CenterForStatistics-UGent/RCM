@@ -14,7 +14,7 @@ NBcolInfl = function(rcm, Dim = 1) {
         ncol = ncol(rcm$X), data = rcm$thetas[,
             switch(as.character(Dim), `0` = "Independence",
                 `0.5` = "Filtered", paste0("Dim",
-                  Dim))])
+                Dim))])
     lambdaCol = rcm$lambdaCol[seq_k(Dim)]
     cMatK = rcm$cMat[seq_len(Dim - 1), ,
         drop = FALSE]

@@ -19,27 +19,33 @@
 #' a linear response function is fitted instead
 #'
 #' @return a v-by-p matrix of parameters of the response function
-estNBparams = function(design, thetas, muMarg, 
-    psi, X, nleqslv.control, ncols, initParam, 
+estNBparams = function(design, thetas, muMarg,
+    psi, X, nleqslv.control, ncols, initParam,
     v, dynamic = FALSE, envRange) {
-    vapply(seq_len(ncols), FUN.VALUE = vector("numeric", 
+    vapply(seq_len(ncols), FUN.VALUE = vector("numeric",
         v), function(i) {
-        nleq = nleqslv(initParam[, i], reg = design, 
-            fn = dNBllcol_constr, theta = thetas[i], 
-            muMarg = muMarg[, i], psi = psi, 
-            X = X[, i], control = nleqslv.control, 
+        nleq = nleqslv(initParam[, i], reg = design,
+            fn = dNBllcol_constr, theta = thetas[i],
+            muMarg = muMarg[, i], psi = psi,
+            X = X[, i], control = nleqslv.control,
             jac = JacCol_constr)$x
-        if (dynamic && ((-nleq[2]/(2 * nleq[3]) < 
-            envRange[1]) || (-nleq[2]/(2 * 
+        if (dynamic && ((-nleq[2]/(2 * nleq[3]) <
+            envRange[1]) || (-nleq[2]/(2 *
             nleq[3]) > envRange[2]))) {
             # If out of observed range, fit a linear
             # model
-            nleq = c(nleqslv(initParam[-3, 
-                i], reg = design[, -3], fn = dNBllcol_constr, 
-                theta = thetas[i], muMarg = muMarg[, 
-                  i], psi = psi, X = X[, 
-                  i], control = nleqslv.control, 
-                jac = JacCol_constr)$x, 0)
+            nleq = c(
+            nleqslv(
+                initParam[-3, i],
+                reg = design[, -3],
+                fn = dNBllcol_constr,
+                theta = thetas[i],
+                muMarg = muMarg[, i],
+                psi = psi,
+                X = X[, i],
+                control = nleqslv.control,
+                jac = JacCol_constr
+                )$x,0)
         }
         return(nleq)
     })

@@ -16,35 +16,31 @@
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
 #' zellerRCM = RCM(tmpPhy, round = TRUE)
 #' liks(zellerRCM)
-liks = function(rcm, Sum = TRUE){
-  vec = if (length(rcm$confModelMat))
-    c(0, 0.5, seq_len(rcm$k), Inf)
-  else
-    c(0:rcm$k, Inf)
-  outnames = c("independence",
-               if (length(rcm$confModelMat))
-                 "filtered"
-               else
-                 NULL,
-               paste0("Dim", seq_len(rcm$k)),
-               "saturated")
-  if(Sum) {
-    tmp = vapply(FUN.VALUE = numeric(1), vec, FUN = function(i){
-      sum(getLogLik(rcm, i))
-    })
-    names(tmp) = outnames
-  } else {
-  tmp = vapply(vec, FUN.VALUE = matrix(0, nrow(rcm$X), ncol(rcm$X)),
-               FUN = function(i){
-getLogLik(rcm, i)
-  })
-  dimnames(tmp)[[3]] = outnames
-  }
-  if(Sum){ #Also make cumulative comparisons
-    cumDevianceExplained = round((tmp-tmp[1])/(tmp[length(tmp)]-tmp[1]),3)
-  out = rbind(logLikelihood = tmp,
-              logLikExplained = c(0, diff(cumDevianceExplained)),
-              cumLogLikExplained = cumDevianceExplained)
-  }
-  return(out)
+liks = function(rcm, Sum = TRUE) {
+    vec = if (length(rcm$confModelMat))
+        c(0, 0.5, seq_len(rcm$k), Inf) else c(0:rcm$k, Inf)
+    outnames = c("independence", if (length(rcm$confModelMat))
+    "filtered" else NULL,
+        paste0("Dim", seq_len(rcm$k)), "saturated")
+    if (Sum) {
+        tmp = vapply(FUN.VALUE = numeric(1), vec, FUN = function(i) {
+            sum(getLogLik(rcm, i))
+        })
+        names(tmp) = outnames
+    } else {
+        tmp = vapply(vec, FUN.VALUE = matrix(0, nrow(rcm$X), ncol(rcm$X)),
+            FUN = function(i) {
+                getLogLik(rcm, i)
+            })
+        dimnames(tmp)[[3]] = outnames
+    }
+    if (Sum) {
+        # Also make cumulative comparisons
+        cumDevianceExplained = round((tmp - tmp[1])/(tmp[length(tmp)] -
+            tmp[1]), 3)
+        out = rbind(logLikelihood = tmp, logLikExplained = c(0,
+        diff(cumDevianceExplained)),
+        cumLogLikExplained = cumDevianceExplained)
+    }
+    return(out)
 }

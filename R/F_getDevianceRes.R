@@ -11,11 +11,11 @@
 #' as the original data matrix
 getDevianceRes = function(RCM, Dim = RCM$k) {
     mu = extractE(RCM, Dim)
-    thetaMat = matrix(byrow = TRUE, nrow = nrow(RCM$X), 
-        ncol = ncol(RCM$X), data = RCM$thetas[, 
-            switch(as.character(Dim), `0` = "Independence", 
-                `0.5` = "Filtered", paste0("Dim", 
-                  Dim))])
-    getDevMat(X = RCM$X, thetaMat = thetaMat, 
+    thetaMat = matrix(byrow = TRUE, nrow = nrow(RCM$X),
+        ncol = ncol(RCM$X), data = RCM$thetas[,
+            switch(as.character(Dim), `0` = "Independence",
+                `0.5` = "Filtered", paste0("Dim",
+                Dim))])
+    getDevMat(X = RCM$X, thetaMat = thetaMat,
         mu = mu)
 }

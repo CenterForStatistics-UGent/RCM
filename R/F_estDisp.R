@@ -18,8 +18,8 @@
 #' @param rowMat matrix of row scores in case of constrained ordination
 #'
 #' @return A vector of length p with dispersion estimates
-estDisp = function(X, cMat = NULL, rMat = NULL, 
-    muMarg, psis, trended.dispersion = NULL, 
+estDisp = function(X, cMat = NULL, rMat = NULL,
+    muMarg, psis, trended.dispersion = NULL,
     prior.df = 10, dispWeights = NULL, rowMat = NULL) {
     logMeansMat = if (!is.null(rMat)) {
         # Unconstrained
@@ -30,13 +30,13 @@ estDisp = function(X, cMat = NULL, rMat = NULL,
         # Constrained
         t(log(muMarg) + psis * rowMat)
     }
-    if (any(is.infinite(logMeansMat))) 
+    if (any(is.infinite(logMeansMat)))
         stop("Overflow! Try trimming more lowly
-                                         abundant taxa prior to model fitting.
-                                         \n See prevCutOff argument in ?RCM.")
+        abundant taxa prior to model fitting.
+        \n See prevCutOff argument in ?RCM.")
     trended.dispersion = if (is.null(trended.dispersion)) {
-        edgeR::estimateGLMTrendedDisp(y = t(X), 
-            design = NULL, method = "bin.loess", 
+        edgeR::estimateGLMTrendedDisp(y = t(X),
+            design = NULL, method = "bin.loess",
             offset = logMeansMat, weights = NULL)
     } else {
         trended.dispersion
@@ -44,12 +44,12 @@ estDisp = function(X, cMat = NULL, rMat = NULL,
     trended.dispersion = if (is.list(trended.dispersion)) {
         trended.dispersion$dispersion
     } else trended.dispersion
-    
-    thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(y = t(X), 
-        design = NULL, prior.df = prior.df, 
-        offset = logMeansMat, dispersion = trended.dispersion, 
+
+    thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(y = t(X),
+        design = NULL, prior.df = prior.df,
+        offset = logMeansMat, dispersion = trended.dispersion,
         weights = dispWeights)
-    
+
     thetaEsts = if (is.list(thetaEstsTmp)) {
         1/thetaEstsTmp$tagwise.dispersion
     } else {

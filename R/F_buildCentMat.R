@@ -38,7 +38,7 @@ in the analyses because they have only one value: \n",
         seq_along(nFactorLevels), function(i) {
             c(rep.int(0L, sum(nFactorLevels[seq(0, i - 1)])),
                 rep.int(if (nFactorLevels[i] == 1) 0L else 1L,
-                  nFactorLevels[i]), rep.int(0L, sum(nFactorLevels[-seq(1,
+                nFactorLevels[i]), rep.int(0L, sum(nFactorLevels[-seq(1,
                     i)])))
         }))
     centMat = if (all(rowSums(centMat) == 0)) {
