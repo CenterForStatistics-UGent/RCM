@@ -7,8 +7,8 @@
 #'
 #'@return If Sum is FALSE, a named array of deviance residuals of the independence model and all models with dimension 1 to k, including after filtering on confounders. Otherwise a table with total deviances (the sum of squared deviance residuals), deviance explained and cumulative deviance explained.
 deviances = function(rcm, squaredSum = FALSE){
-  vec = if(length(rcm$confounders$confounders)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
-  outnames = c("independence", if(length(rcm$confounders$confounders)) "filtered" else NULL, paste0("Dim ", seq_len(rcm$k)))
+  vec = if(length(rcm$confModelMat)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
+  outnames = c("independence", if(length(rcm$confModelMat)) "filtered" else NULL, paste0("Dim ", seq_len(rcm$k)))
   if(squaredSum) {
     tmp = vapply(FUN.VALUE = numeric(1), vec, FUN = function(i){
       sum(getDevianceRes(rcm, i)^2)

@@ -10,9 +10,9 @@ extractE = function(rcm, Dim = rcm$k){
   if (Dim[1] %in% c(0,NA)){
     Eind
   } else if(Dim[1]==0.5){
-Eind * exp(rcm$confounders$confounders %*% rcm$confParams)
+Eind * exp(rcm$confModelMat %*% rcm$confParams)
   } else {
-    if(!is.null(rcm$confounders$confounders)) Eind = Eind * exp(rcm$confounders$confounders %*% rcm$confParams)
+    if(!is.null(rcm$confModelMat)) Eind = Eind * exp(rcm$confModelMat %*% rcm$confParams)
     if(is.null(rcm$covariates)){
       Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))
     } else if(rcm$responseFun == "nonparametric"){

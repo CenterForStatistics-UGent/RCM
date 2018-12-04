@@ -4,12 +4,10 @@
 \alias{buildCovMat}
 \title{A function to build the covariate matrix of the constraints}
 \usage{
-buildCovMat(covariates, n, dat)
+buildCovMat(covariates, dat)
 }
 \arguments{
 \item{covariates}{the covariates, either as dataframe or as character string}
-
-\item{n}{the number of samples}
 
 \item{dat}{the phyloseq object
 

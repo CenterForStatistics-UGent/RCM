@@ -256,7 +256,7 @@ if(taxLabels){
     #Add variable labels
     if(is.null(varPlot)){
       arrowLenghtsVar = rowSums(x$alpha[,Dim]^2) #All arrow lenghts
-      attribs = attr(x$covariates, "assign")
+      attribs = x$attribs
       arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
       CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
       varID = attr(x$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
@@ -284,14 +284,14 @@ if(taxLabels){
       ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
   } else if(plotPsi=="loglik"){
     liksTab = liks(x)
-    if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
+    if(length(x$confModelMat)){#If filtered on confounders, print in title.
       plot = plot + ggtitle(paste0("Confounders' deviance explained: ", liksTab["logLikExplained", "filtered"]*100,"%"))
     }
     plot = plot + xlab(paste0(Dimnames[1],": ",liksTab["logLikExplained", Dimnames[1]]*100, "%")) +
       ylab(paste0(Dimnames[2],": ",liksTab["logLikExplained", Dimnames[2]]*100, "%"))
   } else if(plotPsi == "inertia"){
     inertTab = inertia(x)
-    if(length(x$confounders$confounders)){#If filtered on confounders, print in title.
+    if(length(x$confModelMat)){#If filtered on confounders, print in title.
       plot = plot + ggtitle(paste0("Confounders' inertia explained: ", inertTab["inertiaExplained", "filtered"]*100,"%"))
     }
     plot = plot + xlab(paste0(Dimnames[1],": ",inertTab["inertiaExplained", Dimnames[1]]*100, "%")) +

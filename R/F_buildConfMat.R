@@ -28,9 +28,21 @@ buildConfMat.numeric = function(confounders, n, ...){
   if(is.null(colnames(confounders))){ #assign names if needed
     colnames(confounders) = paste("var",seq_len(NCOL(confounders)))
   }
-    confModelMatTrim = model.matrix(object = as.formula(paste("~" , paste(colnames(confounders), collapse="+"),"-1")), contrasts.arg = apply(colnames(confounders),2,contrasts, contrasts=FALSE)) #No intercept for preliminary trimming
-    confModelMat = model.matrix(object = as.formula(paste("~", paste(colnames(confounders), collapse="+"))), contrasts.arg = apply(colnames(confounders),2,contrasts, contrasts=TRUE)) #With intercept for filtering
-    list(confModelMatTrim  = confModelMatTrim, confModelMat = confModelMat)
+  confModelMatTrim = model.matrix(
+    object = as.formula(paste("~" , paste(
+      colnames(confounders), collapse = "+"
+    ), "-1")),
+    contrasts.arg = apply(colnames(confounders), 2, contrasts, contrasts =
+                            FALSE)
+  ) #No intercept for preliminary trimming
+  confModelMat = model.matrix(
+    object = as.formula(paste("~", paste(
+      colnames(confounders), collapse = "+"
+    ))),
+    contrasts.arg = apply(colnames(confounders), 2, contrasts, contrasts =
+                            TRUE)
+  ) #With intercept for filtering
+  list(confModelMatTrim  = confModelMatTrim, confModelMat = confModelMat)
 }
 
 #' buildConfMat.data.frame
@@ -59,17 +71,16 @@ buildConfMat.data.frame = function(confounders, n,...){
 }
 #' buildConfMat.character
 #' @param confounders a numeric matrix of confounders
-#' @param n the number of rows of the count matrix
 #' @param physeq a physeq object with a sample_data slot
 #' @param ... further arguments passed on to other methods
 #'
 #' @return see buidConfMat.numeric
-buildConfMat.character = function(confounders, n, physeq,...){
+buildConfMat.character = function(confounders, physeq,...){
   if(!is(physeq,"phyloseq")){
     stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
   }
   confounders = data.frame(get_variable(physeq, confounders)) # The dataframe with the confounders
-  buildConfMat.data.frame(confounders, n)
+  buildConfMat.data.frame(confounders, n = nsamples(physeq))
 }
 
 buildConfMat.default = function(...){

@@ -24,11 +24,11 @@
 #' @param prior.df an integer, see estDisp()
 #' @param marginEst a character string, either "MLE" or "marginSums",
 #' indicating how the independence model should be estimated
-#' @param confounders a list with
-#' -confounders an nxg matrix with confounders
-#' -confoundersFilt an nxh matrix with confounders for filtering,
+#' @param confModelMat an nxg matrix with confounders,
+#'  with no reference levels and with intercept
+#' @param confTrimMat an nxh matrix with confounders for filtering,
 #' with all levels and without intercept
-#' @param covariates an nxd matrix with covariates.
+#' @param covModelMat an nxd matrix with covariates.
 #' If set to null an unconstrained analysis is carried out,
 #' otherwise a constrained one.
 #' Factors must have been converted to dummy variables already
@@ -50,6 +50,7 @@
 #'  of the non-parametric response function, see VGAM::s()
 #' @param vgamMaxit an integer, the maximum number of iteration in the vgam() function
 #' @param degree an integer, the degree of the polynomial fit if the spline fit fails
+#' @param ... Further arguments, currently ignores
 #'
 #' #'@seealso \code{\link{RCM}}
 #'
@@ -72,7 +73,8 @@
 #' \item{Xorig}{ (if confounders provided) the original fitting matrix}
 #' \item{X}{ the trimmed matrix if confounders provided, otherwise the original one}
 #' \item{fit}{ type of fit, either "RCM_NB" or "RCM_NB_constr"}
-#' \item{lambdaRow}{(if not constrained) vector of Lagrange multipliers for the rows}
+#' \item{lambdaRow}{(if not constrained) vector of Lagrange multipliers for the
+#' rows}
 #' \item{lambdaCol}{ vector of Lagrange multipliers for the columns}
 #' \item{rowWeights}{(if not constrained) the row weights used}
 #' \item{colWeights}{ the column weights used}
@@ -86,8 +88,6 @@
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
 #' \item{degree}{The degree of the alternative parametric fit}
-#' \item{devFilt}{The deviance after filtering confounders}
-#' \item{llFilt}{The likelihood of the model after filtering on confounders}
 #' @export
 #' @note Plotting is not supported for quadratic response functions
 #' @examples
@@ -99,28 +99,47 @@
 #' mat = mat[rowSums(mat)>0, colSums(mat)>0]
 #' zellerRCM = RCM_NB(mat, k = 2)
 #' #Needs to be called directly onto a matrix
-RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
-                  tol = 1e-3, maxItOut = 1000L, Psitol = 1e-3, verbose = FALSE,
+RCM_NB = function(X,
+                  k,
+                  rowWeights = "uniform",
+                  colWeights = "marginal",
+                  tol = 1e-3,
+                  maxItOut = 1000L,
+                  Psitol = 1e-3,
+                  verbose = FALSE,
                   global = "dbldog",
-                  nleqslv.control = list(maxit = 500L, cndtol = 1-16),
-                  jacMethod = "Broyden", dispFreq = 10L, convNorm = 2,
-                  prior.df=10, marginEst = "MLE", confounders = NULL,
-                  prevCutOff, minFraction = 0.1, covariates = NULL,
+                  nleqslv.control = list(maxit = 500L, cndtol = 1 - 16),
+                  jacMethod = "Broyden",
+                  dispFreq = 10L,
+                  convNorm = 2,
+                  prior.df = 10,
+                  marginEst = "MLE",
+                  confModelMat = NULL,
+                  confTrimMat = NULL,
+                  prevCutOff,
+                  minFraction = 0.1,
+                  covModelMat = NULL,
                   centMat = NULL,
-                  responseFun = c("linear", "quadratic","dynamic","nonparametric"),
-                  record = FALSE, control.outer = list(trace=FALSE),
-                  control.optim = list(), envGradEst = "LR", dfSpline = 3,
+                  responseFun = c("linear", "quadratic",
+                                  "dynamic", "nonparametric"),
+                  record = FALSE,
+                  control.outer = list(trace = FALSE),
+                  control.optim = list(),
+                  envGradEst = "LR",
+                  dfSpline = 3,
                   vgamMaxit = 100L,
-                  degree = switch(responseFun[1], "nonparametric" = 3, NULL)){
+                  degree = switch(responseFun[1], "nonparametric" = 3, NULL),
+                  ...) {
+
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
   if(!responseFun %in% c("linear", "quadratic","dynamic","nonparametric")){
     stop("Unknown response function provided! See ?RCM_NB for details.")
   }
 
-  if(!is.null(confounders$confounders)){ #First and foremost: filter on confounders
+  if(!is.null(confModelMat)){ #First and foremost: filter on confounders
       Xorig = X
-      X = trimOnConfounders(X, confounders = confounders$confoundersTrim,
+      X = trimOnConfounders(X, confounders = confTrimMat,
                             prevCutOff = prevCutOff, n=nrow(Xorig),
                             minFraction = minFraction)
     }
@@ -128,7 +147,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
     n=NROW(X)
     p=NCOL(X)
 
-    thetas = matrix(0,p, k+1+(!is.null(confounders$confounders)), dimnames = list(colnames(X), c("Independence",if(!is.null(confounders$confounders)) "Filtered" else NULL, paste0("Dim",seq_len(k))))) #Track the overdispersions, also the one associated to the independence model
+    thetas = matrix(0,p, k+1+(!is.null(confModelMat)), dimnames = list(colnames(X), c("Independence",if(!is.null(confModelMat)) "Filtered" else NULL, paste0("Dim",seq_len(k))))) #Track the overdispersions, also the one associated to the independence model
 
     #Initialize some parameters
     abunds = colSums(X)/sum(X)
@@ -195,11 +214,11 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
     }
     convergence = rep(FALSE, k)
     iterOut = rep(1,k)
-    if(!is.null(confounders$confounders)){
+    if(!is.null(confModelMat)){
       ## Filter out the confounders by adding them to the intercept,
       #also adapt overdispersions
-      filtObj = filterConfounders(muMarg = muMarg, confMat = confounders$confounders, p=p, X=X, thetas = thetas[,1], nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
-      muMarg = muMarg * exp(confounders$confounders %*% filtObj$NB_params)
+      filtObj = filterConfounders(muMarg = muMarg, confMat = confModelMat, p=p, X=X, thetas = thetas[,1], nleqslv.control = nleqslv.control, n=n, trended.dispersion = trended.dispersion)
+      muMarg = muMarg * exp(confModelMat %*% filtObj$NB_params)
       thetas[,"Filtered"] = filtObj$thetas
       confParams = filtObj$NB_params
     } else {
@@ -237,7 +256,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
       rowS/sqrt(sum(rowWeights * rowS^2))
     })
 
-  if(is.null(covariates)){ #If no covariates provided, perform an unconstrained analysis
+  if(is.null(covModelMat)){ #If no covariates provided, perform an unconstrained analysis
     for (KK in seq_len(k)){
 
       if(verbose) cat("Dimension" ,KK, "is being esimated \n")
@@ -350,14 +369,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
     returnList = list(rMat = rMat, cMat=cMat, rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol)
 
   } else { #If covariates provided, do a constrained analysis
-    d = ncol(covariates)
-    CCA = vegan::cca(X = X, Y = covariates)$CCA #Constrained correspondence analysis for starting values
-    if(sum(!colnames(covariates) %in% CCA$alias)<k) {
-      k = sum(!colnames(covariates) %in% CCA$alias)
+    d = ncol(covModelMat)
+    CCA = vegan::cca(X = X, Y = covModelMat)$CCA #Constrained correspondence analysis for starting values
+    if(sum(!colnames(covModelMat) %in% CCA$alias)<k) {
+      k = sum(!colnames(covModelMat) %in% CCA$alias)
       warning(immediate. = TRUE, paste("Can only fit an ordination with", k,"dimensions with so few covariates!"))
     }
     alpha = matrix(0,d,k)
-    alpha[!colnames(covariates) %in% CCA$alias,] = CCA$biplot[,seq_len(k)] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
+    alpha[!colnames(covModelMat) %in% CCA$alias,] = CCA$biplot[,seq_len(k)] #Leave the sum constraints for the factors alone for now, may or may not speed up the algorithm
     alpha = t(t(alpha)-colMeans(alpha))
     alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
     psis = CCA$eig[seq_len(k)]
@@ -381,7 +400,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
       #Modify offset if needed
       if(KK>1){
         muMarg = if(responseFun %in% c("linear","quadratic", "dynamic")){
-          exp(getRowMat(responseFun = responseFun, sampleScore = covariates %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,KK-1])*psis[KK-1])*muMarg
+          exp(getRowMat(responseFun = responseFun, sampleScore = covModelMat %*% alpha[,KK-1, drop = FALSE], NB_params = NB_params[,,KK-1])*psis[KK-1])*muMarg
         } else {
           exp(nonParamRespFun[[KK-1]]$rowMat) * muMarg
         }
@@ -404,7 +423,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         alphaOld = alpha[,KK]
         NBparamsOld = NB_params[,,KK]
 
-        sampleScore = covariates %*% alpha[,KK]
+        sampleScore = covModelMat %*% alpha[,KK]
         envRange = range(sampleScore)
         if(responseFun %in% c("linear","quadratic", "dynamic")){
           design = buildDesign(sampleScore, responseFun)
@@ -432,7 +451,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
           if(envGradEst == "LR") {NB_params_noLab[, KK] = estNBparamsNoLab(design = design, thetasMat = thetasMat, muMarg = muMarg, psi = psis[KK], X = X, nleqslv.control = nleqslv.control, initParam = NB_params_noLab[,KK], v = v, dynamic = responseFun == "dynamic", envRange = envRange, preFabMat = preFabMat, n=n)}
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha[seq_k(KK, nLambda1s)]), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covariates, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
+          AlphaTmp = nleqslv(x = c(alpha[,KK],lambdasAlpha[seq_k(KK, nLambda1s)]), fn = dLR_nb, jac = LR_nb_Jac, X = X, CC = covModelMat, responseFun = responseFun, cMat = cMat, psi = psis[KK], NB_params = NB_params[,,KK], NB_params_noLab = NB_params_noLab[, KK], alphaK = alpha[, seq_len(KK-1), drop=FALSE], k = KK, d = d, centMat = centMat, nLambda = nLambda1s+KK, nLambda1s = nLambda1s, thetaMat = thetasMat, muMarg = muMarg, control = nleqslv.control, n=n, v=v, ncols = p, preFabMat = preFabMat, envGradEst = envGradEst)$x
           alpha[,KK] = AlphaTmp[seq_len(d)]
           lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp[-seq_len(d)]
 
@@ -441,7 +460,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
           nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore, muMarg = muMarg, X = X, ncols = p, thetas = thetas[,paste0("Dim",KK)], n=n, coefInit = nonParamRespFun[[KK]]$taxonCoef , coefInitOverall = nonParamRespFun[[KK]]$overall$coef, vgamMaxit = vgamMaxit, dfSpline = dfSpline, verbose = verbose, degree = degree)
 
           if (verbose) cat("\n Estimating environmental gradient \n")
-          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covariates, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
+          AlphaTmp = constrOptim.nl(par = alpha[,KK], fn = LR_nb, gr = NULL, heq = heq_nb, heq.jac = heq_nb_jac, alphaK = alpha[, seq_len(KK-1), drop=FALSE], X=X, CC=covModelMat, responseFun = responseFun, muMarg = muMarg, d = d, ncols=p, control.outer = control.outer, control.optim = control.optim, k = KK, centMat = centMat, n=n, nonParamRespFun = nonParamRespFun[[KK]], thetaMat = thetasMat, envGradEst = envGradEst)
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
         }
@@ -468,10 +487,15 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
 
     if(responseFun=="nonparametric"){#Post hoc calculate integrals and psis
       nonParamRespFun = lapply(seq_len(k), function(KK){
-        samScore = covariates %*% alpha[,KK]
+        samScore = covModelMat %*% alpha[,KK]
         nonPar = nonParamRespFun[[KK]]
-        nonPar$intList = vapply(FUN.VALUE = numeric(1), colnames(X), function(tax){
-          getInt(coef = nonParamRespFun[[KK]]$taxonCoef[[tax]], spline = nonParamRespFun[[KK]]$splineList[[tax]], sampleScore = samScore)
+        nonPar$intList = vapply(FUN.VALUE = numeric(1), colnames(X),
+                                function(tax) {
+          getInt(
+            coef = nonParamRespFun[[KK]]$taxonCoef[[tax]],
+            spline = nonParamRespFun[[KK]]$splineList[[tax]],
+            sampleScore = samScore
+          )
         })
         return(nonPar)
       })
@@ -479,15 +503,60 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
       names(nonParamRespFun) = names(psis) = paste0("Dim",seq_len(k))
     }
 
-    rownames(alpha) = colnames(covariates)
+    rownames(alpha) = colnames(covModelMat)
     colnames(alpha) = paste0("Dim",seq_len(k))
 
-    returnList = list( fit = "RCM_NB_constr", lambdaCol = lambdaCol,  alpha = alpha, alphaRec = alphaRec, covariates = covariates, NB_params = NB_params, NB_params_noLab = NB_params_noLab, responseFun = responseFun, nonParamRespFun = nonParamRespFun, envGradEst = if(is.null(covariates)) NULL else envGradEst, lambdasAlpha = lambdasAlpha, degree = degree)
+    returnList = list(
+      fit = "RCM_NB_constr",
+      lambdaCol = lambdaCol,
+      alpha = alpha,
+      alphaRec = alphaRec,
+      covariates = covModelMat,
+      NB_params = NB_params,
+      NB_params_noLab = NB_params_noLab,
+      responseFun = responseFun,
+      nonParamRespFun = nonParamRespFun,
+      envGradEst = envGradEst,
+      lambdasAlpha = lambdasAlpha,
+      degree = degree
+    )
   }
   if(!all(convergence)){
-    warning(paste0("Algorithm did not converge for dimensions ", paste(which(!convergence), collapse = ","), "! Check for errors or consider changing tolerances or number of iterations"))
+    warning(
+      paste0(
+        "Algorithm did not converge for dimensions ",
+        paste(which(!convergence), collapse = ","),
+        "! Check for errors or consider changing tolerances or number of iterations"
+      )
+    )
   }
   return(
-    c(returnList, list(converged = convergence, psis = psis, thetas = thetas, psiRec = psiRec, thetaRec = thetaRec, iter = iterOut-1, X = X, Xorig = Xorig, rowWeights = rowWeights, colWeights = colWeights, libSizes = switch(marginEst, "MLE" = exp(logLibSizesMLE), "marginSums" = libSizes), abunds = switch(marginEst, "MLE" = exp(logAbundsMLE), "marginSums" = abunds), confounders = confounders, confParams = confParams))
+    c(
+      returnList,
+      list(
+        converged = convergence,
+        psis = psis,
+        thetas = thetas,
+        psiRec = psiRec,
+        thetaRec = thetaRec,
+        iter = iterOut - 1,
+        X = X,
+        Xorig = Xorig,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+        libSizes = switch(
+          marginEst,
+          "MLE" = exp(logLibSizesMLE),
+          "marginSums" = libSizes
+        ),
+        abunds = switch(
+          marginEst,
+          "MLE" = exp(logAbundsMLE),
+          "marginSums" = abunds
+        ),
+        confounders = confModelMat,
+        confParams = confParams
+      )
+    )
   )
 }

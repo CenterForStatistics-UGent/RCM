@@ -11,13 +11,13 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   tol = 0.001, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
   global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1 -
   16), jacMethod = "Broyden", dispFreq = 10L, convNorm = 2,
-  prior.df = 10, marginEst = "MLE", confounders = NULL, prevCutOff,
-  minFraction = 0.1, covariates = NULL, centMat = NULL,
-  responseFun = c("linear", "quadratic", "dynamic", "nonparametric"),
-  record = FALSE, control.outer = list(trace = FALSE),
-  control.optim = list(), envGradEst = "LR", dfSpline = 3,
-  vgamMaxit = 100L, degree = switch(responseFun[1], nonparametric = 3,
-  NULL))
+  prior.df = 10, marginEst = "MLE", confModelMat = NULL,
+  confTrimMat = NULL, prevCutOff, minFraction = 0.1,
+  covModelMat = NULL, centMat = NULL, responseFun = c("linear",
+  "quadratic", "dynamic", "nonparametric"), record = FALSE,
+  control.outer = list(trace = FALSE), control.optim = list(),
+  envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
+  degree = switch(responseFun[1], nonparametric = 3, NULL), ...)
 }
 \arguments{
 \item{X}{a nxp data matrix}
@@ -56,9 +56,10 @@ before reestimationg the dispersions.}
 \item{marginEst}{a character string, either "MLE" or "marginSums",
 indicating how the independence model should be estimated}
 
-\item{confounders}{a list with
--confounders an nxg matrix with confounders
--confoundersFilt an nxh matrix with confounders for filtering,
+\item{confModelMat}{an nxg matrix with confounders,
+with no reference levels and with intercept}
+
+\item{confTrimMat}{an nxh matrix with confounders for filtering,
 with all levels and without intercept}
 
 \item{prevCutOff}{a scalar the minimum prevalence needed to retain a taxon
@@ -67,7 +68,7 @@ before the the confounder filtering}
 \item{minFraction}{a scalar, total taxon abundance should equal minFraction*n
 if it wants to be retained before the confounder filtering}
 
-\item{covariates}{an nxd matrix with covariates.
+\item{covModelMat}{an nxd matrix with covariates.
 If set to null an unconstrained analysis is carried out,
 otherwise a constrained one.
 Factors must have been converted to dummy variables already}
@@ -93,7 +94,9 @@ of the non-parametric response function, see VGAM::s()}
 
 \item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function}
 
-\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails
+\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails}
+
+\item{...}{Further arguments, currently ignores
 
 #'@seealso \code{\link{RCM}}
 
@@ -117,7 +120,8 @@ A list with elements
 \item{Xorig}{ (if confounders provided) the original fitting matrix}
 \item{X}{ the trimmed matrix if confounders provided, otherwise the original one}
 \item{fit}{ type of fit, either "RCM_NB" or "RCM_NB_constr"}
-\item{lambdaRow}{(if not constrained) vector of Lagrange multipliers for the rows}
+\item{lambdaRow}{(if not constrained) vector of Lagrange multipliers for the
+rows}
 \item{lambdaCol}{ vector of Lagrange multipliers for the columns}
 \item{rowWeights}{(if not constrained) the row weights used}
 \item{colWeights}{ the column weights used}
@@ -131,8 +135,6 @@ A list with elements
 \item{confParams}{ the parameters used to filter out the confounders}
 \item{nonParamRespFun}{A list of the non parametric response functions}
 \item{degree}{The degree of the alternative parametric fit}
-\item{devFilt}{The deviance after filtering confounders}
-\item{llFilt}{The likelihood of the model after filtering on confounders}
 }
 \description{
 A function to fit the RC(M) model with the negative binomial distribution.

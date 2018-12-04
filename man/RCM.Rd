@@ -9,16 +9,22 @@
 \usage{
 RCM(dat, ...)
 
-\S4method{RCM}{phyloseq}(dat, ...)
+\S4method{RCM}{phyloseq}(dat, covariates = NULL, confounders = NULL,
+  ...)
 
 \S4method{RCM}{matrix}(dat, k = 2, round = FALSE, prevCutOff = 0.05,
   minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",
-  covariates = NULL, confounders = NULL, ...)
+  confModelMat = NULL, confTrimMat = NULL, covModelMat = NULL,
+  centMat = NULL, ...)
 }
 \arguments{
 \item{dat}{an nxp count matrix or a phyloseq object with an otu_table slot}
 
 \item{...}{Further arguments passed on to the RCM.NB() function}
+
+\item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
+
+\item{confounders}{In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.}
 
 \item{k}{an integer, the number of dimensions of the RCM solution}
 
@@ -30,9 +36,8 @@ RCM(dat, ...)
 
 \item{rowWeights, colWeights}{character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
 
-\item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
-
-\item{confounders}{In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.}
+\item{confTrimMat, confModelMat, covModelMat, centMat}{Dedicated model matrices
+constructed based on phyloseq object.}
 }
 \value{
 see \code{\link{RCM_NB}}

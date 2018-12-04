@@ -4,12 +4,10 @@
 \alias{buildConfMat.character}
 \title{buildConfMat.character}
 \usage{
-\method{buildConfMat}{character}(confounders, n, physeq, ...)
+\method{buildConfMat}{character}(confounders, physeq, ...)
 }
 \arguments{
 \item{confounders}{a numeric matrix of confounders}
-
-\item{n}{the number of rows of the count matrix}
 
 \item{physeq}{a physeq object with a sample_data slot}
 

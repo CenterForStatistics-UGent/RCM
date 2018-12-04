@@ -14,7 +14,7 @@ if(is.data.frame(object)){
     warning("The following variables were not included in the analyses because they have only one value: \n", paste(object[oneLevelID], sep = " \n"),immediate. = TRUE)
   }
 } else if(is(object, "RCM")){
-  nFactorLevels = vapply(FUN.VALUE = integer(1), unique(attr(object$covariates, "assign")), function(x){sum(attr(object$covariates, "assign") == x)}) #Number of levels per factor
+  nFactorLevels = vapply(FUN.VALUE = integer(1), unique(object$attribs), function(x){sum(object$attribs == x)}) #Number of levels per factor
 
 } else {stop("Invalid object supplied! \n")}
   #Already prepare the matrix that defines the equations for centering the coefficients of the dummy variables
