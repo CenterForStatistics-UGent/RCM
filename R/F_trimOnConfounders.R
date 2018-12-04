@@ -18,15 +18,15 @@ trimOnConfounders = function(confounders,
         any(apply(confounders, 2, function(conf) {
             tapply(X = x, INDEX = conf, FUN = function(y) {
                 mean(y != 0) <= prevCutOff |
-                  sum(y) < (n * minFraction)
+                sum(y) < (n * minFraction)
             })  #Any all-zero subgroup?
         }))
     })
 
     if (sum(!trimmingID) <= 1) {
         stop("All taxa would be trimmed,
-         please provide a covariate with less levels,
-         or reduce the prevalence cut-off! \n")
+        please provide a covariate with less levels,
+        or reduce the prevalence cut-off! \n")
     }
 
     X[, !trimmingID]  #Return trimmed X
