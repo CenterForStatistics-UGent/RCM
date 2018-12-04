@@ -17,7 +17,11 @@ log-likelihood. As the dispersion is different for each model.
  To compare models it is better to compare likelihoods.}
 }
 \value{
-If Sum is FALSE, a named array of deviance residuals of the independence model and all models with dimension 1 to k, including after filtering on confounders. Otherwise a table with total deviances (the sum of squared deviance residuals), deviance explained and cumulative deviance explained.
+If Sum is FALSE, a named array of deviance residuals of the
+ independence model and all models with dimension 1 to k, including after
+ filtering on confounders. Otherwise a table with total deviances (the sum of
+ squared deviance residuals), deviance explained and cumulative deviance
+ explained.
 }
 \description{
 A function to extract deviances for all dimension,

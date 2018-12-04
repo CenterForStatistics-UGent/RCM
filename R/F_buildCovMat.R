@@ -19,13 +19,17 @@ buildCovMat = function(covariates, dat){
     covariatesNames = names(covariates)
   } else if(is.character(covariates)){
     if(!is(dat,"phyloseq")){
-      stop("Providing covariates through variable names is only allowed if phyloseq object is provided! \n")
+      stop("Providing covariates through variable names is only allowed
+           if phyloseq object is provided! \n")
     }
-    if(covariates[[1]]=="all"){covariates = sample_variables(dat)} #Enable the "all" option if phyloseq object is provided
-    datFrame = data.frame(sample_data(dat))[,covariates, drop=FALSE] # The dataframe with the covariates
+    if(covariates[[1]]=="all"){covariates = sample_variables(dat)}
+    #Enable the "all" option if phyloseq object is provided
+    datFrame = data.frame(sample_data(dat))[,covariates, drop=FALSE]
+    # The dataframe with the covariates
     covariatesNames = covariates
   } else {
-    stop("Please provide the covariates either as dataframe or as character string! \n")
+    stop("Please provide the covariates either as dataframe
+         or as character string! \n")
   }
   if(nsamples(dat)!=NROW(datFrame)){ #Check dimensions
     stop("Data and covariate matrix do not have the same number of samples! \n")
@@ -35,15 +39,19 @@ buildCovMat = function(covariates, dat){
   charVec = vapply(FUN.VALUE = TRUE, datFrame, is.character)
 
   if(any(logVec)){
-    datFrame[,logVec] = lapply(datFrame[logVec], as.factor) #Convert logicals to factors
-    #warning("Logicals converted to factors! \n", immediate. = TRUE). No warning needed
+    datFrame[,logVec] = lapply(datFrame[logVec], as.factor)
+    #Convert logicals to factors
+    #warning("Logicals converted to factors! \n", immediate. = TRUE). No warning
+    #needed
   }
   if(any(intVec)){
-    datFrame[,intVec] = lapply(datFrame[intVec], as.numeric) #Convert integers to numeric
+    datFrame[,intVec] = lapply(datFrame[intVec], as.numeric)
+    #Convert integers to numeric
     warning("Integer values treated as numeric! \n", immediate. = TRUE)
   }
   if(any(charVec)){
-    datFrame[,charVec] = lapply(datFrame[charVec], factor) #Convert characters to factor
+    datFrame[,charVec] = lapply(datFrame[charVec], factor)
+    #Convert characters to factor
     warning("Character vectors treated as factors! \n", immediate. = TRUE)
   }
   nFactorLevels = vapply(FUN.VALUE =
@@ -65,15 +73,18 @@ buildCovMat = function(covariates, dat){
             immediate. = TRUE, call. = FALSE)
       }
   # Center and scale the continuous covariates
-  datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)] = scale(datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)])
+  datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)] =
+    scale(datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)])
 
   covModelMat = model.matrix(
     object = formula(paste("~", paste(covariatesNames, collapse="+"),"-1")),
     data = datFrame,
-    contrasts.arg = lapply(datFrame[vapply(datFrame, is.factor, FUN.VALUE = TRUE)],
+    contrasts.arg = lapply(datFrame[vapply(datFrame, is.factor,
+                                           FUN.VALUE = TRUE)],
                            contrasts, contrasts=FALSE))
   if(NCOL(covModelMat)==1) stop("A constrained ordination with only one
-variable is meaningless.\nPlease provide more covariates or perform an unconstrained analysis.", call. = FALSE)
+variable is meaningless.\nPlease provide more covariates or perform
+                                an unconstrained analysis.", call. = FALSE)
     covModelMat = model.matrix(object = formula(paste("~",
         paste(covariatesNames, collapse = "+"),
         "-1")), data = datFrame,

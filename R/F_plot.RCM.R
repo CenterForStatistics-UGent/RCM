@@ -121,7 +121,8 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
         10
     }, taxRegExp = NULL, varNum = 15, arrowSize = 0.25,
     Influence = FALSE, inflDim = 1, returnCoords = FALSE,
-    alpha = TRUE, varPlot = NULL, colLegend = if (Influence) paste0("Influence on\n",
+    alpha = TRUE, varPlot = NULL,
+    colLegend = if (Influence) paste0("Influence on\n",
         samColour, "\nparameter \nin dimension",
         inflDim) else samColour, samShape = NULL,
     shapeLegend = samShape, samSize = 2,
@@ -172,7 +173,8 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
                   max(Dim))^2)
             } else if (samColour %in% richSupported)
                 estimate_richness(x$physeq,
-                  measures = samColour)[[1]] else get_variable(x$physeq, samColour)
+                  measures = samColour)[[1]] else get_variable(x$physeq,
+                                                               samColour)
         } else if (!is.null(samColour)) {
             dataSam$colourPlot = samColour
         } else {
@@ -423,8 +425,11 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
                     (length(taxCol) == 1 &&
                       taxCol != "Deviance"))) {
                     plot = plot + if (is.factor(taxCol))
-                      scale_colour_discrete(name = colLegend) else scale_colour_continuous(name = colLegend,
-                      low = contCol[1], high = contCol[2])
+                      scale_colour_discrete(name = colLegend)
+                    else
+                      scale_colour_continuous(name = colLegend,
+                                              low = contCol[1],
+                                              high = contCol[2])
                   }
                   plot = plot + if (alpha)
                     scale_alpha_continuous(range = alphaRange)
@@ -496,9 +501,11 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
                     show.legend = TRUE, size = taxLabSize,
                     inherit.aes = FALSE) +
                     if (!is.numeric(dataTax$taxCol))
-                      scale_colour_manual(values = c(brewer.pal(length(unique(dataTax$taxCol)) -
-                        1, Palette), "Grey90"),
-                        name = colLegend) else scale_colour_continuous(name = colLegend)
+                      scale_colour_manual(values = c(brewer.pal(length(
+                        unique(dataTax$taxCol)) -1, Palette), "Grey90"),
+                      name = colLegend)
+                  else
+                    scale_colour_continuous(name = colLegend)
                   # 'Other' is made grey
                 }
             }
@@ -519,9 +526,8 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
             arrowLenghtsPerVar = tapply(arrowLenghtsVar,
                 attribs, max)
             # Maximum per variable
-            CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar,
-                decreasing = TRUE)]]) <=
-                varNum
+            CumSum = cumsum(table(attribs)[unique(attribs)[
+              order(arrowLenghtsPerVar,decreasing = TRUE)]]) <= varNum
             varID = attr(x$covariates, "dimnames")[[2]][attribs %in%
                 as.numeric(names(CumSum)[CumSum])]
         } else {
@@ -542,15 +548,15 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
                 scalingFactorAlphaTmp = apply(dataSam[,
                   Dimnames], 2, range)/apply(varData[,
                   Dimnames], 2, range)
-                scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp >
-                  0]) * 0.975
+                scalingFactorAlpha = min(scalingFactorAlphaTmp[
+                  scalingFactorAlphaTmp >0]) * 0.975
             } else if ("species" %in% plotType) {
                 scalingFactorAlphaTmp = apply(dataTax[,
                   c("end1", "end2")], 2,
                   range)/apply(varData[,
                   Dimnames], 2, range)
-                scalingFactorAlpha = max(scalingFactorAlphaTmp[scalingFactorAlphaTmp >
-                  0]) * 0.975
+                scalingFactorAlpha = max(scalingFactorAlphaTmp[
+                  scalingFactorAlphaTmp >0]) * 0.975
             }
             varData[, Dimnames] = varData[,
                 Dimnames] * scalingFactorAlpha
@@ -612,7 +618,8 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
         size = crossSize, inherit.aes = FALSE,
         shape = 3)
     # Enlarge most text
-    plot = plot + theme_bw() + theme(axis.title = element_text(size = axisTitleSize),
+    plot = plot + theme_bw() +
+      theme(axis.title = element_text(size = axisTitleSize),
         axis.text = element_text(size = axisLabSize),
         legend.title = element_text(size = legendTitleSize),
         legend.text = element_text(size = legendLabSize),
@@ -625,10 +632,8 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
     if (axesFixed)
         plot = plot + coord_fixed(ratio = aspRatio)
     if (!(axesFixed & (aspRatio == 1)))
-        warning("Axes not squared,
-                                           plot may be deformed!\nConsider
-                                           setting aspRatio = 1 and
-                                           axesFixed = TRUE.")
+        warning("Axes not squared, plot may be deformed!\nConsider
+setting aspRatio = 1 and axesFixed = TRUE.")
     # Expand limits to show all text
     plot = indentPlot(plot, xInd = xInd,
         yInd = yInd)

@@ -29,7 +29,7 @@ buildConfMat = function(x, ...) {
 #' @return The confounder matrix, with intercepts
 buildConfMat.numeric = function(confounders, n, ...){
   if(n!=NROW(confounders)){ #Check dimensions
-    stop("Data and confounder matrix do not have the same number of samples! \n")
+    stop("Data and confounder matrix do not have the same number of samples!\n")
   }
   if(is.vector(confounders)){
     confounders = as.matrix(confounders) #Convert to matrix if only 1 variable
@@ -98,9 +98,11 @@ buildConfMat.data.frame = function(confounders,
 #' @return see buidConfMat.numeric
 buildConfMat.character = function(confounders, physeq,...){
   if(!is(physeq,"phyloseq")){
-    stop("Providing confounders through variable names is only allowed if phyloseq object is provided! \n")
+    stop("Providing confounders through variable names is only allowed
+         if phyloseq object is provided! \n")
   }
-  confounders = data.frame(get_variable(physeq, confounders)) # The dataframe with the confounders
+  confounders = data.frame(get_variable(physeq, confounders))
+  # The dataframe with the confounders
   buildConfMat.data.frame(confounders, n = nsamples(physeq))
 }
 buildConfMat.default = function(...) {

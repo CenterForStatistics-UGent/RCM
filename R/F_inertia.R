@@ -14,8 +14,14 @@
 #' inertia(zellerRCM)
 inertia = function(rcm){
   vec = if(length(rcm$confModelMat)) c(0,0.5, seq_len(rcm$k)) else c(0:rcm$k)
-  outnames = c("independence", if(length(rcm$confModelMat)) "filtered" else NULL, paste0("Dim", seq_len(rcm$k)),"saturated")
-    tmp = c(vapply(FUN.VALUE = numeric(1),vec, FUN = function(i){
+  outnames = c("independence",
+               if (length(rcm$confModelMat))
+                 "filtered"
+               else
+                 NULL,
+               paste0("Dim", seq_len(rcm$k)),
+               "saturated")
+  tmp = c(vapply(FUN.VALUE = numeric(1),vec, FUN = function(i){
       eMat = extractE(rcm, i)
       round(sum(((eMat-rcm$X)^2/eMat)))
     }), 0)

@@ -36,7 +36,6 @@ knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,
                       warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, 
                       tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, 
                       fig.show = "hold", cache.lazy = FALSE)
-knitr::opts_knit$set(root.dir = "/home/stijn/PhD/RCM")
 palStore = palette()
 ```
 

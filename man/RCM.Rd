@@ -22,19 +22,43 @@ RCM(dat, ...)
 
 \item{...}{Further arguments passed on to the RCM.NB() function}
 
-\item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
+\item{covariates}{In case "dat" is a phyloseq object,
+the names of the sample
+  variables to be used as covariates in the constrained analysis,
+   or "all" to
+  indicate all variables to be used.
+  In case "dat" is a matrix, a nxf matrix
+  or dataframe of covariates.
+   Character variables will be converted to
+  factors, with a warning. Defaults to NULL,
+  in which case an unconstrained
+  analysis is carried out.}
 
-\item{confounders}{In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.}
+\item{confounders}{In case "dat" is a phyloseq object,
+the names of the sample variables to be used as confounders
+ to be filtered
+ out. In case "dat" is a matrix, a nxf matrix or dataframe
+ of confounders.
+  Character variables will be converted to factors, with a warning.
+  Defaults to NULL, in which case no filtering occurs.}
 
 \item{k}{an integer, the number of dimensions of the RCM solution}
 
-\item{round}{a boolean, whether to round to nearest integer. Defaults to FALSE.}
+\item{round}{a boolean, whether to round to nearest integer. Defaults to
+FALSE.}
 
-\item{prevCutOff}{a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2}
+\item{prevCutOff}{a scalar, the prevalance cutoff for the trimming.
+Defaults to 2.5e-2}
 
-\item{minFraction}{a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10\%}
+\item{minFraction}{a scalar, each taxon's total abundance
+should equal
+ at least the number of samples n times minFraction,
+  otherwise it is trimmed.
+  Defaults to 10\%}
 
-\item{rowWeights, colWeights}{character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
+\item{rowWeights, colWeights}{character strings,
+the weighting procedures for the normalization of row and column scores.
+ Defaults to "uniform" and "marginal" respectively}
 
 \item{confTrimMat, confModelMat, covModelMat, centMat}{Dedicated model matrices
 constructed based on phyloseq object.}

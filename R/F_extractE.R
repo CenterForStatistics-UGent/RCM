@@ -14,11 +14,15 @@ extractE = function(rcm, Dim = rcm$k){
   } else if(Dim[1]==0.5){
 Eind * exp(rcm$confModelMat %*% rcm$confParams)
   } else {
-    if(!is.null(rcm$confModelMat)) Eind = Eind * exp(rcm$confModelMat %*% rcm$confParams)
+    if(!is.null(rcm$confModelMat)) Eind = Eind *
+        exp(rcm$confModelMat %*% rcm$confParams)
     if(is.null(rcm$covariates)){
-      Eind *exp(rcm$rMat[,Dim, drop = FALSE] %*% (rcm$cMat[Dim,, drop = FALSE]* rcm$psis[Dim]))
+      Eind * exp(rcm$rMat[, Dim, drop = FALSE] %*%
+                   (rcm$cMat[Dim, , drop = FALSE] * rcm$psis[Dim]))
     } else if(rcm$responseFun == "nonparametric"){
-      Eind*exp(apply(vapply(Dim,FUN.VALUE = Eind, function(j){rcm$nonParamRespFun[[j]]$rowMat}),c(1,2),sum))
+      Eind * exp(apply(vapply(Dim, FUN.VALUE = Eind, function(j) {
+        rcm$nonParamRespFun[[j]]$rowMat
+      }), c(1, 2), sum))
     } else {
         if (!is.null(rcm$confModelMat))
             Eind = Eind * exp(rcm$confModelMat %*%
