@@ -14,7 +14,7 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   "quadratic", "dynamic", "nonparametric"), record = FALSE,
   control.outer = list(trace = FALSE), control.optim = list(),
   envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
-  degree = switch(responseFun[1], nonparametric = 3, NULL), ...)
+  degree = switch(responseFun[1], nonparametric = 3, NULL))
 }
 \arguments{
 \item{X}{a nxp data matrix}
@@ -98,14 +98,8 @@ of the non-parametric response function, see VGAM::s()}
 \item{vgamMaxit}{an integer,
 the maximum number of iteration in the vgam() function}
 
-<<<<<<< HEAD
 \item{degree}{an integer,
  the degree of the polynomial fit if the spline fit fails
-=======
-\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails}
-
-\item{...}{Further arguments, currently ignores
->>>>>>> AddS4
 
 #'@seealso \code{\link{RCM}}
 
@@ -130,18 +124,11 @@ A list with elements
  the overdispersion along the way}
 \item{iter}{ number of iterations}
 \item{Xorig}{ (if confounders provided) the original fitting matrix}
-<<<<<<< HEAD
 \item{X}{ the trimmed matrix if confounders provided,
  otherwise the original one}
 \item{fit}{ type of fit, either 'RCM_NB' or 'RCM_NB_constr'}
 \item{lambdaRow}{(if not constrained)
  vector of Lagrange multipliers for the rows}
-=======
-\item{X}{ the trimmed matrix if confounders provided, otherwise the original one}
-\item{fit}{ type of fit, either "RCM_NB" or "RCM_NB_constr"}
-\item{lambdaRow}{(if not constrained) vector of Lagrange multipliers for the
-rows}
->>>>>>> AddS4
 \item{lambdaCol}{ vector of Lagrange multipliers for the columns}
 \item{rowWeights}{(if not constrained) the row weights used}
 \item{colWeights}{ the column weights used}

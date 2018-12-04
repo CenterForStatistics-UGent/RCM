@@ -140,8 +140,8 @@ RCM_NB = function(X,
                   envGradEst = "LR",
                   dfSpline = 3,
                   vgamMaxit = 100L,
-                  degree = switch(responseFun[1], "nonparametric" = 3, NULL),
-                  ...) {
+                  degree = switch(responseFun[1], "nonparametric" = 3, NULL)
+                  ) {
 
   Xorig = NULL #An original matrix, not returned if no trimming occurs
   responseFun = responseFun[1]
@@ -409,7 +409,7 @@ RCM_NB = function(X,
 
     returnList = list(rMat = rMat, cMat=cMat, rowRec = rowRec, colRec = colRec, psiRec = psiRec, thetaRec = thetaRec, fit = "RCM_NB", lambdaRow = lambdaRow, lambdaCol = lambdaCol)
 
-  } else { #If covariates provided, do a constrained analysis
+  } else {  #If covariates provided, do a constrained analysis
     d = ncol(covModelMat)
     CCA = vegan::cca(X = X, Y = covModelMat)$CCA #Constrained correspondence analysis for starting values
     if(sum(!colnames(covModelMat) %in% CCA$alias)<k) {
@@ -472,53 +472,12 @@ RCM_NB = function(X,
         } else{
           rowMat = nonParamRespFun[[KK]]$rowMat
         }
-        alpha = matrix(0, d, k)
-        alpha[!colnames(covariates) %in%
-            CCA$alias, ] = CCA$biplot[, seq_len(k)]
-        # Leave the sum constraints for the
-        # factors alone for now, may or may not
-        # speed up the algorithm
-        alpha = t(t(alpha) - colMeans(alpha))
-        alpha = t(t(alpha)/sqrt(colSums(alpha^2)))
-        psis = CCA$eig[seq_len(k)]
-        alphaRec = if (record) {
-            array(0, dim = c(d, k, maxItOut))
-        } else {
-            NULL
-        }
-        v = switch(responseFun, linear = 2,
-            quadratic = 3, dynamic = 3, 1)
-        # Number of parameters per taxon
-        NB_params = array(0.1, dim = c(v,
-            p, k))
-        # Initiate parameters of the response
-        # function, taxon-wise. No zeroes or
-        # trivial fit! Improved starting values
-        # may be possible.
-        NB_params = if (responseFun != "nonparametric") {
-            vapply(seq_len(k), FUN.VALUE = matrix(0,
-                v, p), function(x) {
-                x = NB_params[, , x, drop = FALSE]
-                x/sqrt(rowSums(x^2))
-            })
-        } else NULL
-        NB_params_noLab = if (responseFun !=
-            "nonparametric" && envGradEst ==
-            "LR") {
-            matrix(0.1, v, k)
-        } else NULL
-        # Initiate parameters of the response
-        # function, ignoring taxon-labels
-        if (responseFun == "nonparametric") {
-            nonParamRespFun = lapply(seq_len(k),
-                function(x) {
-                  list(taxonWise = lapply(integer(p),
-                    function(d) {
-                      list(fit = list(coef = NULL))
-                    }), overall = NULL)
-                })
-        } else {
-            nonParamRespFun = NULL
+        #Overdispersions (not at every iterations to speed things up, doesn't change a lot anyway)
+        if((iterOut[KK] %% dispFreq) == 0 || iterOut[KK] == 1){
+          if (verbose) cat(" Estimating overdispersions \n")
+          thetas[,paste0("Dim", KK)] = estDisp(X = X, muMarg = muMarg, psis = psis[KK], prior.df = prior.df, trended.dispersion = trended.dispersion, rowMat = rowMat)
+          thetasMat = matrix(thetas[,paste0("Dim",KK)], n, p, byrow=TRUE)
+          preFabMat = 1+X/thetasMat
         }
 
         if(responseFun %in% c("linear","quadratic", "dynamic")){
@@ -546,239 +505,12 @@ RCM_NB = function(X,
           alpha[,KK] = AlphaTmp$par
           lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
         }
-        rowMat = NULL
 
-        # Number of lambda parameters for
-        # centering
-        nLambda1s = NROW(centMat)
-
-        lambdasAlpha = rep(0, (k * (1 + nLambda1s +
-            (k - 1)/2)))
-        for (KK in seq_len(k)) {
-            if (verbose)
-                cat("Dimension", KK, "is being esimated \n")
-
-            # Modify offset if needed
-            if (KK > 1) {
-                muMarg = if (responseFun %in%
-                  c("linear", "quadratic",
-                    "dynamic")) {
-                  exp(getRowMat(responseFun = responseFun,
-                    sampleScore = covariates %*%
-                      alpha[, KK - 1, drop = FALSE],
-                    NB_params = NB_params[,
-                      , KK - 1]) * psis[KK -
-                    1]) * muMarg
-                } else {
-                  exp(nonParamRespFun[[KK -
-                    1]]$rowMat) * muMarg
-                }
-            }
-
-            idK = seq_k(KK)
-            ## 2) Propagation
-            while ((iterOut[KK] == 1) ||
-                ((iterOut[KK] <= maxItOut) &&
-                  (!convergence[KK]))) {
-
-                if (verbose && iterOut[KK]%%1 ==
-                  0) {
-                  cat("\n", "Outer Iteration",
-                    iterOut[KK], "\n", "\n")
-                  if (iterOut[KK] != 1 &&
-                    responseFun != "nonparametric") {
-                    cat("Old psi-estimate: ",
-                      psisOld, "\n")
-                    cat("New psi-estimate: ",
-                      psis[KK], "\n")
-                  }
-                }
-                ## 2)a. Store old parameters to check for
-                ## convergence
-                psisOld = psis[KK]
-                alphaOld = alpha[, KK]
-                NBparamsOld = NB_params[,
-                  , KK]
-
-                sampleScore = covariates %*%
-                  alpha[, KK]
-                envRange = range(sampleScore)
-                if (responseFun %in% c("linear",
-                  "quadratic", "dynamic")) {
-                  design = buildDesign(sampleScore,
-                    responseFun)
-                  rowMat = design %*% NB_params[,
-                    , KK]
-                } else {
-                  rowMat = nonParamRespFun[[KK]]$rowMat
-                }
-                # Overdispersions (not at every
-                # iterations to speed things up, doesn't
-                # change a lot anyway)
-                if ((iterOut[KK]%%dispFreq) ==
-                  0 || iterOut[KK] == 1) {
-                  if (verbose)
-                    cat(" Estimating overdispersions \n")
-                  thetas[, paste0("Dim",
-                    KK)] = estDisp(X = X,
-                    muMarg = muMarg, psis = psis[KK],
-                    prior.df = prior.df,
-                    trended.dispersion = trended.dispersion,
-                    rowMat = rowMat)
-                  thetasMat = matrix(thetas[,
-                    paste0("Dim", KK)], n,
-                    p, byrow = TRUE)
-                  preFabMat = 1 + X/thetasMat
-                }
-
-                if (responseFun %in% c("linear",
-                  "quadratic", "dynamic")) {
-                  # Psis
-                  if (verbose)
-                    cat("\n Estimating psis (k = ",
-                      KK, ") \n", sep = "")
-                  psis[KK] = abs(nleqslv(fn = dNBpsis,
-                    x = psis[KK], theta = thetasMat,
-                    X = X, reg = rowMat,
-                    muMarg = muMarg, global = global,
-                    control = nleqslv.control,
-                    jac = NBjacobianPsi,
-                    method = jacMethod, preFabMat = preFabMat)$x)
-
-                  if (verbose)
-                    cat("\n Estimating response function \n")
-                  NB_params[, , KK] = estNBparams(design = design,
-                    thetas = thetas[, paste0("Dim",
-                      KK)], muMarg = muMarg,
-                    psi = psis[KK], X = X,
-                    nleqslv.control = nleqslv.control,
-                    ncols = p, initParam = NB_params[,
-                      , KK], v = v, dynamic = responseFun ==
-                      "dynamic", envRange = envRange)
-                  NB_params[, , KK] = NB_params[,
-                    , KK]/sqrt(rowSums(NB_params[,
-                    , KK]^2))
-
-                  if (envGradEst == "LR") {
-                    NB_params_noLab[, KK] = estNBparamsNoLab(design = design,
-                      thetasMat = thetasMat,
-                      muMarg = muMarg, psi = psis[KK],
-                      X = X, nleqslv.control = nleqslv.control,
-                      initParam = NB_params_noLab[,
-                        KK], v = v, dynamic = responseFun ==
-                        "dynamic", envRange = envRange,
-                      preFabMat = preFabMat,
-                      n = n)
-                  }
-
-                  if (verbose)
-                    cat("\n Estimating environmental gradient \n")
-                  AlphaTmp = nleqslv(x = c(alpha[,
-                    KK], lambdasAlpha[seq_k(KK,
-                    nLambda1s)]), fn = dLR_nb,
-                    jac = LR_nb_Jac, X = X,
-                    CC = covariates, responseFun = responseFun,
-                    cMat = cMat, psi = psis[KK],
-                    NB_params = NB_params[,
-                      , KK], NB_params_noLab = NB_params_noLab[,
-                      KK], alphaK = alpha[,
-                      seq_len(KK - 1), drop = FALSE],
-                    k = KK, d = d, centMat = centMat,
-                    nLambda = nLambda1s +
-                      KK, nLambda1s = nLambda1s,
-                    thetaMat = thetasMat,
-                    muMarg = muMarg, control = nleqslv.control,
-                    n = n, v = v, ncols = p,
-                    preFabMat = preFabMat,
-                    envGradEst = envGradEst)$x
-                  alpha[, KK] = AlphaTmp[seq_len(d)]
-                  lambdasAlpha[seq_k(KK,
-                    nLambda1s)] = AlphaTmp[-seq_len(d)]
-
-                } else {
-                  if (verbose)
-                    cat("\n Estimating response functions \n")
-                  nonParamRespFun[[KK]] = estNPresp(sampleScore = sampleScore,
-                    muMarg = muMarg, X = X,
-                    ncols = p, thetas = thetas[,
-                      paste0("Dim", KK)],
-                    n = n, coefInit = nonParamRespFun[[KK]]$taxonCoef,
-                    coefInitOverall = nonParamRespFun[[KK]]$overall$coef,
-                    vgamMaxit = vgamMaxit,
-                    dfSpline = dfSpline,
-                    verbose = verbose, degree = degree)
-
-                  if (verbose)
-                    cat("\n Estimating environmental gradient \n")
-                  AlphaTmp = constrOptim.nl(par = alpha[,
-                    KK], fn = LR_nb, gr = NULL,
-                    heq = heq_nb, heq.jac = heq_nb_jac,
-                    alphaK = alpha[, seq_len(KK -
-                      1), drop = FALSE],
-                    X = X, CC = covariates,
-                    responseFun = responseFun,
-                    muMarg = muMarg, d = d,
-                    ncols = p, control.outer = control.outer,
-                    control.optim = control.optim,
-                    k = KK, centMat = centMat,
-                    n = n, nonParamRespFun = nonParamRespFun[[KK]],
-                    thetaMat = thetasMat,
-                    envGradEst = envGradEst)
-                  alpha[, KK] = AlphaTmp$par
-                  lambdasAlpha[seq_k(KK,
-                    nLambda1s)] = AlphaTmp$lambda
-                }
-
-                # Store intermediate estimates
-                if (record) {
-                  alphaRec[, KK, iterOut[KK]] = alpha[,
-                    KK]
-                  thetaRec[KK, , iterOut[KK]] = thetas[,
-                    paste0("Dim", KK)]
-                  psiRec[KK, iterOut[KK]] = psis[KK]
-                }
-                ## Change iterator
-                iterOut[KK] = iterOut[KK] +
-                  1
-
-                ## Check convergence (any numbered norm
-                ## for row and column scores)
-                convergence[KK] = ((iterOut[KK] <=
-                  maxItOut) && (abs(1 - psis[KK]/psisOld) <
-                  Psitol) && ((mean(abs(1 -
-                  alpha[, KK]/alphaOld)^convNorm))^(1/convNorm) <
-                  tol) && if (responseFun ==
-                  "nonparametric")
-                  TRUE else (mean(abs(1 - (NB_params[,
-                  , KK]/NBparamsOld)[NBparamsOld *
-                  NB_params[, , KK] != 0])^convNorm)^(1/convNorm) <
-                  tol))
-            }  # END while-loop until convergence
-
-        }  # END for-loop over dimensions
-        ## 3) Termination
-
-        if (responseFun == "nonparametric") {
-            # Post hoc calculate integrals and psis
-            nonParamRespFun = lapply(seq_len(k),
-                function(KK) {
-                  samScore = covariates %*%
-                    alpha[, KK]
-                  nonPar = nonParamRespFun[[KK]]
-                  nonPar$intList = vapply(FUN.VALUE = numeric(1),
-                    colnames(X), function(tax) {
-                      getInt(coef = nonParamRespFun[[KK]]$taxonCoef[[tax]],
-                        spline = nonParamRespFun[[KK]]$splineList[[tax]],
-                        sampleScore = samScore)
-                    })
-                  return(nonPar)
-                })
-            psis = vapply(nonParamRespFun,
-                function(x) {
-                  sqrt(mean(x$rowMat^2))
-                }, numeric(1))
-            names(nonParamRespFun) = names(psis) = paste0("Dim",
-                seq_len(k))
+        #Store intermediate estimates
+        if(record){
+          alphaRec[,KK, iterOut[KK]] = alpha[,KK]
+          thetaRec [KK,, iterOut[KK]] = thetas[,paste0("Dim",KK)]
+          psiRec[KK, iterOut[KK]] = psis[KK]
         }
         ## Change iterator
         iterOut[KK] = iterOut[KK] + 1
@@ -798,13 +530,8 @@ RCM_NB = function(X,
       nonParamRespFun = lapply(seq_len(k), function(KK){
         samScore = covModelMat %*% alpha[,KK]
         nonPar = nonParamRespFun[[KK]]
-        nonPar$intList = vapply(FUN.VALUE = numeric(1), colnames(X),
-                                function(tax) {
-          getInt(
-            coef = nonParamRespFun[[KK]]$taxonCoef[[tax]],
-            spline = nonParamRespFun[[KK]]$splineList[[tax]],
-            sampleScore = samScore
-          )
+        nonPar$intList = vapply(FUN.VALUE = numeric(1), colnames(X), function(tax){
+          getInt(coef = nonParamRespFun[[KK]]$taxonCoef[[tax]], spline = nonParamRespFun[[KK]]$splineList[[tax]], sampleScore = samScore)
         })
         return(nonPar)
       })

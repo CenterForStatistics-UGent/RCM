@@ -515,8 +515,7 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
         if (is.null(varPlot)) {
             arrowLenghtsVar = rowSums(x$alpha[,
                 Dim]^2)  #All arrow lenghts
-            attribs = attr(x$covariates,
-                "assign")
+            attribs = x$attribs
             arrowLenghtsPerVar = tapply(arrowLenghtsVar,
                 attribs, max)
             # Maximum per variable
@@ -572,7 +571,7 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
                 .(round(x$psis[Dim[2]], 1))))
     } else if (plotPsi == "loglik") {
         liksTab = liks(x)
-        if (length(x$confounders$confounders)) {
+        if (length(x$confModelMat)) {
             # If filtered on confounders, print in
             # title.
             plot = plot + ggtitle(paste0("Confounders' deviance explained: ",
@@ -587,7 +586,7 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
                   Dimnames[2]] * 100, "%"))
     } else if (plotPsi == "inertia") {
         inertTab = inertia(x)
-        if (length(x$confounders$confounders)) {
+        if (length(x$confModelMat)) {
             # If filtered on confounders, print in
             # title.
             plot = plot + ggtitle(paste0("Confounders' inertia explained: ",
@@ -637,61 +636,6 @@ plot.RCM = function(x, ..., Dim = c(1, 2),
         list(plot = plot, samples = dataSam,
             species = dataTax, variables = varData)
     } else {
-        plot = plot + geom_text(data=dataTax, aes_string(x="end1", y = "end2", label = "labels", color = "taxCol"), show.legend=TRUE, nudge_y = nudge_y, size = taxLabSize, inherit.aes = FALSE)
-    }
-} else if(taxDots){
-  if(is.null(dataTax$taxCol)){plot <- plot + geom_point(data=dataTax, aes_string(x = "end1", y = "end2", color = "taxCol"), color =  taxColSingle, show.legend = FALSE, nudge_y = nudge_y, size = taxLabSize, inherit.aes = FALSE)
-  } else {
-    plot <- plot + geom_point(data = dataTax, aes_string(x="end1", y = "end2", color = "taxCol"), show.legend = TRUE, size = taxLabSize, inherit.aes = FALSE) + if(!is.numeric(dataTax$taxCol)) scale_colour_manual(values = c(brewer.pal(length(unique(dataTax$taxCol))-1, Palette), "Grey90"), name = colLegend) else scale_colour_continuous(name = colLegend) # "Other" is made grey
-  }
-}
-  if(!"samples" %in% plotType){
-    plot = plot +
-      xlab(Dimnames[1]) + #xlabel
-      ylab(Dimnames[2])
-  } #END if "species" %in% plotType
-
-  ## VARIABLES
-  if("variables" %in% plotType && constrained){
-    #Add variable labels
-    if(is.null(varPlot)){
-      arrowLenghtsVar = rowSums(x$alpha[,Dim]^2) #All arrow lenghts
-      attribs = x$attribs
-      arrowLenghtsPerVar = tapply(arrowLenghtsVar, attribs, max) #Maximum per variable
-      CumSum = cumsum(table(attribs)[unique(attribs)[order(arrowLenghtsPerVar, decreasing = TRUE)]]) <= varNum
-      varID = attr(x$covariates, "dimnames")[[2]][attribs %in% as.numeric(names(CumSum)[CumSum])]
-    } else {varID = attr(x$covariates, "dimnames")[[2]] %in% unlist(lapply(varPlot, grep, value = TRUE, x = attr(x$covariates, "dimnames")[[2]]))}
-    varData = data.frame(x$alpha * if(!all(plotType=="variables")) 1 else varExpFactor)
-    varData$label = rownames(x$alpha)
-    #Include all levels from important factors, not just the long arrows
-    varData = varData[varID,]
-    if(!all(plotType=="variables")){
-      if("samples" %in% plotType){
-        scalingFactorAlphaTmp = apply(dataSam[, Dimnames],2,range)/apply(varData[, Dimnames],2,range)
-        scalingFactorAlpha = min(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
-      } else if("species" %in% plotType){
-        scalingFactorAlphaTmp = apply(dataTax[, c("end1","end2")],2,range)/apply(varData[, Dimnames],2,range)
-        scalingFactorAlpha = max(scalingFactorAlphaTmp[scalingFactorAlphaTmp>0])*0.975
-      }
-      varData[, Dimnames] = varData[, Dimnames]*scalingFactorAlpha
-    }
-    plot = plot + geom_text(data = varData, mapping = aes_string(x = names(varData)[1], y = names(varData)[2], label = "label"), inherit.aes = FALSE, size = varLabSize)
-  } else {varData = NULL}
-
-  ## AXIS LABELS
-  if(plotPsi=="psi") {
-    plot = plot + xlab(bquote(psi[.(Dim[1])] == .(round(x$psis[Dim[1]],1)))) + #xlabel
-      ylab(bquote(psi[.(Dim[2])] == .(round(x$psis[Dim[2]],1))))
-  } else if(plotPsi=="loglik"){
-    liksTab = liks(x)
-    if(length(x$confModelMat)){#If filtered on confounders, print in title.
-      plot = plot + ggtitle(paste0("Confounders' deviance explained: ", liksTab["logLikExplained", "filtered"]*100,"%"))
-    }
-    plot = plot + xlab(paste0(Dimnames[1],": ",liksTab["logLikExplained", Dimnames[1]]*100, "%")) +
-      ylab(paste0(Dimnames[2],": ",liksTab["logLikExplained", Dimnames[2]]*100, "%"))
-  } else if(plotPsi == "inertia"){
-    inertTab = inertia(x)
-    if(length(x$confModelMat)){#If filtered on confounders, print in title.
-      plot = plot + ggtitle(paste0("Confounders' inertia explained: ", inertTab["inertiaExplained", "filtered"]*100,"%"))
+        plot
     }
 }
