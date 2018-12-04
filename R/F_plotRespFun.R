@@ -45,131 +45,114 @@
 #' covariates = c('BMI','Age','Country','Diagnosis','Gender'),
 #' round = TRUE, responseFun = 'nonparametric')
 #' plotRespFun(zellerRCMnp)
-plotRespFun = function(RCM, taxa = NULL,
-    type = "link", logTransformYAxis = FALSE,
-    addSamples = TRUE, samSize = NULL, Dim = 1L,
-    nPoints = 100L, labSize = 2.5, yLocVar = NULL,
-    yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
+plotRespFun = function(RCM, taxa = NULL, type = "link",
+    logTransformYAxis = FALSE, addSamples = TRUE,
+    samSize = NULL, Dim = 1L, nPoints = 100L, labSize = 2.5,
+    yLocVar = NULL, yLocSam = NULL, Palette = "Set3", addJitter = FALSE,
     nTaxa = 9L, angle = 90, legendLabSize = 15,
     legendTitleSize = 16, axisLabSize = 14,
-    axisTitleSize = 16, lineSize = 0.75,
-    ...) {
+    axisTitleSize = 16, lineSize = 0.75, ...) {
     if (is.null(RCM$nonParamRespFun)) {
         stop("This function can only be called
-         on non-parametric response functions! \n")
+        on non-parametric response functions! \n")
     }
     if (!type %in% c("link", "response")) {
         stop("Specify type = 'link' or 'response'!\n")
     }
     # A function to predict new values
     predictFun = function(taxon, x) {
-        if (length(RCM$nonParamRespFun[[paste0("Dim",
-            Dim)]]$splinesList[[taxon]])) {
-            cbind(1, x, predict(RCM$nonParamRespFun[[paste0("Dim",
-                Dim)]]$splinesList[[taxon]],
-                x = x)$y) %*% c(RCM$nonParamRespFun[[paste0("Dim",
-                Dim)]]$taxonCoef[[taxon]],
-                1)
+        if (length(RCM$nonParamRespFun[[
+        paste0("Dim", Dim)]]$splinesList[[taxon]])) {
+            cbind(1, x, predict(RCM$nonParamRespFun[[
+            paste0("Dim", Dim)]]$splinesList[[taxon]],
+                x = x)$y) %*% c(RCM$nonParamRespFun[[
+                paste0("Dim", Dim)]]$taxonCoef[[taxon]],1)
         } else {
-            getModelMat(x, RCM$degree) %*%
-                RCM$nonParamRespFun[[paste0("Dim",
-                  Dim)]]$taxonCoef[[taxon]]
+            getModelMat(x, RCM$degree) %*% RCM$nonParamRespFun[[paste0("Dim",
+                Dim)]]$taxonCoef[[taxon]]
         }
     }
 
     # The range of sample scores
-    sampleScoreRange = range(RCM$covariates %*%
-        RCM$alpha[, Dim])
-    sampleScoreSeq = seq(sampleScoreRange[1],
-        sampleScoreRange[2], length.out = nPoints)
+    sampleScoreRange = range(RCM$covariates %*% RCM$alpha[, Dim])
+    sampleScoreSeq = seq(sampleScoreRange[1], sampleScoreRange[2],
+    length.out = nPoints)
     if (is.null(taxa)) {
-        # If taxa not provided, pick the ones
-        # that react most strongly
-        intsNonParam = RCM$nonParamRespFun[[paste0("Dim",
-            Dim)]][["intList"]]
+        # If taxa not provided, pick the ones that react most strongly
+        intsNonParam = RCM$nonParamRespFun[[paste0("Dim", Dim)]][["intList"]]
         # The integrals
-        taxa = taxa_names(RCM$physeq)[intsNonParam >
-            quantile(intsNonParam, (ntaxa(RCM$physeq) -
-                nTaxa)/ntaxa(RCM$physeq))]
+        taxa = taxa_names(RCM$physeq)[intsNonParam > quantile(intsNonParam,
+            (ntaxa(RCM$physeq) - nTaxa)/ntaxa(RCM$physeq))]
     }
 
-    df = data.frame(sampleScore = sampleScoreSeq,
-        lapply(taxa, predictFun, x = sampleScoreSeq))
+    df = data.frame(sampleScore = sampleScoreSeq, lapply(taxa, predictFun,
+        x = sampleScoreSeq))
     names(df)[-1] = taxa
     dfMolt = reshape2::melt(df, id.vars = "sampleScore",
-        value.name = "responseFun", variable.name = "Taxon")
+                            value.name = "responseFun",
+        variable.name = "Taxon")
     if (type == "response") {
-        dfMolt$responseFun = exp(dfMolt$responseFun) +
-            1e-09
+        dfMolt$responseFun = exp(dfMolt$responseFun) + 1e-09
     }
 
     plot = ggplot(data = dfMolt, aes_string(x = "sampleScore",
-        y = "responseFun", group = "Taxon",
-        colour = "Taxon"), ...) + geom_line(size = lineSize) +
-        xlab(paste("Environmental score of dimension",
-            Dim)) + ylab(ifelse(type == "link",
-        "Expected abundance", "Response function on count scale")) +
+                                            y = "responseFun",
+        group = "Taxon", colour = "Taxon"), ...) +
+        geom_line(size = lineSize) +
+        xlab(paste("Environmental score of dimension", Dim)) +
+        ylab(ifelse(type ==
+        "link", "Expected abundance", "Response function on count scale")) +
         scale_y_continuous(trans = if (logTransformYAxis)
             "log10" else "identity", labels = if (logTransformYAxis)
             function(x) {
                 sprintf("%.4f", x)
             } else identity)
-    # Also add the associated elements of the
-    # environmental gradient in the upper
-    # margin
-    textDf = data.frame(text = rownames(RCM$alpha),
-        x = RCM$alpha[, Dim] * min(abs(sampleScoreRange))/max(abs(RCM$alpha[,
-            Dim])))
+    # Also add the associated elements of the environmental gradient in the
+    # upper margin
+    textDf = data.frame(text = rownames(RCM$alpha), x = RCM$alpha[, Dim] *
+        min(abs(sampleScoreRange))/max(abs(RCM$alpha[, Dim])))
     textDf = textDf[order(textDf$x), ]
     textDf$y = (if (is.null(yLocVar))
         (max(dfMolt$responseFun) + min(dfMolt$responseFun))/2 else yLocVar)
-    plot = plot + geom_text(data = textDf,
-        mapping = aes_string(x = "x", y = "y",
-            label = "text"), inherit.aes = FALSE,
+    plot = plot + geom_text(data = textDf, mapping = aes_string(x = "x",
+        y = "y", label = "text"), inherit.aes = FALSE,
         angle = angle, size = labSize) +
         scale_colour_brewer(palette = Palette)
-    # Finally add a dashed line for the
-    # independence model, and a straight line
-    # for the 0 environmental gradient
-    plot = plot + geom_hline(yintercept = switch(type,
-        link = 0, response = 1), linetype = "dashed",
-        size = 0.3) + geom_vline(xintercept = 0,
-        size = 0.15, linetype = "dotted")
+    # Finally add a dashed line for the independence model, and a straight
+    # line for the 0 environmental gradient
+    plot = plot + geom_hline(yintercept = switch(type, link = 0, response = 1),
+        linetype = "dashed", size = 0.3) +
+        geom_vline(xintercept = 0, size = 0.15,
+        linetype = "dotted")
 
-    # If samples required, add them too, as
-    # marks of different heights
+    # If samples required, add them too, as marks of different heights
     if (addSamples) {
-        dfSam = data.frame(x = RCM$covariates %*%
-            RCM$alpha[, Dim])
-        dfSam$Size = if (length(samSize) ==
-            1) {
+        dfSam = data.frame(x = RCM$covariates %*% RCM$alpha[, Dim])
+        dfSam$Size = if (length(samSize) == 1) {
             get_variable(RCM$physeq, varName = samSize)
         } else if (length(samSize) == ncol(RCM$X))
             samSize else NULL
         dfSam$y = (if (is.null(yLocSam))
             min(dfMolt$responseFun) * 0.8 else yLocSam) + if (addJitter)
             runif(min = -1, max = 1, n = nrow(RCM$alpha)) *
-                diff(range(dfMolt$responseFun))/20 else 0
+        diff(range(dfMolt$responseFun))/20 else 0
         if (!is.null(samSize)) {
-            plot = plot + geom_point(inherit.aes = FALSE,
-                fill = NA, mapping = aes_string(x = "x",
-                  y = "y", size = "Size"),
-                data = dfSam, shape = 124)
+            plot = plot + geom_point(inherit.aes = FALSE, fill = NA,
+            mapping = aes_string(x = "x",
+                y = "y", size = "Size"), data = dfSam, shape = 124)
         } else {
-            plot = plot + geom_point(inherit.aes = FALSE,
-                fill = NA, mapping = aes_string(x = "x",
-                  y = "y"), shape = 124,
-                data = dfSam, size = 1)
+            plot = plot + geom_point(inherit.aes = FALSE, fill = NA,
+            mapping = aes_string(x = "x",
+                y = "y"), shape = 124, data = dfSam, size = 1)
         }
         plot = plot + scale_size_discrete(name = if (!is.null(samSize))
             samSize else "")
     }
     # Adapt the text sizes
     plot = plot + theme_bw() +
-      theme(axis.title = element_text(size = axisTitleSize),
+    theme(axis.title = element_text(size = axisTitleSize),
         axis.text = element_text(size = axisLabSize),
         legend.title = element_text(size = legendTitleSize),
         legend.text = element_text(size = legendLabSize))
-
     plot
 }
