@@ -35,7 +35,7 @@ buildConfMat.numeric = function(confounders, n, ...) {
     }
     if (is.vector(confounders)) {
         confounders = as.matrix(confounders)
-        #Convert to matrix if only 1 variable
+        # Convert to matrix if only 1 variable
     }
     if (is.null(colnames(confounders))) {
         # assign names if needed
@@ -63,7 +63,7 @@ buildConfMat.data.frame = function(confounders, n, ...) {
     if (n != NROW(confounders)) {
         # Check dimensions
         stop("Data and confounder matrix do not have the same number
-             of samples! \n")
+        of samples! \n")
     }
     if (anyNA(confounders)) {
         stop("Confounders contain missing values!\n")
@@ -91,7 +91,7 @@ buildConfMat.data.frame = function(confounders, n, ...) {
 buildConfMat.character = function(confounders, physeq, ...) {
     if (!is(physeq, "phyloseq")) {
         stop("Providing confounders through variable names is only allowed
-         if phyloseq object is provided! \n")
+        if phyloseq object is provided! \n")
     }
     confounders = data.frame(get_variable(physeq, confounders))
     # The dataframe with the confounders
@@ -99,5 +99,5 @@ buildConfMat.character = function(confounders, physeq, ...) {
 }
 buildConfMat.default = function(...) {
     stop("Please provide the confounders either as numeric matrix,
-       dataframe, or character string! \n")
+    dataframe, or character string! \n")
 }
