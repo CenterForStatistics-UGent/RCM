@@ -27,31 +27,29 @@ buildConfMat = function(x, ...) {
 #' @param ... further arguments passed on to other methods
 #'
 #' @return The confounder matrix, with intercepts
-buildConfMat.numeric = function(confounders, n, ...){
-  if(n!=NROW(confounders)){ #Check dimensions
-    stop("Data and confounder matrix do not have the same number of samples!\n")
-  }
-  if(is.vector(confounders)){
-    confounders = as.matrix(confounders) #Convert to matrix if only 1 variable
-  }
-  if(is.null(colnames(confounders))){ #assign names if needed
-    colnames(confounders) = paste("var",seq_len(NCOL(confounders)))
-  }
-  confModelMatTrim = model.matrix(
-    object = as.formula(paste("~" , paste(
-      colnames(confounders), collapse = "+"
-    ), "-1")),
-    contrasts.arg = apply(colnames(confounders), 2, contrasts, contrasts =
-                            FALSE)
-  ) #No intercept for preliminary trimming
-  confModelMat = model.matrix(
-    object = as.formula(paste("~", paste(
-      colnames(confounders), collapse = "+"
-    ))),
-    contrasts.arg = apply(colnames(confounders), 2, contrasts, contrasts =
-                            TRUE)
-  ) #With intercept for filtering
-  list(confModelMatTrim  = confModelMatTrim, confModelMat = confModelMat)
+buildConfMat.numeric = function(confounders, n, ...) {
+    if (n != NROW(confounders)) {
+        # Check dimensions
+        stop("Data and confounder matrix do not
+             have the same number of samples!\n")
+    }
+    if (is.vector(confounders)) {
+        confounders = as.matrix(confounders)
+        #Convert to matrix if only 1 variable
+    }
+    if (is.null(colnames(confounders))) {
+        # assign names if needed
+        colnames(confounders) = paste("var", seq_len(NCOL(confounders)))
+    }
+    confModelMatTrim = model.matrix(object = as.formula(paste("~",
+        paste(colnames(confounders), collapse = "+"), "-1")),
+        contrasts.arg = apply(colnames(confounders), 2, contrasts,
+            contrasts = FALSE))  #No intercept for preliminary trimming
+    confModelMat = model.matrix(object = as.formula(paste("~",
+        paste(colnames(confounders), collapse = "+"))),
+        contrasts.arg = apply(colnames(confounders),
+        2, contrasts, contrasts = TRUE))  #With intercept for filtering
+    list(confModelMatTrim = confModelMatTrim, confModelMat = confModelMat)
 }
 
 #' buildConfMat.data.frame
@@ -61,8 +59,7 @@ buildConfMat.numeric = function(confounders, n, ...){
 #' @param ... further arguments passed on to other methods
 #'
 #' @return see buidConfMat.numeric
-buildConfMat.data.frame = function(confounders,
-    n, ...) {
+buildConfMat.data.frame = function(confounders, n, ...) {
     if (n != NROW(confounders)) {
         # Check dimensions
         stop("Data and confounder matrix do not have the same number
@@ -71,24 +68,19 @@ buildConfMat.data.frame = function(confounders,
     if (anyNA(confounders)) {
         stop("Confounders contain missing values!\n")
     }
-    # No intercept or continuous variables
-    # for preliminary trimming
+    # No intercept or continuous variables for preliminary
+    # trimming
     confModelMatTrim = model.matrix(object = as.formula(paste("~",
-        paste(names(confounders)[vapply(FUN.VALUE = TRUE,
-            confounders, is.factor)], collapse = "+"),
-        "-1")), data = confounders,
+        paste(names(confounders)[vapply(FUN.VALUE = TRUE, confounders,
+            is.factor)], collapse = "+"), "-1")), data = confounders,
         contrasts.arg = lapply(confounders[vapply(FUN.VALUE = TRUE,
-        confounders, is.factor)], contrasts,
-        contrasts = FALSE))
+            confounders, is.factor)], contrasts, contrasts = FALSE))
     # With intercept for filtering
     confModelMat = model.matrix(object = as.formula(paste("~",
-        paste(names(confounders), collapse = "+"))),
-        data = confounders,
+        paste(names(confounders), collapse = "+"))), data = confounders,
         contrasts.arg = lapply(confounders[vapply(FUN.VALUE = TRUE,
-            confounders, is.factor)], contrasts,
-            contrasts = TRUE))
-    list(confModelMatTrim = confModelMatTrim,
-        confModelMat = confModelMat)
+            confounders, is.factor)], contrasts, contrasts = TRUE))
+    list(confModelMatTrim = confModelMatTrim, confModelMat = confModelMat)
 }
 #' buildConfMat.character
 #' @param confounders a numeric matrix of confounders
@@ -96,14 +88,14 @@ buildConfMat.data.frame = function(confounders,
 #' @param ... further arguments passed on to other methods
 #'
 #' @return see buidConfMat.numeric
-buildConfMat.character = function(confounders, physeq,...){
-  if(!is(physeq,"phyloseq")){
-    stop("Providing confounders through variable names is only allowed
+buildConfMat.character = function(confounders, physeq, ...) {
+    if (!is(physeq, "phyloseq")) {
+        stop("Providing confounders through variable names is only allowed
          if phyloseq object is provided! \n")
-  }
-  confounders = data.frame(get_variable(physeq, confounders))
-  # The dataframe with the confounders
-  buildConfMat.data.frame(confounders, n = nsamples(physeq))
+    }
+    confounders = data.frame(get_variable(physeq, confounders))
+    # The dataframe with the confounders
+    buildConfMat.data.frame(confounders, n = nsamples(physeq))
 }
 buildConfMat.default = function(...) {
     stop("Please provide the confounders either as numeric matrix,

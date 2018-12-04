@@ -9,11 +9,8 @@
 buildCentMat = function(object){
 if(is.data.frame(object)){
   nFactorLevels = vapply(object, FUN.VALUE = double(1), function(x) {
-    if (is.factor(x))
-      nlevels(x)
-    else
-      1
-  }) #Number of levels per factor
+    if (is.factor(x)) nlevels(x) else 1})
+  #Number of levels per factor
   oneLevelID = vapply(object, FUN.VALUE = TRUE, function(x) {
     length(unique(x)) == 1
   })
@@ -26,21 +23,24 @@ if(is.data.frame(object)){
 } else if(is(object, "RCM")){
   nFactorLevels = vapply(FUN.VALUE = integer(1), unique(object$attribs),
                          function(x) {
-    sum(object$attribs == x)
-  }) #Number of levels per factor
+                           sum(object$attribs == x)
+                         }) #Number of levels per factor
 
 } else {stop("Invalid object supplied! \n")}
   #Already prepare the matrix that defines the equations for centering the
   #coefficients of the dummy variables
   centMat  = t(vapply(FUN.VALUE = numeric(sum(nFactorLevels)),
                       seq_along(nFactorLevels), function(i){
-    c(rep.int(0L, sum(nFactorLevels[seq(0,i-1)])), #Zeroes before
-      rep.int(if(nFactorLevels[i]==1) 0L else 1L, nFactorLevels[i]),
-      #Ones within the categorical variable
-      rep.int(0L, sum(nFactorLevels[-seq(1,i)]))) #Zeroes after
-  }))
+                        c(rep.int(0L, sum(nFactorLevels[seq(0,i-1)])),
+                          #Zeroes before
+                          rep.int(if(nFactorLevels[i]==1) 0L else 1L,
+                                  nFactorLevels[i]),
+                          #Ones within the categorical variable
+                          rep.int(0L, sum(nFactorLevels[-seq(1,i)])))
+                        #Zeroes after
+                      }))
   centMat = if(all(rowSums(centMat)==0)) {matrix(0L, 1,sum(nFactorLevels))
-    } else  {centMat[rowSums(centMat)>0,, drop = FALSE]}
+  } else  {centMat[rowSums(centMat)>0,, drop = FALSE]}
   if (is.data.frame(object))
     return(list(centMat = centMat, datFrame  = object))
   else

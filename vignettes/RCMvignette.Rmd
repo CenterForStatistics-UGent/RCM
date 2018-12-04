@@ -61,10 +61,7 @@ for this purpose, behind it is the *RCM_NB* function that does the hard work
 but requires numeric matrix imputs. We first fit a model with two dimensions,
 
 ```{r fitUnconstrainedRCM}
-if(!file.exists(file = "./results/ZellerRCM2.RData")){
 ZellerRCM2 = RCM(Zeller, k=2, round = TRUE)
-save(ZellerRCM2, file = "./results/ZellerRCM2.RData")
-} else {load(file = "./results/ZellerRCM2.RData")}
 ```
 
 which took `r round(ZellerRCM2$runtime,1)` minutes. 
@@ -79,10 +76,7 @@ By default, only 2 dimensions are fitted,
 but more can be requested throught the _k_ argument.
 
 ```{r ThreeDimensions}
-if(!file.exists(file = "./results/ZellerRCM3.RData")){
 ZellerRCM3 = RCM(Zeller, k = 3, round = TRUE)
-save(ZellerRCM3, file = "./results/ZellerRCM3.RData")
-} else {load(file = "./results/ZellerRCM3.RData")}
 ```
 
 The total runtime for all dimensions combined was 
@@ -94,10 +88,7 @@ In order to condition on certain variables, supply their names to the
 _confounders_ argument. Here we condition on the _country_ variable
 
 ```{r condition}
-if(!file.exists(file = "./results/ZellerRCM2cond.RData")){
 ZellerRCM2cond = RCM(Zeller, k = 2, round = TRUE, confounders = c("Country"))
-save(ZellerRCM2cond, file = "./results/ZellerRCM2cond.RData")
-} else {load(file = "./results/ZellerRCM2cond.RData")}
 ```
 
 Conditioning can be applied for unconstrained as well as constrained RCM,
@@ -279,21 +270,14 @@ are more flexible but are harder to plot.
 
 ```{r constrLinAndNP}
 #Linear
-if(!file.exists(file = "./results/ZellerRCM2constr.RData")){
 ZellerRCM2constr = RCM(Zeller, k = 2, round = TRUE, 
                        covariates = c("Age", "Gender","BMI","Country",
                                       "Diagnosis"), responseFun = "linear")
-save(ZellerRCM2constr, file = "./results/ZellerRCM2constr.RData")
-} else {load(file = "./results/ZellerRCM2constr.RData")}
 #Nonparametric
-if(!file.exists(file = "./results/ZellerRCM2constrNonParam.RData")){
 ZellerRCM2constrNonParam = RCM(Zeller, round = TRUE, k = 2,
                                covariates = c("Age","Gender","BMI","Country",
                                               "Diagnosis"),
                                responseFun = "nonparametric")
-save(ZellerRCM2constrNonParam, 
-     file = "./results/ZellerRCM2constrNonParam.RData")
-} else {load(file = "./results/ZellerRCM2constrNonParam.RData")}
 ```
 
 ### Plotting the constrained RCM model
