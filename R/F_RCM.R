@@ -28,7 +28,7 @@
 #' @param confounders In case 'dat' is a phyloseq object,
 #' the names of the sample variables to be used as confounders
 #'  to be filtered
-#'  out. In case 'dat' is a matrix, a nxf matrix or dataframe
+#'  out. In case 'dat' is a matrix, a nxf dataframe
 #'  of confounders.
 #'   Character variables will be converted to factors, with a warning.
 #'   Defaults to NULL, in which case no filtering occurs.
