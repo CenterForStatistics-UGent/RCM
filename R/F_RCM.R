@@ -141,6 +141,11 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
     prevCutOff = 0.05, minFraction = 0.1, rowWeights = "uniform",
     colWeights = "marginal", confModelMat = NULL, confTrimMat = NULL,
     covModelMat = NULL, centMat = NULL, ...) {
+
+    if (anyNA(dat)) {
+    stop("NA values present in count matrix,
+        please filter these out first!\n")
+    }
     p = ncol(dat)
     n = nrow(dat)
 
@@ -186,10 +191,6 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
     attribs = attr(covModelMat, "assign")
     covModelMat = covModelMat[rowIDkeep, ]
 
-    if (anyNA(dat)) {
-        stop("NA values present in count matrix,
-        please filter these out first!\n")
-    }
     tic = proc.time()  #Time the calculation
     tmp = RCM_NB(dat, rowWeights = rowWeights, colWeights = colWeights,
         k = k, confModelMat = confModelMat, confTrimMat = confTrimMat,
