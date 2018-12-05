@@ -21,45 +21,13 @@ buildConfMat = function(x, ...) {
     UseMethod("buildConfMat", x)
 }
 
-#' buildConfMat.numeric
-#' @param confounders a numeric matrix of confounders
-#' @param n the number of rows of the count matrix
-#' @param ... further arguments passed on to other methods
-#'
-#' @return The confounder matrix, with intercepts
-buildConfMat.numeric = function(confounders, n, ...) {
-    if (n != NROW(confounders)) {
-        # Check dimensions
-        stop("Data and confounder matrix do not
-        have the same number of samples!\n")
-    }
-    if (is.vector(confounders)) {
-        confounders = as.matrix(confounders)
-        # Convert to matrix if only 1 variable
-    }
-    if (is.null(colnames(confounders))) {
-        # assign names if needed
-        colnames(confounders) = paste("var", seq_len(NCOL(confounders)))
-    }
-    confModelMatTrim = model.matrix(object = as.formula(paste("~",
-        paste(colnames(confounders), collapse = "+"), "-1")),
-        contrasts.arg = apply(colnames(confounders), 2, contrasts,
-            contrasts = FALSE))  #No intercept for preliminary trimming
-    confModelMat = model.matrix(object = as.formula(paste("~",
-        paste(colnames(confounders), collapse = "+"))),
-        contrasts.arg = apply(colnames(confounders),
-        2, contrasts, contrasts = TRUE))  #With intercept for filtering
-    list(confModelMatTrim = confModelMatTrim, confModelMat = confModelMat)
-}
-
 #' buildConfMat.data.frame
 #'
 #' @param confounders a data frame of confounders
 #' @param n the number of rows of the count matrix
-#' @param ... further arguments passed on to other methods
 #'
-#' @return see buidConfMat.numeric
-buildConfMat.data.frame = function(confounders, n, ...) {
+#' @return see buidConfMat
+buildConfMat.data.frame = function(confounders, n) {
     if (n != NROW(confounders)) {
         # Check dimensions
         stop("Data and confounder matrix do not have the same number
@@ -85,19 +53,18 @@ buildConfMat.data.frame = function(confounders, n, ...) {
 #' buildConfMat.character
 #' @param confounders a numeric matrix of confounders
 #' @param physeq a physeq object with a sample_data slot
-#' @param ... further arguments passed on to other methods
 #'
 #' @return see buidConfMat.numeric
-buildConfMat.character = function(confounders, physeq, ...) {
+buildConfMat.character = function(confounders, physeq) {
     if (!is(physeq, "phyloseq")) {
         stop("Providing confounders through variable names is only allowed
         if phyloseq object is provided! \n")
     }
     confounders = data.frame(get_variable(physeq, confounders))
     # The dataframe with the confounders
-    buildConfMat.data.frame(confounders, n = nsamples(physeq))
+    buildConfMat(confounders, n = nsamples(physeq))
 }
 buildConfMat.default = function(...) {
-    stop("Please provide the confounders either as numeric matrix,
+    stop("Please provide the confounders either as
     dataframe, or character string! \n")
 }

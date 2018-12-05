@@ -4,14 +4,12 @@
 \alias{buildConfMat.character}
 \title{buildConfMat.character}
 \usage{
-\method{buildConfMat}{character}(confounders, physeq, ...)
+\method{buildConfMat}{character}(confounders, physeq)
 }
 \arguments{
 \item{confounders}{a numeric matrix of confounders}
 
 \item{physeq}{a physeq object with a sample_data slot}
-
-\item{...}{further arguments passed on to other methods}
 }
 \value{
 see buidConfMat.numeric
