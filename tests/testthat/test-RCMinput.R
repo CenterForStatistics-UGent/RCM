@@ -12,5 +12,9 @@ test_that("RCM throws errors for wrong input type", {
 })
 
 test_that("RCM throws errors when only one covariate with one level supplied", {
-  expect_error(RCM(Zeller, covariates = "Age"), k = 1)
+  expect_error(RCM(Zeller, covariates = "Age", k = 1))
+})
+
+test_that("RCM throws errors when NAs present in data matrix", {
+  expect_error(RCM(matrix(c(1,2,3,NA),2,2), covariates = "Age", k = 1))
 })
