@@ -14,7 +14,8 @@ NBrowInfl(rcm, Dim = 1)
 \value{
 A list with components
 \item{score}{a matrix with components of the score function}
-\item{InvJac}{A square matrix of dimension n with the components of the Jacobian related to the row scores}
+\item{InvJac}{A square matrix of dimension n with the components
+ of the Jacobian related to the row scores}
 }
 \description{
 The influence function for the row scores

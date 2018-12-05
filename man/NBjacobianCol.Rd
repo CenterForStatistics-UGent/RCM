@@ -2,19 +2,22 @@
 % Please edit documentation in R/F_NBjacobianCol.R
 \name{NBjacobianCol}
 \alias{NBjacobianCol}
-\title{A jacobian function for the estimation of the column scores in an unconstrained RC(M) model}
+\title{Jacobian for the estimation of the column scores}
 \usage{
 NBjacobianCol(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda,
   cMatK, preFabMat, Jac)
 }
 \arguments{
-\item{beta}{vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers}
+\item{beta}{vector of length p+1+1+(k-1): p row scores, 1 centering,
+one normalization
+and (k-1) orhtogonality lagrangian multipliers}
 
 \item{X}{the nxp data matrix}
 
 \item{reg}{a nx1 regressor matrix: outer product of rowScores and psis}
 
-\item{thetas}{nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)}
+\item{thetas}{nxp matrix with the dispersion parameters
+(converted to matrix for numeric reasons)}
 
 \item{muMarg}{the nxp offset}
 
@@ -38,5 +41,5 @@ NBjacobianCol(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda,
 A matrix of dimension p+1+1+(k-1) with evaluations of the Jacobian
 }
 \description{
-A jacobian function for the estimation of the column scores in an unconstrained RC(M) model
+Jacobian for the estimation of the column scores
 }

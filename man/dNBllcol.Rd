@@ -2,19 +2,22 @@
 % Please edit documentation in R/F_dNBllcol.R
 \name{dNBllcol}
 \alias{dNBllcol}
-\title{A score function for the estimation of the column scores in an unconstrained RC(M) model}
+\title{A score function for the estimation of the column scores
+in an unconstrained RC(M) model}
 \usage{
 dNBllcol(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK,
   ...)
 }
 \arguments{
-\item{beta}{vector of length p+1+1+(k-1): p row scores, 1 centering, one normalization  and (k-1) orhtogonality lagrangian multipliers}
+\item{beta}{vector of length p+1+1+(k-1): p row scores,
+1 centering, one normalization and (k-1) orhtogonality lagrangian multipliers}
 
 \item{X}{the nxp data matrix}
 
 \item{reg}{a nx1 regressor matrix: outer product of rowScores and psis}
 
-\item{thetas}{nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)}
+\item{thetas}{nxp matrix with the dispersion parameters
+(converted to matrix for numeric reasons)}
 
 \item{muMarg}{the nxp offset}
 
@@ -33,8 +36,10 @@ dNBllcol(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK,
 \item{...}{further arguments passed on to the jacobian}
 }
 \value{
-A vector of length p+1+1+(k-1) with evaluations of the derivative of lagrangian
+A vector of length p+1+1+(k-1) with evaluations of the
+ derivative of lagrangian
 }
 \description{
-A score function for the estimation of the column scores in an unconstrained RC(M) model
+A score function for the estimation of the column scores
+in an unconstrained RC(M) model
 }

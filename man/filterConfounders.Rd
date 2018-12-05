@@ -2,7 +2,10 @@
 % Please edit documentation in R/F_filterConfounders.R
 \name{filterConfounders}
 \alias{filterConfounders}
-\title{Filters out the effect of known confounders. This is done by fitting interactions of every taxon with the levels of the confounders. It returns a modified offset matrix for the remainder of the fitting procedure.}
+\title{Filters out the effect of known confounders. This is done by fitting
+interactions of every taxon with the levels of the confounders.
+It returns a modified offset matrix for the remainder
+of the fitting procedure.}
 \usage{
 filterConfounders(muMarg, confMat, X, thetas, p, n, nleqslv.control,
   trended.dispersion, tol = 0.001, maxIt = 20)
@@ -22,13 +25,17 @@ filterConfounders(muMarg, confMat, X, thetas, p, n, nleqslv.control,
 
 \item{nleqslv.control}{see nleqslv()}
 
-\item{trended.dispersion}{a vector of length p with trended dispersion estimates}
+\item{trended.dispersion}{a vector of length p
+with trended dispersion estimates}
 
 \item{tol}{a scalar, the convergence tolerance}
 
 \item{maxIt}{maximum number of iterations
 
-Fits the negative binomial mean parameters and overdispersion parameters iteratively. Convergence is determined based on the L2-norm of the absolute change of mean parameters}
+Fits the negative binomial mean parameters and overdispersion parameters
+ iteratively.
+ Convergence is determined based on the L2-norm
+  of the absolute change of mean parameters}
 }
 \value{
 a list with components:
@@ -36,5 +43,8 @@ a list with components:
 \item{NB_params}{The estimated parameters of the interaction terms}
 }
 \description{
-Filters out the effect of known confounders. This is done by fitting interactions of every taxon with the levels of the confounders. It returns a modified offset matrix for the remainder of the fitting procedure.
+Filters out the effect of known confounders. This is done by fitting
+interactions of every taxon with the levels of the confounders.
+It returns a modified offset matrix for the remainder
+of the fitting procedure.
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_residualPlot.R
 \name{residualPlot}
 \alias{residualPlot}
-\title{Make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic}
+\title{Make residual plots}
 \usage{
 residualPlot(RCM, Dim = 1, whichTaxa = "response",
   resid = "Deviance", numTaxa = 9, mfrow = NULL, samColour = NULL,
@@ -14,15 +14,19 @@ residualPlot(RCM, Dim = 1, whichTaxa = "response",
 
 \item{Dim}{an integer, which dimension?}
 
-\item{whichTaxa}{a character string or a character vector, for which taxa to plot the diagnostic plots}
+\item{whichTaxa}{a character string or a character vector,
+for which taxa to plot the diagnostic plots}
 
-\item{resid}{the type of residuals to use, either "Deviance" or "Pearson"}
+\item{resid}{the type of residuals to use, either 'Deviance' or 'Pearson'}
 
 \item{numTaxa}{an integer, the number of taxa to plot}
 
-\item{mfrow}{passed on to par(). If not supplied will be calculated based on numTaxa}
+\item{mfrow}{passed on to par().
+If not supplied will be calculated based on numTaxa}
 
-\item{samColour, samShape}{Vectors or character strings denoting the sample colour and shape respectively. If character string is provided, the variables with this name is extracted from the phyloseq object in RCM}
+\item{samColour, samShape}{Vectors or character strings denoting
+the sample colour and shape respectively. If character string is provided,
+the variables with this name is extracted from the phyloseq object in RCM}
 
 \item{legendLabSize}{size of the legend labels}
 
@@ -38,10 +42,16 @@ residualPlot(RCM, Dim = 1, whichTaxa = "response",
 Plots a ggplot2-object to output
 }
 \description{
-Make residual plots of the taxa with the strongest response to the environmental gradient, or with the highest run statistic
+Make residual plots
 }
 \details{
-If whichTaxa is "run" or "response" the taxa with the highest run statistics or steepest slopes of the response function are plotted, numTax indicates the number. If whichTaxa is a character vector, these are interpreted as taxon names to plot. This function is mainly meant for linear response functions, but can be used for others too. The runs test statistic from the tseries package is used.
+If whichTaxa is 'run' or 'response' the taxa with the highest
+run statistics or steepest slopes of the response function are plotted,
+ numTax indicates the number. If whichTaxa is a character vector,
+ these are interpreted as taxon names to plot.
+ This function is mainly meant for linear response functions,
+ but can be used for others too.
+ The runs test statistic from the tseries package is used.
 }
 \examples{
 data(Zeller)
@@ -49,8 +59,9 @@ require(phyloseq)
 tmpPhy = prune_taxa(taxa_names(Zeller)[1:120],
 prune_samples(sample_names(Zeller)[1:75], Zeller))
 #Subset for a quick fit
-zellerRCMlin = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
-responseFun = "linear", round = TRUE, prevCutOff = 0.03)
+zellerRCMlin = RCM(tmpPhy, k = 2,
+covariates = c('BMI','Age','Country','Diagnosis','Gender'),
+responseFun = 'linear', round = TRUE, prevCutOff = 0.03)
 residualPlot(zellerRCMlin)
 }
 \seealso{

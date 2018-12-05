@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_dNBabunds.R
 \name{dNBabunds}
 \alias{dNBabunds}
-\title{A score function for the column components of the independence model (mean relative abundances)}
+\title{A score function for the column components of the independence model
+(mean relative abundances)}
 \usage{
 dNBabunds(beta, X, reg, thetas)
 }
@@ -19,5 +20,6 @@ dNBabunds(beta, X, reg, thetas)
 a vector of length p with evaluations of the score function
 }
 \description{
-A score function for the column components of the independence model (mean relative abundances)
+A score function for the column components of the independence model
+(mean relative abundances)
 }

@@ -5,43 +5,79 @@
 \alias{RCM}
 \alias{RCM,phyloseq-method}
 \alias{RCM,matrix-method}
-\title{A simple wrapper function for the RC(M) object for phyloseq objects and matrices.}
+\title{Wrapper function for the RCM() function}
 \usage{
 RCM(dat, ...)
 
-\S4method{RCM}{phyloseq}(dat, ...)
+\S4method{RCM}{phyloseq}(dat, covariates = NULL, confounders = NULL,
+  ...)
 
 \S4method{RCM}{matrix}(dat, k = 2, round = FALSE, prevCutOff = 0.05,
   minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",
-  covariates = NULL, confounders = NULL, ...)
+  confModelMat = NULL, confTrimMat = NULL, covModelMat = NULL,
+  centMat = NULL, ...)
 }
 \arguments{
 \item{dat}{an nxp count matrix or a phyloseq object with an otu_table slot}
 
 \item{...}{Further arguments passed on to the RCM.NB() function}
 
+\item{covariates}{In case 'dat' is a phyloseq object,
+the names of the sample
+  variables to be used as covariates in the constrained analysis,
+   or 'all' to
+  indicate all variables to be used.
+  In case 'dat' is a matrix, a nxf matrix
+  or dataframe of covariates.
+   Character variables will be converted to
+  factors, with a warning. Defaults to NULL,
+  in which case an unconstrained
+  analysis is carried out.}
+
+\item{confounders}{In case 'dat' is a phyloseq object,
+the names of the sample variables to be used as confounders
+ to be filtered
+ out. In case 'dat' is a matrix, a nxf matrix or dataframe
+ of confounders.
+  Character variables will be converted to factors, with a warning.
+  Defaults to NULL, in which case no filtering occurs.}
+
 \item{k}{an integer, the number of dimensions of the RCM solution}
 
-\item{round}{a boolean, whether to round to nearest integer. Defaults to FALSE.}
+\item{round}{a boolean, whether to round to nearest integer. Defaults to
+FALSE.}
 
-\item{prevCutOff}{a scalar, the prevalance cutoff for the trimming. Defaults to 2.5e-2}
+\item{prevCutOff}{a scalar, the prevalance cutoff for the trimming.
+Defaults to 2.5e-2}
 
-\item{minFraction}{a scalar, each taxon's total abundance should equal at leat the number of samples n times minFraction, otherwise it is trimmed. Defaults to 10\%}
+\item{minFraction}{a scalar, each taxon's total abundance
+should equal
+ at least the number of samples n times minFraction,
+  otherwise it is trimmed.
+  Defaults to 10\%}
 
-\item{rowWeights, colWeights}{character strings, the weighting procedures for the normalization of row and column scores. Defaults to "uniform" and "marginal" respectively}
+\item{rowWeights, colWeights}{character strings,
+the weighting procedures for the normalization of row and column scores.
+ Defaults to 'uniform' and 'marginal' respectively}
 
-\item{covariates}{In case "dat" is a phyloseq object, the names of the sample variables to be used as covariates in the constrained analysis, or "all" to indicate all variables to be used. In case "dat" is a matrix, a nxf matrix or dataframe of covariates. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case an unconstrained analysis is carried out.}
-
-\item{confounders}{In case "dat" is a phyloseq object, the names of the sample variables to be used as confounders to be filtered out. In case "dat" is a matrix, a nxf matrix or dataframe of confounders. Character variables will be converted to factors, with a warning. Defaults to NULL, in which case no filtering occurs.}
+\item{confTrimMat, confModelMat, covModelMat, centMat}{Dedicated model matrices
+constructed based on phyloseq object.}
 }
 \value{
 see \code{\link{RCM_NB}}
 }
 \description{
-This is a wrapper function, which currently only fits the negative binomial distribution, but which could easily be extended to other ones.
+This is a wrapper function,
+which currently only fits the negative binomial distribution,
+but which could easily be extended to other ones.
 }
 \details{
-This function should be called on a raw count matrix, without rarefying or normalization to proportions. This functions trims on prevalence and total abundance to avoid instability of the algorithm. Covariate and confounder matrices are constructed, so that everything is passed on to the workhorse function RCM.NB() as matrices.
+This function should be called on a raw count matrix,
+without rarefying or normalization to proportions.
+This functions trims on prevalence and total abundance to avoid instability
+of the algorithm. Covariate and confounder matrices are constructed,
+so that everything is passed on
+ to the workhorse function RCM.NB() as matrices.
 }
 \examples{
 data(Zeller)
@@ -52,5 +88,6 @@ zellerRCM = RCM(tmpPhy, round = TRUE)
 
 }
 \seealso{
-\code{\link{RCM_NB}},\code{\link{plot.RCM}},\code{\link{residualPlot}},\code{\link{plotRespFun}}
+\code{\link{RCM_NB}},\code{\link{plot.RCM}},
+\code{\link{residualPlot}},\code{\link{plotRespFun}}
 }

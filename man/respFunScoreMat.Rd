@@ -2,12 +2,13 @@
 % Please edit documentation in R/F_respFunScoreMat.R
 \name{respFunScoreMat}
 \alias{respFunScoreMat}
-\title{Returns the derivative of the Lagrangian of the parameters of the parametric response function (a polynomial of any degree). In practice this approach is very slow and we do not use it.}
+\title{Derivative of the Lagrangian of the parametric response function}
 \usage{
 respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v, ...)
 }
 \arguments{
-\item{betas}{a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers}
+\item{betas}{a vector of length (deg+1)*(p+1) with regression parameters with
+deg the degree of the response function and the lagrangian multipliers}
 
 \item{X}{the nxp data matrix}
 
@@ -25,11 +26,13 @@ respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v, ...)
 
 \item{...}{further arguments passed on to the jacobian
 
-The parameters are restricted to be normalized, i.e. all squared intercepts, first order and second order parameters sum to 1}
+The parameters are restricted to be normalized, i.e. all squared intercepts,
+ first order and second order parameters sum to 1}
 }
 \value{
-The evaluation of the score functions, a vector of length (p+1)*(deg+1)
+The evaluation of the score functions, a vector of length (p+1)*
+(deg+1)
 }
 \description{
-Returns the derivative of the Lagrangian of the parameters of the parametric response function (a polynomial of any degree). In practice this approach is very slow and we do not use it.
+Derivative of the Lagrangian of the parametric response function
 }

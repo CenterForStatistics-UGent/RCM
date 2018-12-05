@@ -2,14 +2,15 @@
 % Please edit documentation in R/F_getRowMat.R
 \name{getRowMat}
 \alias{getRowMat}
-\title{A function that returns a matrix of scores resulting from a response function and an environmental gradient.}
+\title{Return a matrix of row scores}
 \usage{
 getRowMat(sampleScore, responseFun, NB_params, taxonCoef, spline)
 }
 \arguments{
 \item{sampleScore}{a vector of length n with sample scores}
 
-\item{responseFun}{a character string, the type of response function, either "linear" or "quadratic"}
+\item{responseFun}{a character string, the type of response function,
+either 'linear' or 'quadratic'}
 
 \item{NB_params}{a v-by-p matrix of parameters of theresponse function}
 
@@ -17,11 +18,12 @@ getRowMat(sampleScore, responseFun, NB_params, taxonCoef, spline)
 
 \item{spline}{The cubic smoothing spline
 
-Multiplying the old offset with the exponent matrix times the importance parameter obtains the new one based on lower dimension}
+Multiplying the old offset with the exponent matrix times
+the importance parameter obtains the new one based on lower dimension}
 }
 \value{
 a n-by-p matrix of scores
 }
 \description{
-A function that returns a matrix of scores resulting from a response function and an environmental gradient.
+Return a matrix of row scores
 }

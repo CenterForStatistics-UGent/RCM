@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_trimOnConfounders.R
 \name{trimOnConfounders}
 \alias{trimOnConfounders}
-\title{Trim based on confounders to ensure there are no taxa with only zero counts in one of the subgroups defined by the confounders.}
+\title{Trim based on confounders to avoid taxa with only zero counts}
 \usage{
 trimOnConfounders(confounders, X, prevCutOff, minFraction, n)
 }
@@ -13,7 +13,9 @@ trimOnConfounders(confounders, X, prevCutOff, minFraction, n)
 
 \item{prevCutOff}{a scalar between 0 and 1, the prevalence cut off}
 
-\item{minFraction}{a scalar between 0 and 1, each taxon's total abundance should equal at least the number of samples n times minFraction, otherwise it is trimmed}
+\item{minFraction}{a scalar between 0 and 1,
+each taxon's total abundance should equal at least the number of samples n
+ times minFraction, otherwise it is trimmed}
 
 \item{n}{the number of samples
 
@@ -23,5 +25,5 @@ Should be called prior to fitting the independence model}
 A trimmed data matrix nxp'
 }
 \description{
-Trim based on confounders to ensure there are no taxa with only zero counts in one of the subgroups defined by the confounders.
+Trim based on confounders to avoid taxa with only zero counts
 }

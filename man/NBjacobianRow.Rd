@@ -14,7 +14,8 @@ NBjacobianRow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda,
 
 \item{reg}{a 1xp regressor matrix: outer product of column scores and psis}
 
-\item{thetas}{nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)}
+\item{thetas}{nxp matrix with the dispersion parameters
+(converted to matrix for numeric reasons)}
 
 \item{muMarg}{an nxp offset matrix}
 

@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_dNBllcol_constr_noLab.R
 \name{dNBllcol_constr_noLab}
 \alias{dNBllcol_constr_noLab}
-\title{Evaluate the score function of the response function ignoring taxon labels}
+\title{The score function of the general response function}
 \usage{
 dNBllcol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, ...)
 }
@@ -25,5 +25,5 @@ dNBllcol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, ...)
 The evaluation of the score functions (a vector length v)
 }
 \description{
-Evaluate the score function of the response function ignoring taxon labels
+The score function of the general response function
 }

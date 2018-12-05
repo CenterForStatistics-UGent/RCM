@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_estDisp.R
 \name{estDisp}
 \alias{estDisp}
-\title{A function to estimate the overdispersion of the negative binomial distribution. Hereby information between taxa is shared with empirical Bayes using the edgeR pacakage, where the time-limiting steps are programmed in C.}
+\title{Estimate the overdispersion}
 \usage{
 estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
   trended.dispersion = NULL, prior.df = 10, dispWeights = NULL,
@@ -19,11 +19,15 @@ estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
 
 \item{psis}{a scalar, the current psi estimate}
 
-\item{trended.dispersion}{a vector of length p with pre-calculated trended.dispersion estimates. They do not vary in function of the offset anyway}
+\item{trended.dispersion}{a vector of length p with pre-calculated
+trended.dispersion estimates. They do not vary in function
+of the offset anyway}
 
-\item{prior.df}{an integer, number of degrees of freedom of the prior for the Bayesian shrinkage}
+\item{prior.df}{an integer, number of degrees of freedom of the prior
+for the Bayesian shrinkage}
 
-\item{dispWeights}{Weights for estimating the dispersion in a zero-inflated model}
+\item{dispWeights}{Weights for estimating the dispersion
+in a zero-inflated model}
 
 \item{rowMat}{matrix of row scores in case of constrained ordination}
 }
@@ -31,5 +35,9 @@ estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
 A vector of length p with dispersion estimates
 }
 \description{
-A function to estimate the overdispersion of the negative binomial distribution. Hereby information between taxa is shared with empirical Bayes using the edgeR pacakage, where the time-limiting steps are programmed in C.
+Estimate the overdispersion
+}
+\details{
+Information between taxa is shared with empirical Bayes
+ using the edgeR pacakage, where the time-limiting steps are programmed in C.
 }

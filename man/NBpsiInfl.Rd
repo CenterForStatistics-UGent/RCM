@@ -12,7 +12,8 @@ NBpsiInfl(rcm, Dim = 1)
 \item{Dim}{the required dimensions}
 }
 \value{
-The influence of every single observation on the psi value of this dimension
+The influence of every single observation
+ on the psi value of this dimension
 }
 \description{
 The influence function for the psis

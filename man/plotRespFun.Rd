@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_plotRespFun.R
 \name{plotRespFun}
 \alias{plotRespFun}
-\title{Plot the non-parametric response functions of a prespecified set of taxa}
+\title{Plot the non-parametric response functions}
 \usage{
 plotRespFun(RCM, taxa = NULL, type = "link",
   logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL,
@@ -16,13 +16,15 @@ plotRespFun(RCM, taxa = NULL, type = "link",
 
 \item{taxa}{a character vector of taxa to be plotted}
 
-\item{type}{a character string, plot the response function on the log-scale ("link") or the abundance scale "response", similar to predict.glm().}
+\item{type}{a character string, plot the response function on the log-scale
+('link') or the abundance scale 'response', similar to predict.glm().}
 
 \item{logTransformYAxis}{a boolean, should y-axis be log transformed?}
 
 \item{addSamples}{a boolean, should sample points be shown?}
 
-\item{samSize}{a sample variable name or a vector of length equal to the number of samples, for the sample sizes}
+\item{samSize}{a sample variable name or a vector of length equal to the
+number of samples, for the sample sizes}
 
 \item{Dim}{An integer, the dimension to be plotted}
 
@@ -36,7 +38,8 @@ plotRespFun(RCM, taxa = NULL, type = "link",
 
 \item{Palette}{which color palette to use}
 
-\item{addJitter}{A boolean, should variable names be jittered to make them more readable}
+\item{addJitter}{A boolean, should variable names be jittered to make
+them more readable}
 
 \item{nTaxa}{an integer, number of taxa to plot}
 
@@ -58,7 +61,9 @@ plotRespFun(RCM, taxa = NULL, type = "link",
 Plots a ggplot2-object to output
 }
 \description{
-Plots a number of response functions over the observed range of the environmental score. If no taxa are provided those who react most strongly to the environmental score are chosen.
+Plots a number of response functions over the observed range of
+ the environmental score. If no taxa are provided those who react most
+ strongly to the environmental score are chosen.
 }
 \examples{
 data(Zeller)
@@ -66,10 +71,11 @@ require(phyloseq)
 tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
 prune_samples(sample_names(Zeller)[1:50], Zeller))
 #Subset for a quick fit
-zellerRCMnp = RCM(tmpPhy, k = 2, covariates = c("BMI","Age","Country","Diagnosis","Gender"),
-round = TRUE, responseFun = "nonparametric")
+zellerRCMnp = RCM(tmpPhy, k = 2,
+covariates = c('BMI','Age','Country','Diagnosis','Gender'),
+round = TRUE, responseFun = 'nonparametric')
 plotRespFun(zellerRCMnp)
 }
 \seealso{
-\code{\link{RCM}}, \code{\link{plot.RCM}}, \code{\link{residualPlot}}
+\code{\link{RCM}}, \code{\link{plot.RCM}},\code{\link{residualPlot}}
 }

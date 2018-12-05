@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_getDevianceRes.R
 \name{getDevianceRes}
 \alias{getDevianceRes}
-\title{A function to calculate the matrix of deviance residuals from a RCM object.}
+\title{A function to calculate the matrix of deviance residuals.}
 \usage{
 getDevianceRes(RCM, Dim = RCM$k)
 }
@@ -12,11 +12,13 @@ getDevianceRes(RCM, Dim = RCM$k)
 \item{Dim}{The dimensions to use
 
 For the deviance residuals we use the overdispersions from the reduced model.
-Standard dimensions used are only first and second, since these are also plotted}
+Standard dimensions used are only first and second,
+ since these are also plotted}
 }
 \value{
-A matrix with deviance residuals of the same size as the original data matrix
+A matrix with deviance residuals of the same size
+as the original data matrix
 }
 \description{
-A function to calculate the matrix of deviance residuals from a RCM object.
+A function to calculate the matrix of deviance residuals.
 }

@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_extractCoord.R
 \name{extractCoord}
 \alias{extractCoord}
-\title{A function to extract plotting coordinates, either for plot.RCM or to export to other plotting software}
+\title{A function to extract plotting coordinates, either for plot.RCM
+ or to export to other plotting software}
 \usage{
 extractCoord(RCM, Dim = c(1, 2))
 }
@@ -11,17 +12,24 @@ extractCoord(RCM, Dim = c(1, 2))
 
 \item{Dim}{an integer vector of required dimensions
 
-The parameters for the ellipses of the quadratic response function come from the parametrization f(x) = a*x^2 + b*x + c
-For an unconstrained object the row and column coordinates are returned in separate matrices. The row names will correspond to the labels. For a constrained analysis also the variable points are returned. All variables still need to be scaled to optimally fill hte available space}
+The parameters for the ellipses of the quadratic response function come
+ from the parametrization f(x) = a*x^2 + b*x + c
+For an unconstrained object the row and column coordinates are returned
+ in separate matrices. The row names will correspond to the labels.
+ For a constrained analysis also the variable points are returned.
+ All variables still need to be scaled to optimally fill the available space}
 }
 \value{
 A list with components
 \item{samples}{A dataframe of sample scores}
-\item{species}{A dataframe of column scores, with origin, slope, end and ellipse coordinates as needed}
-\item{variables}{A dataframe of variable scores, loadings of the environmental gradient}
+\item{species}{A dataframe of column scores, with origin, slope,
+end and ellipse coordinates as needed}
+\item{variables}{A dataframe of variable scores,
+loadings of the environmental gradient}
 }
 \description{
-A function to extract plotting coordinates, either for plot.RCM or to export to other plotting software
+A function to extract plotting coordinates, either for plot.RCM
+ or to export to other plotting software
 }
 \examples{
 data(Zeller)

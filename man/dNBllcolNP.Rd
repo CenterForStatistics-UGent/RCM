@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_dNBllcolNP.R
 \name{dNBllcolNP}
 \alias{dNBllcolNP}
-\title{A score function for the estimation of the parameters of a third degree GLM in a constrained RC(M) model, if the GAM fit fails}
+\title{Estimation of the parameters of a third degree GLM}
 \usage{
 dNBllcolNP(beta, X, reg, theta, muMarg, ...)
 }
@@ -20,8 +20,9 @@ dNBllcolNP(beta, X, reg, theta, muMarg, ...)
 \item{...}{further arguments passed on to the jacobian}
 }
 \value{
-A vector of the same length as beta with evaluations of the score function
+A vector of the same length as beta with evaluations
+ of the score function
 }
 \description{
-A score function for the estimation of the parameters of a third degree GLM in a constrained RC(M) model, if the GAM fit fails
+Estimation of the parameters of a third degree GLM
 }

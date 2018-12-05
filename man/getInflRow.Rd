@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_getInflRow.R
 \name{getInflRow}
 \alias{getInflRow}
-\title{A function to extract the influence of all observations on a given row score}
+\title{Extract the influence of all observations on a given row score}
 \usage{
 getInflRow(score, InvJac, sample)
 }
@@ -17,5 +17,5 @@ getInflRow(score, InvJac, sample)
 A matrix with all observations' influence on the row score
 }
 \description{
-A function to extract the influence of all observations on a given row score
+Extract the influence of all observations on a given row score
 }

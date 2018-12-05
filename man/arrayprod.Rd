@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_arrayProd.R
 \name{arrayprod}
 \alias{arrayprod}
-\title{An auxiliary R function to "array" multiply an array with a vector, kindly provided by Joris Meys}
+\title{An auxiliary R function to 'array' multiply an array with a vector,
+ kindly provided by Joris Meys}
 \usage{
 arrayprod(x, y)
 }
@@ -15,5 +16,6 @@ arrayprod(x, y)
 a axb matrix. The ij-th element equals sum(x[i,j,]*y)
 }
 \description{
-An auxiliary R function to "array" multiply an array with a vector, kindly provided by Joris Meys
+An auxiliary R function to 'array' multiply an array with a vector,
+ kindly provided by Joris Meys
 }

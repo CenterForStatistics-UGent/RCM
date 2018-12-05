@@ -10,7 +10,8 @@ addOrthProjection(RCMplot, sample = NULL, species = NULL,
 \arguments{
 \item{RCMplot}{the RCMplot object}
 
-\item{sample, species, variable}{names or approximate coordinates of sample, species or variable}
+\item{sample, species, variable}{names or approximate coordinates of sample,
+species or variable}
 
 \item{Dims}{The dimensions of the solutions that have been plotted}
 
@@ -19,7 +20,8 @@ addOrthProjection(RCMplot, sample = NULL, species = NULL,
 \item{labPos}{the position of the label. Will be calculated if not provided}
 }
 \value{
-a modified ggplot object that contains the geom_segment object that draws the projection
+a modified ggplot object that contains the geom_segment object
+that draws the projection
 }
 \description{
 This function adds orthogonal projections to a given plot

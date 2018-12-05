@@ -2,12 +2,13 @@
 % Please edit documentation in R/F_dNBllcol_constr.R
 \name{dNBllcol_constr}
 \alias{dNBllcol_constr}
-\title{A function to evaluate the score function for the parameters of the response function for 1 taxon at the time}
+\title{The score function of the response function for 1 taxon at the time}
 \usage{
 dNBllcol_constr(betas, X, reg, theta, muMarg, psi)
 }
 \arguments{
-\item{betas}{a vector of v parameters of the response function of a single taxon}
+\item{betas}{a vector of v parameters of the
+response function of a single taxon}
 
 \item{X}{the count vector of length n}
 
@@ -19,11 +20,12 @@ dNBllcol_constr(betas, X, reg, theta, muMarg, psi)
 
 \item{psi}{a scalar, the importance parameter
 
- Even though this approach does not imply normalization over the parameters of all taxa, it is very fast and they can be normalized afterwards}
+ Even though this approach does not imply normalization over the parameters
+ of all taxa, it is very fast and they can be normalized afterwards}
 }
 \value{
 A vector of length v with the evaluation of the score functions
 }
 \description{
-A function to evaluate the score function for the parameters of the response function for 1 taxon at the time
+The score function of the response function for 1 taxon at the time
 }

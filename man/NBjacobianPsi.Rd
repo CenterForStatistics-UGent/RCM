@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_NBjacobianPsi.R
 \name{NBjacobianPsi}
 \alias{NBjacobianPsi}
-\title{A jacobian function for the psi of a given dimension (importance parameters)}
+\title{Jacobian for the psi of a given dimension}
 \usage{
 NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat)
 }
@@ -11,7 +11,8 @@ NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat)
 
 \item{X}{the n-by-p count matrix}
 
-\item{reg}{the regressor matrix, the outer product of current row and column scores}
+\item{reg}{the regressor matrix,
+the outer product of current row and column scores}
 
 \item{muMarg}{the nxp offset matrix}
 
@@ -23,5 +24,5 @@ NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat)
 The evaluation of the jacobian function at beta, a 1-by-1 matrix
 }
 \description{
-A jacobian function for the psi of a given dimension (importance parameters)
+Jacobian for the psi of a given dimension
 }

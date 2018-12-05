@@ -14,7 +14,8 @@ dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK,
 
 \item{reg}{a 1xp regressor matrix: outer product of column scores and psis}
 
-\item{thetas}{nxp matrix with the dispersion parameters (converted to matrix for numeric reasons)}
+\item{thetas}{nxp matrix with the dispersion parameters
+(converted to matrix for numeric reasons)}
 
 \item{muMarg}{an nxp offset matrix}
 
@@ -33,7 +34,8 @@ dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK,
 \item{...}{Other arguments passed on to the jacobian}
 }
 \value{
-A vector of length n + k +1 with evaluations of the derivative of the lagrangian
+A vector of length n + k +1 with evaluations of the
+ derivative of the lagrangian
 }
 \description{
 A score function of the NB for the row scores

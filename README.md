@@ -19,7 +19,7 @@ library(RCM)
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 0.2.0
+    ## RCM package version 0.99.0
 
 Dataset
 -------
@@ -44,7 +44,7 @@ The unconstrained RC(M) method represents all variability present in the data, r
 ZellerRCM = RCM(Zeller)
 ```
 
-which took 1.3 minutes.
+which took 0.6 minutes.
 
 ### Plotting the unconstrained RCM
 
@@ -153,14 +153,6 @@ plot(ZellerRCMconstr, samColour = "Diagnosis")
 ![](README_figs/README-plotlin3Triplot-1.png)
 
 Note that the samples and the environmental variables cannot be related to each other, but the sample-taxon and variable-taxon relationships discussed before are still valid on the triplot.
-
-For the ordination with non-parametric response functions, the default is to make a sample-variables plot.
-
-``` r
-plot(ZellerRCMconstrNonParam, samColour = "Diagnosis")
-```
-
-![](README_figs/README-plotNP3Biplot-1.png)
 
 #### Triplot: Non-parametric response functions
 

@@ -9,9 +9,12 @@ buildDesign(sampleScore, responseFun)
 \arguments{
 \item{sampleScore}{a vector of environmental scores}
 
-\item{responseFun}{A character string, indicating the shape of the response function
+\item{responseFun}{A character string, indicating the shape
+of the response function
 
-For dynamic response function estimation, the same desing matrix as for the quadratic one is returned. Will throw an error when ana unknown repsonse function is provided}
+For dynamic response function estimation, the same desing matrix
+as for the quadratic one is returned.
+Will throw an error when an unknown repsonse function is provided}
 }
 \value{
 A design matrix of dimension n-by-f

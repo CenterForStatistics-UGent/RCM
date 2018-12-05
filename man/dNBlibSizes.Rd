@@ -2,7 +2,8 @@
 % Please edit documentation in R/F_dNBlibSizes.R
 \name{dNBlibSizes}
 \alias{dNBlibSizes}
-\title{A score function for the row components of the independence model (library sizes)}
+\title{A score function for the row components of the independence model
+(library sizes)}
 \usage{
 dNBlibSizes(beta, X, reg, thetas)
 }
@@ -19,5 +20,6 @@ dNBlibSizes(beta, X, reg, thetas)
 a vector of length n with evaluations of the score function
 }
 \description{
-A score function for the row components of the independence model (library sizes)
+A score function for the row components of the independence model
+(library sizes)
 }

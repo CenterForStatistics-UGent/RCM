@@ -2,38 +2,39 @@
 % Please edit documentation in R/F_RCM_NB.R
 \name{RCM_NB}
 \alias{RCM_NB}
-\title{A function to fit the RC(M) model with the negative binomial distribution.
-Includes fitting of the independence model, filtering out the
-effect of confounders and fitting the RC(M) components in a constrained
- or an unconstrained way for any dimension k.}
+\title{Fit the RC(M) model with the negative binomial distribution.}
 \usage{
 RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   tol = 0.001, maxItOut = 1000L, Psitol = 0.001, verbose = FALSE,
   global = "dbldog", nleqslv.control = list(maxit = 500L, cndtol = 1 -
   16), jacMethod = "Broyden", dispFreq = 10L, convNorm = 2,
-  prior.df = 10, marginEst = "MLE", confounders = NULL, prevCutOff,
-  minFraction = 0.1, covariates = NULL, centMat = NULL,
-  responseFun = c("linear", "quadratic", "dynamic", "nonparametric"),
-  record = FALSE, control.outer = list(trace = FALSE),
-  control.optim = list(), envGradEst = "LR", dfSpline = 3,
-  vgamMaxit = 100L, degree = switch(responseFun[1], nonparametric = 3,
-  NULL))
+  prior.df = 10, marginEst = "MLE", confModelMat = NULL,
+  confTrimMat = NULL, prevCutOff, minFraction = 0.1,
+  covModelMat = NULL, centMat = NULL, responseFun = c("linear",
+  "quadratic", "dynamic", "nonparametric"), record = FALSE,
+  control.outer = list(trace = FALSE), control.optim = list(),
+  envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
+  degree = switch(responseFun[1], nonparametric = 3, NULL))
 }
 \arguments{
 \item{X}{a nxp data matrix}
 
 \item{k}{an scalar, number of dimensions in the RC(M) model}
 
-\item{rowWeights}{a character string, either "uniform" or "marginal" row weights.}
+\item{rowWeights}{a character string, either 'uniform' or 'marginal'
+row weights.}
 
-\item{colWeights}{a character string, either "uniform" or "marginal" column weights.}
+\item{colWeights}{a character string, either 'uniform' or 'marginal'
+column weights.}
 
 \item{tol}{a scalar, the relative convergende tolerance for the row scores
 and column scores parameters.}
 
-\item{maxItOut}{an integer, the maximum number of iteration in the outer loop.}
+\item{maxItOut}{an integer, the maximum number
+of iterations in the outer loop.}
 
-\item{Psitol}{a scalar, the relative convergence tolerance for the psi parameters.}
+\item{Psitol}{a scalar, the relative convergence tolerance
+for the psi parameters.}
 
 \item{verbose}{a boolean, should information on iterations be printed?}
 
@@ -53,12 +54,13 @@ before reestimationg the dispersions.}
 
 \item{prior.df}{an integer, see estDisp()}
 
-\item{marginEst}{a character string, either "MLE" or "marginSums",
+\item{marginEst}{a character string, either 'MLE' or 'marginSums',
 indicating how the independence model should be estimated}
 
-\item{confounders}{a list with
--confounders an nxg matrix with confounders
--confoundersFilt an nxh matrix with confounders for filtering,
+\item{confModelMat}{an nxg matrix with confounders,
+with no reference levels and with intercept}
+
+\item{confTrimMat}{an nxh matrix with confounders for filtering,
 with all levels and without intercept}
 
 \item{prevCutOff}{a scalar the minimum prevalence needed to retain a taxon
@@ -67,7 +69,7 @@ before the the confounder filtering}
 \item{minFraction}{a scalar, total taxon abundance should equal minFraction*n
 if it wants to be retained before the confounder filtering}
 
-\item{covariates}{an nxd matrix with covariates.
+\item{covModelMat}{an nxd matrix with covariates.
 If set to null an unconstrained analysis is carried out,
 otherwise a constrained one.
 Factors must have been converted to dummy variables already}
@@ -76,24 +78,28 @@ Factors must have been converted to dummy variables already}
 the categorical variables. f equals the number of continuous variables +
 the total number of levels of the categorical variables.}
 
-\item{responseFun}{a characters string indicating the shape of the response function}
+\item{responseFun}{a characters string indicating the shape
+of the response function}
 
 \item{record}{A boolean, should intermediate parameter estimates be stored?}
 
-\item{control.outer}{a list of control options for the outer loop constrOptim.nl function}
+\item{control.outer}{a list of control options
+for the outer loop constrOptim.nl function}
 
 \item{control.optim}{a list of control options for the optim() function}
 
 \item{envGradEst}{a character string, indicating how the
-environmental gradient should be fitted. "LR" using the likelihood-ratio
- criterion, or "ML" a full maximum likelihood solution}
+environmental gradient should be fitted. 'LR' using the likelihood-ratio
+ criterion, or 'ML' a full maximum likelihood solution}
 
 \item{dfSpline}{a scalar, the number of degrees of freedom for the splines
 of the non-parametric response function, see VGAM::s()}
 
-\item{vgamMaxit}{an integer, the maximum number of iteration in the vgam() function}
+\item{vgamMaxit}{an integer,
+the maximum number of iteration in the vgam() function}
 
-\item{degree}{an integer, the degree of the polynomial fit if the spline fit fails
+\item{degree}{an integer,
+ the degree of the polynomial fit if the spline fit fails
 
 #'@seealso \code{\link{RCM}}
 
@@ -105,19 +111,24 @@ A list with elements
  converged for every dimension}
 \item{rMat}{(if not constrained a nxk matrix with estimated row scores}
 \item{cMat}{ a kxp matrix with estimated column scores}
-\item{psis}{ a vector of length k with estimates for the importance parameters psi}
-\item{thetas}{ a vector of length p with estimates for the overdispersion}
+\item{psis}{a vector of length k
+ with estimates for the importance parameters psi}
+\item{thetas}{a vector of length p with estimates for the overdispersion}
 \item{rowRec}{(if not constrained) a n x k x maxItOut array with a record
  of all rMat estimates through the iterations}
-\item{colRec}{a k x p x maxItOut array with a record of all cMat estimates through the iterations}
-\item{psiRec}{a k x maxItOut array with a record of all psi estimates through the iterations}
+\item{colRec}{a k x p x maxItOut array with a record of all cMat
+ estimates through the iterations}
+\item{psiRec}{a k x maxItOut array with a record of all psi estimates
+ through the iterations}
 \item{thetaRec}{ a matrix of dimension pxmaxItOut with estimates for
  the overdispersion along the way}
 \item{iter}{ number of iterations}
 \item{Xorig}{ (if confounders provided) the original fitting matrix}
-\item{X}{ the trimmed matrix if confounders provided, otherwise the original one}
-\item{fit}{ type of fit, either "RCM_NB" or "RCM_NB_constr"}
-\item{lambdaRow}{(if not constrained) vector of Lagrange multipliers for the rows}
+\item{X}{ the trimmed matrix if confounders provided,
+ otherwise the original one}
+\item{fit}{ type of fit, either 'RCM_NB' or 'RCM_NB_constr'}
+\item{lambdaRow}{(if not constrained)
+ vector of Lagrange multipliers for the rows}
 \item{lambdaCol}{ vector of Lagrange multipliers for the columns}
 \item{rowWeights}{(if not constrained) the row weights used}
 \item{colWeights}{ the column weights used}
@@ -131,11 +142,11 @@ A list with elements
 \item{confParams}{ the parameters used to filter out the confounders}
 \item{nonParamRespFun}{A list of the non parametric response functions}
 \item{degree}{The degree of the alternative parametric fit}
-\item{devFilt}{The deviance after filtering confounders}
-\item{llFilt}{The likelihood of the model after filtering on confounders}
 }
 \description{
-A function to fit the RC(M) model with the negative binomial distribution.
+Fit the RC(M) model with the negative binomial distribution.
+}
+\details{
 Includes fitting of the independence model, filtering out the
 effect of confounders and fitting the RC(M) components in a constrained
  or an unconstrained way for any dimension k.

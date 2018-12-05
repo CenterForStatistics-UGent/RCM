@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_NBalphaInfl.R
 \name{NBalphaInfl}
 \alias{NBalphaInfl}
-\title{A function that the components of the influence functions of the environmental gradient.}
+\title{Calculate the components of the influence functions}
 \usage{
 NBalphaInfl(rcm, Dim)
 }
@@ -12,8 +12,9 @@ NBalphaInfl(rcm, Dim)
 \item{Dim}{the required dimension}
 }
 \value{
-An n-by-p-by-d array with the influence of every observation on every alpha parameter
+An n-by-p-by-d array with the influence of every observation
+ on every alpha parameter
 }
 \description{
-A function that the components of the influence functions of the environmental gradient.
+Calculate the components of the influence functions
 }

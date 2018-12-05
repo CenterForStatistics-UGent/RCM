@@ -2,12 +2,13 @@
 % Please edit documentation in R/F_respFunJacMat.R
 \name{respFunJacMat}
 \alias{respFunJacMat}
-\title{Calculates the Jacobian of the score functions of the paramaters of parametric response functions  (a polynomial of any degree). Parameters are sorted per taxon, than with increasing degree.}
+\title{Calculates the Jacobian of the parametric response functions}
 \usage{
 respFunJacMat(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec)
 }
 \arguments{
-\item{betas}{a vector of length (deg+1)*(p+1) with regression parameters with deg the degree of the response function and the lagrangian multipliers}
+\item{betas}{a vector of length (deg+1)*(p+1) with regression parameters
+with deg the degree of the response function and the lagrangian multipliers}
 
 \item{X}{the nxp data matrix}
 
@@ -31,5 +32,5 @@ respFunJacMat(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec)
 The jacobian, a square matrix of dimension (deg+1)*(p+1)
 }
 \description{
-Calculates the Jacobian of the score functions of the paramaters of parametric response functions  (a polynomial of any degree). Parameters are sorted per taxon, than with increasing degree.
+Calculates the Jacobian of the parametric response functions
 }

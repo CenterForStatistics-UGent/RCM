@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_NBjacobianColNP.R
 \name{NBjacobianColNP}
 \alias{NBjacobianColNP}
-\title{A jacobian function for the estimation f the parameters of a third degree GLM in a constrained RC(M) model, if the GAM fit fails}
+\title{Jacobian function for the estimation of a third degree GLM}
 \usage{
 NBjacobianColNP(beta, X, reg, theta, muMarg)
 }
@@ -21,5 +21,5 @@ NBjacobianColNP(beta, X, reg, theta, muMarg)
 A matrix of dimension 8-by-8
 }
 \description{
-A jacobian function for the estimation f the parameters of a third degree GLM in a constrained RC(M) model, if the GAM fit fails
+Jacobian function for the estimation of a third degree GLM
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/F_liks.R
 \name{liks}
 \alias{liks}
-\title{Calculate the log-likelihoods of the indepence and saturated models and all fitted submodels}
+\title{Calculate the log-likelihoods of all possible models}
 \usage{
 liks(rcm, Sum = TRUE)
 }
@@ -12,10 +12,14 @@ liks(rcm, Sum = TRUE)
 \item{Sum}{a boolean, should log-likelihoods be summed?}
 }
 \value{
-If Sum is FALSE, a named array log-likelihoods of the independence model and all models with dimension 1 to k, including after filtering on confounders. Otherwise a table with log-likelihoods, deviance explained and cumulative deviance explained.
+If Sum is FALSE, a named array log-likelihoods
+of the independence model and all models with dimension 1 to k,
+including after filtering on confounders.
+Otherwise a table with log-likelihoods,
+deviance explained and cumulative deviance explained.
 }
 \description{
-Calculate the log-likelihoods of the indepence and saturated models and all fitted submodels
+Calculate the log-likelihoods of all possible models
 }
 \examples{
 data(Zeller)

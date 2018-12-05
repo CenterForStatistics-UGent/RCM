@@ -14,7 +14,8 @@ NBcolInfl(rcm, Dim = 1)
 \value{
 A list with components
 \item{score}{a matrix with components of the score function}
-\item{InvJac}{A square matrix of dimension p with the components of the Jacobian related to the column scores}
+\item{InvJac}{A square matrix of dimension p with the components of the
+ Jacobian related to the column scores}
 }
 \description{
 The influence function for the column scores

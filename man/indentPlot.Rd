@@ -9,9 +9,13 @@ indentPlot(plt, xInd = 0, yInd = 0)
 \arguments{
 \item{plt}{a ggplot object}
 
-\item{xInd}{a scalar or a vector of length 2, specifying the indentation left and right of the plot to allow for the labels to be printed entirely}
+\item{xInd}{a scalar or a vector of length 2,
+specifying the indentation left and right of the plot to allow for the labels
+ to be printed entirely}
 
-\item{yInd}{a a scalar or a vector of length 2, specifying the indentation top and bottom of the plot to allow for the labels to be printed entirely}
+\item{yInd}{a a scalar or a vector of length 2,
+specifying the indentation top and bottom of the plot
+ to allow for the labels to be printed entirely}
 }
 \value{
 a ggplot object, squared
