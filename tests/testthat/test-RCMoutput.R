@@ -10,3 +10,7 @@ test_that("RCM returns element of class RCM", {
 test_that("RCM returns phyloseq object", {
   expect_is(RCM(tmpPhy, k = 1)$physeq, "phyloseq")
 })
+
+test_that("RCM throws warning when not converged", {
+  expect_warning(RCM(tmpPhy, k = 1, maxItOut = 2L))
+})
