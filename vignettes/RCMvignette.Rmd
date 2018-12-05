@@ -566,3 +566,11 @@ On the other hand, as we argue in the manuscript, the inertia is not a good
 ```{r plotUnconstrainedRCMinertia, fig.height = 8, fig.width = 9}
 plot(ZellerRCM2cond, plotPsi = "inertia")
 ```
+
+# Session info
+
+This vignette was generated with following version of R:
+
+```{r sessionInfo}
+sessionInfo()
+```
