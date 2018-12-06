@@ -4,17 +4,15 @@
 \alias{buildConfMat.data.frame}
 \title{buildConfMat.data.frame}
 \usage{
-\method{buildConfMat}{data.frame}(confounders, n, ...)
+\method{buildConfMat}{data.frame}(confounders, n)
 }
 \arguments{
 \item{confounders}{a data frame of confounders}
 
 \item{n}{the number of rows of the count matrix}
-
-\item{...}{further arguments passed on to other methods}
 }
 \value{
-see buidConfMat.numeric
+see buidConfMat
 }
 \description{
 buildConfMat.data.frame

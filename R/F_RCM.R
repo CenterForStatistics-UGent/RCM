@@ -28,7 +28,7 @@
 #' @param confounders In case 'dat' is a phyloseq object,
 #' the names of the sample variables to be used as confounders
 #'  to be filtered
-#'  out. In case 'dat' is a matrix, a nxf matrix or dataframe
+#'  out. In case 'dat' is a matrix, a nxf dataframe
 #'  of confounders.
 #'   Character variables will be converted to factors, with a warning.
 #'   Defaults to NULL, in which case no filtering occurs.
@@ -141,6 +141,11 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
     prevCutOff = 0.05, minFraction = 0.1, rowWeights = "uniform",
     colWeights = "marginal", confModelMat = NULL, confTrimMat = NULL,
     covModelMat = NULL, centMat = NULL, ...) {
+
+    if (anyNA(dat)) {
+    stop("NA values present in count matrix,
+        please filter these out first!\n")
+    }
     p = ncol(dat)
     n = nrow(dat)
 
@@ -186,10 +191,6 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
     attribs = attr(covModelMat, "assign")
     covModelMat = covModelMat[rowIDkeep, ]
 
-    if (anyNA(dat)) {
-        stop("NA values present in count matrix,
-        please filter these out first!\n")
-    }
     tic = proc.time()  #Time the calculation
     tmp = RCM_NB(dat, rowWeights = rowWeights, colWeights = colWeights,
         k = k, confModelMat = confModelMat, confTrimMat = confTrimMat,

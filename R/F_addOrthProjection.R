@@ -21,9 +21,9 @@
 #' zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
 #' zellerPlot = plot(zellerRCM, returnCoords = TRUE)
 #' addOrthProjection(zellerPlot, species = c(-0.35,1.1), sample = c(1,1.2))
-addOrthProjection = function(RCMplot, sample = NULL,
-    species = NULL, variable = NULL, Dims = c(1,
-        2), addLabel = FALSE, labPos = NULL) {
+addOrthProjection = function(RCMplot, sample = NULL, species = NULL,
+                    variable = NULL, Dims = c(1,2), addLabel = FALSE,
+                    labPos = NULL) {
     nulls = is.null(sample) + is.null(species) +
         is.null(variable)
     if (nulls != 1)

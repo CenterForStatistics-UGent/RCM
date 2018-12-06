@@ -31,12 +31,14 @@ library(RCM)
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-```{r load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
+```{r load-packages, warning=FALSE, message=FALSE, echo=FALSE}
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,
                       warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, 
                       tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, 
                       fig.show = "hold", cache.lazy = FALSE)
 palStore = palette()
+#Load all fits, to avoid refitting every time rebuilding the vignette
+load(system.file("fits", "zellerFits.RData", package = "RCM"))
 ```
 
 ## Dataset
@@ -60,7 +62,7 @@ in an exploratory analysis. The _RCM_ function is the front end function
 for this purpose, behind it is the *RCM_NB* function that does the hard work
 but requires numeric matrix imputs. We first fit a model with two dimensions,
 
-```{r fitUnconstrainedRCM}
+```{r fitUnconstrainedRCM, eval = FALSE}
 ZellerRCM2 = RCM(Zeller, k=2, round = TRUE)
 ```
 
@@ -75,7 +77,7 @@ manually as vectors.
 By default, only 2 dimensions are fitted, 
 but more can be requested throught the _k_ argument.
 
-```{r ThreeDimensions}
+```{r ThreeDimensions, eval = FALSE}
 ZellerRCM3 = RCM(Zeller, k = 3, round = TRUE)
 ```
 
@@ -87,7 +89,7 @@ The total runtime for all dimensions combined was
 In order to condition on certain variables, supply their names to the
 _confounders_ argument. Here we condition on the _country_ variable
 
-```{r condition}
+```{r condition, eval = FALSE}
 ZellerRCM2cond = RCM(Zeller, k = 2, round = TRUE, confounders = c("Country"))
 ```
 
@@ -268,7 +270,7 @@ Linear response functions may be too simplistic, they have the advantage
 of being easy to interpret (and plot). Non-parametric ones (based on splines)
 are more flexible but are harder to plot.
 
-```{r constrLinAndNP}
+```{r constrLinAndNP, eval = FALSE}
 #Linear
 ZellerRCM2constr = RCM(Zeller, k = 2, round = TRUE, 
                        covariates = c("Age", "Gender","BMI","Country",
@@ -563,4 +565,12 @@ On the other hand, as we argue in the manuscript, the inertia is not a good
 
 ```{r plotUnconstrainedRCMinertia, fig.height = 8, fig.width = 9}
 plot(ZellerRCM2cond, plotPsi = "inertia")
+```
+
+# Session info
+
+This vignette was generated with following version of R:
+
+```{r sessionInfo}
+sessionInfo()
 ```
