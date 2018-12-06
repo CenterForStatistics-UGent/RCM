@@ -9,3 +9,5 @@ NEWS.Rmd
 /vignettes/RCMvignette_cache/*
 *.Rproj
 *.access^
+README_cache/
+vignettes/RCMvignette.R

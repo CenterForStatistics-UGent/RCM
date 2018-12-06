@@ -1,0 +1,185 @@
+---
+output: github_document
+---
+
+# Manual for the use of the RCM functions
+
+## Install and load packages
+
+This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The basic usage is demonstrated here, for more advanced examples see the [RCM manual](http://users.ugent.be/~shawinke/RCMmanual) and the help pages of _RCM()_, *RCM_NB()*, and _plot.RCM()_ functions.
+
+The package can be installed and loaded using the following commands:
+
+```{r installRCMpackage, eval = FALSE}
+library(devtools)
+install_github("CenterForStatistics-UGent/RCM")
+```
+
+```{r loadRCMpackage}
+library(RCM)
+cat("RCM package version", as.character(packageVersion("RCM")), "\n")
+```
+
+
+```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
+knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE, fig.path = "README_figs/README-")
+knitr::opts_knit$set(root.dir = "/home/stijn/PhD/RCM")
+palStore = palette()
+```
+
+## Dataset
+
+As example data we use a study on the microbiome of colorectal cancer patients "Potential of fecal microbiota for early-stage detection of colorectal cancer" (2014) by Zeller _et al._.
+
+```{r loadZellerData}
+library(phyloseq)
+data(Zeller)
+```
+
+The _Zeller_ object is a phyloseq object, which contains all the information of a microbiome experiment. The _RCM_ package is tailor-made for phyloseq objects. We therefore strongly recommend building a phyloseq object out of your data, and feeding that object into the _RCM()_ function. More information on building the phyloseq object can be found [here](http://joey711.github.io/phyloseq/import-data.html).
+
+## Unconstrained RCM
+
+### Fitting the unconstrained RCM model
+
+The unconstrained RC(M) method represents all variability present in the data, regardless of covariate information. It should be used as a first step in an exploratory analysis. The _RCM_ function is the front end function for this purpose, behind it is the *RCM_NB* function that does the hard work but requires numeric matrix imputs. We apply it to the Zeller data.
+
+```{r fitUnconstrainedRCM, eval = FALSE}
+ZellerRCM = RCM(Zeller)
+```
+
+```{r fitHidden, echo = FALSE}
+if(!file.exists(file = "./results/ZellerRCM.RData")){
+ZellerRCM = RCM(Zeller)
+save(ZellerRCM, file = "./results/ZellerRCM.RData")
+} else {load(file = "./results/ZellerRCM.RData")}
+```
+
+which took `r round(ZellerRCM$runtime,1)` minutes.
+
+### Plotting the unconstrained RCM
+
+A simple plot-command will yield a plot of the RCM ordination
+
+```{r plotUnconstrainedRCMall}
+plot(ZellerRCM)
+```
+
+Samples are represented by dots, taxa by arrows. Both represent vectors with the origin as starting point.
+
+Valid interpretatations are the following:
+
+ - Samples (endpoints of sample vectors, the red dots) close together have a similar taxon composition
+ - Taxa are more abundant than average in samples to which their arrows point, and less abundant when their arrows point away from the samples. For example Fusobacterium mortiferum is more abundant than average in samples on the left side of the plot, and more abundant in samples on the right side.
+ - The importance parameters $\psi$ shown for every axis reflect the relative importance of the dimensions
+ 
+Distances between endpoints of taxon vectors are meaningless.
+
+The plot can be made more interpretable by adding some colour, e.g. by colouring the samples by cancer diagnosis. For this one can simply provide the name of the sample variable as present in the phyloseq object. For more plotting options see _?plot.RCM_.
+
+```{r plotUnconstrainedRCMallColour}
+plot(ZellerRCM, samColour = "Diagnosis")
+```
+
+Any richness measure defined in the _phyloseq_ package (see _?estimateRichness_) can also be supplied as sample colour.
+
+```{r plotRichness}
+plot(ZellerRCM, samColour = "Shannon")
+```
+
+#### Conditioning
+
+In order to condition on certain variables, supply their names to the _confounders_ argument. Here we condition on the _country_ variable
+
+```{r condition, eval = FALSE}
+ZellerRCMcond = RCM(Zeller, confounders = "Country")
+```
+
+```{r conditionHidden, echo = FALSE}
+if(!file.exists(file = "./results/ZellerRCMcond.RData")){
+ZellerRCMcond = RCM(Zeller, confounders = "Country")
+save(ZellerRCMcond, file = "./results/ZellerRCMcond.RData")
+} else {load(file = "./results/ZellerRCMcond.RData")}
+```
+
+Conditioning can be applied for unconstrained as well as constrained RCM, the ensuing plots have exactly the same interpretationas before, except that all variability attributable to the confounding variables has been removed.
+
+```{r plotCond}
+plot(ZellerRCMcond)
+```
+
+## Constrained RCM
+
+In this second step we look for the variability in the dataset explained sample-specific variables. This should be done preferably only with variables that are believed to have an impact on the species' abundances. Here we used the variables age, gender, BMI, country and diagnosis in the gradient.
+In this analysis all covariates values of a sample are projected onto a single scalar, the _environmental score_ of this sample. The projection vector is called the _environmental gradient_, the magnitude of its components reveals the importance of each variable. The taxon-wise response functions then describe how the logged mean abundance depends on the environmental score.
+
+### Fitting the constrained RCM model
+
+In order to request a constrained RCM fit it suffises to supply the names of the constraining variables to the _covariates_ argument. The shape of the response function can be either "linear", "quadratic" or "nonparametric" and must be provided to the _responseFun_ argument. Here we illustrate the use of linear and nonparametric response functions. Linear response functions may be too simplistic, they have the advantage of being easy to interpret (and plot). Non-parametric ones (based on splines) are more flexible but are harder to plot.
+
+```{r constrLinHidden, echo = FALSE}
+#Linear (the default)
+if(!file.exists(file = "./results/ZellerRCMconstr.RData")){
+ZellerRCMconstr = RCM(Zeller, k = 2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear")
+save(ZellerRCMconstr, file = "./results/ZellerRCMconstr.RData")
+} else {load(file = "./results/ZellerRCMconstr.RData")}
+```
+
+```{r constrNPhidden, echo =FALSE}
+#Nonparametric
+if(!file.exists(file = "./results/ZellerRCMconstrNonParam.RData")){
+ZellerRCMconstrNonParam = RCM(Zeller, round = TRUE, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
+save(ZellerRCMconstrNonParam, file = "./results/ZellerRCMconstrNonParam.RData")
+} else {load(file = "./results/ZellerRCMconstrNonParam.RData")}
+```
+
+```{r constrLinAndNP, eval = FALSE}
+#Linear
+ZellerRCMconstr = RCM(Zeller, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear")
+#Nonparametric
+ZellerRCMconstrNonParam = RCM(Zeller, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
+```
+
+#### Biplots
+
+In the constrained case two different biplots are meaningful: sample-taxon biplots and variable-taxon biplots.
+
+##### Sample-taxon biplot
+
+```{r plotlin2cor}
+plot(ZellerRCMconstr, plotType = c("species", "samples"))
+```
+
+The interpretation is similar as before: the orthogonal projection of a taxon's arrow on a sample represents the departure from independence for that taxon in that sample, _explained by environmental variables_. New is also that the taxa arrows do not start from the origin, but all have their own starting point. This starting point represents the environmental scores for which there is no departure from independence. The direction of the arrow then represents in which direction of the environmental gradient its expected abundance increases.
+
+##### Variable-taxon biplot
+
+```{r plotlin3}
+plot(ZellerRCMconstr, plotType = c("species", "variables"))
+```
+
+The projection of species arrows on environmental variables (starting from the origin) represents the sensitivity of this taxon to changes in this variables. E.g. Pseudomonas fluorescens is much more abundant in healthy and small adenoma patients than in cancer patients. Note that the fact that the arrows of BMI and gender are of similar length indicates that one _standard deviation_ in BMI has a similar effect to gender.
+
+We observe that country and diagnosis are the main drivers of the environmental gradient. We also see that healthy and small adenoma patients have similar taxon compositions, which are very different from the taxon composition of cancer patients.
+
+#### Triplot: linear response functions
+
+Triplots combine all the three components in a single plot. This is the default behaviour of the _plot.RCM_ function.
+
+```{r plotlin3Triplot}
+plot(ZellerRCMconstr, samColour = "Diagnosis")
+```
+
+Note that the samples and the environmental variables cannot be related to each other, but the sample-taxon and variable-taxon relationships discussed before are still valid on the triplot.
+
+#### Triplot: Non-parametric response functions
+
+For the non-parametric response functions we can only plot one dimensional triplots, whereby the shape of the response functions of the most strongly reacting taxa is shown. For this we use the _plotRespFun_ function.
+
+```{r plotNPTriplot}
+plotRespFun(ZellerRCMconstrNonParam)
+```
+
+The first dimension is shown by default, the environmental scores of the samples are shown below as ticks, the y-axis shows the response functions of the 8 most reacting species, whereby the x-axis represents the independence model. This graph demonstrates the power of non-parametric response function modelling to unravel differences in species niches.
+
+This document covers only the more basic use of the RCM plotting functions. Discover more advanced features in the [RCM manual](http://users.ugent.be/~shawinke/RCMmanual) or in the help pages of the functions used.
