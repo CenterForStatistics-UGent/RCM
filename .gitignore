@@ -8,3 +8,4 @@ inst/doc
 NEWS.Rmd
 /vignettes/RCMvignette_cache/*
 *.Rproj
+*.access^
