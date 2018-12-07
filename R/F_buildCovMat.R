@@ -61,14 +61,15 @@ buildCovMat = function(covariates, dat) {
     nFactorLevels = vapply(FUN.VALUE = integer(1), datFrame,
         function(x) {
             if (is.factor(x))
-                nlevels(x) else NA
+                nlevels(x) else 2L
         })  #Number of levels per factor
-    if (any(nFactorLevels == 1L)) {
-        warning(immediate. = TRUE, "Factors with only one level dropped!")
-    }
+
     covariatesNames = covariatesNames[!(vapply(FUN.VALUE = TRUE,
         datFrame, is.factor) & (nFactorLevels < 2L))]
     # Drop factors with one level
+    if (length(covariatesNames)){
+      warning(immediate. = TRUE, "Factors with only one level dropped!")
+    }
     nFactorLevels = nFactorLevels[covariatesNames]
     datFrame = datFrame[, covariatesNames, drop = FALSE]
     if (any(vapply(FUN.VALUE = TRUE, datFrame, is.factor) & (nFactorLevels <
