@@ -61,7 +61,7 @@ buildCovMat = function(covariates, dat) {
     nFactorLevels = vapply(FUN.VALUE = integer(1), datFrame,
         function(x) {
             if (is.factor(x))
-                nlevels(x) else 1L
+                nlevels(x) else NA
         })  #Number of levels per factor
     if (any(nFactorLevels == 1L)) {
         warning(immediate. = TRUE, "Factors with only one level dropped!")
@@ -83,16 +83,6 @@ buildCovMat = function(covariates, dat) {
     datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)] =
         scale(datFrame[vapply(FUN.VALUE = TRUE,datFrame, is.numeric)])
 
-    covModelMat = model.matrix(object =
-        formula(paste("~", paste(covariatesNames,
-        collapse = "+"), "-1")), data = datFrame,
-        contrasts.arg = lapply(datFrame[vapply(datFrame,
-        is.factor, FUN.VALUE = TRUE)], contrasts, contrasts = FALSE))
-    if (NCOL(covModelMat) == 1)
-        stop("A constrained ordination with only one
-variable is meaningless.\nPlease provide more covariates or perform
-                                an unconstrained analysis.",
-            call. = FALSE)
     covModelMat = model.matrix(
         object = formula(paste("~", paste(covariatesNames,
         collapse = "+"), "-1")), data = datFrame,
