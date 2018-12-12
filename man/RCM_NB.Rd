@@ -14,7 +14,8 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   "quadratic", "dynamic", "nonparametric"), record = FALSE,
   control.outer = list(trace = FALSE), control.optim = list(),
   envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
-  degree = switch(responseFun[1], nonparametric = 3, NULL))
+  degree = switch(responseFun[1], nonparametric = 3, NULL), a = 1,
+  b = 1)
 }
 \arguments{
 \item{X}{a nxp data matrix}
@@ -100,6 +101,9 @@ the maximum number of iteration in the vgam() function}
 
 \item{degree}{an integer,
  the degree of the polynomial fit if the spline fit fails
+ @param a,b exponents for the row and column weights of the singular value
+ decomposition used to calculate starting values. Can be played around with
+ in case of numerical troubles
 
 #'@seealso \code{\link{RCM}}
 
