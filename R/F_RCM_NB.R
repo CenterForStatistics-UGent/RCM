@@ -59,6 +59,9 @@
 #'  the maximum number of iteration in the vgam() function
 #' @param degree an integer,
 #'  the degree of the polynomial fit if the spline fit fails
+#'  @param a,b exponents for the row and column weights of the singular value
+#'  decomposition used to calculate starting values. Can be played around with
+#'  in case of numerical troubles
 #'
 #' #'@seealso \code{\link{RCM}}
 #'
@@ -122,7 +125,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         "nonparametric"), record = FALSE, control.outer = list(trace = FALSE),
     control.optim = list(), envGradEst = "LR", dfSpline = 3,
     vgamMaxit = 100L, degree = switch(responseFun[1],
-        nonparametric = 3, NULL)) {
+        nonparametric = 3, NULL), a = 1, b = 1){
 
     Xorig = NULL  #An original matrix, not returned if no trimming occurs
     responseFun = responseFun[1]
@@ -251,8 +254,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         confParams = NULL
     }
     ## 1) Initialization
-    svdX = svd(diag(1/libSizes) %*% (X - muMarg) %*%
-        diag(1/colSums(X)))
+    svdX = svd(diag(1/libSizes^a) %*% (X - muMarg) %*%
+        diag(1/colSums(X)^b))
     rMat = svdX$u[, seq_len(k), drop = FALSE]
     cMat = t(svdX$v[, seq_len(k), drop = FALSE])
     psis = svdX$d[seq_len(k)]
