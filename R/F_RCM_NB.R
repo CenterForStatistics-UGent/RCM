@@ -59,7 +59,7 @@
 #'  the maximum number of iteration in the vgam() function
 #' @param degree an integer,
 #'  the degree of the polynomial fit if the spline fit fails
-#'  @param a,b exponents for the row and column weights of the singular value
+#' @param a,b exponents for the row and column weights of the singular value
 #'  decomposition used to calculate starting values. Can be played around with
 #'  in case of numerical troubles
 #'
