@@ -2,6 +2,11 @@
 Manual for the use of the RCM functions
 =======================================
 
+Publication
+-----------
+
+The underlying method of the RCM package is described in detail in the following article: ["A unified framework for unconstrained and constrained ordination of microbiome read count data"](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0205474).
+
 Install and load packages
 -------------------------
 
@@ -19,7 +24,7 @@ library(RCM)
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 0.99.0
+    ## RCM package version 0.99.1
 
 Dataset
 -------
@@ -41,17 +46,17 @@ Unconstrained RCM
 The unconstrained RC(M) method represents all variability present in the data, regardless of covariate information. It should be used as a first step in an exploratory analysis. The *RCM* function is the front end function for this purpose, behind it is the *RCM\_NB* function that does the hard work but requires numeric matrix imputs. We apply it to the Zeller data.
 
 ``` r
-ZellerRCM = RCM(Zeller)
+ZellerRCM2 = RCM(Zeller)
 ```
 
-which took 0.6 minutes.
+which took 0.7 minutes.
 
 ### Plotting the unconstrained RCM
 
 A simple plot-command will yield a plot of the RCM ordination
 
 ``` r
-plot(ZellerRCM)
+plot(ZellerRCM2)
 ```
 
 ![](README_figs/README-plotUnconstrainedRCMall-1.png)
@@ -69,7 +74,7 @@ Distances between endpoints of taxon vectors are meaningless.
 The plot can be made more interpretable by adding some colour, e.g. by colouring the samples by cancer diagnosis. For this one can simply provide the name of the sample variable as present in the phyloseq object. For more plotting options see *?plot.RCM*.
 
 ``` r
-plot(ZellerRCM, samColour = "Diagnosis")
+plot(ZellerRCM2, samColour = "Diagnosis")
 ```
 
 ![](README_figs/README-plotUnconstrainedRCMallColour-1.png)
@@ -77,7 +82,7 @@ plot(ZellerRCM, samColour = "Diagnosis")
 Any richness measure defined in the *phyloseq* package (see *?estimateRichness*) can also be supplied as sample colour.
 
 ``` r
-plot(ZellerRCM, samColour = "Shannon")
+plot(ZellerRCM2, samColour = "Shannon")
 ```
 
 ![](README_figs/README-plotRichness-1.png)
@@ -87,13 +92,13 @@ plot(ZellerRCM, samColour = "Shannon")
 In order to condition on certain variables, supply their names to the *confounders* argument. Here we condition on the *country* variable
 
 ``` r
-ZellerRCMcond = RCM(Zeller, confounders = "Country")
+ZellerRCM2cond = RCM(Zeller, confounders = "Country")
 ```
 
 Conditioning can be applied for unconstrained as well as constrained RCM, the ensuing plots have exactly the same interpretationas before, except that all variability attributable to the confounding variables has been removed.
 
 ``` r
-plot(ZellerRCMcond)
+plot(ZellerRCM2cond)
 ```
 
 ![](README_figs/README-plotCond-1.png)
@@ -109,10 +114,10 @@ In order to request a constrained RCM fit it suffises to supply the names of the
 
 ``` r
 # Linear
-ZellerRCMconstr = RCM(Zeller, covariates = c("Age", "Gender", "BMI", "Country", 
+ZellerRCM2constr = RCM(Zeller, covariates = c("Age", "Gender", "BMI", "Country", 
     "Diagnosis"), responseFun = "linear")
 # Nonparametric
-ZellerRCMconstrNonParam = RCM(Zeller, covariates = c("Age", "Gender", "BMI", 
+ZellerRCM2constrNonParam = RCM(Zeller, covariates = c("Age", "Gender", "BMI", 
     "Country", "Diagnosis"), responseFun = "nonparametric")
 ```
 
@@ -123,7 +128,7 @@ In the constrained case two different biplots are meaningful: sample-taxon biplo
 ##### Sample-taxon biplot
 
 ``` r
-plot(ZellerRCMconstr, plotType = c("species", "samples"))
+plot(ZellerRCM2constr, plotType = c("species", "samples"))
 ```
 
 ![](README_figs/README-plotlin2cor-1.png)
@@ -133,7 +138,7 @@ The interpretation is similar as before: the orthogonal projection of a taxon's 
 ##### Variable-taxon biplot
 
 ``` r
-plot(ZellerRCMconstr, plotType = c("species", "variables"))
+plot(ZellerRCM2constr, plotType = c("species", "variables"))
 ```
 
 ![](README_figs/README-plotlin3-1.png)
@@ -147,7 +152,7 @@ We observe that country and diagnosis are the main drivers of the environmental 
 Triplots combine all the three components in a single plot. This is the default behaviour of the *plot.RCM* function.
 
 ``` r
-plot(ZellerRCMconstr, samColour = "Diagnosis")
+plot(ZellerRCM2constr, samColour = "Diagnosis")
 ```
 
 ![](README_figs/README-plotlin3Triplot-1.png)
@@ -159,7 +164,7 @@ Note that the samples and the environmental variables cannot be related to each 
 For the non-parametric response functions we can only plot one dimensional triplots, whereby the shape of the response functions of the most strongly reacting taxa is shown. For this we use the *plotRespFun* function.
 
 ``` r
-plotRespFun(ZellerRCMconstrNonParam)
+plotRespFun(ZellerRCM2constrNonParam)
 ```
 
 ![](README_figs/README-plotNPTriplot-1.png)
