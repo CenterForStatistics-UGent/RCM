@@ -13,10 +13,11 @@
 #'  and they can be normalized afterwards
 #'
 #' @return The jacobian, a square symmetric matrix of dimension v
-JacCol_constr = function(betas, X, reg, theta, 
-    muMarg, psi) {
+JacCol_constr = function(betas, X, reg, theta,
+    muMarg, psi, allowMissingness) {
     mu = exp(c(reg %*% betas) * psi) * muMarg
+    X = correctXMissingness(X, mu, allowMissingness)
     tmp = (1 + X/theta) * mu/(1 + mu/theta)^2
     -crossprod(tmp * reg, reg) * psi^2  #Don't forget to square psi!
-    
+
 }

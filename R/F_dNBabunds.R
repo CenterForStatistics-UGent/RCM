@@ -7,7 +7,8 @@
 #'@param thetas a n-by-p matrix with overdispersion estimates in the rows
 #'
 #'@return a vector of length p with evaluations of the score function
-dNBabunds = function(beta, X, reg, thetas) {
+dNBabunds = function(beta, X, reg, thetas, allowMissingness) {
     mu = exp(outer(reg, beta, "+"))
+    X = correctXMissingness(X, mu, allowMissingness)
     score = colSums((X - mu)/(1 + (mu/thetas)))
 }

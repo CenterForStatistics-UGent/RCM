@@ -11,9 +11,10 @@
 #'  of all taxa, it is very fast and they can be normalized afterwards
 #'
 #' @return A vector of length v with the evaluation of the score functions
-dNBllcol_constr = function(betas, X, reg, 
-    theta, muMarg, psi) {
+dNBllcol_constr = function(betas, X, reg,
+    theta, muMarg, psi, allowMissingness) {
     mu = exp(c(reg %*% betas) * psi) * muMarg
-    crossprod((X - mu)/(1 + mu/theta), reg) * 
+    X = correctXMissingness(X, mu, allowMissingness)
+    crossprod((X - mu)/(1 + mu/theta), reg) *
         psi
 }

@@ -20,7 +20,7 @@ inertia = function(rcm) {
         paste0("Dim", seq_len(rcm$k)), "saturated")
     tmp = c(vapply(FUN.VALUE = numeric(1), vec, FUN = function(i) {
         eMat = extractE(rcm, i)
-        round(sum(((eMat - rcm$X)^2/eMat)))
+        round(sum(((eMat - rcm$X)^2/eMat), na.rm = TRUE))
     }), 0)
     names(tmp) = outnames
     cumInertiaExplained = round((tmp - tmp[1])/(tmp[length(tmp)] - tmp[1]),

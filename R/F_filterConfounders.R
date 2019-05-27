@@ -25,7 +25,7 @@
 #' \item{NB_params}{The estimated parameters of the interaction terms}
 
 filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
-    trended.dispersion, tol = 0.001, maxIt = 20) {
+    trended.dispersion, tol = 0.001, maxIt = 20, allowMissingness) {
     NB_params = matrix(0, ncol(confMat), p)
 
     iter = 1
@@ -39,7 +39,7 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
                 fn = dNBllcol_constr,
                 theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
                 control = nleqslv.control,
-                jac = JacCol_constr, psi = 1)$x)
+                jac = JacCol_constr, psi = 1, allowMissingness = allowMissingness)$x)
         # Fit the taxon-by taxon NB with given overdispersion parameters and
                 # return predictions
                 if (inherits(nleq, "try-error") | anyNA(nleq) |
@@ -47,8 +47,7 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
                 nleq = nleqslv(NB_params[, i], reg = confMat,
                 fn = dNBllcol_constr,
                 theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
-                control = nleqslv.control, psi = 1)$x
-
+                control = nleqslv.control, psi = 1, allowMissingness = allowMissingness)$x
                 }
                 # If fails try with numeric jacobian
                 return(nleq)

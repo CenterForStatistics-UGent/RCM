@@ -34,9 +34,10 @@
 #' @importFrom MASS negative.binomial
 estNPresp = function(sampleScore, muMarg,
     X, ncols, thetas, n, coefInit, coefInitOverall,
-    dfSpline, vgamMaxit, degree, verbose,
+    dfSpline, vgamMaxit, degree, verbose, allowMissingness,
     ...) {
     logMu = log(muMarg)
+    X = correctXMissingness(X, muMarg, allowMissingness)
     MM = getModelMat(sampleScore, degree)
     # The model matrix for the parametric fit
     MM1 = getModelMat(sampleScore, degree = 1)

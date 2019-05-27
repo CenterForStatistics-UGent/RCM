@@ -45,6 +45,8 @@ estDisp = function(X, cMat = NULL, rMat = NULL,
         trended.dispersion$dispersion
     } else trended.dispersion
 
+    X = correctXMissingness(X, exp(logMeansMat), allowMissingness)
+
     thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(y = t(X),
         design = NULL, prior.df = prior.df,
         offset = logMeansMat, dispersion = trended.dispersion,
