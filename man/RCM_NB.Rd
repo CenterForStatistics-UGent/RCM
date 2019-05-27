@@ -103,12 +103,8 @@ the maximum number of iteration in the vgam() function}
 the degree of the polynomial fit if the spline fit fails}
 
 \item{a, b}{exponents for the row and column weights of the singular value
- decomposition used to calculate starting values. Can be played around with
- in case of numerical troubles
-
-#'@seealso \code{\link{RCM}}
-
-Not intended to be called directly but only through the RCM() function}
+decomposition used to calculate starting values. Can be played around with
+in case of numerical troubles}
 }
 \value{
 A list with elements
@@ -154,7 +150,8 @@ Fit the RC(M) model with the negative binomial distribution.
 \details{
 Includes fitting of the independence model, filtering out the
 effect of confounders and fitting the RC(M) components in a constrained
- or an unconstrained way for any dimension k.
+ or an unconstrained way for any dimension k. Not intended to be called
+ directly but only through the RCM() function
 }
 \note{
 Plotting is not supported for quadratic response functions
@@ -168,4 +165,7 @@ mat = as(otu_table(tmpPhy), "matrix")
 mat = mat[rowSums(mat)>0, colSums(mat)>0]
 zellerRCM = RCM_NB(mat, k = 2)
 #Needs to be called directly onto a matrix
+}
+\seealso{
+\code{\link{RCM}}
 }

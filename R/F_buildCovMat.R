@@ -58,31 +58,28 @@ buildCovMat = function(covariates, dat) {
         # Convert characters to factor
         warning("Character vectors treated as factors! \n", immediate. = TRUE)
     }
+    #Drop unused levels
+    datFrame = droplevels(datFrame)
     nFactorLevels = vapply(FUN.VALUE = integer(1), datFrame,
         function(x) {
             if (is.factor(x))
-                nlevels(x) else 2L
+                nlevels(x) else 0L
         })  #Number of levels per factor
-
-    covariatesNames = covariatesNames[!(vapply(FUN.VALUE = TRUE,
-        datFrame, is.factor) & (nFactorLevels < 2L))]
-    # Drop factors with one level
-    if (length(covariatesNames)){
-      warning(immediate. = TRUE, "Factors with only one level dropped!")
-    }
-    nFactorLevels = nFactorLevels[covariatesNames]
-    datFrame = datFrame[, covariatesNames, drop = FALSE]
-    if (any(vapply(FUN.VALUE = TRUE, datFrame, is.factor) & (nFactorLevels <
-        2))) {
+    singleFacID = vapply(FUN.VALUE = TRUE, datFrame, is.factor) &
+        (nFactorLevels == 1L)
+    if (any(singleFacID)) {
         warning("The following variables were not included in the analyses
             because they are factors with only one level: \n",
-            paste(covariates[vapply(FUN.VALUE = TRUE, datFrame,
-                is.factor) & (nFactorLevels < 2)], sep = " \n"),
+            paste(covariates[singleFacID], sep = " \n"),
             immediate. = TRUE, call. = FALSE)
+        # Drop factors with one level
+        covariatesNames = covariatesNames[!singleFacID]
+        nFactorLevels = nFactorLevels[covariatesNames]
+        datFrame = datFrame[, covariatesNames, drop = FALSE]
     }
     # Center and scale the continuous covariates
     datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)] =
-        scale(datFrame[vapply(FUN.VALUE = TRUE,datFrame, is.numeric)])
+        scale(datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)])
 
     covModelMat = model.matrix(
         object = formula(paste("~", paste(covariatesNames,
@@ -90,7 +87,7 @@ buildCovMat = function(covariates, dat) {
         contrasts.arg = lapply(datFrame[vapply(datFrame,
         is.factor, FUN.VALUE = TRUE)], contrasts, contrasts = FALSE))
     if (NCOL(covModelMat) == 1)
-        stop("A constrained ordination with only one variable
+        stop("A constrained ordination with a variable with only one level
                                 is meaningless.\n
 Please provide more covariates
                                 or perform an unconstrained analysis.",

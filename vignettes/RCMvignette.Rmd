@@ -22,7 +22,8 @@ of the ordination model, plotting it and performing diagnostic checks.
 
 # Publication
 
-The underlying method of the RCM package is described in detail in the following article: ["A unified framework for unconstrained and constrained ordination of microbiome read count data"](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0205474).
+The underlying method of the RCM package is described in detail in the following article: 
+["A unified framework for unconstrained and constrained ordination of microbiome read count data"](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0205474).
 
 # Installation
 
