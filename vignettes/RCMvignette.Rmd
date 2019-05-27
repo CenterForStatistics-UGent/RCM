@@ -38,8 +38,8 @@ cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 
 ```{r load-packages, warning=FALSE, message=FALSE, echo=FALSE}
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,
-                      warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, 
-                      tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, 
+                      warning = FALSE, message = FALSE, echo = TRUE, eval = TRUE, 
+                      tidy = TRUE, fig.width = 9, fig.height = 6, purl = TRUE, 
                       fig.show = "hold", cache.lazy = FALSE)
 palStore = palette()
 #Load all fits, to avoid refitting every time rebuilding the vignette
