@@ -30,9 +30,9 @@ The underlying method of the RCM package is described in detail in the following
 The package can be installed and loaded using the following commands:
 
 ```{r loadRCMpackage}
-# library(BiocManager)
-# BiocManager::install("RCM")
-library(RCM)
+library(BiocManager)
+BiocManager::install("RCM", update = FALSE)
+suppressPackageStartupMessages(library(RCM))
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 

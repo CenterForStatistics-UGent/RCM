@@ -12,19 +12,26 @@ Install and load packages
 
 This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The basic usage is demonstrated here, for more advanced examples see the [RCM manual](http://users.ugent.be/~shawinke/RCMmanual) and the help pages of *RCM()*, *RCM\_NB()*, and *plot.RCM()* functions.
 
-The package can be installed and loaded using the following commands:
+The package can be installed from BioConductor and loaded using the following commands:
+
+``` r
+library(BiocManager)
+install("RCM", update = FALSE)
+```
+
+``` r
+suppressPackageStartupMessages(library(RCM, quietly = TRUE, warn.conflicts = FALSE))
+cat("RCM package version", as.character(packageVersion("RCM")), "\n")
+```
+
+    ## RCM package version 1.0.0
+
+Alternatively, the latest version can be installed directly from this GitHub repo as follows:
 
 ``` r
 library(devtools)
 install_github("CenterForStatistics-UGent/RCM")
 ```
-
-``` r
-library(RCM)
-cat("RCM package version", as.character(packageVersion("RCM")), "\n")
-```
-
-    ## RCM package version 0.99.1
 
 Dataset
 -------
