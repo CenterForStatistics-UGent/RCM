@@ -14,3 +14,16 @@ test_that("RCM returns phyloseq object", {
 test_that("RCM throws warning when not converged", {
   expect_warning(RCM(tmpPhy, k = 1, maxItOut = 2L))
 })
+
+#Introduce some NAs
+tmpPhyNA = transform_sample_counts(tmpPhy, fun = function(x){
+    x[sample(length(x), size = 5)] = NA
+    x
+})
+
+test_that("RCM allows for missingness", {
+  expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE), "RCM")
+  expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
+                covariates = c("Diagnosis", "Country", "Gender"),
+                confounders = "Age"), "RCM")
+})
