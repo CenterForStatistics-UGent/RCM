@@ -2,7 +2,8 @@
 #'
 #' @details Includes fitting of the independence model, filtering out the
 #' effect of confounders and fitting the RC(M) components in a constrained
-#'  or an unconstrained way for any dimension k.
+#'  or an unconstrained way for any dimension k. Not intended to be called
+#'  directly but only through the RCM() function
 #'
 #' @param X a nxp data matrix
 #' @param k an scalar, number of dimensions in the RC(M) model
@@ -63,9 +64,7 @@
 #'  decomposition used to calculate starting values. Can be played around with
 #'  in case of numerical troubles
 #'
-#' #'@seealso \code{\link{RCM}}
-#'
-#' Not intended to be called directly but only through the RCM() function
+#' @seealso \code{\link{RCM}}
 #'
 #' @return A list with elements
 #' \item{converged}{a vector of booleans of length k indicating if the algorithm
