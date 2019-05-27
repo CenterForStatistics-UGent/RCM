@@ -11,3 +11,14 @@
 -   2D sample plots for constrained ordination with non-parametric response functions have been disabled, as they are not interpretable. Variable plots are the only 2D plots still allowed
 -   Explained deviance and inertia can be plotted on the axes rahter than the *ψ*'s using the "plotPsi" argument to the plot.RCM() function.
 -   Possibility to provide lower dimensional fits has been disabled. *RCM* is fast enough to fit the whole model.
+
+1.0.1
+====
+
+- Release on BioConductor
+
+1.0.2
+====
+
+- Bug fix in buildCovMat() to avoid warning
+- Check for alias structure in confounder and covariate matrices

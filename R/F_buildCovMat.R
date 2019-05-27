@@ -77,6 +77,9 @@ buildCovMat = function(covariates, dat) {
         nFactorLevels = nFactorLevels[covariatesNames]
         datFrame = datFrame[, covariatesNames, drop = FALSE]
     }
+    #Check for alias structures
+    checkAlias(datFrame, covariatesNames)
+
     # Center and scale the continuous covariates
     datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)] =
         scale(datFrame[vapply(FUN.VALUE = TRUE, datFrame, is.numeric)])

@@ -36,6 +36,8 @@ buildConfMat.data.frame = function(confounders, n) {
     if (anyNA(confounders)) {
         stop("Confounders contain missing values!\n")
     }
+    #Check alias structure
+    checkAlias(confounders, names(confounders))
     # No intercept or continuous variables for preliminary
     # trimming
     confModelMatTrim = model.matrix(object = as.formula(paste("~",
