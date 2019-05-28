@@ -175,7 +175,7 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
 
     colnames(dat) = colNames
     rownames(dat) = rowNames
-    dat = dat[, (colMeans(dat == 0, na.rm = TRUE) < (1 - prevCutOff)) &
+    dat = dat[, (colMeans(dat %in% c(0, NA)) < (1 - prevCutOff)) &
         (colSums(dat, na.rm = TRUE) > (n * minFraction))]
     # Remove taxa with low prevalence and those who do
     # not meet the minFraction requirement

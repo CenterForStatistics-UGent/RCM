@@ -103,7 +103,7 @@
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
 #' \item{degree}{The degree of the alternative parametric fit}
-#' \item{allowMissingess}{A boolean, were NA values tolerated?}
+#' \item{allowMissingess}{A boolean, were NA values present?}
 #' @export
 #' @note Plotting is not supported for quadratic response functions
 #' @examples
