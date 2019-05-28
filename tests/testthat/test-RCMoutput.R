@@ -1,7 +1,7 @@
 context("RCM output")
 
-tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
-                    prune_samples(sample_names(Zeller)[seq_len(50)], Zeller))
+tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(150)],
+                    prune_samples(sample_names(Zeller)[seq_len(100)], Zeller))
 
 test_that("RCM returns element of class RCM", {
   expect_is(RCM(tmpPhy, k = 1), "RCM")
@@ -17,7 +17,7 @@ test_that("RCM throws warning when not converged", {
 
 #Introduce some NAs
 tmpPhyNA = transform_sample_counts(tmpPhy, fun = function(x){
-    x[sample(length(x), size = 5)] = NA
+    x[sample(length(x), size = 3)] = NA
     x
 })
 
@@ -26,4 +26,7 @@ test_that("RCM allows for missingness", {
   expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
                 covariates = c("Diagnosis", "Country", "Gender"),
                 confounders = "Age"), "RCM")
+  expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
+                covariates = c("Diagnosis", "Country", "Gender"),
+                confounders = "Age", responseFun = "nonparametric"), "RCM")
 })

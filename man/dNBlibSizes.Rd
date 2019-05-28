@@ -5,7 +5,7 @@
 \title{A score function for the row components of the independence model
 (library sizes)}
 \usage{
-dNBlibSizes(beta, X, reg, thetas)
+dNBlibSizes(beta, X, reg, thetas, allowMissingness)
 }
 \arguments{
 \item{beta}{a vector of length n with current library size estimates}

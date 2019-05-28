@@ -4,7 +4,8 @@
 \alias{respFunScoreMat}
 \title{Derivative of the Lagrangian of the parametric response function}
 \usage{
-respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v, ...)
+respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v,
+  allowMissingness, ...)
 }
 \arguments{
 \item{betas}{a vector of length (deg+1)*(p+1) with regression parameters with

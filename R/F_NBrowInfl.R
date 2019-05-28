@@ -10,6 +10,7 @@
 NBrowInfl = function(rcm, Dim = 1) {
     reg = rcm$psis[Dim] * rcm$cMat[Dim, ]
     mu = extractE(rcm, seq_len(Dim))
+    rcm$X = correctXMissingness(rcm$X, mu, rcm$allowMissingness)
     #Take also lower dimensions into account here
     thetaMat = matrix(byrow = TRUE, nrow = nrow(rcm$X),
         ncol = ncol(rcm$X), data = rcm$thetas[,

@@ -34,6 +34,7 @@
 #'   Defaults to NULL, in which case no filtering occurs.
 #' @param confTrimMat,confModelMat,covModelMat,centMat Dedicated model matrices
 #'  constructed based on phyloseq object.
+#' @param allowMissingess A boolean, should NA values be tolerated?
 #' @param ... Further arguments passed on to the RCM.NB() function
 #'
 #'@description This is a wrapper function,
@@ -140,12 +141,13 @@ setMethod("RCM", "phyloseq", function(dat, covariates = NULL,
 setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
     prevCutOff = 0.05, minFraction = 0.1, rowWeights = "uniform",
     colWeights = "marginal", confModelMat = NULL, confTrimMat = NULL,
-    covModelMat = NULL, centMat = NULL, ...) {
+    covModelMat = NULL, centMat = NULL, allowMissingness = FALSE, ...) {
 
-    if (anyNA(dat)) {
-    stop("NA values present in count matrix,
-        please filter these out first!\n")
+    if(anyNA(dat) && !allowMissingness){
+      stop("Count matrix contains missing values!
+             Set 'allowMissingness' to TRUE to allow this. (see ?RCM)")
     }
+
     p = ncol(dat)
     n = nrow(dat)
 
@@ -163,7 +165,7 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
         }  #Round to integer
 
     # Check dat type
-    if (!all(floor(dat) == dat)) {
+    if (!all(floor(dat) == dat, na.rm = TRUE)) {
         stop("Please provide integer count matrix
                 (not a matrix of proportions!),
                 or set 'round' to TRUE! \n")
@@ -173,17 +175,17 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
 
     colnames(dat) = colNames
     rownames(dat) = rowNames
-    dat = dat[, (colMeans(dat == 0) < (1 - prevCutOff)) &
-        (colSums(dat) > (n * minFraction))]
+    dat = dat[, (colMeans(dat == 0, na.rm = TRUE) < (1 - prevCutOff)) &
+        (colSums(dat, na.rm = TRUE) > (n * minFraction))]
     # Remove taxa with low prevalence and those who do
     # not meet the minFraction requirement
-    if (any(rowSums(dat) == 0)) {
+    if (any(rowSums(dat, na.rm = TRUE) == 0)) {
         warning(immediate. = TRUE, paste0("Samples \n",
-            paste(collapse = ", ", rownames(dat)[rowSums(dat) ==
+            paste(collapse = ", ", rownames(dat)[rowSums(dat, na.rm = TRUE) ==
                 0]), "\n contained no more reads after trimming taxa
                 with low prevalence, and were excluded from the fit"))
     }
-    rowIDkeep = rowSums(dat) > 0
+    rowIDkeep = rowSums(dat, na.rm = TRUE) > 0
     dat = dat[rowIDkeep, ]  #Remove empty samples
     n = nrow(dat)
     confModelMat = confModelMat[rowIDkeep, ]
@@ -196,6 +198,7 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
         k = k, confModelMat = confModelMat, confTrimMat = confTrimMat,
         covModelMat = covModelMat, prevCutOff = prevCutOff,
         minFraction = minFraction, centMat = centMat,
+        allowMissingness = allowMissingness,
         ...)
     tmp = within(tmp, {
         runtimeInMins = (proc.time() - tic)[1]/60  # The runtime

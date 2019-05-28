@@ -7,7 +7,7 @@
 LR_nb_Jac(Alpha, X, CC, responseFun = c("linear", "quadratic",
   "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK,
   k, centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, preFabMat,
-  envGradEst, ...)
+  envGradEst, allowMissingness, ...)
 }
 \arguments{
 \item{Alpha}{a vector of length d + k*(2+(k-1)/2),

@@ -4,7 +4,7 @@
 \alias{NBjacobianLibSizes}
 \title{Jacobian for the raw components of the independence model}
 \usage{
-NBjacobianLibSizes(beta, X, reg, thetas)
+NBjacobianLibSizes(beta, X, reg, thetas, allowMissingness)
 }
 \arguments{
 \item{beta}{a vector of length n with current library size estimates}

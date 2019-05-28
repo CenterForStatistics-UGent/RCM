@@ -61,7 +61,8 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
 
         thetas = estDisp(X = X, cMat = matrix(0, ncol = p), rMat = matrix(0,
             nrow = n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params),
-            trended.dispersion = trended.dispersion)
+            trended.dispersion = trended.dispersion,
+            allowMissingness = allowMissingness)
         # Estimate overdispersion
         iter = iter + 1
         convergence = sqrt(mean((1 - NB_params/NB_params_old)^2)) < tol

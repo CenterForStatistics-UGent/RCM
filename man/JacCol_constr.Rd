@@ -4,7 +4,7 @@
 \alias{JacCol_constr}
 \title{Jacobian of the constrained analysis with linear response function.}
 \usage{
-JacCol_constr(betas, X, reg, theta, muMarg, psi)
+JacCol_constr(betas, X, reg, theta, muMarg, psi, allowMissingness)
 }
 \arguments{
 \item{betas}{a vector of v parameters of the response function

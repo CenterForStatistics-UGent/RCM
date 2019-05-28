@@ -14,7 +14,9 @@
 JacCol_constr_noLab = function(betas, X,
     reg, thetasMat, muMarg, psi, n, v, preFabMat, allowMissingness) {
     mu = c(exp(reg %*% betas * psi)) * muMarg
-    X = correctXMissingness(X, mu, allowMissingness)
+    if(allowMissingness){
+      preFabMat = 1 + correctXMissingness(X, mu, allowMissingness)/thetasMat
+    }
     tmp = preFabMat * mu/(1 + (mu/thetasMat))^2 *
         psi^2  #Don't forget to square psi!
     -crossprod(reg, vapply(seq_len(v), FUN.VALUE = vector("numeric",

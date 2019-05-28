@@ -4,7 +4,7 @@
 \alias{NBjacobianAbunds}
 \title{Jacobian for the column components of the independence model}
 \usage{
-NBjacobianAbunds(beta, X, reg, thetas)
+NBjacobianAbunds(beta, X, reg, thetas, allowMissingness)
 }
 \arguments{
 \item{beta}{a vector of length p with current abundance estimates}

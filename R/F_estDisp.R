@@ -20,7 +20,8 @@
 #' @return A vector of length p with dispersion estimates
 estDisp = function(X, cMat = NULL, rMat = NULL,
     muMarg, psis, trended.dispersion = NULL,
-    prior.df = 10, dispWeights = NULL, rowMat = NULL) {
+    prior.df = 10, dispWeights = NULL, rowMat = NULL,
+    allowMissingness = FALSE) {
     logMeansMat = if (!is.null(rMat)) {
         # Unconstrained
         t(rMat %*% (cMat * psis) + log(muMarg))
@@ -34,6 +35,8 @@ estDisp = function(X, cMat = NULL, rMat = NULL,
         stop("Overflow! Try trimming more lowly
         abundant taxa prior to model fitting.
         \n See prevCutOff argument in ?RCM.")
+    X = correctXMissingness(X, exp(logMeansMat), allowMissingness)
+
     trended.dispersion = if (is.null(trended.dispersion)) {
         edgeR::estimateGLMTrendedDisp(y = t(X),
             design = NULL, method = "bin.loess",
@@ -44,8 +47,6 @@ estDisp = function(X, cMat = NULL, rMat = NULL,
     trended.dispersion = if (is.list(trended.dispersion)) {
         trended.dispersion$dispersion
     } else trended.dispersion
-
-    X = correctXMissingness(X, exp(logMeansMat), allowMissingness)
 
     thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(y = t(X),
         design = NULL, prior.df = prior.df,

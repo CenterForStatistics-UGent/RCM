@@ -6,9 +6,10 @@
 #'@param thetas a n-by-p matrix with overdispersion estimates in the rows
 #'
 #'@return a diagonal matrix of dimension n: the Fisher information matrix
-NBjacobianLibSizes = function(beta, X, reg, 
-    thetas) {
+NBjacobianLibSizes = function(beta, X, reg,
+    thetas, allowMissingness) {
     mu = exp(outer(beta, reg, "+"))
-    diag(-rowSums((1 + (X/thetas)) * mu/(1 + 
+    X = correctXMissingness(X, mu, allowMissingness)
+    diag(-rowSums((1 + (X/thetas)) * mu/(1 +
         (mu/thetas))^2))
 }

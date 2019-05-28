@@ -4,7 +4,7 @@
 \alias{NBjacobianColNP}
 \title{Jacobian function for the estimation of a third degree GLM}
 \usage{
-NBjacobianColNP(beta, X, reg, theta, muMarg)
+NBjacobianColNP(beta, X, reg, theta, muMarg, allowMissingness)
 }
 \arguments{
 \item{beta}{vector of any length}

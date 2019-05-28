@@ -30,7 +30,7 @@
 LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic",
     "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK,
     k, centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, preFabMat,
-    envGradEst, ...) {
+    envGradEst, allowMissingness, ...) {
     did = seq_len(d)
     # Extract the parameters
     alpha = Alpha[did]
@@ -42,13 +42,16 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic",
     } else {
         Alpha[(d + nLambda1s + 2):(d + nLambda)]
     }
-
     sampleScore = CC %*% alpha
     # A linear combination of the environmental variables yields the
     # sampleScore
     design = buildDesign(sampleScore, responseFun)
 
     mu = muMarg * exp(design %*% NB_params * psi)
+    if(allowMissingness){
+        X = correctXMissingness(X, mu, allowMissingness)
+        preFabMat = 1 + X/thetaMat
+    }
     if (envGradEst == "LR")
         mu0 = muMarg * c(exp(design %*% NB_params_noLab * psi))
 

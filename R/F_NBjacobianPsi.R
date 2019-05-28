@@ -9,10 +9,12 @@
 #' @param preFabMat a prefab matrix, (1+X/thetas)
 #'
 #' @return The evaluation of the jacobian function at beta, a 1-by-1 matrix
-NBjacobianPsi = function(beta, X, reg, muMarg, 
-    theta, preFabMat) {
+NBjacobianPsi = function(beta, X, reg, muMarg,
+    theta, preFabMat, allowMissingness) {
     mu = muMarg * exp(reg * beta)
-    matrix(-sum(reg^2 * preFabMat * mu/(1 + 
+    if(allowMissingness){
+      preFabMat = 1 + correctXMissingness(X, mu, allowMissingness)/theta
+    }
+    matrix(-sum(reg^2 * preFabMat * mu/(1 +
         mu/theta)^2), 1, 1)
-    
 }

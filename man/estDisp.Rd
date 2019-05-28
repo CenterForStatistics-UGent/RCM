@@ -6,7 +6,7 @@
 \usage{
 estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
   trended.dispersion = NULL, prior.df = 10, dispWeights = NULL,
-  rowMat = NULL)
+  rowMat = NULL, allowMissingness = FALSE)
 }
 \arguments{
 \item{X}{the data matrix of dimensions nxp}

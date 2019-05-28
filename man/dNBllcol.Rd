@@ -6,7 +6,7 @@
 in an unconstrained RC(M) model}
 \usage{
 dNBllcol(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK,
-  ...)
+  allowMissingness, ...)
 }
 \arguments{
 \item{beta}{vector of length p+1+1+(k-1): p row scores,

@@ -4,7 +4,8 @@
 \alias{respFunJacMat}
 \title{Calculates the Jacobian of the parametric response functions}
 \usage{
-respFunJacMat(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec)
+respFunJacMat(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec,
+  allowMissingness)
 }
 \arguments{
 \item{betas}{a vector of length (deg+1)*(p+1) with regression parameters

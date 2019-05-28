@@ -37,12 +37,12 @@ estNPresp = function(sampleScore, muMarg,
     dfSpline, vgamMaxit, degree, verbose, allowMissingness,
     ...) {
     logMu = log(muMarg)
-    X = correctXMissingness(X, muMarg, allowMissingness)
     MM = getModelMat(sampleScore, degree)
     # The model matrix for the parametric fit
     MM1 = getModelMat(sampleScore, degree = 1)
     # The model matrix of the first degree
     taxonWise = lapply(seq_len(ncols), function(i) {
+        #Fit based on non-NAs
         df = data.frame(x = X[, i], sampleScore = sampleScore,
             logMu = log(muMarg[, i]))
         # Going through a dataframe slows things
@@ -52,15 +52,15 @@ estNPresp = function(sampleScore, muMarg,
             x ~ s(sampleScore, df = dfSpline),
             offset = logMu, family = negbinomial.size(lmu = "loge",
                 size = thetas[i]), coefstart = coefInit[[i]],
-            maxit = vgamMaxit, ...)), silent = TRUE)
+            maxit = vgamMaxit, na.option = na.omit,...)), silent = TRUE)
         if (inherits(tmp, "try-error")) {
             # If this fails turn to parametric fit
             warning("GAM would not fit, turned to parametric fit of degree ",
                 degree, "!")
             tmp = try(nleqslv(fn = dNBllcolNP,
                 x = if (length(coefInit[[i]]) ==2) {rep(1e-04, degree + 1)
-                } else coefInit[[i]], X = X[,i], reg = MM, theta = thetas[i],
-                muMarg = muMarg[, i], jac = NBjacobianColNP)$x)
+                } else coefInit[[i]], X = X[,i][!is.na(X[,i])], reg = MM, theta = thetas[i],
+                muMarg = muMarg[!is.na(X[,i]), i], jac = NBjacobianColNP)$x)
         } else {
             # if VGAM fit succeeds, retain only
             # necessary information
@@ -87,7 +87,7 @@ estNPresp = function(sampleScore, muMarg,
         offset = c(logMu), family = negbinomial.size(lmu = "loge",
             size = rep(thetas, each = n)),
         coefstart = coefInitOverall, maxit = vgamMaxit,
-        ...)
+        na.option = na.omit, ...)
     overallList = list(coef = coef(overall),
         spline = overall@Bspline[[1]])
     # Return lists of splines and of

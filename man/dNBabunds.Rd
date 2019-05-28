@@ -5,7 +5,7 @@
 \title{A score function for the column components of the independence model
 (mean relative abundances)}
 \usage{
-dNBabunds(beta, X, reg, thetas)
+dNBabunds(beta, X, reg, thetas, allowMissingness)
 }
 \arguments{
 \item{beta}{a vector of length p with current abundance estimates}

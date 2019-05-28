@@ -5,7 +5,7 @@
 \title{A score function of the NB for the row scores}
 \usage{
 dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK,
-  ...)
+  allowMissingness, ...)
 }
 \arguments{
 \item{beta}{a vector of of length n + k +1 regression parameters to optimize}

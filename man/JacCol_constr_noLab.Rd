@@ -4,7 +4,8 @@
 \alias{JacCol_constr_noLab}
 \title{The jacobian of the response function without taxon labels}
 \usage{
-JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat)
+JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat,
+  allowMissingness)
 }
 \arguments{
 \item{betas}{a vector of regression parameters with length v}

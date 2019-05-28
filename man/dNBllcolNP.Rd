@@ -4,7 +4,7 @@
 \alias{dNBllcolNP}
 \title{Estimation of the parameters of a third degree GLM}
 \usage{
-dNBllcolNP(beta, X, reg, theta, muMarg, ...)
+dNBllcolNP(beta, X, reg, theta, muMarg, allowMissingness, ...)
 }
 \arguments{
 \item{beta}{A vector of any length}

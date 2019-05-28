@@ -5,7 +5,7 @@
 #'
 #' @return An n-by-p-by-d array with the influence of every observation
 #'  on every alpha parameter
-NBalphaInfl = function(rcm, Dim, allowMissingness = TRUE) {
+NBalphaInfl = function(rcm, Dim) {
     if (length(Dim) > 1) {
         stop("Influence of only one dimension at the time can be
         extratced! \n")
@@ -40,7 +40,7 @@ NBalphaInfl = function(rcm, Dim, allowMissingness = TRUE) {
     # A linear combination of the environmental variables yields the
     # sampleScore
     mu = extractE(rcm, seq_len(Dim))
-    X = correctXMissingness(X, mu, allowMissingness)
+    X = correctXMissingness(X, mu, rcm$allowMissingness)
     muMarg = extractE(rcm, seq_len(Dim - 1))
     tmp = (X - mu)/(1 + mu/thetaMat)
     tmp2 = rowMultiply(tmp, NB_params[2, ])

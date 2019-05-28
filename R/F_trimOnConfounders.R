@@ -17,8 +17,8 @@ trimOnConfounders = function(confounders,
         # Over taxa Over confounding variables
         any(apply(confounders, 2, function(conf) {
             tapply(X = x, INDEX = conf, FUN = function(y) {
-                mean(y != 0) <= prevCutOff |
-                sum(y) < (n * minFraction)
+                mean(y != 0, na.rm = TRUE) <= prevCutOff |
+                sum(y, na.rm = TRUE) < (n * minFraction)
             })  #Any all-zero subgroup?
         }))
     })

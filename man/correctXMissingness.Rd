@@ -20,3 +20,7 @@ corresponding entries in mu
 Replace missing entries in X by their expectation to set their
 contribution to the estimating equations to zero
 }
+\note{
+This may seem like a hacky approach, but it avoids having to deal
+ with NAs in functions like crossprod().
+}

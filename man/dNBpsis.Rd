@@ -4,7 +4,7 @@
 \alias{dNBpsis}
 \title{A score function for the psi of a given dimension}
 \usage{
-dNBpsis(beta, X, reg, theta, muMarg, ...)
+dNBpsis(beta, X, reg, theta, muMarg, allowMissingness, ...)
 }
 \arguments{
 \item{beta}{a scalar, the initial estimate}

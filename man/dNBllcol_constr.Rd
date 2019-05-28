@@ -4,7 +4,7 @@
 \alias{dNBllcol_constr}
 \title{The score function of the response function for 1 taxon at the time}
 \usage{
-dNBllcol_constr(betas, X, reg, theta, muMarg, psi)
+dNBllcol_constr(betas, X, reg, theta, muMarg, psi, allowMissingness)
 }
 \arguments{
 \item{betas}{a vector of v parameters of the

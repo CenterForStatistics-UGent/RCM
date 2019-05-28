@@ -5,7 +5,7 @@
 \title{Jacobian for the estimation of the column scores}
 \usage{
 NBjacobianCol(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda,
-  cMatK, preFabMat, Jac)
+  cMatK, preFabMat, Jac, allowMissingness)
 }
 \arguments{
 \item{beta}{vector of length p+1+1+(k-1): p row scores, 1 centering,

@@ -5,7 +5,7 @@
 \title{A function to estimate the NB-params ignoring the taxon labels}
 \usage{
 estNBparamsNoLab(design, thetasMat, muMarg, psi, X, nleqslv.control,
-  initParam, n, v, dynamic, envRange, preFabMat)
+  initParam, n, v, dynamic, envRange, preFabMat, allowMissingness)
 }
 \arguments{
 \item{design}{an n-by-v design matrix}
