@@ -11,14 +11,16 @@
 #' @param p an integer, the number of taxa
 #' @param IDmat an logical matrix with indices of non-zero elements
 #' @param IndVec  a vector with indices with non-zero elements
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' @return The jacobian, a square matrix of dimension (deg+1)*(p+1)
 respFunJacMat = function(betas, X, reg, thetaMat,
-    muMarg, psi, v, p, IDmat, IndVec, allowMissingness) {
+    muMarg, psi, v, p, IDmat, IndVec, allowMissingness, naId) {
     NBparams = matrix(betas[seq_len(p * v)],
         ncol = p)
     mu = exp(reg %*% NBparams * psi) * muMarg
-    X = correctXMissingness(X, mu, allowMissingness)
+    X = correctXMissingness(X, mu, allowMissingness, naId)
     Jac = matrix(0, (p + 1) * v, (p + 1) *
         v)
     did = seq_len(p * v)

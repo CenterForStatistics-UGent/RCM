@@ -19,7 +19,7 @@ buildCovMat = function(covariates, dat) {
         covariatesNames = names(covariates)
     } else if (is.character(covariates)) {
         if (!is(dat, "phyloseq")) {
-            stop("Providing covariates through variable names is only allowed
+        stop("Providing covariates through variable names is only allowed
             if phyloseq object is provided! \n")
         }
         if (covariates[[1]] == "all") {

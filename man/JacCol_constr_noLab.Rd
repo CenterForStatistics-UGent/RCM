@@ -5,7 +5,7 @@
 \title{The jacobian of the response function without taxon labels}
 \usage{
 JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat,
-  allowMissingness)
+  allowMissingness, naId)
 }
 \arguments{
 \item{betas}{a vector of regression parameters with length v}
@@ -25,6 +25,10 @@ JacCol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi, n, v, preFabMat,
 \item{v}{an integer, the number of parameters of the response function}
 
 \item{preFabMat}{a prefabricated matrix}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 The jacobian (a v-by-v matrix)

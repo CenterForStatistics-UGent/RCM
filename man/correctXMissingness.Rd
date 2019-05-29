@@ -5,12 +5,16 @@
 \title{Replace missing entries in X by their expectation to set their
 contribution to the estimating equations to zero}
 \usage{
-correctXMissingness(X, mu, allowMissingness)
+correctXMissingness(X, mu, allowMissingness, naId)
 }
 \arguments{
 \item{X}{the matrix of counts}
 
 \item{mu}{the matrix of expectations}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 The matrix X with the NA entries replaced by the

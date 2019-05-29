@@ -9,13 +9,15 @@
 #' @param psi a scalar, the importance parameter
 #' @param n an integer, number of rows of X
 #' @param v an integer, the number of parameters of the response function
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' @return The jacobian (a v-by-v matrix)
 JacCol_constr_noLab = function(betas, X,
-    reg, thetasMat, muMarg, psi, n, v, preFabMat, allowMissingness) {
+    reg, thetasMat, muMarg, psi, n, v, preFabMat, allowMissingness, naId) {
     mu = c(exp(reg %*% betas * psi)) * muMarg
     if(allowMissingness){
-      preFabMat = 1 + correctXMissingness(X, mu, allowMissingness)/thetasMat
+        preFabMat = 1 + correctXMissingness(X, mu, allowMissingness, naId)/thetasMat
     }
     tmp = preFabMat * mu/(1 + (mu/thetasMat))^2 *
         psi^2  #Don't forget to square psi!

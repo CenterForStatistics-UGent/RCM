@@ -5,7 +5,7 @@
 \title{Calculates the Jacobian of the parametric response functions}
 \usage{
 respFunJacMat(betas, X, reg, thetaMat, muMarg, psi, v, p, IDmat, IndVec,
-  allowMissingness)
+  allowMissingness, naId)
 }
 \arguments{
 \item{betas}{a vector of length (deg+1)*(p+1) with regression parameters
@@ -28,6 +28,10 @@ with deg the degree of the response function and the lagrangian multipliers}
 \item{IDmat}{an logical matrix with indices of non-zero elements}
 
 \item{IndVec}{a vector with indices with non-zero elements}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 The jacobian, a square matrix of dimension (deg+1)*(p+1)

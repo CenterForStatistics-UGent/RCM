@@ -24,9 +24,9 @@ tmpPhyNA = transform_sample_counts(tmpPhy, fun = function(x){
 test_that("RCM allows for missingness", {
   expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE), "RCM")
   expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
-                covariates = c("Diagnosis", "Country", "Gender"),
+                covariates = c("Diagnosis", "Country", "Gender", "BMI"),
                 confounders = "Age"), "RCM")
   expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
-                covariates = c("Diagnosis", "Country", "Gender"),
+                covariates = c("Diagnosis", "Country", "Gender", "BMI"),
                 confounders = "Age", responseFun = "nonparametric"), "RCM")
 })

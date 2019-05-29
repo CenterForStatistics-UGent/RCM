@@ -106,7 +106,7 @@ the degree of the polynomial fit if the spline fit fails}
 decomposition used to calculate starting values. Can be played around with
 in case of numerical troubles}
 
-\item{allowMissingess}{See RCM()}
+\item{allowMissingness}{See RCM()}
 }
 \value{
 A list with elements
@@ -145,7 +145,7 @@ A list with elements
 \item{confParams}{ the parameters used to filter out the confounders}
 \item{nonParamRespFun}{A list of the non parametric response functions}
 \item{degree}{The degree of the alternative parametric fit}
-\item{allowMissingess}{A boolean, were NA values tolerated?}
+\item{NApresent}{A boolean, were NA values present?}
 }
 \description{
 Fit the RC(M) model with the negative binomial distribution.

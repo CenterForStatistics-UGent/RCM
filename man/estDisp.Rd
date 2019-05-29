@@ -6,7 +6,7 @@
 \usage{
 estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
   trended.dispersion = NULL, prior.df = 10, dispWeights = NULL,
-  rowMat = NULL, allowMissingness = FALSE)
+  rowMat = NULL, allowMissingness = FALSE, naId)
 }
 \arguments{
 \item{X}{the data matrix of dimensions nxp}
@@ -30,6 +30,10 @@ for the Bayesian shrinkage}
 in a zero-inflated model}
 
 \item{rowMat}{matrix of row scores in case of constrained ordination}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 A vector of length p with dispersion estimates

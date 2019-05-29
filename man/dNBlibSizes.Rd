@@ -5,7 +5,7 @@
 \title{A score function for the row components of the independence model
 (library sizes)}
 \usage{
-dNBlibSizes(beta, X, reg, thetas, allowMissingness)
+dNBlibSizes(beta, X, reg, thetas, allowMissingness, naId)
 }
 \arguments{
 \item{beta}{a vector of length n with current library size estimates}
@@ -15,6 +15,10 @@ dNBlibSizes(beta, X, reg, thetas, allowMissingness)
 \item{reg}{a vector of length p with relative abundance estimates}
 
 \item{thetas}{a n-by-p matrix with overdispersion estimates in the rows}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 a vector of length n with evaluations of the score function

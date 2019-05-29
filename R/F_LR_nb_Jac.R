@@ -24,13 +24,15 @@
 #'  indicating how the environmental gradient should be fitted.
 #'  'LR' using the likelihood-ratio criterion,
 #'  or 'ML' a full maximum likelihood solution
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #' @param ... Further arguments passed on to other functions
 #'
 #' @return A symmetric matrix, the evaluated Jacobian
 LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic",
     "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK,
     k, centMat, nLambda, nLambda1s, thetaMat, muMarg, n, ncols, preFabMat,
-    envGradEst, allowMissingness, ...) {
+    envGradEst, allowMissingness, naId, ...) {
     did = seq_len(d)
     # Extract the parameters
     alpha = Alpha[did]
@@ -49,7 +51,7 @@ LR_nb_Jac = function(Alpha, X, CC, responseFun = c("linear", "quadratic",
 
     mu = muMarg * exp(design %*% NB_params * psi)
     if(allowMissingness){
-        X = correctXMissingness(X, mu, allowMissingness)
+        X = correctXMissingness(X, mu, allowMissingness, naId)
         preFabMat = 1 + X/thetaMat
     }
     if (envGradEst == "LR")

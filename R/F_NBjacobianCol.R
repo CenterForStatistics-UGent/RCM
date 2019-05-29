@@ -16,11 +16,13 @@
 #' @param cMatK the lower dimensions of the colScores
 #' @param preFabMat a prefab matrix, (1+X/thetas)
 #' @param Jac an empty Jacobian matrix
-
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
+#'
 #' @return A matrix of dimension p+1+1+(k-1) with evaluations of the Jacobian
 NBjacobianCol = function(beta, X, reg, thetas,
     muMarg, k, n, p, colWeights, nLambda,
-    cMatK, preFabMat, Jac, allowMissingness) {
+    cMatK, preFabMat, Jac, allowMissingness, naId) {
     cMat = beta[seq_len(p)]
 
     # Calculate the mean
@@ -35,7 +37,7 @@ NBjacobianCol = function(beta, X, reg, thetas,
         2 * cMat
 
     if(allowMissingness){
-      preFabMat = 1 + correctXMissingness(X, mu, allowMissingness)/thetas
+        preFabMat = 1 + correctXMissingness(X, mu, allowMissingness, naId)/thetas
     }
 
     # dLag²/dr_{ik}²

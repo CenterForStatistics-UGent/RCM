@@ -4,7 +4,7 @@
 \alias{JacCol_constr}
 \title{Jacobian of the constrained analysis with linear response function.}
 \usage{
-JacCol_constr(betas, X, reg, theta, muMarg, psi, allowMissingness)
+JacCol_constr(betas, X, reg, theta, muMarg, psi, allowMissingness, naId)
 }
 \arguments{
 \item{betas}{a vector of v parameters of the response function
@@ -18,7 +18,11 @@ of a single taxon}
 
 \item{muMarg}{offset of length n}
 
-\item{psi}{a scalar, the importance parameter
+\item{psi}{a scalar, the importance parameter}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X
 
 Even though this approach does not imply normalization over
 the parameters of all taxa, it is very fast

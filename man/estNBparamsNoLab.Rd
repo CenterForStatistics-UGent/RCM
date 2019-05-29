@@ -5,7 +5,7 @@
 \title{A function to estimate the NB-params ignoring the taxon labels}
 \usage{
 estNBparamsNoLab(design, thetasMat, muMarg, psi, X, nleqslv.control,
-  initParam, n, v, dynamic, envRange, preFabMat, allowMissingness)
+  initParam, n, v, dynamic, envRange, preFabMat, allowMissingness, naId)
 }
 \arguments{
 \item{design}{an n-by-v design matrix}
@@ -32,7 +32,11 @@ See details}
 \item{envRange}{a vector of length 2,
 giving the range of observed environmental scores}
 
-\item{preFabMat}{a pre-fabricated auxiliary matrix
+\item{preFabMat}{a pre-fabricated auxiliary matrix}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X
 
 If dynamic is TRUE, quadratic response functions are fitted for every taxon.
  If the optimum falls outside of the observed range of environmental scores,

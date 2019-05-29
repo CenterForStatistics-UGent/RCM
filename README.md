@@ -21,10 +21,27 @@ install_github("CenterForStatistics-UGent/RCM")
 
 ``` r
 library(RCM)
+```
+
+    ## Registered S3 methods overwritten by 'ggplot2':
+    ##   method         from 
+    ##   [.quosures     rlang
+    ##   c.quosures     rlang
+    ##   print.quosures rlang
+
+    ## Registered S3 method overwritten by 'xts':
+    ##   method     from
+    ##   as.zoo.xts zoo
+
+    ## Registered S3 method overwritten by 'quantmod':
+    ##   method            from
+    ##   as.zoo.data.frame zoo
+
+``` r
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 0.99.1
+    ## RCM package version 1.0.2
 
 Dataset
 -------
@@ -49,7 +66,7 @@ The unconstrained RC(M) method represents all variability present in the data, r
 ZellerRCM2 = RCM(Zeller)
 ```
 
-which took 0.7 minutes.
+which took 1.6 minutes.
 
 ### Plotting the unconstrained RCM
 

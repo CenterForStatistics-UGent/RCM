@@ -5,7 +5,7 @@
 \title{The score function of the general response function}
 \usage{
 dNBllcol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi,
-  allowMissingness, ...)
+  allowMissingness, naId, ...)
 }
 \arguments{
 \item{betas}{a vector of regression parameters with length v}
@@ -19,6 +19,10 @@ dNBllcol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi,
 \item{muMarg}{offset matrix of dimension nxp}
 
 \item{psi}{a scalar, the importance parameter}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{further arguments passed on to the jacobian}
 }

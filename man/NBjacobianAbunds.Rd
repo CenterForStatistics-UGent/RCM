@@ -4,7 +4,7 @@
 \alias{NBjacobianAbunds}
 \title{Jacobian for the column components of the independence model}
 \usage{
-NBjacobianAbunds(beta, X, reg, thetas, allowMissingness)
+NBjacobianAbunds(beta, X, reg, thetas, allowMissingness, naId)
 }
 \arguments{
 \item{beta}{a vector of length p with current abundance estimates}
@@ -14,6 +14,10 @@ NBjacobianAbunds(beta, X, reg, thetas, allowMissingness)
 \item{reg}{a vector of length n with library sizes estimates}
 
 \item{thetas}{a n-by-p matrix with overdispersion estimates in the rows}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 a diagonal matrix of dimension p with evaluations

@@ -63,7 +63,7 @@ the weighting procedures for the normalization of row and column scores.
 \item{confTrimMat, confModelMat, covModelMat, centMat}{Dedicated model matrices
 constructed based on phyloseq object.}
 
-\item{allowMissingess}{A boolean, should NA values be tolerated?}
+\item{allowMissingness}{A boolean, should NA values be tolerated?}
 }
 \value{
 see \code{\link{RCM_NB}}

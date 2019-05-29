@@ -55,10 +55,11 @@ ZellerRCM2 = RCM(Zeller)
 ```{r fitHidden, echo = FALSE}
 if(!file.exists(file = "./inst/fits/zellerFits.RData")){
 ZellerRCM2 = RCM(Zeller)
+ZellerRCM3 = RCM(Zeller, k = 3, round = TRUE)
 ZellerRCM2cond = RCM(Zeller, confounders = "Country")
 ZellerRCM2constr = RCM(Zeller, k = 2, round = TRUE, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "linear")
 ZellerRCM2constrNonParam = RCM(Zeller, round = TRUE, k = 2, covariates = c("Age","Gender","BMI","Country", "Diagnosis"), responseFun = "nonparametric")
-save(ZellerRCM2, ZellerRCM2cond, ZellerRCM2constr, ZellerRCM2constrNonParam, file = "./inst/fits/zellerFits.RData")
+save(ZellerRCM2, ZellerRCM3, ZellerRCM2cond, ZellerRCM2constr, ZellerRCM2constrNonParam, file = "./inst/fits/zellerFits.RData")
 } else {load(file = "./inst/fits/zellerFits.RData")}
 ```
 

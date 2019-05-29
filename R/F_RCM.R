@@ -34,7 +34,7 @@
 #'   Defaults to NULL, in which case no filtering occurs.
 #' @param confTrimMat,confModelMat,covModelMat,centMat Dedicated model matrices
 #'  constructed based on phyloseq object.
-#' @param allowMissingess A boolean, should NA values be tolerated?
+#' @param allowMissingness A boolean, should NA values be tolerated?
 #' @param ... Further arguments passed on to the RCM.NB() function
 #'
 #'@description This is a wrapper function,
@@ -175,7 +175,8 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
 
     colnames(dat) = colNames
     rownames(dat) = rowNames
-    dat = dat[, (colMeans(dat %in% c(0, NA)) < (1 - prevCutOff)) &
+    dat = dat[, (apply(dat, 2, function(x) {
+      mean(x %in% c(0, NA)) < (1 - prevCutOff)})) &
         (colSums(dat, na.rm = TRUE) > (n * minFraction))]
     # Remove taxa with low prevalence and those who do
     # not meet the minFraction requirement

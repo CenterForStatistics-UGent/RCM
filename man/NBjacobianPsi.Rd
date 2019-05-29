@@ -4,7 +4,8 @@
 \alias{NBjacobianPsi}
 \title{Jacobian for the psi of a given dimension}
 \usage{
-NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat, allowMissingness)
+NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat, allowMissingness,
+  naId)
 }
 \arguments{
 \item{beta}{a scalar, the current estimate}
@@ -19,6 +20,10 @@ the outer product of current row and column scores}
 \item{theta}{a n-by-p matrix with the dispersion parameters}
 
 \item{preFabMat}{a prefab matrix, (1+X/thetas)}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 The evaluation of the jacobian function at beta, a 1-by-1 matrix

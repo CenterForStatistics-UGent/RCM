@@ -9,6 +9,7 @@
 NBcolInfl = function(rcm, Dim = 1) {
     reg = rcm$psis[Dim] * rcm$rMat[, Dim]
     mu = extractE(rcm, seq_len(Dim))
+    rcm$X  = correctXMissingness(rcm$X, mu, rcm$NApresent)
     #Take also lower dimensions into account here
     thetaMat = matrix(byrow = TRUE, nrow = nrow(rcm$X),
         ncol = ncol(rcm$X), data = rcm$thetas[,
@@ -31,7 +32,7 @@ NBcolInfl = function(rcm, Dim = 1) {
         thetas = thetaMat, muMarg = mu, k = Dim,
         p = nrow(rcm$X), n = ncol(rcm$X),
         colWeights = rcm$colWeights, nLambda = length(lambdaCol),
-        cMatK = cMatK))
+        cMatK = cMatK, allowMissingness = rcm$NApresent))
     # Inverse Jacobian
 
     # After a long thought: The X's do not

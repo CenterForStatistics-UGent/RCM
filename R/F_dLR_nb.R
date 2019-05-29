@@ -23,6 +23,8 @@
 #'  environmental gradient should be fitted.
 #'  'LR' using the likelihood-ratio criterion,
 #'  or 'ML' a full maximum likelihood solution
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #' @param ... further arguments passed on to other methods
 #'
 #' @return: The value of the lagrangian and the constraining equations
@@ -30,7 +32,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear",
     "quadratic", "nonparametric", "dynamic"),
     psi, NB_params, NB_params_noLab, d, alphaK,
     k, centMat, nLambda, nLambda1s, thetaMat,
-    muMarg, ncols, envGradEst, allowMissingness,...) {
+    muMarg, ncols, envGradEst, allowMissingness, naId, ...) {
 
     # Extract the parameters
     alpha = Alpha[seq_len(d)]
@@ -50,7 +52,7 @@ dLR_nb <- function(Alpha, X, CC, responseFun = c("linear",
     design = buildDesign(sampleScore, responseFun)
     mu = muMarg * exp(design %*% NB_params *
         psi)
-    X = correctXMissingness(X, mu, allowMissingness)
+    X = correctXMissingness(X, mu, allowMissingness, naId)
     tmp = (X - mu)/(1 + mu/thetaMat)
     responseFun = switch(responseFun, dynamic = "quadratic",
         responseFun)

@@ -7,6 +7,8 @@
 #' @param theta The dispersion parameter of this taxon
 #' @param muMarg offset of length n
 #' @param psi a scalar, the importance parameter
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' Even though this approach does not imply normalization over
 #' the parameters of all taxa, it is very fast
@@ -14,9 +16,9 @@
 #'
 #' @return The jacobian, a square symmetric matrix of dimension v
 JacCol_constr = function(betas, X, reg, theta,
-    muMarg, psi, allowMissingness) {
+    muMarg, psi, allowMissingness, naId) {
     mu = exp(c(reg %*% betas) * psi) * muMarg
-    X = correctXMissingness(X, mu, allowMissingness)
+    X = correctXMissingness(X, mu, allowMissingness, naId)
     tmp = (1 + X/theta) * mu/(1 + mu/theta)^2
     -crossprod(tmp * reg, reg) * psi^2  #Don't forget to square psi!
 

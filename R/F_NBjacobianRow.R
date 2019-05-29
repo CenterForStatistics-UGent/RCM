@@ -14,16 +14,18 @@
 #' @param rMatK the lower dimension row scores
 #' @param preFabMat a prefab matrix, (1+X/thetas)
 #' @param Jac an empty Jacobian matrix
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' @return a symmetric jacobian matrix of size n+k + 1
 NBjacobianRow = function(beta, X, reg, thetas,
     muMarg, k, n, p, rowWeights, nLambda,
-    rMatK, preFabMat, Jac, allowMissingness) {
+    rMatK, preFabMat, Jac, allowMissingness, naId) {
     rMat = beta[seq_len(n)]
     mu = exp(rMat %*% reg) * muMarg
 
     if(allowMissingness){
-      preFabMat = 1 + correctXMissingness(X, mu, allowMissingness)/thetas
+      preFabMat = 1 + correctXMissingness(X, mu, allowMissingness, naId)/thetas
     }
 
     # dLag²/dr_{ik}dlambda_{1k} already

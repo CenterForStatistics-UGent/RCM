@@ -13,6 +13,8 @@
 #'  See details
 #' @param envRange a vector of length 2, giving the range of observed
 #' environmental scores
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' If dynamic is TRUE, quadratic response functions are fitted for every taxon.
 #' If the optimum falls outside of the observed range of environmental scores,
@@ -21,14 +23,15 @@
 #' @return a v-by-p matrix of parameters of the response function
 estNBparams = function(design, thetas, muMarg,
     psi, X, nleqslv.control, ncols, initParam,
-    v, dynamic = FALSE, envRange, allowMissingness) {
+    v, dynamic = FALSE, envRange, allowMissingness, naId) {
     vapply(seq_len(ncols), FUN.VALUE = vector("numeric",
         v), function(i) {
         nleq = nleqslv(initParam[, i], reg = design,
             fn = dNBllcol_constr, theta = thetas[i],
             muMarg = muMarg[, i], psi = psi,
             X = X[, i], control = nleqslv.control,
-            jac = JacCol_constr, allowMissingness = allowMissingness)$x
+            jac = JacCol_constr, allowMissingness = allowMissingness,
+            naId = is.na(X[, i]))$x
         if (dynamic && ((-nleq[2]/(2 * nleq[3]) <
             envRange[1]) || (-nleq[2]/(2 *
             nleq[3]) > envRange[2]))) {
@@ -45,7 +48,8 @@ estNBparams = function(design, thetas, muMarg,
                 X = X[, i],
                 control = nleqslv.control,
                 jac = JacCol_constr,
-                allowMissingness = allowMissingness
+                allowMissingness = allowMissingness,
+                naId = is.na(X[, i])
                 )$x,0)
         }
         return(nleq)

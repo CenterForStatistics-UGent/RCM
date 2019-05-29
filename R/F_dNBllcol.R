@@ -14,17 +14,19 @@
 #' @param nLambda an integer, the number of restrictions
 #' @param colWeights the weights used for the restrictions
 #' @param cMatK the lower dimensions of the colScores
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #' @param ... further arguments passed on to the jacobian
 
 #' @return A vector of length p+1+1+(k-1) with evaluations of the
 #'  derivative of lagrangian
 dNBllcol = function(beta, X, reg, thetas,
     muMarg, k, p, n, colWeights, nLambda,
-    cMatK, allowMissingness,...) {
+    cMatK, allowMissingness, naId, ...) {
     cMat = matrix(beta[seq_len(p)], byrow = TRUE,
         ncol = p, nrow = 1)
     mu = exp(reg %*% cMat) * muMarg
-    X = correctXMissingness(X, mu, allowMissingness)
+    X = correctXMissingness(X, mu, allowMissingness, naId)
     lambda1 = beta[p + 1]
     # Lagrangian multiplier for centering
     # restrictions sum(abunds*r_{ik}) = 0

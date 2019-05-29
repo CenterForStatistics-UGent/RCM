@@ -5,7 +5,7 @@
 \title{A score function of the NB for the row scores}
 \usage{
 dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK,
-  allowMissingness, ...)
+  allowMissingness, naId, ...)
 }
 \arguments{
 \item{beta}{a vector of of length n + k +1 regression parameters to optimize}
@@ -30,6 +30,10 @@ dNBllrow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda, rMatK,
 \item{nLambda}{an integer, the number of lagrangian multipliers}
 
 \item{rMatK}{the lower dimension row scores}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{Other arguments passed on to the jacobian}
 }
