@@ -12,13 +12,18 @@
 -   Explained deviance and inertia can be plotted on the axes rahter than the *ψ*'s using the "plotPsi" argument to the plot.RCM() function.
 -   Possibility to provide lower dimensional fits has been disabled. *RCM* is fast enough to fit the whole model.
 
+1.0.0
+=====
+
+-   Release on BioConductor
+
 1.0.1
-====
+=====
 
-- Release on BioConductor
+-   Bug fix in buildCovMat() to avoid false warning
+-   Check for alias structure in confounder and covariate matrices
 
-1.0.2
-====
+1.2.0
+=====
 
-- Bug fix in buildCovMat() to avoid warning
-- Check for alias structure in confounder and covariate matrices
+-   Missing values in count matrix are now allowed. They simply do not contribute to the parameter estimation, but the rest of the row (or column) is still used.

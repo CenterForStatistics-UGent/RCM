@@ -4,7 +4,7 @@
 \alias{NBjacobianLibSizes}
 \title{Jacobian for the raw components of the independence model}
 \usage{
-NBjacobianLibSizes(beta, X, reg, thetas)
+NBjacobianLibSizes(beta, X, reg, thetas, allowMissingness, naId)
 }
 \arguments{
 \item{beta}{a vector of length n with current library size estimates}
@@ -14,6 +14,10 @@ NBjacobianLibSizes(beta, X, reg, thetas)
 \item{reg}{a vector of length p with relative abundance estimates}
 
 \item{thetas}{a n-by-p matrix with overdispersion estimates in the rows}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 a diagonal matrix of dimension n: the Fisher information matrix

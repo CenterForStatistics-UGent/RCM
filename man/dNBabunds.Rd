@@ -5,7 +5,7 @@
 \title{A score function for the column components of the independence model
 (mean relative abundances)}
 \usage{
-dNBabunds(beta, X, reg, thetas)
+dNBabunds(beta, X, reg, thetas, allowMissingness, naId)
 }
 \arguments{
 \item{beta}{a vector of length p with current abundance estimates}
@@ -15,6 +15,10 @@ dNBabunds(beta, X, reg, thetas)
 \item{reg}{a vector of length n with library sizes estimates}
 
 \item{thetas}{a n-by-p matrix with overdispersion estimates in the rows}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 a vector of length p with evaluations of the score function

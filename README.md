@@ -24,7 +24,7 @@ suppressPackageStartupMessages(library(RCM, quietly = TRUE, warn.conflicts = FAL
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 1.0.0
+    ## RCM package version 1.0.2
 
 Alternatively, the latest version can be installed directly from this GitHub repo as follows:
 
@@ -56,7 +56,7 @@ The unconstrained RC(M) method represents all variability present in the data, r
 ZellerRCM2 = RCM(Zeller)
 ```
 
-which took 0.7 minutes.
+which took 1.6 minutes.
 
 ### Plotting the unconstrained RCM
 

@@ -14,6 +14,8 @@
 #'  with trended dispersion estimates
 #' @param tol a scalar, the convergence tolerance
 #' @param maxIt maximum number of iterations
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' Fits the negative binomial mean parameters and overdispersion parameters
 #'  iteratively.
@@ -25,7 +27,7 @@
 #' \item{NB_params}{The estimated parameters of the interaction terms}
 
 filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
-    trended.dispersion, tol = 0.001, maxIt = 20) {
+    trended.dispersion, tol = 0.001, maxIt = 20, allowMissingness, naId) {
     NB_params = matrix(0, ncol(confMat), p)
 
     iter = 1
@@ -39,7 +41,9 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
                 fn = dNBllcol_constr,
                 theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
                 control = nleqslv.control,
-                jac = JacCol_constr, psi = 1)$x)
+                jac = JacCol_constr, psi = 1,
+                allowMissingness = allowMissingness,
+                naId = is.na(X[, i]))$x)
         # Fit the taxon-by taxon NB with given overdispersion parameters and
                 # return predictions
                 if (inherits(nleq, "try-error") | anyNA(nleq) |
@@ -47,8 +51,9 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
                 nleq = nleqslv(NB_params[, i], reg = confMat,
                 fn = dNBllcol_constr,
                 theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
-                control = nleqslv.control, psi = 1)$x
-
+                control = nleqslv.control, psi = 1,
+                allowMissingness = allowMissingness,
+                naId = is.na(X[, i]))$x
                 }
                 # If fails try with numeric jacobian
                 return(nleq)
@@ -62,7 +67,8 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
 
         thetas = estDisp(X = X, cMat = matrix(0, ncol = p), rMat = matrix(0,
             nrow = n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params),
-            trended.dispersion = trended.dispersion)
+            trended.dispersion = trended.dispersion,
+            allowMissingness = allowMissingness)
         # Estimate overdispersion
         iter = iter + 1
         convergence = sqrt(mean((1 - NB_params/NB_params_old)^2)) < tol

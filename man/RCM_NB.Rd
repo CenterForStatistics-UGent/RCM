@@ -15,7 +15,7 @@ RCM_NB(X, k, rowWeights = "uniform", colWeights = "marginal",
   control.outer = list(trace = FALSE), control.optim = list(),
   envGradEst = "LR", dfSpline = 3, vgamMaxit = 100L,
   degree = switch(responseFun[1], nonparametric = 3, NULL), a = 1,
-  b = 1)
+  b = 1, allowMissingness = FALSE)
 }
 \arguments{
 \item{X}{a nxp data matrix}
@@ -105,6 +105,8 @@ the degree of the polynomial fit if the spline fit fails}
 \item{a, b}{exponents for the row and column weights of the singular value
 decomposition used to calculate starting values. Can be played around with
 in case of numerical troubles}
+
+\item{allowMissingness}{See RCM()}
 }
 \value{
 A list with elements
@@ -143,6 +145,7 @@ A list with elements
 \item{confParams}{ the parameters used to filter out the confounders}
 \item{nonParamRespFun}{A list of the non parametric response functions}
 \item{degree}{The degree of the alternative parametric fit}
+\item{NApresent}{A boolean, were NA values present?}
 }
 \description{
 Fit the RC(M) model with the negative binomial distribution.

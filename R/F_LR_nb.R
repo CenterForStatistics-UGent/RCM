@@ -25,42 +25,42 @@
 #'
 #' @return: a scalar, the evaluation of the log-likelihood ratio
 #'  at the given alpha
-LR_nb <- function(Alpha, X, CC, responseFun = c("linear", 
-    "quadratic", "nonparametric", "dynamic"), 
-    muMarg, psi, nleqslv.control = list(trace = FALSE), 
-    n, NB_params, NB_params_noLab, thetaMat, 
+LR_nb <- function(Alpha, X, CC, responseFun = c("linear",
+    "quadratic", "nonparametric", "dynamic"),
+    muMarg, psi, nleqslv.control = list(trace = FALSE),
+    n, NB_params, NB_params_noLab, thetaMat,
     ncols, nonParamRespFun, envGradEst, ...) {
-    
+
     sampleScore = CC %*% Alpha
-    if (responseFun %in% c("linear", "quadratic", 
+    if (responseFun %in% c("linear", "quadratic",
         "dynamic")) {
-        design = buildDesign(sampleScore, 
+        design = buildDesign(sampleScore,
             responseFun)
-        muT = muMarg * c(exp(design %*% NB_params * 
+        muT = muMarg * c(exp(design %*% NB_params *
             psi))
-        if (envGradEst == "LR") 
-            mu0 = muMarg * c(exp(design %*% 
+        if (envGradEst == "LR")
+            mu0 = muMarg * c(exp(design %*%
                 NB_params_noLab * psi))
     } else {
         # Non-parametric response function
-        muT = exp(nonParamRespFun$rowMat) * 
+        muT = exp(nonParamRespFun$rowMat) *
             muMarg
-        if (envGradEst == "LR") 
-            mu0 = c(exp(nonParamRespFun$rowVecOverall)) * 
+        if (envGradEst == "LR")
+            mu0 = c(exp(nonParamRespFun$rowVecOverall)) *
                 muMarg
     }
-    logDensj = dnbinom(X, mu = muT, size = thetaMat, 
+    logDensj = dnbinom(X, mu = muT, size = thetaMat,
         log = TRUE)
     # Likelihoods under species specific
     # model Immediately return log
     # likelihoods
-    
-    if (envGradEst == "LR") 
-        logDens0 = dnbinom(X, mu = mu0, size = thetaMat, 
+
+    if (envGradEst == "LR")
+        logDens0 = dnbinom(X, mu = mu0, size = thetaMat,
             log = TRUE)  #Likelihoods of null model
-    
-    lr <- switch(envGradEst, LR = sum(logDensj - 
-        logDens0), ML = sum(logDensj))
+
+    lr <- sum(switch(envGradEst, "LR" = logDensj -
+        logDens0, "ML" = logDensj), na.rm = TRUE)
     # The likelihood ratio
     return(-lr)  # opposite sign for the minimization procedure
 }

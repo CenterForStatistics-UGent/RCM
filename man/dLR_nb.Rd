@@ -7,7 +7,8 @@
 \usage{
 dLR_nb(Alpha, X, CC, responseFun = c("linear", "quadratic",
   "nonparametric", "dynamic"), psi, NB_params, NB_params_noLab, d, alphaK,
-  k, centMat, nLambda, nLambda1s, thetaMat, muMarg, ncols, envGradEst, ...)
+  k, centMat, nLambda, nLambda1s, thetaMat, muMarg, ncols, envGradEst,
+  allowMissingness, naId, ...)
 }
 \arguments{
 \item{Alpha}{a vector of length d + k*(2+(k-1)/2),
@@ -48,6 +49,10 @@ the type of response function}
 environmental gradient should be fitted.
 'LR' using the likelihood-ratio criterion,
 or 'ML' a full maximum likelihood solution}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{further arguments passed on to other methods}
 }

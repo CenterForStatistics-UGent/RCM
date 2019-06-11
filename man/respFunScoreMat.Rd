@@ -4,7 +4,8 @@
 \alias{respFunScoreMat}
 \title{Derivative of the Lagrangian of the parametric response function}
 \usage{
-respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v, ...)
+respFunScoreMat(betas, X, reg, thetaMat, muMarg, psi, p, v,
+  allowMissingness, naId, ...)
 }
 \arguments{
 \item{betas}{a vector of length (deg+1)*(p+1) with regression parameters with
@@ -23,6 +24,10 @@ deg the degree of the response function and the lagrangian multipliers}
 \item{p}{an integer, the number of taxa}
 
 \item{v}{an integer, one plus the degree of the response function}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{further arguments passed on to the jacobian
 

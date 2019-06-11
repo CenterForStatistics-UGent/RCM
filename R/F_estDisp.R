@@ -16,11 +16,14 @@
 #' @param dispWeights Weights for estimating the dispersion
 #' in a zero-inflated model
 #' @param rowMat matrix of row scores in case of constrained ordination
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' @return A vector of length p with dispersion estimates
 estDisp = function(X, cMat = NULL, rMat = NULL,
     muMarg, psis, trended.dispersion = NULL,
-    prior.df = 10, dispWeights = NULL, rowMat = NULL) {
+    prior.df = 10, dispWeights = NULL, rowMat = NULL,
+    allowMissingness = FALSE, naId) {
     logMeansMat = if (!is.null(rMat)) {
         # Unconstrained
         t(rMat %*% (cMat * psis) + log(muMarg))
@@ -34,6 +37,8 @@ estDisp = function(X, cMat = NULL, rMat = NULL,
         stop("Overflow! Try trimming more lowly
         abundant taxa prior to model fitting.
         \n See prevCutOff argument in ?RCM.")
+    X = correctXMissingness(X, exp(logMeansMat), allowMissingness, naId)
+
     trended.dispersion = if (is.null(trended.dispersion)) {
         edgeR::estimateGLMTrendedDisp(y = t(X),
             design = NULL, method = "bin.loess",

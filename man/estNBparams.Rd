@@ -5,7 +5,7 @@
 \title{A function to estimate the taxon-wise NB-params}
 \usage{
 estNBparams(design, thetas, muMarg, psi, X, nleqslv.control, ncols,
-  initParam, v, dynamic = FALSE, envRange)
+  initParam, v, dynamic = FALSE, envRange, allowMissingness, naId)
 }
 \arguments{
 \item{design}{an n-by-v design matrix}
@@ -30,7 +30,11 @@ estNBparams(design, thetas, muMarg, psi, X, nleqslv.control, ncols,
 See details}
 
 \item{envRange}{a vector of length 2, giving the range of observed
-environmental scores
+environmental scores}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X
 
 If dynamic is TRUE, quadratic response functions are fitted for every taxon.
 If the optimum falls outside of the observed range of environmental scores,

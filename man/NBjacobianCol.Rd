@@ -5,7 +5,7 @@
 \title{Jacobian for the estimation of the column scores}
 \usage{
 NBjacobianCol(beta, X, reg, thetas, muMarg, k, n, p, colWeights, nLambda,
-  cMatK, preFabMat, Jac)
+  cMatK, preFabMat, Jac, allowMissingness, naId)
 }
 \arguments{
 \item{beta}{vector of length p+1+1+(k-1): p row scores, 1 centering,
@@ -36,6 +36,10 @@ and (k-1) orhtogonality lagrangian multipliers}
 \item{preFabMat}{a prefab matrix, (1+X/thetas)}
 
 \item{Jac}{an empty Jacobian matrix}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 A matrix of dimension p+1+1+(k-1) with evaluations of the Jacobian

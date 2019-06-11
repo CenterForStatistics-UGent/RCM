@@ -63,6 +63,7 @@
 #' @param a,b exponents for the row and column weights of the singular value
 #'  decomposition used to calculate starting values. Can be played around with
 #'  in case of numerical troubles
+#' @param allowMissingness See RCM()
 #'
 #' @seealso \code{\link{RCM}}
 #'
@@ -102,6 +103,7 @@
 #' \item{confParams}{ the parameters used to filter out the confounders}
 #' \item{nonParamRespFun}{A list of the non parametric response functions}
 #' \item{degree}{The degree of the alternative parametric fit}
+#' \item{NApresent}{A boolean, were NA values present?}
 #' @export
 #' @note Plotting is not supported for quadratic response functions
 #' @examples
@@ -124,7 +126,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         "nonparametric"), record = FALSE, control.outer = list(trace = FALSE),
     control.optim = list(), envGradEst = "LR", dfSpline = 3,
     vgamMaxit = 100L, degree = switch(responseFun[1],
-        nonparametric = 3, NULL), a = 1, b = 1){
+        nonparametric = 3, NULL), a = 1, b = 1, allowMissingness = FALSE){
 
     Xorig = NULL  #An original matrix, not returned if no trimming occurs
     responseFun = responseFun[1]
@@ -140,6 +142,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
             prevCutOff = prevCutOff, n = nrow(Xorig),
             minFraction = minFraction)
     }
+    naId = if(allowMissingness) which(is.na(X)) else NULL
 
     n = NROW(X)
     p = NCOL(X)
@@ -152,23 +155,23 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
     # associated to the independence model
 
     # Initialize some parameters
-    abunds = colSums(X)/sum(X)
-    libSizes = rowSums(X)
+    abunds = colSums(X, na.rm = TRUE)/sum(X, na.rm = TRUE)
+    libSizes = rowSums(X, na.rm = TRUE)
 
     # Get the trended-dispersion estimates.  Very
     # insensitive to the offset so only need to be
     # calculated once per dimension
-    trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X),
+    trended.dispersion <- edgeR::estimateGLMTrendedDisp(
+        y = t(correctXMissingness(X, outer(libSizes, abunds),
+                                    allowMissingness, naId)),
         design = NULL, method = "bin.loess", offset = t(log(outer(libSizes,
             abunds))), weights = NULL)
-
     if (marginEst == "MLE") {
         logLibSizesMLE = log(libSizes)
         logAbundsMLE = log(abunds)
         initIter = 1
         if (verbose)
             cat("\nEstimating the independence model \n\n")
-
         while ((initIter == 1) || ((initIter <= maxItOut) &&
             (!convergenceInit))) {
             logLibsOld = logLibSizesMLE
@@ -178,7 +181,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                 rMat = as.matrix(rep(0, n)), cMat = t(as.matrix(rep(0,
                 p))), muMarg = exp(outer(logLibSizesMLE,
                 logAbundsMLE, "+")), psis = 0, prior.df = prior.df,
-                trended.dispersion = trended.dispersion)
+                trended.dispersion = trended.dispersion,
+                allowMissingness = allowMissingness, naId = naId)
             thetasMat = matrix(thetas[, "Independence"],
                 n, p, byrow = TRUE)
 
@@ -186,12 +190,13 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                 x = logLibSizesMLE, theta = thetasMat,
                 X = X, reg = logAbundsMLE, global = global,
                 control = nleqslv.control, jac = NBjacobianLibSizes,
-                method = jacMethod)$x
+                method = jacMethod, allowMissingness = allowMissingness,
+                naId = naId)$x
             logAbundsMLE = nleqslv(fn = dNBabunds,
                 x = logAbundsMLE, theta = thetasMat,
                 X = X, reg = logLibSizesMLE, global = global,
                 control = nleqslv.control, jac = NBjacobianAbunds,
-                method = jacMethod)$x
+                method = jacMethod, allowMissingness = allowMissingness, naId = naId)$x
             initIter = initIter + 1
 
             convergenceInit = ((initIter <= maxItOut) &&
@@ -209,7 +214,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         # The marginals to be used as expectation. These
         # are augmented with the previously estimated
         # dimensions every time
-
     } else if (marginEst == "marginSums") {
         muMarg = outer(libSizes, abunds)
     } else {
@@ -245,7 +249,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         filtObj = filterConfounders(muMarg = muMarg,
             confMat = confModelMat, p = p, X = X, thetas = thetas[,
                 1], nleqslv.control = nleqslv.control,
-            n = n, trended.dispersion = trended.dispersion)
+            n = n, trended.dispersion = trended.dispersion,
+            allowMissingness = allowMissingness, naId = naId)
         muMarg = muMarg * exp(confModelMat %*% filtObj$NB_params)
         thetas[, "Filtered"] = filtObj$thetas
         confParams = filtObj$NB_params
@@ -253,8 +258,10 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         confParams = NULL
     }
     ## 1) Initialization
-    svdX = svd(diag(1/libSizes^a) %*% (X - muMarg) %*%
-        diag(1/colSums(X)^b))
+    svdX = svd(diag(1/libSizes^a) %*%
+            (correctXMissingness(X, muMarg, allowMissingness, naId)
+             - muMarg) %*%
+        diag(1/colSums(X, na.rm = TRUE)^b))
     rMat = svdX$u[, seq_len(k), drop = FALSE]
     cMat = t(svdX$v[, seq_len(k), drop = FALSE])
     psis = svdX$d[seq_len(k)]
@@ -303,7 +310,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
 
             # Re-estimate the trended dispersions, once per
             # dimensions
-            trended.dispersion <- edgeR::estimateGLMTrendedDisp(y = t(X),
+            trended.dispersion <- edgeR::estimateGLMTrendedDisp(
+              y = t(correctXMissingness(X, muMarg, allowMissingness, naId)),
                 design = NULL, method = "bin.loess",
                 offset = t(log(muMarg)), weights = NULL)
 
@@ -360,7 +368,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     cMat = cMat[KK, , drop = FALSE],
                     muMarg = muMarg, psis = psis[KK],
                     prior.df = prior.df,
-                    trended.dispersion = trended.dispersion)
+                    trended.dispersion = trended.dispersion,
+                    allowMissingness = allowMissingness)
                 thetasMat = matrix(thetas[, paste0("Dim",
                     KK)], n, p, byrow = TRUE)
                 # Make a matrix for numerical reasons, it avoids
@@ -377,7 +386,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     X = X, reg = regPsis, muMarg = muMarg,
                     global = global, control = nleqslv.control,
                     jac = NBjacobianPsi, method = jacMethod,
-                    preFabMat = preFabMat)$x))
+                    preFabMat = preFabMat, allowMissingness = allowMissingness, naId = naId)$x))
                 if (inherits(psiTry, "try-error")) {
                 stop("Fit failed, likely due to numeric reasons. Consider more
                 stringent filtering by increasing the prevCutOff parameter.\n")
@@ -398,7 +407,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     method = jacMethod, colWeights = colWeights,
                     nLambda = (KK + 1), cMatK = cMat[seq(1,
                     (KK - 1)), , drop = FALSE], preFabMat = preFabMat,
-                    Jac = JacC)
+                    Jac = JacC, allowMissingness = allowMissingness, naId = naId)
 
                 if (verbose)
                     cat(ifelse(tmpCol$termcd == 1, "Column scores converged \n",
@@ -424,7 +433,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     method = jacMethod, rowWeights = rowWeights,
                     nLambda = (KK + 1), rMatK = rMat[,
                     seq(1, (KK - 1)), drop = FALSE],
-                    preFabMat = preFabMat, Jac = JacR)
+                    preFabMat = preFabMat, Jac = JacR,
+                allowMissingness = allowMissingness)
 
                 if (verbose)
                     cat(ifelse(tmpRow$termcd == 1, "Row scores converged \n",
@@ -481,7 +491,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
     } else {
         # If covariates provided, do a constrained analysis
         d = ncol(covModelMat)
-        CCA = vegan::cca(X = X, Y = covModelMat)$CCA
+        CCA = vegan::cca(X = correctXMissingness(X, muMarg, allowMissingness, naId),
+                         Y = covModelMat)$CCA
         # Constrained correspondence analysis for starting
         # values
         if (sum(!colnames(covModelMat) %in% CCA$alias) <
@@ -596,7 +607,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     muMarg = muMarg, psis = psis[KK],
                     prior.df = prior.df,
                     trended.dispersion = trended.dispersion,
-                    rowMat = rowMat)
+                    rowMat = rowMat, allowMissingness = allowMissingness, naId = naId)
                     thetasMat = matrix(thetas[, paste0("Dim",
                     KK)], n, p, byrow = TRUE)
                     preFabMat = 1 + X/thetasMat
@@ -604,14 +615,14 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
 
                 if (responseFun %in% c("linear", "quadratic","dynamic")) {
                 # Psis
-                    if (verbose)
+                if (verbose)
                     cat("\n Estimating psis (k = ",KK, ") \n", sep = "")
                 psis[KK] = abs(nleqslv(fn = dNBpsis,
                     x = psis[KK], theta = thetasMat,
                     X = X, reg = rowMat, muMarg = muMarg,
                     global = global, control = nleqslv.control,
                     jac = NBjacobianPsi, method = jacMethod,
-                    preFabMat = preFabMat)$x)
+                    preFabMat = preFabMat, allowMissingness = allowMissingness, naId = naId)$x)
 
                 if (verbose)
                     cat("\n Estimating response function \n")
@@ -621,8 +632,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     X = X, nleqslv.control = nleqslv.control,
                     ncols = p, initParam = NB_params[,
                     , KK], v = v, dynamic = responseFun ==
-                    "dynamic", envRange = envRange)
-                NB_params[, , KK] = NB_params[, ,KK]/
+                    "dynamic", envRange = envRange,
+                    allowMissingness = allowMissingness)
+                NB_params[, , KK] = NB_params[, , KK]/
                 sqrt(rowSums(NB_params[, ,KK]^2))
 
                 if (envGradEst == "LR") {
@@ -632,9 +644,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     initParam = NB_params_noLab[,KK], v = v,
                     dynamic = responseFun ==
                         "dynamic", envRange = envRange,
-                    preFabMat = preFabMat, n = n)
+                    preFabMat = preFabMat, n = n,
+                    allowMissingness = allowMissingness)
                 }
-
                 if (verbose)
                     cat("\n Estimating environmental gradient \n")
                     AlphaTmp = nleqslv(x = c(alpha[,
@@ -649,10 +661,9 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     nLambda1s = nLambda1s, thetaMat = thetasMat,
                     muMarg = muMarg, control = nleqslv.control,
                     n = n, v = v, ncols = p, preFabMat = preFabMat,
-                    envGradEst = envGradEst)$x
+                    envGradEst = envGradEst, allowMissingness = allowMissingness, naId = naId)$x
                     alpha[, KK] = AlphaTmp[seq_len(d)]
                     lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp[-seq_len(d)]
-
                 } else {
                 if (verbose)
                     cat("\n Estimating response functions \n")
@@ -662,7 +673,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     n = n, coefInit = nonParamRespFun[[KK]]$taxonCoef,
                     coefInitOverall = nonParamRespFun[[KK]]$overall$coef,
                     vgamMaxit = vgamMaxit, dfSpline = dfSpline,
-                    verbose = verbose, degree = degree)
+                    verbose = verbose, degree = degree,
+                    allowMissingness = allowMissingness, naId = naId)
                     if (verbose)
                     cat("\n Estimating environmental gradient \n")
                     AlphaTmp = constrOptim.nl(par = alpha[,KK],
@@ -675,7 +687,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     control.optim = control.optim,
                     k = KK, centMat = centMat, n = n,
                     nonParamRespFun = nonParamRespFun[[KK]],
-                    thetaMat = thetasMat, envGradEst = envGradEst)
+                    thetaMat = thetasMat, envGradEst = envGradEst,
+                    allowMissingness = allowMissingness)
                     alpha[, KK] = AlphaTmp$par
                     lambdasAlpha[seq_k(KK, nLambda1s)] = AlphaTmp$lambda
                     }
@@ -748,5 +761,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         libSizes = switch(marginEst, MLE = exp(logLibSizesMLE),
             marginSums = libSizes), abunds = switch(marginEst,
             MLE = exp(logAbundsMLE), marginSums = abunds),
-        confounders = confModelMat, confParams = confParams)))
+        confounders = confModelMat, confParams = confParams,
+        NApresent = allowMissingness)))
 }

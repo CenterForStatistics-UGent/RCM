@@ -5,7 +5,7 @@
 \title{A jacobian function of the NB for the row scores}
 \usage{
 NBjacobianRow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda,
-  rMatK, preFabMat, Jac)
+  rMatK, preFabMat, Jac, allowMissingness, naId)
 }
 \arguments{
 \item{beta}{a vector of of length n + k +1 regression parameters to optimize}
@@ -34,6 +34,10 @@ NBjacobianRow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda,
 \item{preFabMat}{a prefab matrix, (1+X/thetas)}
 
 \item{Jac}{an empty Jacobian matrix}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 }
 \value{
 a symmetric jacobian matrix of size n+k + 1

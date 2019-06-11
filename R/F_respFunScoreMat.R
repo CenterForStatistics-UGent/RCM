@@ -9,6 +9,8 @@
 #' @param psi a scalar, the importance parameter
 #' @param v an integer, one plus the degree of the response function
 #' @param p an integer, the number of taxa
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #' @param ... further arguments passed on to the jacobian
 #'
 #' The parameters are restricted to be normalized, i.e. all squared intercepts,
@@ -17,14 +19,15 @@
 #' @return The evaluation of the score functions, a vector of length (p+1)*
 #' (deg+1)
 #'
-respFunScoreMat = function(betas, X, reg, 
-    thetaMat, muMarg, psi, p, v, ...) {
-    NBparams = matrix(betas[seq_len(p * v)], 
+respFunScoreMat = function(betas, X, reg,
+    thetaMat, muMarg, psi, p, v, allowMissingness, naId,...) {
+    NBparams = matrix(betas[seq_len(p * v)],
         ncol = p)
-    mu = exp((reg %*% NBparams) * psi) * 
+    mu = exp((reg %*% NBparams) * psi) *
         muMarg
-    score = crossprod(reg, (X - mu)/(1 + 
-        mu/thetaMat)) * psi + 2 * betas[seq_len(v) + 
+    X = correctXMissingness(X, mu, allowMissingness, naId)
+    score = crossprod(reg, (X - mu)/(1 +
+        mu/thetaMat)) * psi + 2 * betas[seq_len(v) +
         p * v] * NBparams
     norm = rowSums(NBparams^2) - 1
     return(c(score, norm))  #Taxon per taxon

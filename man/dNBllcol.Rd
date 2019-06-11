@@ -6,7 +6,7 @@
 in an unconstrained RC(M) model}
 \usage{
 dNBllcol(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK,
-  ...)
+  allowMissingness, naId, ...)
 }
 \arguments{
 \item{beta}{vector of length p+1+1+(k-1): p row scores,
@@ -32,6 +32,10 @@ dNBllcol(beta, X, reg, thetas, muMarg, k, p, n, colWeights, nLambda, cMatK,
 \item{nLambda}{an integer, the number of restrictions}
 
 \item{cMatK}{the lower dimensions of the colScores}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{further arguments passed on to the jacobian}
 }

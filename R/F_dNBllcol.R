@@ -14,17 +14,19 @@
 #' @param nLambda an integer, the number of restrictions
 #' @param colWeights the weights used for the restrictions
 #' @param cMatK the lower dimensions of the colScores
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #' @param ... further arguments passed on to the jacobian
 
 #' @return A vector of length p+1+1+(k-1) with evaluations of the
 #'  derivative of lagrangian
-dNBllcol = function(beta, X, reg, thetas, 
-    muMarg, k, p, n, colWeights, nLambda, 
-    cMatK, ...) {
-    cMat = matrix(beta[seq_len(p)], byrow = TRUE, 
+dNBllcol = function(beta, X, reg, thetas,
+    muMarg, k, p, n, colWeights, nLambda,
+    cMatK, allowMissingness, naId, ...) {
+    cMat = matrix(beta[seq_len(p)], byrow = TRUE,
         ncol = p, nrow = 1)
     mu = exp(reg %*% cMat) * muMarg
-    
+    X = correctXMissingness(X, mu, allowMissingness, naId)
     lambda1 = beta[p + 1]
     # Lagrangian multiplier for centering
     # restrictions sum(abunds*r_{ik}) = 0
@@ -38,19 +40,19 @@ dNBllcol = function(beta, X, reg, thetas,
     }
     # Lagrangian multiplier for
     # orthogonalization restriction
-    
-    score = crossprod(reg, ((X - mu)/(1 + 
-        mu/thetas))) + colWeights * (lambda1 + 
-        lambda2 * 2 * cMat + (lambda3 %*% 
+
+    score = crossprod(reg, ((X - mu)/(1 +
+        mu/thetas))) + colWeights * (lambda1 +
+        lambda2 * 2 * cMat + (lambda3 %*%
         cMatK))
-    
+
     center = sum(colWeights * cMat)
-    unitSum = sum(colWeights * cMat^2) - 
+    unitSum = sum(colWeights * cMat^2) -
         1
     if (k == 1) {
         return(c(score, center, unitSum))
     }
-    orthogons = tcrossprod(cMatK, cMat * 
+    orthogons = tcrossprod(cMatK, cMat *
         colWeights)
     return(c(score, center, unitSum, orthogons))
 }

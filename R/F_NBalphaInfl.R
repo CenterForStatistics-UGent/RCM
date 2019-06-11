@@ -40,6 +40,7 @@ NBalphaInfl = function(rcm, Dim) {
     # A linear combination of the environmental variables yields the
     # sampleScore
     mu = extractE(rcm, seq_len(Dim))
+    X = correctXMissingness(X, mu, rcm$NApresent)
     muMarg = extractE(rcm, seq_len(Dim - 1))
     tmp = (X - mu)/(1 + mu/thetaMat)
     tmp2 = rowMultiply(tmp, NB_params[2, ])
@@ -95,7 +96,8 @@ NBalphaInfl = function(rcm, Dim) {
         muMarg = extractE(rcm, seq_len(Dim - 1)), n = n, ncols = p,
         envGradEst = envGradEst,
         alphaK = rcm$alpha[, seq_len(Dim - 1), drop = FALSE], preFabMat = 1 +
-            X/thetaMat))[seq_len(d), seq_len(d)]
+            X/thetaMat, allowMissingness = rcm$NApresent,
+        naId = is.na(rcm$X)))[seq_len(d), seq_len(d)]
     # Return only alpha indices, don't forget the minus sign!
     rownames(JacobianInv) = colnames(JacobianInv) = names(alpha)
     tensor(score, JacobianInv, 3, 1)

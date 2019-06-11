@@ -12,6 +12,8 @@
 #' @param vgamMaxit Maximal number of iterations in the fitting of the GAM model
 #' @param degree The degree if the parametric fit if the VGAM fit fails
 #' @param verbose a boolean, should number of failed fits be reported
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #' @param ... further arguments, passed on to the VGAM:::vgam() function
 #'
 #' The negative binomial likelihood is still maximized,
@@ -32,9 +34,10 @@
 #' \item{rowVecOverall}{The overall row vector, ignoring taxon labels}
 #'
 #' @importFrom MASS negative.binomial
+#' @importFrom stats na.omit
 estNPresp = function(sampleScore, muMarg,
     X, ncols, thetas, n, coefInit, coefInitOverall,
-    dfSpline, vgamMaxit, degree, verbose,
+    dfSpline, vgamMaxit, degree, verbose, allowMissingness, naId,
     ...) {
     logMu = log(muMarg)
     MM = getModelMat(sampleScore, degree)
@@ -42,6 +45,7 @@ estNPresp = function(sampleScore, muMarg,
     MM1 = getModelMat(sampleScore, degree = 1)
     # The model matrix of the first degree
     taxonWise = lapply(seq_len(ncols), function(i) {
+        #Fit based on non-NAs
         df = data.frame(x = X[, i], sampleScore = sampleScore,
             logMu = log(muMarg[, i]))
         # Going through a dataframe slows things
@@ -51,15 +55,18 @@ estNPresp = function(sampleScore, muMarg,
             x ~ s(sampleScore, df = dfSpline),
             offset = logMu, family = negbinomial.size(lmu = "loge",
                 size = thetas[i]), coefstart = coefInit[[i]],
-            maxit = vgamMaxit, ...)), silent = TRUE)
+            maxit = vgamMaxit, na.option = na.omit,...)), silent = TRUE)
         if (inherits(tmp, "try-error")) {
             # If this fails turn to parametric fit
             warning("GAM would not fit, turned to parametric fit of degree ",
                 degree, "!")
+            nonNaId = !is.na(X[,i])
             tmp = try(nleqslv(fn = dNBllcolNP,
-                x = if (length(coefInit[[i]]) ==2) {rep(1e-04, degree + 1)
-                } else coefInit[[i]], X = X[,i], reg = MM, theta = thetas[i],
-                muMarg = muMarg[, i], jac = NBjacobianColNP)$x)
+                x = if (length(coefInit[[i]])) {coefInit[[i]]
+                } else rep(1e-04, degree + 1), X = X[nonNaId,i],
+                reg = MM[nonNaId,], theta = thetas[i],
+                muMarg = muMarg[nonNaId, i], jac = NBjacobianColNP,
+                allowMissingness = FALSE)$x)
         } else {
             # if VGAM fit succeeds, retain only
             # necessary information
@@ -82,11 +89,12 @@ estNPresp = function(sampleScore, muMarg,
             " response functions did not converge! \n")
     # Overall fit
     samRep = rep(sampleScore, ncols)
+    sizes = if(length(naId)) rep(thetas, each = n)[-naId] else rep(thetas, each = n)
     overall = vgam(c(X) ~ s(samRep, df = dfSpline),
         offset = c(logMu), family = negbinomial.size(lmu = "loge",
-            size = rep(thetas, each = n)),
+            size = sizes),
         coefstart = coefInitOverall, maxit = vgamMaxit,
-        ...)
+        na.option = na.omit, ...)
     overallList = list(coef = coef(overall),
         spline = overall@Bspline[[1]])
     # Return lists of splines and of
@@ -95,7 +103,7 @@ estNPresp = function(sampleScore, muMarg,
     rowMat = vapply(FUN.VALUE = numeric(n),
         taxonWise, function(x) {
             if (is.list(x))
-                cbind(MM1, predict(x$spline,x = sampleScore)$y) %*%
+                cbind(MM1, predict(x$spline, x = sampleScore)$y) %*%
                 c(x$coef, 1) else MM %*% x
         })
     rowVecOverall = cbind(MM1, predict(overallList$spline,

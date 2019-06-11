@@ -15,7 +15,7 @@ RCM(dat, ...)
 \S4method{RCM}{matrix}(dat, k = 2, round = FALSE, prevCutOff = 0.05,
   minFraction = 0.1, rowWeights = "uniform", colWeights = "marginal",
   confModelMat = NULL, confTrimMat = NULL, covModelMat = NULL,
-  centMat = NULL, ...)
+  centMat = NULL, allowMissingness = FALSE, ...)
 }
 \arguments{
 \item{dat}{an nxp count matrix or a phyloseq object with an otu_table slot}
@@ -62,6 +62,8 @@ the weighting procedures for the normalization of row and column scores.
 
 \item{confTrimMat, confModelMat, covModelMat, centMat}{Dedicated model matrices
 constructed based on phyloseq object.}
+
+\item{allowMissingness}{A boolean, should NA values be tolerated?}
 }
 \value{
 see \code{\link{RCM_NB}}

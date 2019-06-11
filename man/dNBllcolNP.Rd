@@ -4,7 +4,7 @@
 \alias{dNBllcolNP}
 \title{Estimation of the parameters of a third degree GLM}
 \usage{
-dNBllcolNP(beta, X, reg, theta, muMarg, ...)
+dNBllcolNP(beta, X, reg, theta, muMarg, allowMissingness, naId, ...)
 }
 \arguments{
 \item{beta}{A vector of any length}
@@ -16,6 +16,10 @@ dNBllcolNP(beta, X, reg, theta, muMarg, ...)
 \item{theta}{a scalar, the overdispersion}
 
 \item{muMarg}{the offset of length n}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{further arguments passed on to the jacobian}
 }

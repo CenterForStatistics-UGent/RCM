@@ -6,14 +6,17 @@
 #' @param theta The dispersion parameter of this taxon
 #' @param muMarg offset of length n
 #' @param psi a scalar, the importance parameter
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #'  Even though this approach does not imply normalization over the parameters
 #'  of all taxa, it is very fast and they can be normalized afterwards
 #'
 #' @return A vector of length v with the evaluation of the score functions
-dNBllcol_constr = function(betas, X, reg, 
-    theta, muMarg, psi) {
+dNBllcol_constr = function(betas, X, reg,
+    theta, muMarg, psi, allowMissingness, naId) {
     mu = exp(c(reg %*% betas) * psi) * muMarg
-    crossprod((X - mu)/(1 + mu/theta), reg) * 
+    X = correctXMissingness(X, mu, allowMissingness, naId)
+    crossprod((X - mu)/(1 + mu/theta), reg) *
         psi
 }

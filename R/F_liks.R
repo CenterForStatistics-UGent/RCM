@@ -24,7 +24,7 @@ liks = function(rcm, Sum = TRUE) {
         paste0("Dim", seq_len(rcm$k)), "saturated")
     if (Sum) {
         tmp = vapply(FUN.VALUE = numeric(1), vec, FUN = function(i) {
-            sum(getLogLik(rcm, i))
+            sum(getLogLik(rcm, i), na.rm = TRUE)
         })
         names(tmp) = outnames
     } else {

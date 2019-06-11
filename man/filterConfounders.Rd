@@ -8,7 +8,7 @@ It returns a modified offset matrix for the remainder
 of the fitting procedure.}
 \usage{
 filterConfounders(muMarg, confMat, X, thetas, p, n, nleqslv.control,
-  trended.dispersion, tol = 0.001, maxIt = 20)
+  trended.dispersion, tol = 0.001, maxIt = 20, allowMissingness, naId)
 }
 \arguments{
 \item{muMarg}{a nxp matrix, the current offset}
@@ -30,7 +30,11 @@ with trended dispersion estimates}
 
 \item{tol}{a scalar, the convergence tolerance}
 
-\item{maxIt}{maximum number of iterations
+\item{maxIt}{maximum number of iterations}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X
 
 Fits the negative binomial mean parameters and overdispersion parameters
  iteratively.

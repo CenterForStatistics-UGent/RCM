@@ -11,35 +11,37 @@
 #' @param p an integer, the number of taxa
 #' @param IDmat an logical matrix with indices of non-zero elements
 #' @param IndVec  a vector with indices with non-zero elements
+#' @param allowMissingness A boolean, are missing values present
+#' @param naId The numeric index of the missing values in X
 #'
 #' @return The jacobian, a square matrix of dimension (deg+1)*(p+1)
-
-respFunJacMat = function(betas, X, reg, thetaMat, 
-    muMarg, psi, v, p, IDmat, IndVec) {
-    NBparams = matrix(betas[seq_len(p * v)], 
+respFunJacMat = function(betas, X, reg, thetaMat,
+    muMarg, psi, v, p, IDmat, IndVec, allowMissingness, naId) {
+    NBparams = matrix(betas[seq_len(p * v)],
         ncol = p)
     mu = exp(reg %*% NBparams * psi) * muMarg
-    Jac = matrix(0, (p + 1) * v, (p + 1) * 
+    X = correctXMissingness(X, mu, allowMissingness, naId)
+    Jac = matrix(0, (p + 1) * v, (p + 1) *
         v)
     did = seq_len(p * v)
     didv = seq_len(v)
     # d²Lag/dlambda dBeta
-    Jac[didv + p * v, did][IndVec] = 2 * 
+    Jac[didv + p * v, did][IndVec] = 2 *
         NBparams
     Jac = Jac + t(Jac)  #symmetrize
-    
+
     tmp = (1 + X/thetaMat) * mu/(1 + mu/thetaMat)^2
-    tmp2 = vapply(didv, FUN.VALUE = tmp, 
+    tmp2 = vapply(didv, FUN.VALUE = tmp,
         function(x) {
             reg[, x] * tmp
         })
     # d²Lag/dBeta²
-    Jac[did, did][IDmat] = -aperm(tensor(reg, 
+    Jac[did, did][IDmat] = -aperm(tensor(reg,
         tmp2, 1, 1), c(3, 1, 2)) * psi^2
     # Permute the dimensions to assure
     # correct insertion
-    
-    diag(Jac)[did] = diag(Jac)[did] + 2 * 
+
+    diag(Jac)[did] = diag(Jac)[did] + 2 *
         betas[seq_len(v) + p * v]
     return(Jac)
 }

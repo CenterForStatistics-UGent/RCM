@@ -4,7 +4,7 @@
 \alias{dNBpsis}
 \title{A score function for the psi of a given dimension}
 \usage{
-dNBpsis(beta, X, reg, theta, muMarg, ...)
+dNBpsis(beta, X, reg, theta, muMarg, allowMissingness, naId, ...)
 }
 \arguments{
 \item{beta}{a scalar, the initial estimate}
@@ -17,6 +17,10 @@ and column scores}
 \item{theta}{a n-by-p matrix with the dispersion parameters}
 
 \item{muMarg}{the nxp offset matrix}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{other arguments passed on to the jacobian}
 }

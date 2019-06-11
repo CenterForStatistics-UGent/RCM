@@ -5,7 +5,8 @@
 \title{Estimate the taxon-wise response functions non-parametrically}
 \usage{
 estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
-  coefInitOverall, dfSpline, vgamMaxit, degree, verbose, ...)
+  coefInitOverall, dfSpline, vgamMaxit, degree, verbose, allowMissingness,
+  naId, ...)
 }
 \arguments{
 \item{sampleScore}{a vector of length n with environmental scores}
@@ -31,6 +32,10 @@ estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
 \item{degree}{The degree if the parametric fit if the VGAM fit fails}
 
 \item{verbose}{a boolean, should number of failed fits be reported}
+
+\item{allowMissingness}{A boolean, are missing values present}
+
+\item{naId}{The numeric index of the missing values in X}
 
 \item{...}{further arguments, passed on to the VGAM:::vgam() function
 
