@@ -27,3 +27,9 @@
 =====
 
 -   Missing values in count matrix are now allowed. They simply do not contribute to the parameter estimation, but the rest of the row (or column) is still used.
+
+1.2.1
+=====
+
+-   Vertical reference line in residual plot
+-   Bug fix for problematic variable names

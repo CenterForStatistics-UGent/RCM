@@ -22,11 +22,12 @@ buildCovMat = function(covariates, dat) {
         stop("Providing covariates through variable names is only allowed
             if phyloseq object is provided! \n")
         }
+      covariates = make.names(covariates) #Ensure valid names
         if (covariates[[1]] == "all") {
-            covariates = sample_variables(dat)
+            covariates = as(sample_variables(dat), "data.frame")
         }
         # Enable the 'all' option if phyloseq object is provided
-        datFrame = data.frame(sample_data(dat))[, covariates,
+        datFrame = as(sample_data(dat), "data.frame")[, covariates,
             drop = FALSE]
         # The dataframe with the covariates
         covariatesNames = covariates
