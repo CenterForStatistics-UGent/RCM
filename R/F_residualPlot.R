@@ -107,7 +107,7 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
             samColour))) {
             scale_colour_discrete(name = samColour)
         } else scale_colour_continuous(name = samColour)
-        Plot = Plot + geom_hline(h = h, linetype = "dashed", col = "black")
+        Plot = Plot + geom_hline(yintercept = h, linetype = "dashed", col = "black")
 
         Plot = Plot + theme_bw() + theme(axis.title = element_text(size = axisTitleSize),
             axis.text = element_text(size = axisLabSize),
