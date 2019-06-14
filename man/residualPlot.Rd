@@ -7,7 +7,7 @@
 residualPlot(RCM, Dim = 1, whichTaxa = "response",
   resid = "Deviance", numTaxa = 9, mfrow = NULL, samColour = NULL,
   samShape = NULL, legendLabSize = 15, legendTitleSize = 16,
-  axisLabSize = 14, axisTitleSize = 16, taxTitle = TRUE)
+  axisLabSize = 14, axisTitleSize = 16, taxTitle = TRUE, h = 0)
 }
 \arguments{
 \item{RCM}{an RCM object}
@@ -37,6 +37,8 @@ the variables with this name is extracted from the phyloseq object in RCM}
 \item{axisTitleSize}{size of the axis title}
 
 \item{taxTitle}{A boolean, should taxon title be printed}
+
+\item{h}{Position of reference line. Set to NA for no line}
 }
 \value{
 Plots a ggplot2-object to output

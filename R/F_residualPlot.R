@@ -16,6 +16,7 @@
 #' @param axisLabSize size of the axis labels
 #' @param axisTitleSize size of the axis title
 #' @param taxTitle A boolean, should taxon title be printed
+#' @param h Position of reference line. Set to NA for no line
 #'
 #'@details If whichTaxa is 'run' or 'response' the taxa with the highest
 #' run statistics or steepest slopes of the response function are plotted,
@@ -44,7 +45,7 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
     resid = "Deviance", numTaxa = 9, mfrow = NULL,
     samColour = NULL, samShape = NULL, legendLabSize = 15,
     legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
-    taxTitle = TRUE) {
+    taxTitle = TRUE, h = 0) {
     sampleScore = RCM$covariates %*% RCM$alpha[, Dim,
         drop = FALSE]
     if (resid == "Deviance") {
@@ -106,7 +107,9 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
             samColour))) {
             scale_colour_discrete(name = samColour)
         } else scale_colour_continuous(name = samColour)
-        Plot = Plot + theme(axis.title = element_text(size = axisTitleSize),
+        Plot = Plot + geom_hline(h = h, linetype = "dashed", col = "black")
+
+        Plot = Plot + theme_bw() + theme(axis.title = element_text(size = axisTitleSize),
             axis.text = element_text(size = axisLabSize),
             legend.title = element_text(size = legendTitleSize),
             legend.text = element_text(size = legendLabSize))

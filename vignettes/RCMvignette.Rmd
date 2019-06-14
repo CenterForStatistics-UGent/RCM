@@ -29,13 +29,6 @@ The underlying method of the RCM package is described in detail in the following
 
 The package can be installed and loaded using the following commands:
 
-```{r loadRCMpackage}
-library(BiocManager)
-BiocManager::install("RCM", update = FALSE)
-suppressPackageStartupMessages(library(RCM))
-cat("RCM package version", as.character(packageVersion("RCM")), "\n")
-```
-
 ```{r load-packages, warning=FALSE, message=FALSE, echo=FALSE}
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,
                       warning = FALSE, message = FALSE, echo = TRUE, eval = TRUE, 
@@ -44,6 +37,16 @@ knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,
 palStore = palette()
 #Load all fits, to avoid refitting every time rebuilding the vignette
 load(system.file("fits", "zellerFits.RData", package = "RCM"))
+```
+
+```{r install, eval = FALSE}
+library(BiocManager)
+install("RCM", update = FALSE)
+```
+
+```{r loadRCMpackage}
+suppressPackageStartupMessages(library(RCM))
+cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
 ## Dataset
