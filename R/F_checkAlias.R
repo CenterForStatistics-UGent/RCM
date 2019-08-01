@@ -6,6 +6,13 @@
 #' returns invisible otherwise
 #'
 #' @importFrom stats alias
+#' @export
+#' @examples
+#' #Make a dataframe with aliased variables
+#' df = data.frame(foo = rnorm(10), baa = rep(c(TRUE, FALSE), each = 5),
+#' foo2 = factor(rep(c("male", "female"), each = 5)))
+#' checkAlias(df, c("foo", "baa"))
+#' #Check test files for the error being thrown
 checkAlias = function(datFrame, covariatesNames){
     mockDf = cbind("Mock" = 1, datFrame)
     #Fake dataframe for syntax purposes
