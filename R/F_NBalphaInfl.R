@@ -40,7 +40,7 @@ NBalphaInfl = function(rcm, Dim) {
     # A linear combination of the environmental variables yields the
     # sampleScore
     mu = extractE(rcm, seq_len(Dim))
-    X = correctXMissingness(X, mu, rcm$NApresent)
+    X = correctXMissingness(X, mu, rcm$NApresent, is.na(X))
     muMarg = extractE(rcm, seq_len(Dim - 1))
     tmp = (X - mu)/(1 + mu/thetaMat)
     tmp2 = rowMultiply(tmp, NB_params[2, ])
