@@ -18,6 +18,6 @@ Zeller
 \description{
 Microbiome sequencing data of colorectal cancer patients,
 patients with small adenoma and healthy controls,
- together with otehr baseline covariates
+ together with other baseline covariates
 }
 \keyword{datasets}
