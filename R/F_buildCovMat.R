@@ -91,7 +91,8 @@ buildCovMat = function(covariates, dat) {
         contrasts.arg = lapply(datFrame[vapply(datFrame,
         is.factor, FUN.VALUE = TRUE)], contrasts, contrasts = FALSE))
     if (NCOL(covModelMat) == 1)
-        stop("A constrained ordination with a variable with only one level is meaningless.\n
+        stop("A constrained ordination with a variable
+with only one level is meaningless.\n
 Please provide more covariates or perform an unconstrained analysis.",
             call. = FALSE)
     list(covModelMat = covModelMat, datFrame = datFrame)

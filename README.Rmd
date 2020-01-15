@@ -10,7 +10,7 @@ The underlying method of the RCM package is described in detail in the following
 
 ## Install and load packages
 
-This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The basic usage is demonstrated here, for more advanced examples see the [RCM manual](http://users.ugent.be/~shawinke/RCMmanual) and the help pages of _RCM()_, *RCM_NB()*, and _plot.RCM()_ functions.
+This repo contains R-code to fit and plot the RC(M)-models augmented with the negative binomial. The basic usage is demonstrated here, for more advanced examples see the [RCM vignette](https://bioconductor.org/packages/release/bioc/vignettes/RCM/inst/doc/RCMvignette.html) and the help pages of _RCM()_, *RCM_NB()*, and _plot.RCM()_ functions.
 
 The package can be installed from BioConductor and loaded using the following commands:
 
@@ -174,4 +174,6 @@ plotRespFun(ZellerRCM2constrNonParam)
 
 The first dimension is shown by default, the environmental scores of the samples are shown below as ticks, the y-axis shows the response functions of the 8 most reacting species, whereby the x-axis represents the independence model. This graph demonstrates the power of non-parametric response function modelling to unravel differences in species niches.
 
-This document covers only the more basic use of the RCM plotting functions. Discover more advanced features in the [RCM manual](http://users.ugent.be/~shawinke/RCMmanual) or in the help pages of the functions used.
+This document covers only the more basic use of the RCM plotting functions. Discover more advanced features in the [RCM vignette](https://bioconductor.org/packages/release/bioc/vignettes/RCM/inst/doc/RCMvignette.html) or in the help pages of the functions used.
+
+

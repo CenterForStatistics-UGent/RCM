@@ -575,6 +575,35 @@ On the other hand, as we argue in the manuscript, the inertia is not a good
 plot(ZellerRCM2cond, plotPsi = "inertia")
 ```
 
+## Advanced plotting
+
+### Extracting coodinates
+
+First of all it is important to note that the plotting coordinates can easily be extracted. This may be useful when making plots with third party software.
+
+```{r extractCoord}
+zellerCoords = extractCoord(ZellerRCM2)
+str(zellerCoords)
+```
+
+Also, this can be used to obtain a list of taxa contributing to the separation of the samples, sorted from most to least important.
+
+```{r taxaStrongestSignal}
+taxaSignals = rowSums(zellerCoords$species[, c("end1","end2")]^2)
+sortedTaxa = taxa_names(ZellerRCM2$physeq)[order(taxaSignals, decreasing = TRUE)]
+sortedTaxa[1:10]
+```
+
+These most important taxa are the ones that are plotted by default by the $plot.RCM()$ function.
+
+### Non-squared plots
+
+The $RCM$ package provides the option to make plots with non squared axis. This may lead to better proportioned plots, but as it also misrepresents the ordination __WE DO NOT ADVOCATE NON-SQUARED PLOTS__!
+
+```{r NonsquaredPlots}
+plot(ZellerRCM2, axesFixed = FALSE)
+```
+
 # Session info
 
 This vignette was generated with following version of R:

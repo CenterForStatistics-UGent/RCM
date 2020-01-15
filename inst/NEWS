@@ -33,3 +33,8 @@
 
 -   Vertical reference line in residual plot
 -   Bug fix for problematic variable names
+
+1.2.2
+=====
+
+-   Moving the online manual information to the vignette

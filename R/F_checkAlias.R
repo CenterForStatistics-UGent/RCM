@@ -20,8 +20,10 @@ checkAlias = function(datFrame, covariatesNames){
                                 paste(covariatesNames, collapse = "+"),
                                 "-1")), mockDf)
     if(!is.null(Alias$Complete)){
-        stop("Sample variables\n'", paste(rownames(Alias$Complete), collapse ="' and '"),
-            "'\nare aliased with other variables. Drop some sample-variables and try again.")
+        stop("Sample variables\n'", paste(rownames(Alias$Complete),
+                                          collapse ="' and '"),
+            "'\nare aliased with other variables.
+            Drop some sample-variables and try again.")
     } else {
         return(invisible())
     }

@@ -42,7 +42,8 @@ estNBparamsNoLab = function(design, thetasMat,
             thetasMat = thetasMat, muMarg = muMarg,
             psi = psi, X = X, control = nleqslv.control,
             jac = JacCol_constr_noLab, preFabMat = preFabMat,
-            n = n, v = v - 1, allowMissingness = allowMissingness, naId = naId)$x, 0)
+            n = n, v = v - 1, allowMissingness = allowMissingness,
+            naId = naId)$x, 0)
     }
     return(nleq)
 }
