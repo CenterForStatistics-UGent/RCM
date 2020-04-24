@@ -16,7 +16,7 @@ The package can be installed from BioConductor and loaded using the following co
 
 ``` r
 library(BiocManager)
-install("RCM", update = FALSE)
+install("RCM")
 ```
 
 ``` r
@@ -24,7 +24,7 @@ suppressPackageStartupMessages(library(RCM))
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 1.2.1
+    ## RCM package version 1.3.1
 
 Alternatively, the latest version can be installed directly from this GitHub repo as follows:
 

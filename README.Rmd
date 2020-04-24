@@ -16,7 +16,7 @@ The package can be installed from BioConductor and loaded using the following co
 
 ```{r installRCMpackageBioConductor, eval = FALSE}
 library(BiocManager)
-install("RCM", update = FALSE)
+install("RCM")
 ```
 
 ```{r loadRCMpackage}
