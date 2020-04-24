@@ -4,27 +4,59 @@
 \alias{plot.RCM}
 \title{Plot RC(M) ordination result with the help of ggplot2}
 \usage{
-\method{plot}{RCM}(x, ..., Dim = c(1, 2), plotType = c("samples",
-  "species", "variables"), samColour = NULL, taxNum = if (all(plotType
-  == "species") || !is.null(taxRegExp)) {     ncol(x$X) } else {     10 },
-  taxRegExp = NULL, varNum = 15, arrowSize = 0.25,
-  Influence = FALSE, inflDim = 1, returnCoords = FALSE,
-  alpha = TRUE, varPlot = NULL, colLegend = if (Influence)
-  paste0("Influence on\\n", samColour, "\\nparameter \\nin dimension",
-  inflDim) else samColour, samShape = NULL, shapeLegend = samShape,
-  samSize = 2, scalingFactor = NULL, quadDrop = 0.995,
-  plotEllipse = TRUE, taxaScale = 0.5, Palette = if (!all(plotType ==
-  "species")) "Set1" else "Paired", taxLabels = !all(plotType ==
-  "species"), taxDots = FALSE, taxCol = "blue",
-  taxColSingle = "blue", nudge_y = 0.08, axesFixed = TRUE,
-  aspRatio = 1, xInd = if (all(plotType == "samples")) c(0, 0) else
-  c(-0.75, 0.75), yInd = c(0, 0), taxLabSize = 4, varLabSize = 3.5,
-  alphaRange = c(0.2, 1), varExpFactor = 10,
-  manExpFactorTaxa = 0.975, nPhyl = 10, phylOther = c(""),
-  legendSize = samSize, noLegend = is.null(samColour), crossSize = 4,
-  contCol = c("orange", "darkgreen"), legendLabSize = 15,
-  legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
-  plotPsi = "psi", breakChar = "\\n")
+\method{plot}{RCM}(
+  x,
+  ...,
+  Dim = c(1, 2),
+  plotType = c("samples", "species", "variables"),
+  samColour = NULL,
+  taxNum = if (all(plotType == "species") || !is.null(taxRegExp)) {     ncol(x$X) }
+    else {     10 },
+  taxRegExp = NULL,
+  varNum = 15,
+  arrowSize = 0.25,
+  Influence = FALSE,
+  inflDim = 1,
+  returnCoords = FALSE,
+  alpha = TRUE,
+  varPlot = NULL,
+  colLegend = if (Influence) paste0("Influence on\\n", samColour,
+    "\\nparameter \\nin dimension", inflDim) else samColour,
+  samShape = NULL,
+  shapeLegend = samShape,
+  samSize = 2,
+  scalingFactor = NULL,
+  quadDrop = 0.995,
+  plotEllipse = TRUE,
+  taxaScale = 0.5,
+  Palette = if (!all(plotType == "species")) "Set1" else "Paired",
+  taxLabels = !all(plotType == "species"),
+  taxDots = FALSE,
+  taxCol = "blue",
+  taxColSingle = "blue",
+  nudge_y = 0.08,
+  axesFixed = TRUE,
+  aspRatio = 1,
+  xInd = if (all(plotType == "samples")) c(0, 0) else c(-0.75, 0.75),
+  yInd = c(0, 0),
+  taxLabSize = 4,
+  varLabSize = 3.5,
+  alphaRange = c(0.2, 1),
+  varExpFactor = 10,
+  manExpFactorTaxa = 0.975,
+  nPhyl = 10,
+  phylOther = c(""),
+  legendSize = samSize,
+  noLegend = is.null(samColour),
+  crossSize = 4,
+  contCol = c("orange", "darkgreen"),
+  legendLabSize = 15,
+  legendTitleSize = 16,
+  axisLabSize = 14,
+  axisTitleSize = 16,
+  plotPsi = "psi",
+  breakChar = "\\n"
+)
 }
 \arguments{
 \item{x}{an RCM object}

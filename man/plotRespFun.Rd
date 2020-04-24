@@ -4,12 +4,29 @@
 \alias{plotRespFun}
 \title{Plot the non-parametric response functions}
 \usage{
-plotRespFun(RCM, taxa = NULL, type = "link",
-  logTransformYAxis = FALSE, addSamples = TRUE, samSize = NULL,
-  Dim = 1L, nPoints = 100L, labSize = 2.5, yLocVar = NULL,
-  yLocSam = NULL, Palette = "Set3", addJitter = FALSE, nTaxa = 9L,
-  angle = 90, legendLabSize = 15, legendTitleSize = 16,
-  axisLabSize = 14, axisTitleSize = 16, lineSize = 0.75, ...)
+plotRespFun(
+  RCM,
+  taxa = NULL,
+  type = "link",
+  logTransformYAxis = FALSE,
+  addSamples = TRUE,
+  samSize = NULL,
+  Dim = 1L,
+  nPoints = 100L,
+  labSize = 2.5,
+  yLocVar = NULL,
+  yLocSam = NULL,
+  Palette = "Set3",
+  addJitter = FALSE,
+  nTaxa = 9L,
+  angle = 90,
+  legendLabSize = 15,
+  legendTitleSize = 16,
+  axisLabSize = 14,
+  axisTitleSize = 16,
+  lineSize = 0.75,
+  ...
+)
 }
 \arguments{
 \item{RCM}{an RCM object}

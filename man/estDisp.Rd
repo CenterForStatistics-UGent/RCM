@@ -4,9 +4,19 @@
 \alias{estDisp}
 \title{Estimate the overdispersion}
 \usage{
-estDisp(X, cMat = NULL, rMat = NULL, muMarg, psis,
-  trended.dispersion = NULL, prior.df = 10, dispWeights = NULL,
-  rowMat = NULL, allowMissingness = FALSE, naId)
+estDisp(
+  X,
+  cMat = NULL,
+  rMat = NULL,
+  muMarg,
+  psis,
+  trended.dispersion = NULL,
+  prior.df = 10,
+  dispWeights = NULL,
+  rowMat = NULL,
+  allowMissingness = FALSE,
+  naId
+)
 }
 \arguments{
 \item{X}{the data matrix of dimensions nxp}

@@ -4,8 +4,17 @@
 \alias{dNBllcol_constr_noLab}
 \title{The score function of the general response function}
 \usage{
-dNBllcol_constr_noLab(betas, X, reg, thetasMat, muMarg, psi,
-  allowMissingness, naId, ...)
+dNBllcol_constr_noLab(
+  betas,
+  X,
+  reg,
+  thetasMat,
+  muMarg,
+  psi,
+  allowMissingness,
+  naId,
+  ...
+)
 }
 \arguments{
 \item{betas}{a vector of regression parameters with length v}

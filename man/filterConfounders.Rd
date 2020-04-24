@@ -7,8 +7,20 @@ interactions of every taxon with the levels of the confounders.
 It returns a modified offset matrix for the remainder
 of the fitting procedure.}
 \usage{
-filterConfounders(muMarg, confMat, X, thetas, p, n, nleqslv.control,
-  trended.dispersion, tol = 0.001, maxIt = 20, allowMissingness, naId)
+filterConfounders(
+  muMarg,
+  confMat,
+  X,
+  thetas,
+  p,
+  n,
+  nleqslv.control,
+  trended.dispersion,
+  tol = 0.001,
+  maxIt = 20,
+  allowMissingness,
+  naId
+)
 }
 \arguments{
 \item{muMarg}{a nxp matrix, the current offset}

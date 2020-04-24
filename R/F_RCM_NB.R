@@ -70,8 +70,8 @@
 #' @return A list with elements
 #' \item{converged}{a vector of booleans of length k indicating if the algorithm
 #'  converged for every dimension}
-#' \item{rMat}{(if not constrained a nxk matrix with estimated row scores}
-#' \item{cMat}{ a kxp matrix with estimated column scores}
+#' \item{rMat}{if not constrained a nxk matrix with estimated row scores}
+#' \item{cMat}{a kxp matrix with estimated column scores}
 #' \item{psis}{a vector of length k
 #'  with estimates for the importance parameters psi}
 #' \item{thetas}{a vector of length p with estimates for the overdispersion}
@@ -118,7 +118,7 @@
 RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
     tol = 0.001, maxItOut = 1000L, Psitol = 0.001,
     verbose = FALSE, global = "dbldog", nleqslv.control = list(maxit = 500L,
-        cndtol = 1 - 16), jacMethod = "Broyden", dispFreq = 10L,
+        cndtol = 1e-16), jacMethod = "Broyden", dispFreq = 10L,
     convNorm = 2, prior.df = 10, marginEst = "MLE",
     confModelMat = NULL, confTrimMat = NULL, prevCutOff,
     minFraction = 0.1, covModelMat = NULL, centMat = NULL,

@@ -4,9 +4,23 @@
 \alias{estNPresp}
 \title{Estimate the taxon-wise response functions non-parametrically}
 \usage{
-estNPresp(sampleScore, muMarg, X, ncols, thetas, n, coefInit,
-  coefInitOverall, dfSpline, vgamMaxit, degree, verbose, allowMissingness,
-  naId, ...)
+estNPresp(
+  sampleScore,
+  muMarg,
+  X,
+  ncols,
+  thetas,
+  n,
+  coefInit,
+  coefInitOverall,
+  dfSpline,
+  vgamMaxit,
+  degree,
+  verbose,
+  allowMissingness,
+  naId,
+  ...
+)
 }
 \arguments{
 \item{sampleScore}{a vector of length n with environmental scores}

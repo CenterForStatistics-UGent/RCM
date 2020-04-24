@@ -4,8 +4,7 @@
 \alias{NBjacobianPsi}
 \title{Jacobian for the psi of a given dimension}
 \usage{
-NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat, allowMissingness,
-  naId)
+NBjacobianPsi(beta, X, reg, muMarg, theta, preFabMat, allowMissingness, naId)
 }
 \arguments{
 \item{beta}{a scalar, the current estimate}

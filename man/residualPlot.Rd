@@ -4,10 +4,22 @@
 \alias{residualPlot}
 \title{Make residual plots}
 \usage{
-residualPlot(RCM, Dim = 1, whichTaxa = "response",
-  resid = "Deviance", numTaxa = 9, mfrow = NULL, samColour = NULL,
-  samShape = NULL, legendLabSize = 15, legendTitleSize = 16,
-  axisLabSize = 14, axisTitleSize = 16, taxTitle = TRUE, h = 0)
+residualPlot(
+  RCM,
+  Dim = 1,
+  whichTaxa = "response",
+  resid = "Deviance",
+  numTaxa = 9,
+  mfrow = NULL,
+  samColour = NULL,
+  samShape = NULL,
+  legendLabSize = 15,
+  legendTitleSize = 16,
+  axisLabSize = 14,
+  axisTitleSize = 16,
+  taxTitle = TRUE,
+  h = 0
+)
 }
 \arguments{
 \item{RCM}{an RCM object}

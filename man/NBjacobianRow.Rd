@@ -4,8 +4,23 @@
 \alias{NBjacobianRow}
 \title{A jacobian function of the NB for the row scores}
 \usage{
-NBjacobianRow(beta, X, reg, thetas, muMarg, k, n, p, rowWeights, nLambda,
-  rMatK, preFabMat, Jac, allowMissingness, naId)
+NBjacobianRow(
+  beta,
+  X,
+  reg,
+  thetas,
+  muMarg,
+  k,
+  n,
+  p,
+  rowWeights,
+  nLambda,
+  rMatK,
+  preFabMat,
+  Jac,
+  allowMissingness,
+  naId
+)
 }
 \arguments{
 \item{beta}{a vector of of length n + k +1 regression parameters to optimize}
