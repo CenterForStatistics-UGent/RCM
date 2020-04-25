@@ -62,7 +62,7 @@
 #'  the degree of the polynomial fit if the spline fit fails
 #' @param a,b exponents for the row and column weights of the singular value
 #'  decomposition used to calculate starting values. Can be played around with
-#'  in case of numerical troubles
+#'  in case of numerical troubles.
 #' @param allowMissingness See RCM()
 #'
 #' @seealso \code{\link{RCM}}
@@ -487,12 +487,11 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
             rowRec = rowRec, colRec = colRec, psiRec = psiRec,
             thetaRec = thetaRec, fit = "RCM_NB", lambdaRow = lambdaRow,
             lambdaCol = lambdaCol)
-
     } else {
         # If covariates provided, do a constrained analysis
         d = ncol(covModelMat)
-        CCA = vegan::cca(X = correctXMissingness(X, muMarg, allowMissingness, naId),
-                         Y = covModelMat)$CCA
+        CCA = constrCorresp(X = correctXMissingness(X, muMarg, allowMissingness, naId),
+                         Y = covModelMat)
         # Constrained correspondence analysis for starting
         # values
         if (sum(!colnames(covModelMat) %in% CCA$alias) <
