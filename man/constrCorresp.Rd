@@ -4,14 +4,22 @@
 \alias{constrCorresp}
 \title{Constrained correspondence analysis with adapted powers}
 \usage{
-constrCorresp(X, Y, a, b)
+constrCorresp(
+  X,
+  Y,
+  rowExp,
+  colExp,
+  muMarg = outer(rowSums(X), colSums(X))/sum(X)
+)
 }
 \arguments{
 \item{X}{outcome matrix}
 
 \item{Y}{constraining matrix}
 
-\item{a, b}{see ?RCM_NB}
+\item{rowExp, colExp}{see ?RCM_NB}
+
+\item{muMarg}{mean matrix under independence model}
 }
 \value{
 a list with eigenvalues, aliased variables and environmentam gradients
@@ -20,5 +28,5 @@ a list with eigenvalues, aliased variables and environmentam gradients
 Constrained correspondence analysis with adapted powers
 }
 \details{
-the vegan version, adapted for flexible coordinates
+the vegan version, adapted for flexible powers rowExp and colExp
 }

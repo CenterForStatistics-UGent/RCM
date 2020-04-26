@@ -2,15 +2,18 @@
 #'
 #' @param X outcome matrix
 #' @param Y constraining matrix
-#' @param a,b see ?RCM_NB
+#' @param rowExp,colExp see ?RCM_NB
+#' @param muMarg mean matrix under independence model
 #'
 #' @return a list with eigenvalues, aliased variables and environmentam gradients
-#' @details the vegan version, adapted for flexible coordinates
-constrCorresp = function(X, Y, a, b){
+#' @details the vegan version, adapted for flexible powers rowExp and colExp
+#' @importFrom stats weighted.mean
+constrCorresp = function(X, Y, rowExp, colExp,
+                         muMarg = outer(rowSums(X), colSums(X))/sum(X)){
   X = X/sum(X)
   RW = rowSums(X)
   CW = colSums(X)
-  Xinit = diag(1/RW^a) %*% (X - outer(RW, CW)) %*% diag(1/CW^b)
+  Xinit = diag(1/RW^rowExp) %*% (X - muMarg/sum(muMarg)) %*% diag(1/CW^colExp)
   ZERO <- sqrt(.Machine$double.eps)
   envcentre <- apply(Y, 2, weighted.mean, w = RW)
   Y <- scale(Y, center = envcentre, scale = FALSE)

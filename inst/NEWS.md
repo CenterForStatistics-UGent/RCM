@@ -38,3 +38,9 @@
 =====
 
 -   Moving the online manual information to the vignette
+
+1.3.1
+=====
+
+-   Rename *a* and *b* to *rowExp* and *colExp* to avoid partial matching
+-   Allow *rowExp* and *colExp* to be adapted for constrained correspondence analysis starting values as well

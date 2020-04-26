@@ -34,8 +34,8 @@ RCM_NB(
   dfSpline = 3,
   vgamMaxit = 100L,
   degree = switch(responseFun[1], nonparametric = 3, NULL),
-  a = 1,
-  b = 1,
+  rowExp = if (is.null(covModelMat)) 1 else 0.5,
+  colExp = rowExp,
   allowMissingness = FALSE
 )
 }
@@ -124,7 +124,7 @@ the maximum number of iteration in the vgam() function}
 \item{degree}{an integer,
 the degree of the polynomial fit if the spline fit fails}
 
-\item{a, b}{exponents for the row and column weights of the singular value
+\item{rowExp, colExp}{exponents for the row and column weights of the singular value
 decomposition used to calculate starting values. Can be played around with
 in case of numerical troubles.}
 
