@@ -15,8 +15,7 @@ NBpsiInfl = function(rcm, Dim = 1) {
                 `0.5` = "Filtered", paste0("Dim",
                 Dim))])
     reg = if (is.null(rcm$covariates)) {
-        rcm$rMat[, Dim] %*% rcm$cMat[Dim,
-            ]
+        rcm$rMat[, Dim, drop = FALSE] %*% rcm$cMat[Dim,, drop = FALSE]
     } else {getRowMat(sampleScore = rcm$alpha[,
         Dim] %*% rcm$covariates, responseFun = rcm$responseFun,
         NB_params = rcm$NB_params[, , Dim])}

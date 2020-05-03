@@ -78,6 +78,7 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
     mfrow = if (is.null(mfrow))
         rep(ceiling(sqrt(numTaxa)), 2) else mfrow
     parTmp = par(no.readonly = TRUE)
+    on.exit(par(parTmp))
     par(mfrow = mfrow)
     resMat = resMat[, idTaxa, drop = FALSE]
     if (length(idTaxa) > 1) {
@@ -108,13 +109,10 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
             scale_colour_discrete(name = samColour)
         } else scale_colour_continuous(name = samColour)
         Plot = Plot + geom_hline(yintercept = h, linetype = "dashed", col = "black")
-
         Plot = Plot + theme_bw() + theme(axis.title = element_text(size = axisTitleSize),
             axis.text = element_text(size = axisLabSize),
             legend.title = element_text(size = legendTitleSize),
             legend.text = element_text(size = legendLabSize))
-        par(parTmp)
         return(Plot)
     }
-    par(parTmp)
-}
+  }

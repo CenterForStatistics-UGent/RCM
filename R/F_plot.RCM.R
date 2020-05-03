@@ -202,8 +202,8 @@ plot.RCM = function(x,
     if ("samples" %in% plotType) {
         dataSam = coords$samples
         # Get the sample colours
-        if (length(samColour) == 1) {
-            dataSam$colourPlot = if (Influence) {
+        dataSam$colourPlot = if (length(samColour) == 1) {
+            if (Influence) {
                 rowSums(NBalphaInfl(x, inflDim)[, , samColour])
             } else if (samColour == "Deviance") {
                 rowSums(getDevianceRes(x, max(Dim))^2)
@@ -211,9 +211,11 @@ plot.RCM = function(x,
                 estimate_richness(x$physeq, measures = samColour)[[1]] else
                 get_variable(x$physeq, samColour)
         } else if (!is.null(samColour)) {
-            dataSam$colourPlot = samColour
+             samColour
+        } else if (Influence){
+              rowSums(abs(NBpsiInfl(x, inflDim)))
         } else {
-            dataSam$colourPlot = factor(rep(1, nrow(dataSam)))
+            factor(rep(1, nrow(dataSam)))
         }
         if (is.character(dataSam$colourPlot))
             dataSam$colourPlot = factor(dataSam$colourPlot)
