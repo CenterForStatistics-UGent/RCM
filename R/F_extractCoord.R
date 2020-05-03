@@ -60,8 +60,7 @@ extractCoord = function(RCM, Dim = c(1, 2)) {
             }))  #The location of the extrema
             names(dataTax) = c("end1", "end2")
 
-            peakHeights = apply(RCM$NB_params[,
-                , Dim], 2, function(x) {
+            peakHeights = apply(RCM$NB_params[,, Dim], 2, function(x) {
                 A = x[3, ]
                 B = x[2, ]
                 C = x[1, ]

@@ -193,6 +193,10 @@ plot.RCM = function(x,
         # For non-parametric response function we, can only plot the variables
         # meaningfully
     }
+    if(Influence && constrained &&(!samColour %in% colnames(x$covariates))){
+      stop("Influences are calculated for single (dummy) variables.
+           Please specify one of\n", colnames(x$covariates))
+    }
 
     ## SAMPLES
     if ("samples" %in% plotType) {
