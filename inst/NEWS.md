@@ -39,8 +39,14 @@
 
 -   Moving the online manual information to the vignette
 
-1.3.1
+1.2.3
 =====
 
 -   Rename *a* and *b* to *rowExp* and *colExp* to avoid partial matching
 -   Allow *rowExp* and *colExp* to be adapted for constrained correspondence analysis starting values as well
+
+1.2.4
+=====
+
+-   Adding a new inflVar variable to disambiguate in the influence plotting
+-   More argument checking + tests for the plot.RCM function

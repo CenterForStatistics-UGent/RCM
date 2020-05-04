@@ -117,7 +117,7 @@ plot.RCM = function(x,
                     ...,
                     Dim = c(1, 2),
                     plotType = c("samples", "species", "variables"),
-                    samColour = NULL,
+                    samColour = if(is.null(inflVar)) NULL else "Influence",
                     taxNum = if (all(plotType == "species") ||
                     !is.null(taxRegExp)) {
                     ncol(x$X)
@@ -203,7 +203,7 @@ plot.RCM = function(x,
                if(!is.null(x$covariates)) {
                  c("Variable names are:\n", paste(colnames(x$covariates)))})
         }
-      } else if(!samColour %in% c(sample_variables(physeq), richSupported, "Deviance")){
+      } else if(!samColour %in% c(sample_variables(x$physeq), richSupported, "Deviance")){
         stop("'samColour' must be a sample variable, a supported richness measure
              or otherwise 'Influence' or 'Deviance'!")
       }

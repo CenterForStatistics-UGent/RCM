@@ -477,11 +477,10 @@ For these 6 taxa we see no signal at all.
 
 It can also be interesting to identify samples have the strongest influence
 on the environmental gradient. For this aim we can colour the samples
-by influence, by specifying _Influence = TRUE_.
+by influence by provinding the "inflVar" argument:
 
 ```{r inflAge}
-plot(ZellerRCM2constr, plotType = c("variables", "samples"), Influence = TRUE,
-     samColour = "Age" )
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "Age")
 ```
 
 Below we see a couple of very influential observations. They may be very young?
@@ -496,8 +495,14 @@ that strongly affect the ordination. The age coefficient is largest
 in the second dimension actually, let's look at the influence on that component
 
 ```{r inflAgeFast2}
-plot(ZellerRCM2constr, plotType = c("variables", "samples"), samColour = "Age",
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "Age",
      Influence = TRUE, inflDim = 2)
+```
+
+When looking at categorical variable, one looks at one dummy at the time:
+
+```{r inflDiag}
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "DiagnosisNormal", samShape ="Diagnosis" )
 ```
 
 ## Importance of dimensions
