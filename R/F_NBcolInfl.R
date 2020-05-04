@@ -22,10 +22,10 @@ NBcolInfl = function(rcm, Dim = 1) {
     tmp = if (Dim > 1)
         lambdaCol[-c(1, 2)] %*% cMatK else 0
 
-    score = (reg * (rcm$X - mu)/(1 + mu/thetaMat)) +
+    score = t(t((reg * (rcm$X - mu)/(1 + mu/thetaMat))) +
         rcm$colWeights * (lambdaCol[1] +
-            lambdaCol[2] * 2 * rcm$cMat +
-            tmp)
+            lambdaCol[2] * 2 * rcm$cMat[Dim,] +
+            tmp))
 
     JacobianInv = solve(NBjacobianCol(beta = c(rcm$cMat[Dim,
         ], lambdaCol), X = rcm$X, reg = reg,

@@ -31,7 +31,7 @@ NBalphaInfl = function(rcm, Dim) {
     d = ncol(CC)
     envGradEst = if (is.null(rcm$envGradEst))
         "LR" else rcm$envGradEst
-    thetaMat = matrix(rcm$thetas, byrow = TRUE, n, p)
+    thetaMat = matrix(rcm$thetas[, paste0("Dim",Dim)], byrow = TRUE, n, p)
     NB_params = rcm$NB_params[, , Dim]
     NB_params_noLab = rcm$NB_params_noLab[, Dim]
     psi = rcm$psis[Dim]

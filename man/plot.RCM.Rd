@@ -15,12 +15,12 @@
   taxRegExp = NULL,
   varNum = 15,
   arrowSize = 0.25,
-  Influence = FALSE,
   inflDim = 1,
+  inflVar = NULL,
   returnCoords = FALSE,
   alpha = TRUE,
   varPlot = NULL,
-  colLegend = if (Influence) paste0("Influence on\\n", samColour,
+  colLegend = if (!is.null(inflVar)) paste0("Influence on\\n", inflVar,
     "\\nparameter \\nin dimension", inflDim) else samColour,
   samShape = NULL,
   shapeLegend = samShape,
@@ -69,8 +69,8 @@
 Can be any combination of 'samples','species' and 'variables'}
 
 \item{samColour}{a character string, the variable to use for the colour
-of the sample dots. Alternatively,
-a vector equal to the number of samples in the RCM object can be supplied}
+of the sample dots. Can also be a richness measure, or "influence". Alternatively,
+a vector equal to the number of samples in the RCM object can be supplied. See details.}
 
 \item{taxNum}{an integer, the number of taxa to be plotted}
 
@@ -81,11 +81,10 @@ Any taxa matcing this regular expression will be plotted}
 
 \item{arrowSize}{a scalar, the size of the arrows}
 
-\item{Influence}{a boolean, should the influence of the observation
-on the variable be plotted}
-
 \item{inflDim}{an integer, the dimension for which the influence
 should be calculated}
+
+\item{inflVar}{the variable on which the influence should be plotted. See details.}
 
 \item{returnCoords}{a boolean, should final coordinates be returned?}
 
@@ -205,7 +204,9 @@ depending on the 'plotType' argument.
 When one of either 'Observed', 'Chao1', 'ACE', 'Shannon', 'Simpson',
 'InvSimpson' or 'Fisher' are supplied to the 'samColour' argument,
 the according richness measure (as calculated by phyloseq::estimate_richness)
- is mapped to the sample colour
+ is mapped to the sample colour. When "influence" is supplied, the influence
+ on the variable supplied is plotted. This 'inflVar' variable should be
+ either "psi", or a variable name.
 }
 \examples{
 data(Zeller)

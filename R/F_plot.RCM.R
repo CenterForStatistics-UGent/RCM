@@ -6,8 +6,8 @@
 #' @param plotType a character string: which components to plot.
 #'  Can be any combination of 'samples','species' and 'variables'
 #' @param samColour a character string, the variable to use for the colour
-#' of the sample dots. Alternatively,
-#' a vector equal to the number of samples in the RCM object can be supplied
+#' of the sample dots. Can also be a richness measure, or "influence". Alternatively,
+#' a vector equal to the number of samples in the RCM object can be supplied. See details.
 #' @param taxNum an integer, the number of taxa to be plotted
 #' @param taxRegExp a character vector indicating which taxa to plot.
 #' Any taxa matcing this regular expression will be plotted
@@ -15,10 +15,9 @@
 #' @param varPlot the names of the variable arrows to plot.
 #'  Overrides the varNum argument
 #' @param arrowSize a scalar, the size of the arrows
-#' @param Influence a boolean, should the influence of the observation
-#' on the variable be plotted
 #' @param inflDim an integer, the dimension for which the influence
 #' should be calculated
+#' @param inflVar the variable on which the influence should be plotted. See details.
 #' @param returnCoords a boolean, should final coordinates be returned?
 #' @param alpha a boolean, should small arrows be made transparent?
 #' @param colLegend a character string, the legend text for the sample colour.
@@ -92,7 +91,9 @@
 #' When one of either 'Observed', 'Chao1', 'ACE', 'Shannon', 'Simpson',
 #' 'InvSimpson' or 'Fisher' are supplied to the 'samColour' argument,
 #' the according richness measure (as calculated by phyloseq::estimate_richness)
-#'  is mapped to the sample colour
+#'  is mapped to the sample colour. When "influence" is supplied, the influence
+#'  on the variable supplied is plotted. This 'inflVar' variable should be
+#'  either "psi", or a variable name.
 #'
 #' @return plots a ggplot2-object to output
 #' @export
@@ -115,8 +116,7 @@
 plot.RCM = function(x,
                     ...,
                     Dim = c(1, 2),
-                    plotType = c("samples", "species",
-                    "variables"),
+                    plotType = c("samples", "species", "variables"),
                     samColour = NULL,
                     taxNum = if (all(plotType == "species") ||
                     !is.null(taxRegExp)) {
@@ -127,14 +127,13 @@ plot.RCM = function(x,
                     taxRegExp = NULL,
                     varNum = 15,
                     arrowSize = 0.25,
-                    Influence = FALSE,
                     inflDim = 1,
+                    inflVar = NULL,
                     returnCoords = FALSE,
                     alpha = TRUE,
                     varPlot = NULL,
-                    colLegend = if (Influence)
-                    paste0("Influence on\n",
-                    samColour,
+                    colLegend = if (!is.null(inflVar))
+                    paste0("Influence on\n", inflVar,
                     "\nparameter \nin dimension",
                     inflDim)
                     else
@@ -193,18 +192,32 @@ plot.RCM = function(x,
         # For non-parametric response function we, can only plot the variables
         # meaningfully
     }
-    if(Influence && constrained &&(!samColour %in% colnames(x$covariates))){
-      stop("Influences are calculated for single (dummy) variables.
-           Please specify one of\n", colnames(x$covariates))
+    #Check samColou input
+    if(length(samColour)==1){
+      if(samColour=="Influence"){
+        if(is.null(inflVar)){
+          stop("Please provide a variable 'inflVar'
+               on which the influence needs to be calculated")
+        } else if(!inflVar %in% c("psi", colnames(x$covariates))){
+          stop("Provide as 'inflVar' either 'psi' or a variable name. ",
+               if(!is.null(x$covariates)) {
+                 c("Variable names are:\n", paste(colnames(x$covariates)))})
+        }
+      } else if(!samColour %in% c(sample_variables(physeq), richSupported, "Deviance")){
+        stop("'samColour' must be a sample variable, a supported richness measure
+             or otherwise 'Influence' or 'Deviance'!")
+      }
     }
-
     ## SAMPLES
     if ("samples" %in% plotType) {
         dataSam = coords$samples
         # Get the sample colours
         dataSam$colourPlot = if (length(samColour) == 1) {
-            if (Influence) {
-                rowSums(NBalphaInfl(x, inflDim)[, , samColour])
+            if (samColour=="Influence") {
+              if(inflVar %in% colnames(x$covariates))
+                rowSums(NBalphaInfl(x, inflDim)[, , inflVar])
+              else
+                rowSums(abs(NBpsiInfl(x, inflDim)))
             } else if (samColour == "Deviance") {
                 rowSums(getDevianceRes(x, max(Dim))^2)
             } else if (samColour %in% richSupported)
@@ -212,8 +225,6 @@ plot.RCM = function(x,
                 get_variable(x$physeq, samColour)
         } else if (!is.null(samColour)) {
              samColour
-        } else if (Influence){
-              rowSums(abs(NBpsiInfl(x, inflDim)))
         } else {
             factor(rep(1, nrow(dataSam)))
         }
@@ -243,7 +254,7 @@ plot.RCM = function(x,
         geom_point(size = samSize) +
             if (noLegend)
                 {
-        guides(colour = FALSE)
+            guides(colour = FALSE)
                 }  #Legend
 
         # add legend names
