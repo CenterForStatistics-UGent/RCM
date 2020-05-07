@@ -53,7 +53,7 @@ estNPresp = function(sampleScore, muMarg,
         # directly to the vgam.fit function
         tmp = try(suppressWarnings(vgam(data = df,
             x ~ s(sampleScore, df = dfSpline),
-            offset = logMu, family = negbinomial.size(lmu = "loge",
+            offset = logMu, family = negbinomial.size(lmu = "loglink",
                 size = thetas[i]), coefstart = coefInit[[i]],
             maxit = vgamMaxit, na.option = na.omit,...)), silent = TRUE)
         if (inherits(tmp, "try-error")) {
@@ -91,7 +91,7 @@ estNPresp = function(sampleScore, muMarg,
     samRep = rep(sampleScore, ncols)
     sizes = if(length(naId)) rep(thetas, each = n)[-naId] else rep(thetas, each = n)
     overall = vgam(c(X) ~ s(samRep, df = dfSpline),
-        offset = c(logMu), family = negbinomial.size(lmu = "loge",
+        offset = c(logMu), family = negbinomial.size(lmu = "loglink",
             size = sizes),
         coefstart = coefInitOverall, maxit = vgamMaxit,
         na.option = na.omit, ...)
