@@ -22,3 +22,12 @@ as the original data matrix
 \description{
 A function to calculate the matrix of deviance residuals.
 }
+\examples{
+data(Zeller)
+require(phyloseq)
+tmpPhy = prune_taxa(taxa_names(Zeller)[1:120],
+prune_samples(sample_names(Zeller)[1:75], Zeller))
+#Subset for a quick fit
+zellerRCM = RCM(tmpPhy, k = 2, round = TRUE, prevCutOff = 0.03)
+devRes = getDevianceRes(zellerRCM)
+}

@@ -505,6 +505,12 @@ When looking at categorical variable, one looks at one dummy at the time:
 plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "DiagnosisNormal", samShape ="Diagnosis" )
 ```
 
+In the unconstrained case, the "psi" variables seems a logical, overall chose
+
+```{r inflPsi}
+plot(ZellerRCM2, plotType = "samples", samSize = 2.5, inflVar = "psi")
+```
+
 ## Importance of dimensions
 
 There are many quantities that reflect the (relative) importance
