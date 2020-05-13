@@ -82,12 +82,13 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
     par(mfrow = mfrow)
     resMat = resMat[, idTaxa, drop = FALSE]
     if (length(idTaxa) > 1) {
-        lapply(colnames(resMat), function(tax) {
+        foo = lapply(colnames(resMat), function(tax) {
             plot(x = sampleScore, y = resMat[, tax],
                 ylab = paste(resid, "residuals"),
-                xlab = paste("Environmental score in dimension", Dim),
+              xlab = paste("Environmental score in dimension", Dim),
                 main = tax)
         })
+        return(invisible())
     } else {
         Plot = ggplot(data.frame(x = c(sampleScore),
             y = c(resMat), samColour = if (is.null(samColour))
