@@ -81,20 +81,22 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
     on.exit(par(parTmp))
     par(mfrow = mfrow)
     resMat = resMat[, idTaxa, drop = FALSE]
+    Colour = if (is.null(samColour))
+      "black" else get_variable(RCM$physeq, samColour)
+    Shape = if (is.null(samShape)){
+      if(length(idTaxa)>1) 1 else "none"
+    } else get_variable(RCM$physeq, samShape)
     if (length(idTaxa) > 1) {
         foo = lapply(colnames(resMat), function(tax) {
             plot(x = sampleScore, y = resMat[, tax],
                 ylab = paste(resid, "residuals"),
               xlab = paste("Environmental score in dimension", Dim),
-                main = tax)
+                main = tax, col = Colour, pch = Shape)
         })
         return(invisible())
     } else {
         Plot = ggplot(data.frame(x = c(sampleScore),
-            y = c(resMat), samColour = if (is.null(samColour))
-                "black" else get_variable(RCM$physeq, samColour),
-            samShape = if (is.null(samShape))
-                "none" else get_variable(RCM$physeq, samShape)),
+            y = c(resMat), samColour = Colour, samShape = Shape),
             mapping = aes_string(x = "x", y = "y",
                 colour = "samColour", shape = "samShape")) +
             ylab(paste(resid, "residuals")) +
