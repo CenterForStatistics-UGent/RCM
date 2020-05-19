@@ -203,7 +203,8 @@ plot.RCM = function(x,
                if(!is.null(x$covariates)) {
                  c("Variable names are:\n", paste(colnames(x$covariates)))})
         }
-      } else if(!samColour %in% c(sample_variables(x$physeq), richSupported, "Deviance")){
+      } else if(!samColour %in% c(richSupported, "Deviance",
+              if(inherits(try(sample_data(x$physeq), silent = TRUE), "try-error")) NULL else sample_variables(x$physeq))){
         stop("'samColour' must be a sample variable, a supported richness measure
              or otherwise 'Influence' or 'Deviance'!")
       }
