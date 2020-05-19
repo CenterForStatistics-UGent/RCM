@@ -16,8 +16,8 @@ NBpsiInfl = function(rcm, Dim = 1) {
                 Dim))])
     reg = if (is.null(rcm$covariates)) {
         rcm$rMat[, Dim, drop = FALSE] %*% rcm$cMat[Dim,, drop = FALSE]
-    } else {getRowMat(sampleScore = rcm$alpha[,
-        Dim] %*% rcm$covariates, responseFun = rcm$responseFun,
+    } else {getRowMat(sampleScore = rcm$covariates %*% rcm$alpha[, Dim],
+                      responseFun = rcm$responseFun,
         NB_params = rcm$NB_params[, , Dim])}
     rcm$X = correctXMissingness(rcm$X, mu, rcm$NApresent, naId = is.na(rcm$X))
 
