@@ -15,6 +15,10 @@ test_that("RCM throws errors when only one covariate with one level supplied", {
   expect_error(RCM(Zeller, covariates = "Age", k = 1))
 })
 
+test_that("RCM throws warning when less covariate combinations than samples supplied", {
+  expect_warning(RCM(Zeller, covariates = c("Diagnosis", "Country"), k = 1))
+})
+
 test_that("RCM throws errors when NAs present in data matrix", {
   expect_error(RCM(matrix(c(1,2,3,NA),2,2), covariates = "Age", k = 1))
 })

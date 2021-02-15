@@ -208,6 +208,12 @@ the according richness measure (as calculated by phyloseq::estimate_richness)
  on the variable supplied is plotted. This 'inflVar' variable should be
  either "psi", or a variable name.
 }
+\note{
+Supplying only few categorical variables as constraining variables may
+cause the samples to be plotted on top of each other, since the number of
+unique sample scores is limited. The plot is still valid, but consider adding
+more sample variables to spread out the samples
+}
 \examples{
 data(Zeller)
 require(phyloseq)

@@ -193,6 +193,11 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
     confTrimMat = confTrimMat[rowIDkeep, ]
     attribs = attr(covModelMat, "assign")
     covModelMat = covModelMat[rowIDkeep, ]
+    if(!is.null(covModelMat) && qr(covModelMat)$rank < nrow(dat)){
+      warning(.immediate = TRUE,
+              "Less unique combinations of constraining variables than there are samples!
+              This may cause overlaps in plots, see also vignette and note in ?plot.RCM")
+    }
 
     tic = proc.time()  #Time the calculation
     tmp = RCM_NB(dat, rowWeights = rowWeights, colWeights = colWeights,

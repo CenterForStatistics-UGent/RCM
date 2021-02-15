@@ -105,6 +105,10 @@
 #' @method plot RCM
 #' @seealso \code{\link{RCM}},\code{\link{addOrthProjection}},
 #' \code{\link{extractCoord}},\code{\link{plotRespFun}}
+#' @note Supplying only few categorical variables as constraining variables may
+#' cause the samples to be plotted on top of each other, since the number of
+#' unique sample scores is limited. The plot is still valid, but consider adding
+#' more sample variables to spread out the samples
 #' @examples
 #' data(Zeller)
 #' require(phyloseq)

@@ -314,6 +314,24 @@ Note that from Germany there are only cancer patients in this dataset.
 In case of non-parametric response functions,
 the samples mononoplot is not interpretable.
 
+Confusion often arises as to why less distinct sample dots are shown than there are samples. This occurs when few, categorical constraining variables are supplied as below.
+
+```{r linFewVars, eval = FALSE}
+#Linear with only 2 variables
+ZellerRCM3constr = RCM(Zeller, k = 2, round = TRUE, 
+                       covariates = c("Gender","Diagnosis"), responseFun = "linear")
+```
+
+Every constrained sample score is a linear combination of constraining variables, and in this case there are only 3x2=6 distinct sample scores possible, leading to the sample dots from microbiomes from the same gender and diagnosis to be plotted on top of each other.
+
+```{r plotFewVars}
+plot(ZellerRCM3constr, plotType = "samples", samColour = "Diagnosis", 
+     samShape = "Country")
+```
+
+In general, it is best to include all measured sample variables in a constrained analysis, and let the RCM-algorithm find out which ones are the most important drivers of variability.
+
+
 Unique to the constrained ordinations are monoplots of the variables. 
 Do note however, that the axes have not been scaled,
 and trends on the x-and y-axis should be interpreted independently.
