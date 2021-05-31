@@ -46,10 +46,13 @@ residualPlot = function(RCM, Dim = 1, whichTaxa = "response",
     samColour = NULL, samShape = NULL, legendLabSize = 15,
     legendTitleSize = 16, axisLabSize = 14, axisTitleSize = 16,
     taxTitle = TRUE, h = 0) {
+    if(is.null(RCM$covariates)){
+      stop("Residual plots only implemented for constrained ordinations!")
+    }
     sampleScore = RCM$covariates %*% RCM$alpha[, Dim,
         drop = FALSE]
     if (resid == "Deviance") {
-        resMat = getDevianceRes(RCM, seq_len(Dim))
+        resMat = getDevianceRes(RCM, Dim)
     } else if (resid == "Pearson") {
         mu = extractE(RCM, seq_len(Dim))
         # Residuals are also based on lower dimensions
