@@ -259,7 +259,7 @@ plot.RCM = function(x,
         geom_point(size = samSize) +
             if (noLegend)
                 {
-            guides(colour = FALSE)
+            guides(colour = "none")
                 }  #Legend
 
         # add legend names
@@ -277,7 +277,7 @@ plot.RCM = function(x,
         if (!is.null(shapeLegend)) {
             plot = plot + scale_shape_discrete(name = shapeLegend)
         } else {
-            plot = plot + guides(shape = FALSE)
+            plot = plot + guides(shape = "none")
         }
     } else {
         dataSam = NULL
@@ -424,7 +424,7 @@ plot.RCM = function(x,
                         "arrowLength" else NULL), colour = taxColSingle,
                     arrow = arrow(length = unit(0.1,
                     "cm")), inherit.aes = FALSE, size = arrowSize) +
-                    guides(alpha = FALSE)
+                    guides(alpha = "none")
                     } else {
                     plot <- plot + geom_segment(data = dataTax,
                     aes_string(x = "origin1",
@@ -433,7 +433,7 @@ plot.RCM = function(x,
                     "arrowLength" else NULL, colour = "taxCol"),
                     arrow = arrow(length = unit(0.1,
                     "cm")), inherit.aes = FALSE, size = arrowSize) +
-                    guides(alpha = FALSE)
+                    guides(alpha = "none")
                     }
                     if (!("samples" %in% plotType | (length(taxCol) == 1 &&
                     taxCol != "Deviance"))) {
