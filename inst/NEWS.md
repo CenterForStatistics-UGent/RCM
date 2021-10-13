@@ -63,3 +63,16 @@
   - A note in the vignette and in the help file of plot.RCM regarding
     limited number of combinations of constraining variables. Also a
     warning is now thrown
+
+# 1.5.5
+
+  - Bug fix for higher dimension residualPlot function, and tests for
+    this function
+
+# 1.5.6
+
+  - Replace deprecated guides( =FALSE) by guides(=“none”)
+
+# 1.5.7
+
+Update vignette to number table of contents
