@@ -117,9 +117,7 @@
 #' # Subset for a quick fit
 #' zellerRCM = RCM(tmpPhy)
 #' plot(zellerRCM)
-plot.RCM = function(x,
-                    ...,
-                    Dim = c(1, 2),
+plot.RCM = function(x, ..., Dim = c(1, 2),
                     plotType = c("samples", "species", "variables"),
                     samColour = if(is.null(inflVar)) NULL else "Influence",
                     taxNum = if (all(plotType == "species") ||

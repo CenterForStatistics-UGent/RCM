@@ -3,22 +3,21 @@ output:
   rmarkdown::html_vignette:
     toc: true
     keep_md: true
+    number_sections: true
 vignette: >
   %\VignetteIndexEntry{Manual for the RCM pacakage}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-# RCM package: vignette
-
-\setcounter{tocdepth}{5}
-\tableofcontents
-
 # Introduction
 
 The RCM package combines unconstrained and constrained ordination of microbiome 
 read count data into a single package. The package functions allow fitting 
 of the ordination model, plotting it and performing diagnostic checks.
+
+\setcounter{tocdepth}{5}
+\tableofcontents
 
 # Publication
 
