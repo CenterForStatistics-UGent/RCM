@@ -20,13 +20,25 @@ tmpPhyNA = transform_sample_counts(tmpPhy, fun = function(x){
     x[sample(length(x), size = 3)] = NA
     x
 })
-
 test_that("RCM allows for missingness", {
-  expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE), "RCM")
-  expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
-                covariates = c("Diagnosis", "Country", "Gender", "BMI"),
-                confounders = "Age"), "RCM")
-  expect_is(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
-                covariates = c("Diagnosis", "Country", "Gender", "BMI"),
-                confounders = "Age", responseFun = "nonparametric"), "RCM")
+  misUnconstr <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE)
+  misConstrLin <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
+                      covariates = c("Diagnosis", "Country", "Gender", "BMI"),
+                      confounders = "Age")
+  misConstrNP <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
+                     covariates = c("Diagnosis", "Country", "Gender", "BMI"),
+                     confounders = "Age", responseFun = "nonparametric")
+  expect_is(misUnconstr, "RCM")
+  expect_is(misConstrLin, "RCM")
+  expect_is(misConstrNP, "RCM")
+})
+test_that("All plotting functions still work with missing data", {
+  expect_silent(plot(misUnconstr))
+  expect_silent(plot(misConstrLin))
+  expect_silent(plot(misConstrNP))
+  expect_silent(plot(misUnconstr, samColour = "Deviance"))
+  expect_silent(plot(misUnconstr, taxCol = "Deviance", plotType = "species"))
+  expect_silent(plot(misUnconstr, inflVar = "psi"))
+  expect_silent(plot(misConstrLin, inflVar = "BMI"))
+  expect_warning(plotRespFun(misConstrNP))
 })

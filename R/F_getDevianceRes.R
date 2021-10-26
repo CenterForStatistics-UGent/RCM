@@ -26,6 +26,6 @@ getDevianceRes = function(RCM, Dim = RCM$k) {
             switch(as.character(Dim), `0` = "Independence",
                 `0.5` = "Filtered", paste0("Dim",
                 Dim))])
-    getDevMat(X = RCM$X, thetaMat = thetaMat,
+    getDevMat(X = correctXMissingness(RCM$X, mu, RCM$NApresent, is.na(RCM$X)), thetaMat = thetaMat,
         mu = mu)
 }

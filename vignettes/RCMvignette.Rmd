@@ -48,6 +48,8 @@ suppressPackageStartupMessages(library(RCM))
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
+# Analysis
+
 ## Dataset
 
 As example data we use a study on the microbiome of colorectal cancer patients
@@ -313,24 +315,6 @@ Note that from Germany there are only cancer patients in this dataset.
 In case of non-parametric response functions,
 the samples mononoplot is not interpretable.
 
-Confusion often arises as to why less distinct sample dots are shown than there are samples. This occurs when few, categorical constraining variables are supplied as below.
-
-```{r linFewVars, eval = FALSE}
-#Linear with only 2 variables
-ZellerRCM3constr = RCM(Zeller, k = 2, round = TRUE, 
-                       covariates = c("Gender","Diagnosis"), responseFun = "linear")
-```
-
-Every constrained sample score is a linear combination of constraining variables, and in this case there are only 3x2=6 distinct sample scores possible, leading to the sample dots from microbiomes from the same gender and diagnosis to be plotted on top of each other.
-
-```{r plotFewVars}
-plot(ZellerRCM3constr, plotType = "samples", samColour = "Diagnosis", 
-     samShape = "Country")
-```
-
-In general, it is best to include all measured sample variables in a constrained analysis, and let the RCM-algorithm find out which ones are the most important drivers of variability.
-
-
 Unique to the constrained ordinations are monoplots of the variables. 
 Do note however, that the axes have not been scaled,
 and trends on the x-and y-axis should be interpreted independently.
@@ -346,7 +330,7 @@ in shaping the environmental gradient.
 plot(ZellerRCM2constrNonParam, plotType = "variables")
 ```
 
-The envrionmental gradients are quite different from the case with the linear
+The environmental gradients are quite different from the case with the linear
 response functions. Especially age is an important driver of the environmental
 gradient here. Still the results for cancer diagnosis,
 country and gender are similar to before.
@@ -494,7 +478,7 @@ For these 6 taxa we see no signal at all.
 
 It can also be interesting to identify samples have the strongest influence
 on the environmental gradient. For this aim we can colour the samples
-by influence by provinding the "inflVar" argument:
+by influence by providing the "inflVar" argument:
 
 ```{r inflAge}
 plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "Age")
@@ -637,6 +621,27 @@ The $RCM$ package provides the option to make plots with non squared axis. This 
 ```{r NonsquaredPlots}
 plot(ZellerRCM2, axesFixed = FALSE)
 ```
+
+# FAQ
+
+## Why are not all my samples shown in the constrained ordination?
+
+Confusion often arises as to why less distinct sample dots are shown than there are samples in the constrained ordination. This occurs when few, categorical constraining variables are supplied as below.
+
+```{r linFewVars, eval = FALSE}
+#Linear with only 2 variables
+ZellerRCM3constr = RCM(Zeller, k = 2, round = TRUE, 
+                       covariates = c("Gender","Diagnosis"), responseFun = "linear")
+```
+
+Every constrained sample score is a linear combination of constraining variables, and in this case there are only 3x2=6 distinct sample scores possible, leading to the sample dots from microbiomes from the same gender and diagnosis to be plotted on top of each other.
+
+```{r plotFewVars}
+plot(ZellerRCM3constr, plotType = "samples", samColour = "Diagnosis", 
+     samShape = "Country")
+```
+
+In general, it is best to include all measured sample variables in a constrained analysis, and let the RCM-algorithm find out which ones are the most important drivers of variability.
 
 # Session info
 
