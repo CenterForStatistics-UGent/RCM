@@ -20,14 +20,14 @@ tmpPhyNA = transform_sample_counts(tmpPhy, fun = function(x){
     x[sample(length(x), size = 3)] = NA
     x
 })
+misUnconstr <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE)
+suppressWarnings(misConstrLin <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
+                    covariates = c("Diagnosis", "Country", "Gender", "BMI"),
+                    confounders = "Age"))
+suppressWarnings(misConstrNP <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
+                   covariates = c("Diagnosis", "Country", "Gender", "BMI"),
+                   confounders = "Age", responseFun = "nonparametric"))
 test_that("RCM allows for missingness", {
-  misUnconstr <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE)
-  misConstrLin <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
-                      covariates = c("Diagnosis", "Country", "Gender", "BMI"),
-                      confounders = "Age")
-  misConstrNP <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
-                     covariates = c("Diagnosis", "Country", "Gender", "BMI"),
-                     confounders = "Age", responseFun = "nonparametric")
   expect_is(misUnconstr, "RCM")
   expect_is(misConstrLin, "RCM")
   expect_is(misConstrNP, "RCM")
