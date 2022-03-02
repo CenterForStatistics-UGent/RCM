@@ -77,13 +77,13 @@
 
   - Update vignette to number table of contents
 
-# 1.10.0
+# 1.11.0
 
   - Added FAQ section in vignette with first frequent question on number
     of samples not shown.
   - Fixed bugs for plots of data with missing values, and added tests.
 
-# 1.10.1
+# 1.11.2
 
   - Explicitly import stats::model.matrix, and only load necessary VGAM
     functions
