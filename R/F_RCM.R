@@ -62,7 +62,6 @@
 #' @importFrom nleqslv nleqslv
 #' @importFrom tensor tensor
 #' @importFrom alabama constrOptim.nl
-#' @import VGAM
 #' @import phyloseq
 #' @import methods
 #' @importFrom stats as.formula contrasts dnbinom dpois glm integrate quantile

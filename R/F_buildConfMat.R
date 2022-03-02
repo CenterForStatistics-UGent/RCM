@@ -17,6 +17,7 @@
 #' and with reference levels for factors absent.
 #' This will be used to fit the model to modify the independence model,
 #' and may include continuous variables}
+#' @importFrom stats model.matrix
 buildConfMat = function(x, ...) {
     UseMethod("buildConfMat", x)
 }

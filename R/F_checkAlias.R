@@ -5,7 +5,7 @@
 #' @return Throws an error when an alias structure is detected,
 #' returns invisible otherwise
 #'
-#' @importFrom stats alias
+#' @importFrom stats alias formula
 #' @export
 #' @examples
 #' #Make a dataframe with aliased variables

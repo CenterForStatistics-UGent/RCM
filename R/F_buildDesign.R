@@ -9,10 +9,11 @@
 #' Will throw an error when an unknown repsonse function is provided
 #'
 #' @return A design matrix of dimension n-by-f
+#' @importFrom stats model.matrix
 buildDesign = function(sampleScore, responseFun) {
     # With intercept
-    design = switch(responseFun, linear = model.matrix(~sampleScore), 
-        quadratic = model.matrix(~sampleScore + 
-            I(sampleScore^2)), dynamic = model.matrix(~sampleScore + 
+    design = switch(responseFun, linear = model.matrix(~sampleScore),
+        quadratic = model.matrix(~sampleScore +
+            I(sampleScore^2)), dynamic = model.matrix(~sampleScore +
             I(sampleScore^2)), stop("Unknown response function"))
 }

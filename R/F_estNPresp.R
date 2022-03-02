@@ -35,6 +35,7 @@
 #'
 #' @importFrom MASS negative.binomial
 #' @importFrom stats na.omit
+#' @importFrom VGAM s vgam coef negbinomial.size
 estNPresp = function(sampleScore, muMarg,
     X, ncols, thetas, n, coefInit, coefInitOverall,
     dfSpline, vgamMaxit, degree, verbose, allowMissingness, naId,

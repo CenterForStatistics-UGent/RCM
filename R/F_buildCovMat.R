@@ -13,6 +13,7 @@
 #' @return a list with components
 #' \item{covModelMat}{The model matrix}
 #' \item{datFrame}{The dataframe used to construct the model matrix}
+#' @importFrom stats model.matrix formula
 buildCovMat = function(covariates, dat) {
     if (is.data.frame(covariates)) {
         datFrame = covariates
