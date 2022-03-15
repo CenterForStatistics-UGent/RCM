@@ -9,10 +9,17 @@
 #'
 #'@return a diagonal matrix of dimension p with evaluations
 #'of the jacobian function
-NBjacobianAbunds = function(beta, X, reg,
+NBjacobianAbundsOld = function(beta, X, reg,
     thetas, allowMissingness, naId) {
     mu = exp(outer(reg, beta, "+"))
     X = correctXMissingness(X, mu, allowMissingness, naId)
     -diag(colSums((1 + (X/thetas)) * mu/(1 +
         (mu/thetas))^2))
+}
+NBjacobianAbunds = function(beta, X, reg,
+                            thetas, allowMissingness, naId) {
+    mu = exp(reg+beta)
+    X = correctXMissingness(X, mu, allowMissingness, naId)
+    -as.matrix(sum((1 + (X/thetas)) * mu/(1 +
+                                             (mu/thetas))^2))
 }

@@ -193,11 +193,20 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                 control = nleqslv.control, jac = NBjacobianLibSizes,
                 method = jacMethod, allowMissingness = allowMissingness,
                 naId = naId)$x
-            logAbundsMLE = nleqslv(fn = dNBabunds,
-                x = logAbundsMLE, theta = thetasMat,
-                X = X, reg = logLibSizesMLE, global = global,
-                control = nleqslv.control, jac = NBjacobianAbunds,
-                method = jacMethod, allowMissingness = allowMissingness, naId = naId)$x
+            # logAbundsMLE = nleqslv(fn = dNBabundsOld,
+            #     x = logAbundsMLE, theta = thetasMat,
+            #     X = X, reg = logLibSizesMLE, global = global,
+            #     control = nleqslv.control, jac = NBjacobianAbundsOld,
+            #     method = jacMethod, allowMissingness = allowMissingness, naId = naId)$x
+            #NEW
+            logAbundsMLE = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
+                nleqslv(fn = dNBabunds,
+                x = logAbundsMLE[j], theta = thetasMat[, j],
+                    X = X[, j], reg = logLibSizesMLE, global = global,
+                        control = nleqslv.control, jac = NBjacobianAbunds,
+                        method = jacMethod, allowMissingness = allowMissingness, naId = naId[, j])$x
+            })
+
             initIter = initIter + 1
 
             convergenceInit = ((initIter <= maxItOut) &&

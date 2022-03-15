@@ -9,8 +9,13 @@
 #' @param naId The numeric index of the missing values in X
 #'
 #'@return a vector of length p with evaluations of the score function
-dNBabunds = function(beta, X, reg, thetas, allowMissingness, naId) {
+dNBabundsOld = function(beta, X, reg, thetas, allowMissingness, naId) {
     mu = exp(outer(reg, beta, "+"))
     X = correctXMissingness(X, mu, allowMissingness, naId)
     score = colSums((X - mu)/(1 + (mu/thetas)))
+}
+dNBabunds = function(beta, X, reg, thetas, allowMissingness, naId) {
+  mu = exp(reg + beta)
+  X = correctXMissingness(X, mu, allowMissingness, naId)
+  sum((X - mu)/(1 + (mu/thetas)))
 }
