@@ -11,7 +11,7 @@ test_that("correctXMissingness() removes all NAs", {
   expect_false(anyNA(RCM:::correctXMissingness(X, mu, TRUE)))
 })
 
-n = 20; p = 2000
+n = 20; p = 1000
 X = matrix(rnbinom(n*p, size = 1, mu = 2), n,p)
 test_that("RCM() deals with high-dimensions", {
   expect_silent(RCM(X))

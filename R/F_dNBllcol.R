@@ -20,7 +20,7 @@
 
 #' @return A vector of length p+1+1+(k-1) with evaluations of the
 #'  derivative of lagrangian
-dNBllcol = function(beta, X, reg, thetas,
+dNBllcolOld = function(beta, X, reg, thetas,
     muMarg, k, p, n, colWeights, nLambda,
     cMatK, allowMissingness, naId, ...) {
     cMat = matrix(beta[seq_len(p)], byrow = TRUE,
@@ -55,4 +55,10 @@ dNBllcol = function(beta, X, reg, thetas,
     orthogons = tcrossprod(cMatK, cMat *
         colWeights)
     return(c(score, center, unitSum, orthogons))
+}
+
+dNBllcol = function(beta, X, reg, thetas, muMarg, allowMissingness, naId, ...) {
+    mu = exp(reg * beta) * muMarg
+    X = correctXMissingness(X, mu, allowMissingness, naId)
+    sum(reg*((X - mu)/(1 + mu/thetas)))
 }

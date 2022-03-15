@@ -408,21 +408,31 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     cat("\n Estimating column scores \n")
                 regCol = rMat[, KK, drop = FALSE] *
                     psis[KK]
-                tmpCol = nleqslv(fn = dNBllcol, x = c(cMat[KK,
+                tmpColOld = nleqslv(fn = dNBllcolOld, x = c(cMat[KK,
                     ], lambdaCol[idK]), thetas = thetasMat,
                     X = X, reg = regCol, muMarg = muMarg,
                     k = KK, global = global, control = nleqslv.control,
-                    n = n, p = p, jac = NBjacobianCol,
+                    n = n, p = p, jac = NBjacobianColOld,
                     method = jacMethod, colWeights = colWeights,
                     nLambda = (KK + 1), cMatK = cMat[seq(1,
                     (KK - 1)), , drop = FALSE], preFabMat = preFabMat,
                     Jac = JacC, allowMissingness = allowMissingness, naId = naId)
+                #NEW
+                tmpCol = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
+                    nleqslv(fn = dNBllcol, x = cMat[,j], thetas = thetasMat[, j],
+                            X = X[, j], reg = regCol, muMarg = muMarg[, j],
+                            k = KK, global = global, control = nleqslv.control,
+                            n = n, p = p, jac = NBjacobianCol,
+                method = jacMethod, colWeights = colWeights,
+                nLambda = (KK + 1), cMatK = cMat[seq(1,(KK - 1)), , drop = FALSE], preFabMat = preFabMat[, j],
+                Jac = JacC, allowMissingness = allowMissingness, naId = naId)$x
+                })
 
                 if (verbose)
                     cat(ifelse(tmpCol$termcd == 1, "Column scores converged \n",
                     "Column scores DID NOT converge \n"))
-                cMat[KK, ] = tmpCol$x[seq_len(p)]
-                lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
+                cMat[KK, ] = tmpCol#tmpCol$x[seq_len(p)]
+                #lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
 
                 # Normalize (speeds up algorithm if previous step
                 # had not converged)
