@@ -408,17 +408,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     cat("\n Estimating column scores \n")
                 regCol = rMat[, KK, drop = FALSE] *
                     psis[KK]
-                # tmpColOld = nleqslv(fn = dNBllcolOld, x = c(cMat[KK,
-                #     ], lambdaCol[idK]), thetas = thetasMat,
-                #     X = X, reg = regCol, muMarg = muMarg,
-                #     k = KK, global = global, control = nleqslv.control,
-                #     n = n, p = p, jac = NBjacobianColOld,
-                #     method = jacMethod, colWeights = colWeights,
-                #     nLambda = (KK + 1), cMatK = cMat[seq(1,
-                #     (KK - 1)), , drop = FALSE], preFabMat = preFabMat,
-                #     Jac = JacC, allowMissingness = allowMissingness, naId = naId)
-                #NEW
-                tmpCol = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
+                cMat[KK, ]  = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
                     nleqslv(fn = dNBllcol, x = cMat[KK,j], thetas = thetasMat[, j],
                             X = X[, j], reg = regCol, muMarg = muMarg[, j],
                             k = KK, global = global, control = nleqslv.control,
@@ -428,14 +418,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                 Jac = JacC, allowMissingness = allowMissingness, naId = naId)$x
                 })
 
-                # if (verbose)
-                #     cat(ifelse(tmpCol$termcd == 1, "Column scores converged \n",
-                #     "Column scores DID NOT converge \n"))
-                cMat[KK, ] = tmpCol#tmpCol$x[seq_len(p)]
-                #lambdaCol[idK] = tmpCol$x[p + seq_along(idK)]
-
-                # Normalize (speeds up algorithm if previous step
-                # had not converged)
+                # Normalize and center here
                 cMat[KK, ] = cMat[KK, ] - sum(cMat[KK,
                     ] * colWeights)/sum(colWeights)
                 cMat[KK, ] = cMat[KK, ]/sqrt(sum(colWeights *
@@ -443,14 +426,6 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                 #From second dimension on: Gram-Schmidt ortogonalize with respect to previous dimensions
                 if(KK>1)
                     cMat[KK, ] = GramSchmidt(cMat[KK, ], cMat[seq_len(KK-1), ,drop = FALSE], weights = colWeights)
-                GramSchmidt = function(x, otherVecs, weights = rep(1, length(x))){
-                    for(i in seq_len(nrow(otherVecs))){
-                        x = x- sum(x*otherVecs[i,])/sum(otherVecs[i,]^2)*otherVecs[i,]
-                        x = x/sqrt(sum(x^2))
-                    }
-                    return(x)
-                }
-
 
                 # Row scores
                 if (verbose)
