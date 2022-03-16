@@ -14,7 +14,7 @@ buildCovMat(covariates, dat)
 In this case we will 1) Include dummy's for every level of the
  categorical variable, and force them to sum to zero.
  This is needed for plotting and required for
-  reference level indepenent normalization.
+  reference level independent normalization.
   2) Exclude an intercept. The density function f()
   will provide this already.}
 }

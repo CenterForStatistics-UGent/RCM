@@ -12,7 +12,7 @@ test_that("RCM throws errors for wrong input type", {
 })
 
 test_that("RCM throws errors when only one covariate with one level supplied", {
-  expect_error(RCM(Zeller, covariates = "Age", k = 1))
+  expect_error(suppressWarnings(RCM(Zeller, covariates = "Age", k = 1)))
 })
 
 test_that("RCM throws warning when less covariate combinations than samples supplied", {
@@ -27,9 +27,9 @@ sample_data(Zeller)$bogusVariable = get_variable(Zeller, "Age") +
   as.integer(get_variable(Zeller,"Gender"))
 
 test_that("RCM throws errors when covariates are aliased", {
-    expect_error(RCM(Zeller, covariates = c("Diagnosis", "Country",
+    expect_error(suppressWarnings(RCM(Zeller, covariates = c("Diagnosis", "Country",
                                           "Gender","Age", "bogusVariable"),
-                   k = 2))
+                   k = 2)))
 })
 
 test_that("RCM throws errors when confounders are aliased", {

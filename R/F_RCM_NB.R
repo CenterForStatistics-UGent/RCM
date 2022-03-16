@@ -143,7 +143,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
             prevCutOff = prevCutOff, n = nrow(Xorig),
             minFraction = minFraction)
     }
-    naId = if(allowMissingness) which(is.na(X)) else NULL
+    naId = if(allowMissingness) is.na(X) else NULL
 
     n = NROW(X)
     p = NCOL(X)
@@ -437,7 +437,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                             n = n, p = p, jac = NBjacobianCol,
                             method = jacMethod, colWeights = colWeights,
                             nLambda = (KK + 1), cMatK = cMat[seq(1,(KK - 1)), , drop = FALSE], preFabMat = preFabMat[, j],
-                            Jac = JacC, allowMissingness = allowMissingness, naId = naId)$x
+                            Jac = JacC, allowMissingness = allowMissingness, naId = naId[, j])$x
                 })
 
                 # Normalize and center here
