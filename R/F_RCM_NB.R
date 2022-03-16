@@ -193,13 +193,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                 control = nleqslv.control, jac = NBjacobianLibSizes,
                 method = jacMethod, allowMissingness = allowMissingness,
                 naId = naId)$x
-            # logAbundsMLE = nleqslv(fn = dNBabundsOld,
-            #     x = logAbundsMLE, theta = thetasMat,
-            #     X = X, reg = logLibSizesMLE, global = global,
-            #     control = nleqslv.control, jac = NBjacobianAbundsOld,
-            #     method = jacMethod, allowMissingness = allowMissingness, naId = naId)$x
-            #NEW
-            logAbundsMLE = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
+              logAbundsMLE = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
                 nleqslv(fn = dNBabunds,
                 x = logAbundsMLE[j], theta = thetasMat[, j],
                     X = X[, j], reg = logLibSizesMLE, global = global,
@@ -403,31 +397,7 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     psis[KK] = psiTry
                 }
 
-                # Column scores
-                if (verbose)
-                    cat("\n Estimating column scores \n")
-                regCol = rMat[, KK, drop = FALSE] *
-                    psis[KK]
-                cMat[KK, ]  = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
-                    nleqslv(fn = dNBllcol, x = cMat[KK,j], thetas = thetasMat[, j],
-                            X = X[, j], reg = regCol, muMarg = muMarg[, j],
-                            k = KK, global = global, control = nleqslv.control,
-                            n = n, p = p, jac = NBjacobianCol,
-                method = jacMethod, colWeights = colWeights,
-                nLambda = (KK + 1), cMatK = cMat[seq(1,(KK - 1)), , drop = FALSE], preFabMat = preFabMat[, j],
-                Jac = JacC, allowMissingness = allowMissingness, naId = naId)$x
-                })
-
-                # Normalize and center here
-                cMat[KK, ] = cMat[KK, ] - sum(cMat[KK,
-                    ] * colWeights)/sum(colWeights)
-                cMat[KK, ] = cMat[KK, ]/sqrt(sum(colWeights *
-                    cMat[KK, ]^2))
-                #From second dimension on: Gram-Schmidt ortogonalize with respect to previous dimensions
-                if(KK>1)
-                    cMat[KK, ] = GramSchmidt(cMat[KK, ], cMat[seq_len(KK-1), ,drop = FALSE], weights = colWeights)
-
-                # Row scores
+                  # Row scores
                 if (verbose)
                     cat("\n Estimating row scores \n")
                 regRow = cMat[KK, , drop = FALSE] *psis[KK]
@@ -454,6 +424,30 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
                     KK] * rowWeights)/sum(rowWeights)
                 rMat[, KK] = rMat[, KK]/sqrt(sum(rowWeights *
                     rMat[, KK]^2))
+
+                # Column scores
+                if (verbose)
+                    cat("\n Estimating column scores \n")
+                regCol = rMat[, KK, drop = FALSE] *
+                    psis[KK]
+                cMat[KK, ]  = vapply(seq_len(p), FUN.VALUE = double(1), function(j){
+                    nleqslv(fn = dNBllcol, x = cMat[KK,j], thetas = thetasMat[, j],
+                            X = X[, j], reg = regCol, muMarg = muMarg[, j],
+                            k = KK, global = global, control = nleqslv.control,
+                            n = n, p = p, jac = NBjacobianCol,
+                            method = jacMethod, colWeights = colWeights,
+                            nLambda = (KK + 1), cMatK = cMat[seq(1,(KK - 1)), , drop = FALSE], preFabMat = preFabMat[, j],
+                            Jac = JacC, allowMissingness = allowMissingness, naId = naId)$x
+                })
+
+                # Normalize and center here
+                cMat[KK, ] = cMat[KK, ] - sum(cMat[KK,
+                ] * colWeights)/sum(colWeights)
+                cMat[KK, ] = cMat[KK, ]/sqrt(sum(colWeights *
+                                                     cMat[KK, ]^2))
+                #From second dimension on: Gram-Schmidt ortogonalize with respect to previous dimensions
+                if(KK>1)
+                    cMat[KK, ] = GramSchmidt(cMat[KK, ], cMat[seq_len(KK-1), ,drop = FALSE], weights = colWeights)
 
                 if (record) {
                     # Store intermediate estimates
