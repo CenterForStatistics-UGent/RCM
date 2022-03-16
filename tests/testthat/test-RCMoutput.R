@@ -20,7 +20,7 @@ tmpPhyNA = transform_sample_counts(tmpPhy, fun = function(x){
     x[sample(length(x), size = 3)] = NA
     x
 })
-misUnconstr <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE)
+misUnconstr <- suppressWarnings(RCM(tmpPhyNA, k = 2, allowMissingness = TRUE))
 suppressWarnings(misConstrLin <- RCM(tmpPhyNA, k = 2, allowMissingness = TRUE,
                     covariates = c("Diagnosis", "Country", "Gender", "BMI"),
                     confounders = "Age"))
