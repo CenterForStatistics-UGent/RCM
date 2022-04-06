@@ -192,23 +192,25 @@ setMethod("RCM", "matrix", function(dat, k = 2, round = FALSE,
     confTrimMat = confTrimMat[rowIDkeep, ]
     attribs = attr(covModelMat, "assign")
     covModelMat = covModelMat[rowIDkeep, ]
-    if(!is.null(covModelMat) && qr(covModelMat)$rank < nrow(dat)){
-      warning(.immediate = TRUE,
-              "Less unique combinations of constraining variables than there are samples!
-              This may cause overlaps in plots, see also vignette and note in ?plot.RCM")
-    }
-
     tic = proc.time()  #Time the calculation
     tmp = RCM_NB(dat, rowWeights = rowWeights, colWeights = colWeights,
         k = k, confModelMat = confModelMat, confTrimMat = confTrimMat,
         covModelMat = covModelMat, prevCutOff = prevCutOff,
         minFraction = minFraction, centMat = centMat,
-        allowMissingness = allowMissingness,
-        ...)
+        allowMissingness = allowMissingness, ...)
     tmp = within(tmp, {
         runtimeInMins = (proc.time() - tic)[1]/60  # The runtime
         k = k  #Store number of dimensions
     })
+    if(!is.null(covModelMat)){
+       samMat = simplify2array(extractCoord(tmp, Dim = seq_len(k))$samples)
+       samPasted = apply(samMat, 1, paste, collapse = "_")
+       if(length(unique(samPasted)) < nrow(dat)){
+          warning(immediate.= TRUE, call. = FALSE,
+              "Less unique combinations of constraining variables than there are samples!
+              This may cause overlaps in plots, see also vignette and note in ?plot.RCM")
+       }
+    }
     tmp$call = match.call()
     tmp$attribs = attribs
     class(tmp) = "RCM"

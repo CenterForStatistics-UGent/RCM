@@ -30,9 +30,9 @@ extractCoord = function(RCM, Dim = c(1, 2)) {
     constrained = !is.null(RCM$covariates)
     dataSam <- if (constrained) {
         data.frame(RCM$covariates %*% RCM$alpha[,
-            Dim] %*% diag(RCM$psis[Dim]))
+            Dim, drop = FALSE] %*% diag(RCM$psis[Dim]))
     } else {
-        data.frame(RCM$rMat[, Dim] %*% diag(RCM$psis[Dim]))
+        data.frame(RCM$rMat[, Dim, drop = FALSE] %*% diag(RCM$psis[Dim]))
     }
     names(dataSam) = paste0("Dim", Dim)
 
@@ -53,14 +53,14 @@ extractCoord = function(RCM, Dim = c(1, 2)) {
             rownames(dataTax) = colnames(RCM$X)
         } else if (RCM$responseFun == "quadratic") {
             dataTax = data.frame(apply(RCM$NB_params[c(2,
-                3), , Dim], c(2, 3), function(x) {
+                3), , Dim, drop = FALSE], c(2, 3), function(x) {
                 a = x[2]
                 b = x[1]
                 -b/(2 * a)
             }))  #The location of the extrema
             names(dataTax) = c("end1", "end2")
 
-            peakHeights = apply(RCM$NB_params[,, Dim], 2, function(x) {
+            peakHeights = apply(RCM$NB_params[,, Dim, drop = FALSE], 2, function(x) {
                 A = x[3, ]
                 B = x[2, ]
                 C = x[1, ]
@@ -96,8 +96,7 @@ extractCoord = function(RCM, Dim = c(1, 2)) {
         }
     } else {
         # If not constrained
-        dataTax = data.frame(cbind(t(RCM$cMat[Dim,
-            ]), 0, 0))
+        dataTax = data.frame(cbind(t(RCM$cMat[Dim,, drop = FALSE]), 0, 0))
         names(dataTax) = c("end1", "end2",
             "origin1", "origin2")
         rownames(dataTax) = colnames(RCM$X)
@@ -107,8 +106,7 @@ extractCoord = function(RCM, Dim = c(1, 2)) {
     if (!constrained) {
         dataVar = NULL
     } else {
-        dataVar = data.frame(RCM$alpha)[,
-            Dim]
+        dataVar = data.frame(RCM$alpha)[,Dim, drop = FALSE]
     }
     list(samples = dataSam, species = dataTax,
         variables = dataVar)

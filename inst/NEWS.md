@@ -87,3 +87,11 @@
 
   - Explicitly import stats::model.matrix, and only load necessary VGAM
     functions
+
+# 1.11.3
+
+  - For the unconstrained models: fit feature models one by one and
+    Gram-Schmidt orthogonalize and center afterwards, rather than using
+    Lagrange multipliers and huge Jacobian matrices. This will use less
+    memory and speed up computations, but *may yield slightly different
+    solutions*. Nothing changes for the constrained models.

@@ -37,3 +37,14 @@ test_that("RCM throws errors when confounders are aliased", {
                                           "Gender","Age", "bogusVariable"),
                    k = 2))
 })
+
+n = 20; p = 1000
+X = matrix(rnbinom(n*p, size = 1, mu = 3), n,p)
+X[seq_len(10), seq_len(100)] = X[seq_len(10), seq_len(100)] +2 #Introduce some signal
+covars = matrix(rnorm(n*2), n ,2)
+library(phyloseq)
+phyObj = phyloseq(otu_table(X, taxa_are_rows = FALSE), sample_data(data.frame(covars)))
+test_that("RCM() deals with high-dimensions", {
+  expect_silent(RCM(X, tol = 1e-2, Psitol = 1e-2))
+  expect_silent(RCM(phyObj, covariates = sample_variables(phyObj), tol = 1e-2, Psitol = 1e-2))
+})

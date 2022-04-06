@@ -24,8 +24,7 @@
 estNBparams = function(design, thetas, muMarg,
     psi, X, nleqslv.control, ncols, initParam,
     v, dynamic = FALSE, envRange, allowMissingness, naId) {
-    vapply(seq_len(ncols), FUN.VALUE = vector("numeric",
-        v), function(i) {
+    vapply(seq_len(ncols), FUN.VALUE = vector("numeric", v), function(i) {
         nleq = nleqslv(initParam[, i], reg = design,
             fn = dNBllcol_constr, theta = thetas[i],
             muMarg = muMarg[, i], psi = psi,
