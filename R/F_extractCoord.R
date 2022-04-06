@@ -30,7 +30,7 @@ extractCoord = function(RCM, Dim = c(1, 2)) {
     constrained = !is.null(RCM$covariates)
     dataSam <- if (constrained) {
         data.frame(RCM$covariates %*% RCM$alpha[,
-            Dim, drop = FALSE] %*% diag(RCM$psis[Dim]))
+            Dim, drop = FALSE] %*% diag(RCM$psis[Dim], nrow = length(Dim)))
     } else {
         data.frame(RCM$rMat[, Dim, drop = FALSE] %*% diag(RCM$psis[Dim]))
     }
