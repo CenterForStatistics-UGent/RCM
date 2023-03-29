@@ -95,3 +95,7 @@
     Lagrange multipliers and huge Jacobian matrices. This will use less
     memory and speed up computations, but *may yield slightly different
     solutions*. Nothing changes for the constrained models.
+    
+# 1.11.4
+
+ - Introduction of permanova testing for user-supplied groups using the _permanova_ function.
