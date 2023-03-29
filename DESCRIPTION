@@ -12,6 +12,7 @@ Encoding: UTF-8
 RoxygenNote: 7.2.3
 Imports: RColorBrewer, alabama, edgeR, reshape2, tseries, stats, VGAM, ggplot2 (>= 2.2.1.9000), nleqslv, phyloseq, tensor, MASS, grDevices, graphics, methods
 Depends: R (>= 4.0), DBI
+LazyData: true
 Suggests: 
     knitr,
     rmarkdown,
