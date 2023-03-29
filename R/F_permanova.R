@@ -38,7 +38,7 @@ permanova = function(rcmObj, groups, nPerm = 1e6, Dim = seq_len(rcmObj$k)){
   if(a <= 1){
       stop("Provide more than one group in 'groups'.")
   }
-  if(any(table(groups))==1){
+  if(any(table(groups)==1)){
       stop("Some groups contain only a single observation, no distances can be calculated.")
   }
   distSq = dist(coord)^2
