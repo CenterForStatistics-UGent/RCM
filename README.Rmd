@@ -121,7 +121,7 @@ plot(ZellerRCM2cond)
 PERMANOVA is an analysis that looks for significant clustering of samples in the ordination plot according to predefined sample groups, i.e. not for clusters identified _based on_ the ordination. The test is based on a pseudo F-statistic. The function accepts variables inside the phyloseq object as groups, or user supplied grouping factors.
 
 ```{r permanova}
-permanovaZeller = permanova(ZellerRCM2, "Diagnosis", verbose = FALSE)
+permanovaZeller = permanova(ZellerRCM2, "Diagnosis")
 permanovaZeller
 ```
 

@@ -4,6 +4,7 @@ output:
     toc: true
     keep_md: true
     number_sections: true
+title: "Manual for the RCM pacakage"
 vignette: >
   %\VignetteIndexEntry{Manual for the RCM pacakage}
   %\VignetteEngine{knitr::rmarkdown}
@@ -268,7 +269,7 @@ We see that the PERMANOVA analysis for diagnosis is significant with p-value `r 
 permanovaZellerGender = permanova(ZellerRCM2, "Gender", verbose = FALSE)
 ```
 
-As expected, this test is not significant (p-value=`r round(permanovaZellerGender)$p.value, 3)`). Note that this test is not designed for clusters identified _based on_ the ordination, and is not recommended for testing a subset of grouping variables identified after looking at the ordination plots.
+As expected, this test is not significant (p-value=`r round(permanovaZellerGender$p.value, 3)`). Note that this test is not designed for clusters identified _based on_ the ordination, and is not recommended for testing a subset of grouping variables identified after looking at the ordination plots.
 
 This PERMANOVA analysis was not run in the original paper, but is a later addition.
 
