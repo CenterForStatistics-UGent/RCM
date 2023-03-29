@@ -4,7 +4,7 @@
 #' @param groups a factor of length n with cluster memberships, or a name of a variable contained in the RCM object
 #' @param nPerm Number of permutations in the PERMANOVA, defaults to 1e6
 #' @param Dim Dimensions on which the test should be performed. Defaults to all dimensions of the fitted RCM object.
-
+#'
 #' @return A list with components
 #' \item{statistic}{The pseudo F-statistic}
 #' \item{p.value}{The p-value of the PERMANOVA}
@@ -56,5 +56,5 @@ permanova = function(rcmObj, groups, nPerm = 1e6, Dim = seq_len(rcmObj$k)){
   })
   FratioPerm = (overalDist-withinDistPerm)/withinDistPerm * (a-1)/(N-a)
   PvalPerm = mean(FratioObs < FratioPerm)
-  return(list("statistic" = Fratio, "p.value" = PvalPerm))
+  return(list("statistic" = FratioObs, "p.value" = PvalPerm))
 }

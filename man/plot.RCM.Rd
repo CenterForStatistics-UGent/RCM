@@ -10,8 +10,12 @@
   Dim = c(1, 2),
   plotType = c("samples", "species", "variables"),
   samColour = if (is.null(inflVar)) NULL else "Influence",
-  taxNum = if (all(plotType == "species") || !is.null(taxRegExp)) {     ncol(x$X) }
-    else {     10 },
+  taxNum = if (all(plotType == "species") || !is.null(taxRegExp)) {
+     ncol(x$X)
+ }
+    else {
+     10
+ },
   taxRegExp = NULL,
   varNum = 15,
   arrowSize = 0.25,
