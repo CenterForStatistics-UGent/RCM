@@ -4,16 +4,24 @@
 \alias{permanova}
 \title{Perform a PERMANOVA analysis for group differences of a predefined cofactor using the pseudo F-statistic}
 \usage{
-permanova(rcmObj, groups, nPerm = 1e+06, Dim = seq_len(rcmObj$k))
+permanova(
+  rcmObj,
+  groups,
+  nPerm = 10000,
+  Dim = seq_len(rcmObj$k),
+  verbose = TRUE
+)
 }
 \arguments{
 \item{rcmObj}{an RCM object}
 
 \item{groups}{a factor of length n with cluster memberships, or a name of a variable contained in the RCM object}
 
-\item{nPerm}{Number of permutations in the PERMANOVA, defaults to 1e6}
+\item{nPerm}{Number of permutations in the PERMANOVA}
 
 \item{Dim}{Dimensions on which the test should be performed. Defaults to all dimensions of the fitted RCM object.}
+
+\item{verbose}{a boolean, should output be printed?}
 }
 \value{
 A list with components

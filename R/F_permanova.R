@@ -2,8 +2,9 @@
 #'
 #' @param rcmObj an RCM object
 #' @param groups a factor of length n with cluster memberships, or a name of a variable contained in the RCM object
-#' @param nPerm Number of permutations in the PERMANOVA, defaults to 1e6
+#' @param nPerm Number of permutations in the PERMANOVA
 #' @param Dim Dimensions on which the test should be performed. Defaults to all dimensions of the fitted RCM object.
+#' @param verbose a boolean, should output be printed?
 #'
 #' @return A list with components
 #' \item{statistic}{The pseudo F-statistic}
@@ -20,7 +21,7 @@
 #' prune_samples(sample_names(Zeller)[1:50], Zeller))
 #' zellerRCM = RCM(tmpPhy, round = TRUE)
 #' zellerPermanova = permanova(zellerRCM, "Diagnosis")
-permanova = function(rcmObj, groups, nPerm = 1e6, Dim = seq_len(rcmObj$k)){
+permanova = function(rcmObj, groups, nPerm = 1e4, Dim = seq_len(rcmObj$k), verbose = TRUE){
   stopifnot(is(rcmObj, "RCM"), length(nPerm)==1)
     if(nPerm <= 100){
         warning("Less than 100 permutations leads to low power of the permutation test!")
@@ -49,7 +50,10 @@ permanova = function(rcmObj, groups, nPerm = 1e6, Dim = seq_len(rcmObj$k)){
   })))
   FratioObs = (overalDist-withinDistObs)/withinDistObs * (a-1)/(N-a)
   #PERMANOVA
-  withinDistPerm = vapply(integer(nPerm), FUN.VALUE = double(1), function(jj){
+  withinDistPerm = vapply(seq_len(nPerm), FUN.VALUE = double(1), function(jj){
+      if(verbose && ((jj-1) %% (nPerm/10)) == 0){
+          cat("Permutation", jj, "out of", nPerm, "\n")
+      }
       sum(unlist(tapply(seq_len(nrow(coord)), sample(groups), function(x){
         distSq[getDistCoord(x, N)]/length(x)
         })))

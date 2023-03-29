@@ -253,6 +253,25 @@ on the same number of taxa. Also, one cannot do chi-squared tests
 based on the deviances since this is not a classical regression model,
 but an overparametrized one.
 
+### Testing significance of clusters using PERMANOVA
+
+One may want to test whether the samples in an unconstrained ordination cluster according to some predefined grouping factor. Since the model is overparametrized, classical statistical tests are invalid. Instead, PERMANOVA is a permutation-based analysis that looks for significant clustering of samples based on distances alone. The only assumption underlying it is exchangeability of the samples, meaning that under the null hypothesis of identical microbiome composition in all groups, the samples are randomly distributed across the ordination. A natural test statistic to detect clusters based on a multidimensional ordination is the pseudo F-statistic. The distribution of this test statistic under the null hypothesis is then emulated by permuting the grouping labels, and recalculating within-group distances and associated pseudo F-statistics for every permutation instances. This is done conditional on the ordination result, so without refitting the RC(M) model. The _permanova_ function accepts variables present in the phyloseq object as groups, or user supplied grouping factors.
+
+```{r permanova}
+permanovaZeller = permanova(ZellerRCM2, "Diagnosis")
+permanovaZeller
+```
+
+We see that the PERMANOVA analysis for diagnosis is significant with p-value `r round(permanovaZeller$p.value, 3)`, because of the shift of the cancer samples to the left compared to the other two groups. Next we also test for significance of gender:
+
+```{r permanovaGender}
+permanovaZellerGender = permanova(ZellerRCM2, "Gender", verbose = FALSE)
+```
+
+As expected, this test is not significant (p-value=`r round(permanovaZellerGender)$p.value, 3)`). Note that this test is not designed for clusters identified _based on_ the ordination, and is not recommended for testing a subset of grouping variables identified after looking at the ordination plots.
+
+This PERMANOVA analysis was not run in the original paper, but is a later addition.
+
 ## Constrained RCM
 
 In this second step we look for the variability in the dataset explained

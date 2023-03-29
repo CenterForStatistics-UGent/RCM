@@ -14,7 +14,7 @@ This repo contains R-code to fit and plot the RC(M)-models augmented
 with the negative binomial. The basic usage is demonstrated here, for
 more advanced examples see the [RCM
 vignette](https://bioconductor.org/packages/release/bioc/vignettes/RCM/inst/doc/RCMvignette.html)
-and the help pages of *RCM()*, *RCM\_NB()*, and *plot.RCM()* functions.
+and the help pages of *RCM()*, *RCM_NB()*, and *plot.RCM()* functions.
 
 The package can be installed from BioConductor and loaded using the
 following commands:
@@ -29,7 +29,7 @@ suppressPackageStartupMessages(library(RCM))
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 1.5.8
+    ## RCM package version 1.11.4
 
 Alternatively, the latest version can be installed directly from this
 GitHub repo as follows:
@@ -64,7 +64,7 @@ be found [here](http://joey711.github.io/phyloseq/import-data.html).
 The unconstrained RC(M) method represents all variability present in the
 data, regardless of covariate information. It should be used as a first
 step in an exploratory analysis. The *RCM* function is the front end
-function for this purpose, behind it is the *RCM\_NB* function that does
+function for this purpose, behind it is the *RCM_NB* function that does
 the hard work but requires numeric matrix imputs. We apply it to the
 Zeller data.
 
@@ -89,15 +89,15 @@ with the origin as starting point.
 
 Valid interpretatations are the following:
 
-  - Samples (endpoints of sample vectors, the red dots) close together
-    have a similar taxon composition
-  - Taxa are more abundant than average in samples to which their arrows
-    point, and less abundant when their arrows point away from the
-    samples. For example Fusobacterium mortiferum is more abundant than
-    average in samples on the left side of the plot, and more abundant
-    in samples on the right side.
-  - The importance parameters \(\psi\) shown for every axis reflect the
-    relative importance of the dimensions
+- Samples (endpoints of sample vectors, the red dots) close together
+  have a similar taxon composition
+- Taxa are more abundant than average in samples to which their arrows
+  point, and less abundant when their arrows point away from the
+  samples. For example Fusobacterium mortiferum is more abundant than
+  average in samples on the left side of the plot, and more abundant in
+  samples on the right side.
+- The importance parameters $\psi$ shown for every axis reflect the
+  relative importance of the dimensions
 
 Distances between endpoints of taxon vectors are meaningless.
 
@@ -131,7 +131,7 @@ ZellerRCM2cond = RCM(Zeller, confounders = "Country")
 ```
 
 Conditioning can be applied for unconstrained as well as constrained
-RCM, the ensuing plots have exactly the same interpretationas before,
+RCM, the ensuing plots have exactly the same interpretation as before,
 except that all variability attributable to the confounding variables
 has been removed.
 
@@ -140,6 +140,42 @@ plot(ZellerRCM2cond)
 ```
 
 ![](README_figs/README-plotCond-1.png)<!-- -->
+
+### PERMANOVA
+
+PERMANOVA is an analysis that looks for significant clustering of
+samples in the ordination plot according to predefined sample groups,
+i.e. not for clusters identified *based on* the ordination. The test is
+based on a pseudo F-statistic. The function accepts variables inside the
+phyloseq object as groups, or user supplied grouping factors.
+
+``` r
+permanovaZeller = permanova(ZellerRCM2, "Diagnosis")
+```
+
+    ## Permutation 1 out of 10000 
+    ## Permutation 1001 out of 10000 
+    ## Permutation 2001 out of 10000 
+    ## Permutation 3001 out of 10000 
+    ## Permutation 4001 out of 10000 
+    ## Permutation 5001 out of 10000 
+    ## Permutation 6001 out of 10000 
+    ## Permutation 7001 out of 10000 
+    ## Permutation 8001 out of 10000 
+    ## Permutation 9001 out of 10000
+
+``` r
+permanovaZeller
+```
+
+    ## $statistic
+    ## [1] 0.0009619337
+    ## 
+    ## $p.value
+    ## [1] 0
+
+This PERMANOVA analysis was not run in the original paper, but is a
+later addition.
 
 ## Constrained RCM
 
@@ -159,11 +195,11 @@ logged mean abundance depends on the environmental score.
 In order to request a constrained RCM fit it suffises to supply the
 names of the constraining variables to the *covariates* argument. The
 shape of the response function can be either “linear”, “quadratic” or
-“nonparametric” and must be provided to the *responseFun* argument.
-Here we illustrate the use of linear and nonparametric response
-functions. Linear response functions may be too simplistic, they have
-the advantage of being easy to interpret (and plot). Non-parametric ones
-(based on splines) are more flexible but are harder to plot.
+“nonparametric” and must be provided to the *responseFun* argument. Here
+we illustrate the use of linear and nonparametric response functions.
+Linear response functions may be too simplistic, they have the advantage
+of being easy to interpret (and plot). Non-parametric ones (based on
+splines) are more flexible but are harder to plot.
 
 ``` r
 # Linear

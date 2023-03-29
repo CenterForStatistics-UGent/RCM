@@ -34,7 +34,7 @@ install_github("CenterForStatistics-UGent/RCM")
 
 ```{r check-install-load-packages, warning=FALSE, message=FALSE, echo=FALSE, purl=TRUE}
 knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,  warning=FALSE, message=FALSE, echo=TRUE, eval=TRUE, tidy = TRUE, fig.width = 9, fig.height = 6, purl=TRUE, fig.show = "hold", cache.lazy = FALSE, fig.path = "README_figs/README-")
-knitr::opts_knit$set(root.dir = "/home/stijn/PhD/RCM")
+knitr::opts_knit$set(root.dir = "/home/sthaw/PostDoc/Ordination/RCM")
 palStore = palette()
 ```
 
@@ -110,11 +110,22 @@ In order to condition on certain variables, supply their names to the _confounde
 ZellerRCM2cond = RCM(Zeller, confounders = "Country")
 ```
 
-Conditioning can be applied for unconstrained as well as constrained RCM, the ensuing plots have exactly the same interpretationas before, except that all variability attributable to the confounding variables has been removed.
+Conditioning can be applied for unconstrained as well as constrained RCM, the ensuing plots have exactly the same interpretation as before, except that all variability attributable to the confounding variables has been removed.
 
 ```{r plotCond}
 plot(ZellerRCM2cond)
 ```
+
+### PERMANOVA
+
+PERMANOVA is an analysis that looks for significant clustering of samples in the ordination plot according to predefined sample groups, i.e. not for clusters identified _based on_ the ordination. The test is based on a pseudo F-statistic. The function accepts variables inside the phyloseq object as groups, or user supplied grouping factors.
+
+```{r permanova}
+permanovaZeller = permanova(ZellerRCM2, "Diagnosis", verbose = FALSE)
+permanovaZeller
+```
+
+This PERMANOVA analysis was not run in the original paper, but is a later addition.
 
 ## Constrained RCM
 
