@@ -18,58 +18,53 @@
 #' This will be used to fit the model to modify the independence model,
 #' and may include continuous variables}
 #' @importFrom stats model.matrix
-buildConfMat = function(x, ...) {
-    UseMethod("buildConfMat", x)
-}
+#' @rdname buildConfMat
+#' @export
+setGeneric("buildConfMat", function(x, ...) standardGeneric("buildConfMat"))
 
 #' buildConfMat.data.frame
 #'
-#' @param confounders a data frame of confounders
+#' @param x a data frame of confounders
 #' @param n the number of rows of the count matrix
 #'
 #' @return see buidConfMat
-buildConfMat.data.frame = function(confounders, n) {
-    if (n != NROW(confounders)) {
+setMethod("buildConfMat", "data.frame",  function(x, n) {
+    if (n != NROW(x)) {
         # Check dimensions
         stop("Data and confounder matrix do not have the same number
         of samples! \n")
     }
-    if (anyNA(confounders)) {
+    if (anyNA(x)) {
         stop("Confounders contain missing values!\n")
     }
     #Check alias structure
-    checkAlias(confounders, names(confounders))
+    checkAlias(x, names(x))
     # No intercept or continuous variables for preliminary
     # trimming
     confModelMatTrim = model.matrix(object = as.formula(paste("~",
-        paste(names(confounders)[vapply(FUN.VALUE = TRUE, confounders,
-            is.factor)], collapse = "+"), "-1")), data = confounders,
-        contrasts.arg = lapply(confounders[vapply(FUN.VALUE = TRUE,
-            confounders, is.factor)], contrasts, contrasts = FALSE))
+        paste(names(x)[vapply(FUN.VALUE = TRUE, x,
+            is.factor)], collapse = "+"), "-1")), data = x,
+        contrasts.arg = lapply(x[vapply(FUN.VALUE = TRUE,
+            x, is.factor)], contrasts, contrasts = FALSE))
     # With intercept for filtering
     confModelMat = model.matrix(object = as.formula(paste("~",
-        paste(names(confounders), collapse = "+"))), data = confounders,
-        contrasts.arg = lapply(confounders[vapply(FUN.VALUE = TRUE,
-            confounders, is.factor)], contrasts, contrasts = TRUE))
+        paste(names(x), collapse = "+"))), data = x,
+        contrasts.arg = lapply(x[vapply(FUN.VALUE = TRUE,
+            x, is.factor)], contrasts, contrasts = TRUE))
     list(confModelMatTrim = confModelMatTrim, confModelMat = confModelMat)
-}
+})
 #' buildConfMat.character
-#' @param confounders a numeric matrix of confounders
+#' @param x a numeric matrix of confounders
 #' @param physeq a physeq object with a sample_data slot
 #'
 #' @return see buidConfMat.numeric
-buildConfMat.character = function(confounders, physeq) {
+setMethod("buildConfMat", "character",  function(x, physeq) {
     if (!is(physeq, "phyloseq")) {
         stop("Providing confounders through variable names is only allowed
         if phyloseq object is provided! \n")
     }
-    confounders = as(sample_data(physeq),"data.frame")[,make.names(confounders),
+    confounders = as(sample_data(physeq),"data.frame")[,make.names(x),
                                            drop = FALSE]
     # The dataframe with the confounders
     buildConfMat(confounders, n = nsamples(physeq))
-}
-#' @export
-buildConfMat.default = function(...) {
-    stop("Please provide the confounders either as
-    dataframe, or character string! \n")
-}
+})

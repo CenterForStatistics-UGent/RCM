@@ -1,4 +1,5 @@
 library(testthat)
 library(RCM)
-
+library(phyloseq)
+data(Zeller)
 test_check("RCM")

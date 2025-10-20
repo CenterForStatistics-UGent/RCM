@@ -29,7 +29,7 @@ suppressPackageStartupMessages(library(RCM))
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 1.11.4
+    ## RCM package version 1.11.6
 
 Alternatively, the latest version can be installed directly from this
 GitHub repo as follows:

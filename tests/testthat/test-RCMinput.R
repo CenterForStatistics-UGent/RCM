@@ -1,5 +1,4 @@
 context("RCM input")
-
 tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
  prune_samples(sample_names(Zeller)[seq_len(50)], Zeller))
 

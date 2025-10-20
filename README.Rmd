@@ -28,7 +28,7 @@ Alternatively, the latest version can be installed directly from this GitHub rep
 
 ```{r installRCMpackage, eval = FALSE}
 library(devtools)
-install_github("CenterForStatistics-UGent/RCM")
+install_github("CenterForStatistics-UGent/RCM", build_vignettes = TRUE)
 ```
 
 

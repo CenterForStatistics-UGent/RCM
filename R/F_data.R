@@ -10,4 +10,5 @@
 #'   \item{sample_data}{Data frame of patient covariates}
 #' }
 #' @source \url{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4299606/}
+#' @usage data(Zeller)
 "Zeller"

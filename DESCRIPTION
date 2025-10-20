@@ -1,7 +1,7 @@
 Package: RCM
 Type: Package
 Title: Fit row-column association models with the negative binomial distribution for the microbiome
-Version: 1.11.5
+Version: 1.11.6
 Authors@R: 
     c(person(given = "Stijn", family = "Hawinkel", 
     email = "stijn.hawinkel@psb.ugent.be", 
@@ -11,8 +11,7 @@ License: GPL-2
 Encoding: UTF-8
 RoxygenNote: 7.3.3
 Imports: RColorBrewer, alabama, edgeR, reshape2, tseries, stats, VGAM, ggplot2 (>= 2.2.1.9000), nleqslv, phyloseq, tensor, MASS, grDevices, graphics, methods
-Depends: R (>= 4.0), DBI
-LazyData: true
+Depends: R (>= 4.5.0)
 Suggests: 
     knitr,
     rmarkdown,

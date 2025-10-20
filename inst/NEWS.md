@@ -103,3 +103,8 @@
 # 1.11.5
 
  - Update roxygen version and export default functions
+ 
+# 1.11.6
+
+ - Correct method dispatching for buildConfMat
+ - Addressing some BiocCheck notes

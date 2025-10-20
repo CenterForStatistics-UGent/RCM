@@ -15,7 +15,7 @@ A phyloseq object with an OTU-table and sample data
 \url{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4299606/}
 }
 \usage{
-Zeller
+data(Zeller)
 }
 \description{
 Microbiome sequencing data of colorectal cancer patients,

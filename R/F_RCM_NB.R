@@ -493,8 +493,8 @@ RCM_NB = function(X, k, rowWeights = "uniform", colWeights = "marginal",
         if (sum(!colnames(covModelMat) %in% CCA$alias) <
             k) {
             k = sum(!colnames(covModelMat) %in% CCA$alias)
-            warning(immediate. = TRUE, paste("Can only fit an ordination with",
-                k, "dimensions with so few covariates!"))
+            warning(immediate. = TRUE, "Can only fit an ordination with ",
+                k, " dimensions with so few covariates!")
         }
         alpha = matrix(0, d, k)
         alpha[!colnames(covModelMat) %in% CCA$alias,
