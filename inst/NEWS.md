@@ -99,3 +99,7 @@
 # 1.11.4
 
  - Introduction of permanova testing for user-supplied groups using the _permanova_ function.
+
+# 1.11.5
+
+ - Update roxygen version and export default functions

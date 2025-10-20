@@ -68,6 +68,7 @@ buildConfMat.character = function(confounders, physeq) {
     # The dataframe with the confounders
     buildConfMat(confounders, n = nsamples(physeq))
 }
+#' @export
 buildConfMat.default = function(...) {
     stop("Please provide the confounders either as
     dataframe, or character string! \n")
