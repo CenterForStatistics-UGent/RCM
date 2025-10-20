@@ -104,7 +104,7 @@
 
  - Update roxygen version and export default functions
  
-# 1.11.6
+# 1.25.1
 
  - Correct method dispatching for buildConfMat
  - Addressing some BiocCheck notes
