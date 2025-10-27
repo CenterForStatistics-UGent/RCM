@@ -108,3 +108,7 @@
 
  - Correct method dispatching for buildConfMat
  - Addressing some BiocCheck notes
+ 
+# 1.25.2
+
+ - Fixed issues with citation file
