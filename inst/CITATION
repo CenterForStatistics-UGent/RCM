@@ -1,2 +1,18 @@
-citHeader("To cite RCM in citations, please use:")
-bibtex::read.bib(system.file("REFERENCES.bib", package = "RCM"))[["Hawinkel2019"]]
+note <- sprintf("R package version %s", meta$Version)
+
+bibentry(bibtype = "Article",
+         author = c(person("Stijn", "Hawinkel"),
+                    person("Frederiek-Maarten", "Kerckhof"),
+                    person("Luc", "Bijnens"),
+                    person("Olivier", "Thas")
+                    ),
+          title = "A unified framework for unconstrained and constrained ordination of microbiome read count data",
+          journal      = "PLOS ONE",
+          pages        = {1 - 20},
+          volume       = {14},
+          number       = {2},
+          month        = {02},
+          year         = {2019},
+          publisher    = "Public Library of Science",
+          doi          = "10.1371/journal.pone.0205474",
+          header = "To cite RCM in citations, please use:")
