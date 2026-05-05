@@ -11,3 +11,4 @@ NEWS.Rmd
 *.access^
 README_cache/
 vignettes/RCMvignette.R
+.positai
