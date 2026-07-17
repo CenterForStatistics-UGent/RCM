@@ -29,14 +29,14 @@ suppressPackageStartupMessages(library(RCM))
 cat("RCM package version", as.character(packageVersion("RCM")), "\n")
 ```
 
-    ## RCM package version 1.11.6
+    ## RCM package version 1.29.0
 
 Alternatively, the latest version can be installed directly from this
 GitHub repo as follows:
 
 ``` r
 library(devtools)
-install_github("CenterForStatistics-UGent/RCM")
+install_github("CenterForStatistics-UGent/RCM", build_vignettes = TRUE)
 ```
 
 ## Dataset
@@ -69,7 +69,7 @@ the hard work but requires numeric matrix imputs. We apply it to the
 Zeller data.
 
 ``` r
-ZellerRCM2 = RCM(Zeller)
+ZellerRCM2 <- RCM(Zeller)
 ```
 
 which took 1.6 minutes.
@@ -127,7 +127,7 @@ In order to condition on certain variables, supply their names to the
 *confounders* argument. Here we condition on the *country* variable
 
 ``` r
-ZellerRCM2cond = RCM(Zeller, confounders = "Country")
+ZellerRCM2cond <- RCM(Zeller, confounders = "Country")
 ```
 
 Conditioning can be applied for unconstrained as well as constrained
@@ -150,7 +150,7 @@ based on a pseudo F-statistic. The function accepts variables inside the
 phyloseq object as groups, or user supplied grouping factors.
 
 ``` r
-permanovaZeller = permanova(ZellerRCM2, "Diagnosis")
+permanovaZeller <- permanova(ZellerRCM2, "Diagnosis")
 ```
 
     ## Permutation 1 out of 10000 
@@ -203,10 +203,10 @@ splines) are more flexible but are harder to plot.
 
 ``` r
 # Linear
-ZellerRCM2constr = RCM(Zeller, covariates = c("Age", "Gender", "BMI", "Country",
+ZellerRCM2constr <- RCM(Zeller, covariates = c("Age", "Gender", "BMI", "Country",
     "Diagnosis"), responseFun = "linear")
 # Nonparametric
-ZellerRCM2constrNonParam = RCM(Zeller, covariates = c("Age", "Gender", "BMI", "Country",
+ZellerRCM2constrNonParam <- RCM(Zeller, covariates = c("Age", "Gender", "BMI", "Country",
     "Diagnosis"), responseFun = "nonparametric")
 ```
 
