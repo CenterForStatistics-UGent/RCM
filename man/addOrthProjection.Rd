@@ -36,11 +36,13 @@ This function adds orthogonal projections to a given plot
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[seq_len(100)],
-prune_samples(sample_names(Zeller)[seq_len(50)], Zeller))
-zellerRCM = RCM(tmpPhy, k = 2, round = TRUE)
-zellerPlot = plot(zellerRCM, returnCoords = TRUE)
-addOrthProjection(zellerPlot, species = c(-0.35,1.1), sample = c(1,1.2))
+tmpPhy <- prune_taxa(
+    taxa_names(Zeller)[seq_len(100)],
+    prune_samples(sample_names(Zeller)[seq_len(50)], Zeller)
+)
+zellerRCM <- RCM(tmpPhy, k = 2, round = TRUE)
+zellerPlot <- plot(zellerRCM, returnCoords = TRUE)
+addOrthProjection(zellerPlot, species = c(-0.35, 1.1), sample = c(1, 1.2))
 }
 \seealso{
 \code{\link{plot.RCM}}

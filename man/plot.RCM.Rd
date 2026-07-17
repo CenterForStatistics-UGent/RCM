@@ -24,8 +24,12 @@
   returnCoords = FALSE,
   alpha = TRUE,
   varPlot = NULL,
-  colLegend = if (!is.null(inflVar)) paste0("Influence on\\n", inflVar,
-    "\\nparameter \\nin dimension", inflDim) else samColour,
+  colLegend = if (!is.null(inflVar)) {
+     paste0("Influence on\\n", inflVar,
+    "\\nparameter \\nin dimension", inflDim)
+ } else {
+     samColour
+ },
   samShape = NULL,
   shapeLegend = samShape,
   samSize = 2,
@@ -33,7 +37,11 @@
   quadDrop = 0.995,
   plotEllipse = TRUE,
   taxaScale = 0.5,
-  Palette = if (!all(plotType == "species")) "Set1" else "Paired",
+  Palette = if (!all(plotType == "species")) {
+     "Set1"
+ } else {
+     "Paired"
+ },
   taxLabels = !all(plotType == "species"),
   taxDots = FALSE,
   taxCol = "blue",
@@ -41,7 +49,11 @@
   nudge_y = 0.08,
   axesFixed = TRUE,
   aspRatio = 1,
-  xInd = if (all(plotType == "samples")) c(0, 0) else c(-0.75, 0.75),
+  xInd = if (all(plotType == "samples")) {
+     c(0, 0)
+ } else {
+     c(-0.75, 0.75)
+ },
   yInd = c(0, 0),
   taxLabSize = 4,
   varLabSize = 3.5,
@@ -221,10 +233,12 @@ more sample variables to spread out the samples
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
-prune_samples(sample_names(Zeller)[1:50], Zeller))
+tmpPhy <- prune_taxa(
+    taxa_names(Zeller)[1:100],
+    prune_samples(sample_names(Zeller)[1:50], Zeller)
+)
 # Subset for a quick fit
-zellerRCM = RCM(tmpPhy)
+zellerRCM <- RCM(tmpPhy)
 plot(zellerRCM)
 }
 \seealso{

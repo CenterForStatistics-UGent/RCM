@@ -10,8 +10,10 @@
 #' @param ... further arguments for other methods, not needed in this one
 #'
 #' @return The jacobian matrix
-heq_nb_jac = function(Alpha, alphaK, d, k, 
-    centMat, ...) {
+heq_nb_jac <- function(
+      Alpha, alphaK, d, k,
+      centMat, ...
+) {
     if (k == 1) {
         return(rbind(centMat, 2 * Alpha))
     } else {

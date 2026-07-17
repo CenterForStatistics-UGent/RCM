@@ -34,10 +34,12 @@ Perform a PERMANOVA analysis for group differences of a predefined cofactor usin
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
-prune_samples(sample_names(Zeller)[1:50], Zeller))
-zellerRCM = RCM(tmpPhy, round = TRUE)
-zellerPermanova = permanova(zellerRCM, "Diagnosis")
+tmpPhy <- prune_taxa(
+    taxa_names(Zeller)[1:100],
+    prune_samples(sample_names(Zeller)[1:50], Zeller)
+)
+zellerRCM <- RCM(tmpPhy, round = TRUE)
+zellerPermanova <- permanova(zellerRCM, "Diagnosis")
 }
 \seealso{
 \code{\link{RCM}}

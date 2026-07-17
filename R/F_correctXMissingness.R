@@ -10,9 +10,9 @@
 #'
 #' @note This may seem like a hacky approach, but it avoids having to deal
 #'  with NAs in functions like crossprod().
-correctXMissingness = function(X, mu, allowMissingness, naId){
-    if(allowMissingness){
-        X[naId] = mu[naId]
+correctXMissingness <- function(X, mu, allowMissingness, naId) {
+    if (allowMissingness) {
+        X[naId] <- mu[naId]
     }
     X
 }

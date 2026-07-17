@@ -85,12 +85,16 @@ Plots a number of response functions over the observed range of
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
-prune_samples(sample_names(Zeller)[1:50], Zeller))
-#Subset for a quick fit
-zellerRCMnp = RCM(tmpPhy, k = 2,
-covariates = c('BMI','Age','Country','Diagnosis','Gender'),
-round = TRUE, responseFun = 'nonparametric')
+tmpPhy <- prune_taxa(
+    taxa_names(Zeller)[1:100],
+    prune_samples(sample_names(Zeller)[1:50], Zeller)
+)
+# Subset for a quick fit
+zellerRCMnp <- RCM(tmpPhy,
+    k = 2,
+    covariates = c("BMI", "Age", "Country", "Diagnosis", "Gender"),
+    round = TRUE, responseFun = "nonparametric"
+)
 plotRespFun(zellerRCMnp)
 }
 \seealso{

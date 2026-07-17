@@ -20,49 +20,58 @@
 #' @param naId The numeric index of the missing values in X
 #'
 #' @return A vector of length p with dispersion estimates
-estDisp = function(X, cMat = NULL, rMat = NULL,
-    muMarg, psis, trended.dispersion = NULL,
-    prior.df = 10, dispWeights = NULL, rowMat = NULL,
-    allowMissingness = FALSE, naId) {
-    logMeansMat = if (!is.null(rMat)) {
+estDisp <- function(
+      X, cMat = NULL, rMat = NULL,
+      muMarg, psis, trended.dispersion = NULL,
+      prior.df = 10, dispWeights = NULL, rowMat = NULL,
+      allowMissingness = FALSE, naId
+) {
+    logMeansMat <- if (!is.null(rMat)) {
         # Unconstrained
         t(rMat %*% (cMat * psis) + log(muMarg))
     } else if (is.null(rowMat)) {
-        t(log(muMarg))  #Non-parametric
+        t(log(muMarg)) # Non-parametric
     } else {
         # Constrained
         t(log(muMarg) + psis * rowMat)
     }
-    if (any(is.infinite(logMeansMat)))
+    if (any(is.infinite(logMeansMat))) {
         stop("Overflow! Try trimming more lowly
         abundant taxa prior to model fitting.
         \n See prevCutOff argument in ?RCM.")
-    X = correctXMissingness(X, exp(logMeansMat), allowMissingness, naId)
+    }
+    X <- correctXMissingness(X, exp(logMeansMat), allowMissingness, naId)
 
-    trended.dispersion = if (is.null(trended.dispersion)) {
-        edgeR::estimateGLMTrendedDisp(y = t(X),
+    trended.dispersion <- if (is.null(trended.dispersion)) {
+        edgeR::estimateGLMTrendedDisp(
+            y = t(X),
             design = NULL, method = "bin.loess",
-            offset = logMeansMat, weights = NULL)
+            offset = logMeansMat, weights = NULL
+        )
     } else {
         trended.dispersion
     }
-    trended.dispersion = if (is.list(trended.dispersion)) {
+    trended.dispersion <- if (is.list(trended.dispersion)) {
         trended.dispersion$dispersion
-    } else trended.dispersion
+    } else {
+        trended.dispersion
+    }
 
-    thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(y = t(X),
+    thetaEstsTmp <- edgeR::estimateGLMTagwiseDisp(
+        y = t(X),
         design = NULL, prior.df = prior.df,
         offset = logMeansMat, dispersion = trended.dispersion,
-        weights = dispWeights)
+        weights = dispWeights
+    )
 
-    thetaEsts = if (is.list(thetaEstsTmp)) {
-        1/thetaEstsTmp$tagwise.dispersion
+    thetaEsts <- if (is.list(thetaEstsTmp)) {
+        1 / thetaEstsTmp$tagwise.dispersion
     } else {
-        1/thetaEstsTmp
+        1 / thetaEstsTmp
     }
     if (anyNA(thetaEsts)) {
-        idNA = is.na(thetaEsts)
-        thetaEsts[idNA] = mean(thetaEsts[!idNA])
+        idNA <- is.na(thetaEsts)
+        thetaEsts[idNA] <- mean(thetaEsts[!idNA])
         warning(paste(sum(idNA), "dispersion estimations did not converge!"))
     }
     return(thetas = thetaEsts)

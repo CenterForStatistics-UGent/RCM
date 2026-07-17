@@ -17,48 +17,52 @@
 #' @examples
 #' data(Zeller)
 #' require(phyloseq)
-#' tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
-#' prune_samples(sample_names(Zeller)[1:50], Zeller))
-#' zellerRCM = RCM(tmpPhy, round = TRUE)
-#' zellerPermanova = permanova(zellerRCM, "Diagnosis")
-permanova = function(rcmObj, groups, nPerm = 1e4, Dim = seq_len(rcmObj$k), verbose = TRUE){
-  stopifnot(is(rcmObj, "RCM"), length(nPerm)==1)
-    if(nPerm <= 100){
+#' tmpPhy <- prune_taxa(
+#'     taxa_names(Zeller)[1:100],
+#'     prune_samples(sample_names(Zeller)[1:50], Zeller)
+#' )
+#' zellerRCM <- RCM(tmpPhy, round = TRUE)
+#' zellerPermanova <- permanova(zellerRCM, "Diagnosis")
+permanova <- function(rcmObj, groups, nPerm = 1e4, Dim = seq_len(rcmObj$k), verbose = TRUE) {
+    stopifnot(is(rcmObj, "RCM"), length(nPerm) == 1)
+    if (nPerm <= 100) {
         warning("Less than 100 permutations leads to low power of the permutation test!")
     }
-  if(length(groups)==1){
-      groups = get_variable(rcmObj$physeq, groups)
-  }
-  coord = extractCoord(rcmObj, Dim)$samples
-  N = nrow(coord)
-  if(N != length(groups)){
-      stop("Length of grouping variable provided (", length(groups),
-           "does not correspond to number of samples in RCM object (", N, ")")
-  }
-  a = length(unique(groups))
-  if(a <= 1){
-      stop("Provide more than one group in 'groups'.")
-  }
-  if(any(table(groups)==1)){
-      stop("Some groups contain only a single observation, no distances can be calculated.")
-  }
-  distSq = dist(coord)^2
-  overalDist = sum(distSq)/N
-  #Observed test statistic
-  withinDistObs = sum(unlist(tapply(seq_len(nrow(coord)), groups, function(x){
-        distSq[getDistCoord(x, N)]/length(x)
-  })))
-  FratioObs = (overalDist-withinDistObs)/withinDistObs * (a-1)/(N-a)
-  #PERMANOVA
-  withinDistPerm = vapply(seq_len(nPerm), FUN.VALUE = double(1), function(jj){
-      if(verbose && ((jj-1) %% (nPerm/10)) == 0){
-          cat("Permutation", jj, "out of", nPerm, "\n")
-      }
-      sum(unlist(tapply(seq_len(nrow(coord)), sample(groups), function(x){
-        distSq[getDistCoord(x, N)]/length(x)
+    if (length(groups) == 1) {
+        groups <- get_variable(rcmObj$physeq, groups)
+    }
+    coord <- extractCoord(rcmObj, Dim)$samples
+    N <- nrow(coord)
+    if (N != length(groups)) {
+        stop(
+            "Length of grouping variable provided (", length(groups),
+            "does not correspond to number of samples in RCM object (", N, ")"
+        )
+    }
+    a <- length(unique(groups))
+    if (a <= 1) {
+        stop("Provide more than one group in 'groups'.")
+    }
+    if (any(table(groups) == 1)) {
+        stop("Some groups contain only a single observation, no distances can be calculated.")
+    }
+    distSq <- dist(coord)^2
+    overalDist <- sum(distSq) / N
+    # Observed test statistic
+    withinDistObs <- sum(unlist(tapply(seq_len(nrow(coord)), groups, function(x) {
+        distSq[getDistCoord(x, N)] / length(x)
+    })))
+    FratioObs <- (overalDist - withinDistObs) / withinDistObs * (a - 1) / (N - a)
+    # PERMANOVA
+    withinDistPerm <- vapply(seq_len(nPerm), FUN.VALUE = double(1), function(jj) {
+        if (verbose && ((jj - 1) %% (nPerm / 10)) == 0) {
+            message("Permutation", jj, "out of", nPerm)
+        }
+        sum(unlist(tapply(seq_len(nrow(coord)), sample(groups), function(x) {
+            distSq[getDistCoord(x, N)] / length(x)
         })))
-  })
-  FratioPerm = (overalDist-withinDistPerm)/withinDistPerm * (a-1)/(N-a)
-  PvalPerm = mean(FratioObs < FratioPerm)
-  return(list("statistic" = FratioObs, "p.value" = PvalPerm))
+    })
+    FratioPerm <- (overalDist - withinDistPerm) / withinDistPerm * (a - 1) / (N - a)
+    PvalPerm <- mean(FratioObs < FratioPerm)
+    return(list("statistic" = FratioObs, "p.value" = PvalPerm))
 }

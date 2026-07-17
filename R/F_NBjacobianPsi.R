@@ -11,12 +11,14 @@
 #' @param naId The numeric index of the missing values in X
 #'
 #' @return The evaluation of the jacobian function at beta, a 1-by-1 matrix
-NBjacobianPsi = function(beta, X, reg, muMarg,
-    theta, preFabMat, allowMissingness, naId) {
-    mu = muMarg * exp(reg * beta)
-    if(allowMissingness){
-        preFabMat = 1 + correctXMissingness(X, mu, allowMissingness, naId)/theta
+NBjacobianPsi <- function(
+      beta, X, reg, muMarg,
+      theta, preFabMat, allowMissingness, naId
+) {
+    mu <- muMarg * exp(reg * beta)
+    if (allowMissingness) {
+        preFabMat <- 1 + correctXMissingness(X, mu, allowMissingness, naId) / theta
     }
-    matrix(-sum(reg^2 * preFabMat * mu/(1 +
-        mu/theta)^2), 1, 1)
+    matrix(-sum(reg^2 * preFabMat * mu / (1 +
+        mu / theta)^2), 1, 1)
 }

@@ -8,7 +8,9 @@
 #' t(t(matrix)*vector) but then faster
 #'
 #' @return a matrix, row multplied by the vector
-rowMultiply = function(matrix, vector) {
-    matrix * rep(vector, rep(nrow(matrix), 
-        length(vector)))
+rowMultiply <- function(matrix, vector) {
+    matrix * rep(vector, rep(
+        nrow(matrix),
+        length(vector)
+    ))
 }

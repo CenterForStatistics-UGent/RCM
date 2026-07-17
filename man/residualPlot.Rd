@@ -70,12 +70,16 @@ run statistics or steepest slopes of the response function are plotted,
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[1:120],
-prune_samples(sample_names(Zeller)[1:75], Zeller))
-#Subset for a quick fit
-zellerRCMlin = RCM(tmpPhy, k = 2,
-covariates = c('BMI','Age','Country','Diagnosis','Gender'),
-responseFun = 'linear', round = TRUE, prevCutOff = 0.03)
+tmpPhy <- prune_taxa(
+    taxa_names(Zeller)[1:120],
+    prune_samples(sample_names(Zeller)[1:75], Zeller)
+)
+# Subset for a quick fit
+zellerRCMlin <- RCM(tmpPhy,
+    k = 2,
+    covariates = c("BMI", "Age", "Country", "Diagnosis", "Gender"),
+    responseFun = "linear", round = TRUE, prevCutOff = 0.03
+)
 residualPlot(zellerRCMlin)
 }
 \seealso{

@@ -4,8 +4,8 @@
 #' @param n The total number of objects in the distance matrix
 #'
 #' @return a vector of coordinates
-getDistCoord = function(indices, n){
-    indexI = n*(indices-1) - indices*(indices+1)/2# See details of ?dist
-    indexMat = outer(indexI, indices, FUN = "+")
+getDistCoord <- function(indices, n) {
+    indexI <- n * (indices - 1) - indices * (indices + 1) / 2 # See details of ?dist
+    indexMat <- outer(indexI, indices, FUN = "+")
     indexMat[upper.tri(indexMat)]
 }

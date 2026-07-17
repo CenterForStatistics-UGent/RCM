@@ -30,12 +30,14 @@ The underlying method of the RCM package is described in detail in the following
 The package can be installed and loaded using the following commands:
 
 ```{r load-packages, warning=FALSE, message=FALSE, echo=FALSE}
-knitr::opts_chunk$set(cache = TRUE, autodep = TRUE,
-                      warning = FALSE, message = FALSE, echo = TRUE, eval = TRUE, 
-                      tidy = TRUE, fig.width = 9, fig.height = 6, purl = TRUE, 
-                      fig.show = "hold", cache.lazy = FALSE)
-palStore = palette()
-#Load all fits, to avoid refitting every time rebuilding the vignette
+knitr::opts_chunk$set(
+    cache = TRUE, autodep = TRUE,
+    warning = FALSE, message = FALSE, echo = TRUE, eval = TRUE,
+    tidy = TRUE, fig.width = 9, fig.height = 6, purl = TRUE,
+    fig.show = "hold", cache.lazy = FALSE
+)
+palStore <- palette()
+# Load all fits, to avoid refitting every time rebuilding the vignette
 load(system.file("fits", "zellerFits.RData", package = "RCM"))
 ```
 
@@ -73,7 +75,7 @@ for this purpose, behind it is the *RCM_NB* function that does the hard work
 but requires numeric matrix imputs. We first fit a model with two dimensions,
 
 ```{r fitUnconstrainedRCM, eval = FALSE}
-ZellerRCM2 = RCM(Zeller, k=2, round = TRUE)
+ZellerRCM2 <- RCM(Zeller, k = 2, round = TRUE)
 ```
 
 which took `r round(ZellerRCM2$runtime,1)` minutes. 
@@ -88,7 +90,7 @@ By default, only 2 dimensions are fitted,
 but more can be requested throught the _k_ argument.
 
 ```{r ThreeDimensions, eval = FALSE}
-ZellerRCM3 = RCM(Zeller, k = 3, round = TRUE)
+ZellerRCM3 <- RCM(Zeller, k = 3, round = TRUE)
 ```
 
 The total runtime for all dimensions combined was 
@@ -100,7 +102,7 @@ In order to condition on certain variables, supply their names to the
 _confounders_ argument. Here we condition on the _country_ variable
 
 ```{r condition, eval = FALSE}
-ZellerRCM2cond = RCM(Zeller, k = 2, round = TRUE, confounders = c("Country"))
+ZellerRCM2cond <- RCM(Zeller, k = 2, round = TRUE, confounders = c("Country"))
 ```
 
 Conditioning can be applied for unconstrained as well as constrained RCM,
@@ -150,8 +152,10 @@ are associated with cancer. We can plot only these species using
 a regular expression.
 
 ```{r plotUnconstrainedRCMspec2}
-plot(ZellerRCM2, plotType = "species", taxRegExp = "Fusobacter", 
-     taxLabels = TRUE)
+plot(ZellerRCM2,
+    plotType = "species", taxRegExp = "Fusobacter",
+    taxLabels = TRUE
+)
 ```
 
 It is clear that these Fusobacterium species behave very differently 
@@ -197,10 +201,14 @@ We can also graphically highlight the departure from independence
 for a particular taxon and sample using the _addOrthProjection_ function:
 
 ```{r plotUnconstrainedRCMhighlight}
-tmpPlot = plot(ZellerRCM2, taxNum = 10, samColour = "Diagnosis",
-               returnCoords = TRUE)
-addOrthProjection(tmpPlot, species = "Alloprevotella tannerae",
-                  sample = c(-1.2,1.5))
+tmpPlot <- plot(ZellerRCM2,
+    taxNum = 10, samColour = "Diagnosis",
+    returnCoords = TRUE
+)
+addOrthProjection(tmpPlot,
+    species = "Alloprevotella tannerae",
+    sample = c(-1.2, 1.5)
+)
 ```
 
 The projection of the species vector is graphically shown here, 
@@ -213,7 +221,7 @@ We can then plot any combination of two dimensions we want,
 e.g. the first and the third.
 
 ```{r plotAddedDimension}
-plot(ZellerRCM3, Dim = c(1,3), samColour = "Diagnosis", taxNum = 6)
+plot(ZellerRCM3, Dim = c(1, 3), samColour = "Diagnosis", taxNum = 6)
 ```
 
 The third dimension also correlates with a separation of cancer patients vs. 
@@ -243,8 +251,10 @@ Especially the one bottom right may be a problematic case.
 The same principle can be applied to the taxa
 
 ```{r plotUnconstrainedRCMtaxDev}
-plot(ZellerRCM3, plotType = "species", taxCol = "Deviance", samSize = 2.5,
-     Dim = c(1,2), arrowSize = 0.5)
+plot(ZellerRCM3,
+    plotType = "species", taxCol = "Deviance", samSize = 2.5,
+    Dim = c(1, 2), arrowSize = 0.5
+)
 ```
 
 For the taxa it appears to be the taxa with smaller scores are the more poorly
@@ -259,14 +269,14 @@ but an overparametrized one.
 One may want to test whether the samples in an unconstrained ordination cluster according to some predefined grouping factor. Since the model is overparametrized, classical statistical tests are invalid. Instead, PERMANOVA is a permutation-based analysis that looks for significant clustering of samples based on distances alone. The only assumption underlying it is exchangeability of the samples, meaning that under the null hypothesis of identical microbiome composition in all groups, the samples are randomly distributed across the ordination. A natural test statistic to detect clusters based on a multidimensional ordination is the pseudo F-statistic. The distribution of this test statistic under the null hypothesis is then emulated by permuting the grouping labels, and recalculating within-group distances and associated pseudo F-statistics for every permutation instances. This is done conditional on the ordination result, so without refitting the RC(M) model. The _permanova_ function accepts variables present in the phyloseq object as groups, or user supplied grouping factors.
 
 ```{r permanova}
-permanovaZeller = permanova(ZellerRCM2, "Diagnosis")
+permanovaZeller <- permanova(ZellerRCM2, "Diagnosis")
 permanovaZeller
 ```
 
 We see that the PERMANOVA analysis for diagnosis is significant with p-value `r round(permanovaZeller$p.value, 3)`, because of the shift of the cancer samples to the left compared to the other two groups. Next we also test for significance of gender:
 
 ```{r permanovaGender}
-permanovaZellerGender = permanova(ZellerRCM2, "Gender", verbose = FALSE)
+permanovaZellerGender <- permanova(ZellerRCM2, "Gender", verbose = FALSE)
 ```
 
 As expected, this test is not significant (p-value=`r round(permanovaZellerGender$p.value, 3)`). Note that this test is not designed for clusters identified _based on_ the ordination, and is not recommended for testing a subset of grouping variables identified after looking at the ordination plots.
@@ -300,15 +310,23 @@ of being easy to interpret (and plot). Non-parametric ones (based on splines)
 are more flexible but are harder to plot.
 
 ```{r constrLinAndNP, eval = FALSE}
-#Linear
-ZellerRCM2constr = RCM(Zeller, k = 2, round = TRUE, 
-                       covariates = c("Age", "Gender","BMI","Country",
-                                      "Diagnosis"), responseFun = "linear")
-#Nonparametric
-ZellerRCM2constrNonParam = RCM(Zeller, round = TRUE, k = 2,
-                               covariates = c("Age","Gender","BMI","Country",
-                                              "Diagnosis"),
-                               responseFun = "nonparametric")
+# Linear
+ZellerRCM2constr <- RCM(Zeller,
+    k = 2, round = TRUE,
+    covariates = c(
+        "Age", "Gender", "BMI", "Country",
+        "Diagnosis"
+    ), responseFun = "linear"
+)
+# Nonparametric
+ZellerRCM2constrNonParam <- RCM(Zeller,
+    round = TRUE, k = 2,
+    covariates = c(
+        "Age", "Gender", "BMI", "Country",
+        "Diagnosis"
+    ),
+    responseFun = "nonparametric"
+)
 ```
 
 ### Plotting the constrained RCM model
@@ -325,8 +343,10 @@ plot(ZellerRCM2constr, plotType = c("samples"))
 we clearly see three groups of samples appearing.
 
 ```{r constrLinPlot2}
-plot(ZellerRCM2constr, plotType = c("samples"), samColour = "Diagnosis", 
-     samShape = "Country")
+plot(ZellerRCM2constr,
+    plotType = c("samples"), samColour = "Diagnosis",
+    samShape = "Country"
+)
 ```
 
 One group are the healthy patients, the other two are cancer patients.
@@ -377,10 +397,14 @@ of the environmental gradient its expected abundance increases.
 Again we can show this projection visually:
 
 ```{r plotlin2corVis}
-tmpPlot2 = plot(ZellerRCM2constr, plotType = c("species", "samples"), 
-                returnCoords = TRUE)
-addOrthProjection(tmpPlot2, species = "Pseudomonas fluorescens", 
-                  sample = c(-12,7))
+tmpPlot2 <- plot(ZellerRCM2constr,
+    plotType = c("species", "samples"),
+    returnCoords = TRUE
+)
+addOrthProjection(tmpPlot2,
+    species = "Pseudomonas fluorescens",
+    sample = c(-12, 7)
+)
 ```
 
 Note that the projection bar does not start from the origin in this case either.
@@ -400,10 +424,14 @@ in BMI has a similar effect to gender.
 Also this interpretation we can show visually on the graph
 
 ```{r plotlin3Vis}
-tmpPlot3 = plot(ZellerRCM2constr, plotType = c("species", "variables"), 
-                returnCoords = TRUE)
-addOrthProjection(tmpPlot3, species = "Pseudomonas fluorescens", 
-                  variable = "DiagnosisSmall_adenoma")
+tmpPlot3 <- plot(ZellerRCM2constr,
+    plotType = c("species", "variables"),
+    returnCoords = TRUE
+)
+addOrthProjection(tmpPlot3,
+    species = "Pseudomonas fluorescens",
+    variable = "DiagnosisSmall_adenoma"
+)
 ```
 
 We observe that country and diagnosis are the main drivers
@@ -429,11 +457,13 @@ triplots, whereby the shape of the response functions of the most strongly
 reacting taxa is shown. For this we use the _plotRespFun_ function.
 
 ```{r plotNPTriplot}
-plotRespFun(ZellerRCM2constrNonParam, taxa = NULL ,subdivisions = 50L,
-            yLocVar = c(-30, -50,-75,-62.5,-30,-62.5,-70,-50,-30)*0.225, 
-            Palette = "Set1", angle = 90, yLocSam = -20,  axisTitleSize = 16, 
-            axisLabSize = 11, legendTitleSize = 18, legendLabSize = 12, 
-            samShape = "Diagnosis", labSize = 5)
+plotRespFun(ZellerRCM2constrNonParam,
+    taxa = NULL, subdivisions = 50L,
+    yLocVar = c(-30, -50, -75, -62.5, -30, -62.5, -70, -50, -30) * 0.225,
+    Palette = "Set1", angle = 90, yLocSam = -20, axisTitleSize = 16,
+    axisLabSize = 11, legendTitleSize = 18, legendLabSize = 12,
+    samShape = "Diagnosis", labSize = 5
+)
 ```
 
 The first dimension is shown by default, the environmental scores of the samples
@@ -445,10 +475,14 @@ reacting species, whereby the x-axis represents the independence model.
  \cite{Zeller2014}.
 
 ```{r plotnonParamRespFunFuso}
-FusoSpecies = grep("Fusobacterium",value = TRUE,
-                   taxa_names(ZellerRCM2constrNonParam$physeq))
-plotRespFun(ZellerRCM2constrNonParam, Dim = 1, taxa = FusoSpecies, 
-            samShape = "Diagnosis")
+FusoSpecies <- grep("Fusobacterium",
+    value = TRUE,
+    taxa_names(ZellerRCM2constrNonParam$physeq)
+)
+plotRespFun(ZellerRCM2constrNonParam,
+    Dim = 1, taxa = FusoSpecies,
+    samShape = "Diagnosis"
+)
 ```
 
 ### Assessing the goodness of fit
@@ -474,8 +508,10 @@ residualPlot(ZellerRCM2constr, whichTaxa = "response", numTaxa = 6)
 The same taxa but with Pearson residuals 
 
 ```{r plotPearResp}
-residualPlot(ZellerRCM2constr, whichTaxa = "response",
-             resid = "Pearson", numTaxa = 6)
+residualPlot(ZellerRCM2constr,
+    whichTaxa = "response",
+    resid = "Pearson", numTaxa = 6
+)
 ```
 
 Most species do not exhibit any obvious pattern, although departures
@@ -488,8 +524,10 @@ and null distributions are equal this corresponds with the smallest p-values,
 but we do not do inference here because of the non-classical framework). 
 
 ```{r plotDevRuns}
-residualPlot(ZellerRCM2constr, whichTaxa = "runs", resid = "Deviance", 
-             numTaxa = 6)
+residualPlot(ZellerRCM2constr,
+    whichTaxa = "runs", resid = "Deviance",
+    numTaxa = 6
+)
 ```
 
 For these 6 taxa we see no signal at all.
@@ -516,14 +554,16 @@ that strongly affect the ordination. The age coefficient is largest
 in the second dimension actually, let's look at the influence on that component
 
 ```{r inflAgeFast2}
-plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "Age",
-     Influence = TRUE, inflDim = 2)
+plot(ZellerRCM2constr,
+    plotType = c("variables", "samples"), inflVar = "Age",
+    Influence = TRUE, inflDim = 2
+)
 ```
 
 When looking at categorical variable, one looks at one dummy at the time:
 
 ```{r inflDiag}
-plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "DiagnosisNormal", samShape ="Diagnosis" )
+plot(ZellerRCM2constr, plotType = c("variables", "samples"), inflVar = "DiagnosisNormal", samShape = "Diagnosis")
 ```
 
 In the unconstrained case, the "psi" variables seems a logical, overall choice
@@ -620,15 +660,15 @@ plot(ZellerRCM2cond, plotPsi = "inertia")
 First of all it is important to note that the plotting coordinates can easily be extracted. This may be useful when making plots with third party software.
 
 ```{r extractCoord}
-zellerCoords = extractCoord(ZellerRCM2)
+zellerCoords <- extractCoord(ZellerRCM2)
 str(zellerCoords)
 ```
 
 Also, this can be used to obtain a list of taxa contributing to the separation of the samples, sorted from most to least important.
 
 ```{r taxaStrongestSignal}
-taxaSignals = rowSums(zellerCoords$species[, c("end1","end2")]^2)
-sortedTaxa = taxa_names(ZellerRCM2$physeq)[order(taxaSignals, decreasing = TRUE)]
+taxaSignals <- rowSums(zellerCoords$species[, c("end1", "end2")]^2)
+sortedTaxa <- taxa_names(ZellerRCM2$physeq)[order(taxaSignals, decreasing = TRUE)]
 sortedTaxa[1:10]
 ```
 
@@ -649,16 +689,20 @@ plot(ZellerRCM2, axesFixed = FALSE)
 Confusion often arises as to why less distinct sample dots are shown than there are samples in the constrained ordination. This occurs when few, categorical constraining variables are supplied as below.
 
 ```{r linFewVars, eval = FALSE}
-#Linear with only 2 variables
-ZellerRCM3constr = RCM(Zeller, k = 2, round = TRUE, 
-                       covariates = c("Gender","Diagnosis"), responseFun = "linear")
+# Linear with only 2 variables
+ZellerRCM3constr <- RCM(Zeller,
+    k = 2, round = TRUE,
+    covariates = c("Gender", "Diagnosis"), responseFun = "linear"
+)
 ```
 
 Every constrained sample score is a linear combination of constraining variables, and in this case there are only 3x2=6 distinct sample scores possible, leading to the sample dots from microbiomes from the same gender and diagnosis to be plotted on top of each other.
 
 ```{r plotFewVars}
-plot(ZellerRCM3constr, plotType = "samples", samColour = "Diagnosis", 
-     samShape = "Country")
+plot(ZellerRCM3constr,
+    plotType = "samples", samColour = "Diagnosis",
+    samShape = "Country"
+)
 ```
 
 In general, it is best to include all measured sample variables in a constrained analysis, and let the RCM-algorithm find out which ones are the most important drivers of variability.

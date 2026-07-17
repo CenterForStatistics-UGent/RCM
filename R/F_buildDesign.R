@@ -10,10 +10,14 @@
 #'
 #' @return A design matrix of dimension n-by-f
 #' @importFrom stats model.matrix
-buildDesign = function(sampleScore, responseFun) {
+buildDesign <- function(sampleScore, responseFun) {
     # With intercept
-    design = switch(responseFun, linear = model.matrix(~sampleScore),
-        quadratic = model.matrix(~sampleScore +
-            I(sampleScore^2)), dynamic = model.matrix(~sampleScore +
-            I(sampleScore^2)), stop("Unknown response function"))
+    design <- switch(responseFun,
+        linear = model.matrix(~sampleScore),
+        quadratic = model.matrix(~ sampleScore +
+            I(sampleScore^2)),
+        dynamic = model.matrix(~ sampleScore +
+            I(sampleScore^2)),
+        stop("Unknown response function")
+    )
 }

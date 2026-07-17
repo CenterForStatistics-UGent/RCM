@@ -4,7 +4,9 @@
 #'
 #' @return A model matrix with degree+1 columns and as many rows as lenght(y)
 #' @importFrom stats model.matrix formula
-getModelMat = function(y, degree) {
-    model.matrix(formula(paste("~", paste(paste("I(y^",
-        seq_len(degree), ")"), collapse = "+"))))
+getModelMat <- function(y, degree) {
+    model.matrix(formula(paste("~", paste(paste(
+        "I(y^",
+        seq_len(degree), ")"
+    ), collapse = "+"))))
 }

@@ -36,89 +36,130 @@
 #' @importFrom MASS negative.binomial
 #' @importFrom stats na.omit
 #' @importFrom VGAM s vgam coef negbinomial.size
-estNPresp = function(sampleScore, muMarg,
-    X, ncols, thetas, n, coefInit, coefInitOverall,
-    dfSpline, vgamMaxit, degree, verbose, allowMissingness, naId,
-    ...) {
-    logMu = log(muMarg)
-    MM = getModelMat(sampleScore, degree)
+estNPresp <- function(
+      sampleScore, muMarg,
+      X, ncols, thetas, n, coefInit, coefInitOverall,
+      dfSpline, vgamMaxit, degree, verbose, allowMissingness, naId,
+      ...
+) {
+    logMu <- log(muMarg)
+    MM <- getModelMat(sampleScore, degree)
     # The model matrix for the parametric fit
-    MM1 = getModelMat(sampleScore, degree = 1)
+    MM1 <- getModelMat(sampleScore, degree = 1)
     # The model matrix of the first degree
-    taxonWise = lapply(seq_len(ncols), function(i) {
-        #Fit based on non-NAs
-        df = data.frame(x = X[, i], sampleScore = sampleScore,
-            logMu = log(muMarg[, i]))
+    taxonWise <- lapply(seq_len(ncols), function(i) {
+        # Fit based on non-NAs
+        df <- data.frame(
+            x = X[, i], sampleScore = sampleScore,
+            logMu = log(muMarg[, i])
+        )
         # Going through a dataframe slows things
         # down, so ideally we should appeal
         # directly to the vgam.fit function
-        tmp = try(suppressWarnings(vgam(data = df,
+        tmp <- try(suppressWarnings(vgam(
+            data = df,
             x ~ s(sampleScore, df = dfSpline),
-            offset = logMu, family = negbinomial.size(lmu = "loglink",
-                size = thetas[i]), coefstart = coefInit[[i]],
-            maxit = vgamMaxit, na.option = na.omit,...)), silent = TRUE)
+            offset = logMu, family = negbinomial.size(
+                lmu = "loglink",
+                size = thetas[i]
+            ), coefstart = coefInit[[i]],
+            maxit = vgamMaxit, na.option = na.omit, ...
+        )), silent = TRUE)
         if (inherits(tmp, "try-error")) {
             # If this fails turn to parametric fit
-            warning("GAM would not fit, turned to parametric fit of degree ",
-                degree, "!")
-            nonNaId = !is.na(X[,i])
-            tmp = try(nleqslv(fn = dNBllcolNP,
-                x = if (length(coefInit[[i]])) {coefInit[[i]]
-                } else rep(1e-04, degree + 1), X = X[nonNaId,i],
-                reg = MM[nonNaId,], theta = thetas[i],
+            warning(
+                "GAM would not fit, turned to parametric fit of degree ",
+                degree, "!"
+            )
+            nonNaId <- !is.na(X[, i])
+            tmp <- try(nleqslv(
+                fn = dNBllcolNP,
+                x = if (length(coefInit[[i]])) {
+                    coefInit[[i]]
+                } else {
+                    rep(1e-04, degree + 1)
+                }, X = X[nonNaId, i],
+                reg = MM[nonNaId, ], theta = thetas[i],
                 muMarg = muMarg[nonNaId, i], jac = NBjacobianColNP,
-                allowMissingness = FALSE)$x)
+                allowMissingness = FALSE
+            )$x)
         } else {
             # if VGAM fit succeeds, retain only
             # necessary information
-            tmp = list(coef = coef(tmp),
-                spline = tmp@Bspline[[1]])
+            tmp <- list(
+                coef = coef(tmp),
+                spline = tmp@Bspline[[1]]
+            )
         }
         if (inherits(tmp, "try-error")) {
             warning("GLM would not fit either, returning independence model! ")
-            tmp = numeric(degree + 1)
-            #If nothing will fit, stick to an independence model
+            tmp <- numeric(degree + 1)
+            # If nothing will fit, stick to an independence model
         }
         return(tmp)
     })
-    names(taxonWise) = colnames(X)
+    names(taxonWise) <- colnames(X)
     # Report failed fits
-    sumFit = sum(!vapply(FUN.VALUE = TRUE,
-        taxonWise, is.list))
-    if (verbose && sumFit)
-        warning("A total number of ", sumFit,
-            " response functions did not converge! \n")
+    sumFit <- sum(!vapply(
+        FUN.VALUE = TRUE,
+        taxonWise, is.list
+    ))
+    if (verbose && sumFit) {
+        warning(
+            "A total number of ", sumFit,
+            " response functions did not converge! \n"
+        )
+    }
     # Overall fit
-    samRep = rep(sampleScore, ncols)
-    sizes = if(length(naId)) rep(thetas, each = n)[-naId] else rep(thetas, each = n)
-    overall = vgam(c(X) ~ s(samRep, df = dfSpline),
-        offset = c(logMu), family = negbinomial.size(lmu = "loglink",
-            size = sizes),
+    samRep <- rep(sampleScore, ncols)
+    sizes <- if (length(naId)) rep(thetas, each = n)[-naId] else rep(thetas, each = n)
+    overall <- vgam(c(X) ~ s(samRep, df = dfSpline),
+        offset = c(logMu), family = negbinomial.size(
+            lmu = "loglink",
+            size = sizes
+        ),
         coefstart = coefInitOverall, maxit = vgamMaxit,
-        na.option = na.omit, ...)
-    overallList = list(coef = coef(overall),
-        spline = overall@Bspline[[1]])
+        na.option = na.omit, ...
+    )
+    overallList <- list(
+        coef = coef(overall),
+        spline = overall@Bspline[[1]]
+    )
     # Return lists of splines and of
     # coefficients, and a row regression
     # matrix
-    rowMat = vapply(FUN.VALUE = numeric(n),
+    rowMat <- vapply(
+        FUN.VALUE = numeric(n),
         taxonWise, function(x) {
-            if (is.list(x))
+            if (is.list(x)) {
                 cbind(MM1, predict(x$spline, x = sampleScore)$y) %*%
-                c(x$coef, 1) else MM %*% x
-        })
-    rowVecOverall = cbind(MM1, predict(overallList$spline,
-        x = sampleScore)$y) %*% c(overallList$coef,1)
-    taxonCoef = lapply(taxonWise, function(x) {
-        if (is.list(x))
-            x$coef else x
+                    c(x$coef, 1)
+            } else {
+                MM %*% x
+            }
+        }
+    )
+    rowVecOverall <- cbind(MM1, predict(overallList$spline,
+        x = sampleScore
+    )$y) %*% c(overallList$coef, 1)
+    taxonCoef <- lapply(taxonWise, function(x) {
+        if (is.list(x)) {
+            x$coef
+        } else {
+            x
+        }
     })
-    splinesList = lapply(taxonWise, function(x) {
-        if (is.list(x))
-            x$spline else NULL
+    splinesList <- lapply(taxonWise, function(x) {
+        if (is.list(x)) {
+            x$spline
+        } else {
+            NULL
+        }
     })
 
-    list(taxonCoef = taxonCoef, splinesList = splinesList,
+    list(
+        taxonCoef = taxonCoef, splinesList = splinesList,
         rowMat = rowMat, overall = overallList,
-        rowVecOverall = rowVecOverall)
+        rowVecOverall = rowVecOverall
+    )
 }

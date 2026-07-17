@@ -19,16 +19,19 @@
 #' @return The evaluation of the score functions, a vector of length (p+1)*
 #' (deg+1)
 #'
-respFunScoreMat = function(betas, X, reg,
-    thetaMat, muMarg, psi, p, v, allowMissingness, naId,...) {
-    NBparams = matrix(betas[seq_len(p * v)],
-        ncol = p)
-    mu = exp((reg %*% NBparams) * psi) *
+respFunScoreMat <- function(
+      betas, X, reg,
+      thetaMat, muMarg, psi, p, v, allowMissingness, naId, ...
+) {
+    NBparams <- matrix(betas[seq_len(p * v)],
+        ncol = p
+    )
+    mu <- exp((reg %*% NBparams) * psi) *
         muMarg
-    X = correctXMissingness(X, mu, allowMissingness, naId)
-    score = crossprod(reg, (X - mu)/(1 +
-        mu/thetaMat)) * psi + 2 * betas[seq_len(v) +
+    X <- correctXMissingness(X, mu, allowMissingness, naId)
+    score <- crossprod(reg, (X - mu) / (1 +
+        mu / thetaMat)) * psi + 2 * betas[seq_len(v) +
         p * v] * NBparams
-    norm = rowSums(NBparams^2) - 1
-    return(c(score, norm))  #Taxon per taxon
+    norm <- rowSums(NBparams^2) - 1
+    return(c(score, norm)) # Taxon per taxon
 }

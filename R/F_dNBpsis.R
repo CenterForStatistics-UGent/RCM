@@ -11,9 +11,11 @@
 #' @param ... other arguments passed on to the jacobian
 
 #' @return The evaluation of the score function at beta, a scalar
-dNBpsis = function(beta, X, reg, theta, muMarg, allowMissingness, naId,
-    ...) {
-    mu = muMarg * exp(reg * beta)
-    X = correctXMissingness(X, mu, allowMissingness, naId)
-    sum(reg * (X - mu)/(1 + (mu/theta)))
+dNBpsis <- function(
+      beta, X, reg, theta, muMarg, allowMissingness, naId,
+      ...
+) {
+    mu <- muMarg * exp(reg * beta)
+    X <- correctXMissingness(X, mu, allowMissingness, naId)
+    sum(reg * (X - mu) / (1 + (mu / theta)))
 }

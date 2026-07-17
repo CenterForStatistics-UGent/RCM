@@ -93,9 +93,11 @@ so that everything is passed on
 \examples{
 data(Zeller)
 require(phyloseq)
-tmpPhy = prune_taxa(taxa_names(Zeller)[1:100],
-prune_samples(sample_names(Zeller)[1:50], Zeller))
-zellerRCM = RCM(tmpPhy, round = TRUE)
+tmpPhy <- prune_taxa(
+    taxa_names(Zeller)[1:100],
+    prune_samples(sample_names(Zeller)[1:50], Zeller)
+)
+zellerRCM <- RCM(tmpPhy, round = TRUE)
 
 }
 \seealso{

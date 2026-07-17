@@ -1,6 +1,6 @@
-#'Filters out the effect of known confounders. This is done by fitting
-#'interactions of every taxon with the levels of the confounders.
-#'It returns a modified offset matrix for the remainder
+#' Filters out the effect of known confounders. This is done by fitting
+#' interactions of every taxon with the levels of the confounders.
+#' It returns a modified offset matrix for the remainder
 #' of the fitting procedure.
 #'
 #' @param muMarg a nxp matrix, the current offset
@@ -26,38 +26,45 @@
 #' \item{thetas}{new theta estimates}
 #' \item{NB_params}{The estimated parameters of the interaction terms}
 
-filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
-    trended.dispersion, tol = 0.001, maxIt = 20, allowMissingness, naId) {
-    NB_params = matrix(0, ncol(confMat), p)
+filterConfounders <- function(
+      muMarg, confMat, X, thetas, p, n, nleqslv.control,
+      trended.dispersion, tol = 0.001, maxIt = 20, allowMissingness, naId
+) {
+    NB_params <- matrix(0, ncol(confMat), p)
 
-    iter = 1
+    iter <- 1
     while ((iter == 1) || ((iter <= maxIt) && (!convergence))) {
+        NB_params_old <- NB_params
 
-        NB_params_old = NB_params
-
-        NB_params = vapply(FUN.VALUE = numeric(nrow(NB_params)), seq_len(p),
+        NB_params <- vapply(
+            FUN.VALUE = numeric(nrow(NB_params)), seq_len(p),
             function(i) {
-                nleq = try(nleqslv(NB_params[, i], reg = confMat,
-                fn = dNBllcol_constr,
-                theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
-                control = nleqslv.control,
-                jac = JacCol_constr, psi = 1,
-                allowMissingness = allowMissingness,
-                naId = is.na(X[, i]))$x)
-        # Fit the taxon-by taxon NB with given overdispersion parameters and
+                nleq <- try(nleqslv(NB_params[, i],
+                    reg = confMat,
+                    fn = dNBllcol_constr,
+                    theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
+                    control = nleqslv.control,
+                    jac = JacCol_constr, psi = 1,
+                    allowMissingness = allowMissingness,
+                    naId = is.na(X[, i])
+                )$x)
+                # Fit the taxon-by taxon NB with given overdispersion parameters and
                 # return predictions
                 if (inherits(nleq, "try-error") | anyNA(nleq) |
                     any(is.infinite(nleq))) {
-                nleq = nleqslv(NB_params[, i], reg = confMat,
-                fn = dNBllcol_constr,
-                theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
-                control = nleqslv.control, psi = 1,
-                allowMissingness = allowMissingness,
-                naId = is.na(X[, i]))$x
+                    nleq <- nleqslv(NB_params[, i],
+                        reg = confMat,
+                        fn = dNBllcol_constr,
+                        theta = thetas[i], muMarg = muMarg[, i], X = X[, i],
+                        control = nleqslv.control, psi = 1,
+                        allowMissingness = allowMissingness,
+                        naId = is.na(X[, i])
+                    )$x
                 }
                 # If fails try with numeric jacobian
                 return(nleq)
-            })  #Estimate response functions
+            }
+        ) # Estimate response functions
 
         if (anyNA(NB_params)) {
             stop("Filtering on confounders failed because of
@@ -65,13 +72,16 @@ filterConfounders = function(muMarg, confMat, X, thetas, p, n, nleqslv.control,
             increasing the prevCutOff parameter.\n")
         }
 
-        thetas = estDisp(X = X, cMat = matrix(0, ncol = p), rMat = matrix(0,
-            nrow = n), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params),
+        thetas <- estDisp(
+            X = X, cMat = matrix(0, ncol = p), rMat = matrix(0,
+                nrow = n
+            ), psis = 0, muMarg = muMarg * exp(confMat %*% NB_params),
             trended.dispersion = trended.dispersion,
-            allowMissingness = allowMissingness)
+            allowMissingness = allowMissingness
+        )
         # Estimate overdispersion
-        iter = iter + 1
-        convergence = sqrt(mean((1 - NB_params/NB_params_old)^2)) < tol
+        iter <- iter + 1
+        convergence <- sqrt(mean((1 - NB_params / NB_params_old)^2)) < tol
         # Check for convergence, L2-norm
     }
     list(thetas = thetas, NB_params = NB_params)

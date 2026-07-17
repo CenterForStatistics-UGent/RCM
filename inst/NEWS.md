@@ -112,3 +112,9 @@
 # 1.25.2
 
  - Fixed issues with citation file
+ 
+# 1.29.0
+
+ - Update R version requirement
+ - Restyle to align with Bioconductor requirements
+ - Added r-universe testing
